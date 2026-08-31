@@ -1,19 +1,27 @@
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
+import type { WarningLevel } from '../hooks/useCountdown'
 
 interface FlipDigitProps {
   value: string
-  warning: boolean
+  warningLevel: WarningLevel
+}
+
+const LEVEL_CLASSES: Record<WarningLevel, string> = {
+  none: 'bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-50',
+  yellow: 'bg-amber-400 text-amber-950',
+  orange: 'bg-orange-500 text-white',
+  red: 'bg-rose-600 text-rose-50',
 }
 
 /** Fills its parent box, showing only the top or bottom crop of the full glyph. */
-function Face({ value, warning, half }: { value: string; warning: boolean; half: 'top' | 'bottom' }) {
+function Face({ value, warningLevel, half }: { value: string; warningLevel: WarningLevel; half: 'top' | 'bottom' }) {
   return (
     <div
       className={clsx(
         'absolute inset-0 overflow-hidden border border-black/5 font-mono font-black tabular-nums transition-colors duration-300 dark:border-white/10',
-        warning ? 'bg-rose-600 text-rose-50' : 'bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-50',
+        LEVEL_CLASSES[warningLevel],
       )}
     >
       <div
@@ -36,7 +44,7 @@ function Face({ value, warning, half }: { value: string; warning: boolean; half:
 
 const FLIP_PHASE_MS = 260
 
-export function FlipDigit({ value, warning }: FlipDigitProps) {
+export function FlipDigit({ value, warningLevel }: FlipDigitProps) {
   const [settled, setSettled] = useState(value)
   const [pending, setPending] = useState<string | null>(null)
   const [phase, setPhase] = useState<'idle' | 'leaf1' | 'leaf2'>('idle')
@@ -57,10 +65,10 @@ export function FlipDigit({ value, warning }: FlipDigitProps) {
     >
       {/* Resting plates - top updates the instant a flip starts (hidden behind leaf1 until it clears); bottom updates only once leaf2 finishes. */}
       <div className="absolute inset-x-0 top-0 h-1/2 overflow-hidden rounded-t-lg">
-        <Face value={topValue} warning={warning} half="top" />
+        <Face value={topValue} warningLevel={warningLevel} half="top" />
       </div>
       <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden rounded-b-lg">
-        <Face value={settled} warning={warning} half="bottom" />
+        <Face value={settled} warningLevel={warningLevel} half="bottom" />
       </div>
 
       {phase === 'leaf1' && pending !== null && (
@@ -72,7 +80,7 @@ export function FlipDigit({ value, warning }: FlipDigitProps) {
           transition={{ duration: FLIP_PHASE_MS / 1000, ease: 'easeIn' }}
           onAnimationComplete={() => setPhase('leaf2')}
         >
-          <Face value={settled} warning={warning} half="top" />
+          <Face value={settled} warningLevel={warningLevel} half="top" />
           <motion.div
             className="absolute inset-0 bg-black"
             initial={{ opacity: 0 }}
@@ -95,7 +103,7 @@ export function FlipDigit({ value, warning }: FlipDigitProps) {
             setPhase('idle')
           }}
         >
-          <Face value={pending} warning={warning} half="bottom" />
+          <Face value={pending} warningLevel={warningLevel} half="bottom" />
           <motion.div
             className="absolute inset-0 bg-black"
             initial={{ opacity: 0.45 }}

@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const MAX_MINUTES = 99
 const MAX_SECONDS_DIGIT = 59
 
+export type WarningLevel = 'none' | 'yellow' | 'orange' | 'red'
+
 export function useCountdown(onComplete: () => void) {
   const [configuredSeconds, setConfiguredSeconds] = useState(5 * 60)
   const [remainingSeconds, setRemainingSeconds] = useState(5 * 60)
@@ -80,7 +82,12 @@ export function useCountdown(onComplete: () => void) {
   }, [clearTick])
 
   const percentRemaining = configuredSeconds > 0 ? remainingSeconds / configuredSeconds : 1
-  const isWarning = remainingSeconds > 0 && percentRemaining <= 0.25
+  let warningLevel: WarningLevel = 'none'
+  if (remainingSeconds > 0) {
+    if (percentRemaining <= 0.25) warningLevel = 'red'
+    else if (percentRemaining <= 0.35) warningLevel = 'orange'
+    else if (percentRemaining <= 0.45) warningLevel = 'yellow'
+  }
 
   const minutes = Math.floor(remainingSeconds / 60)
   const seconds = remainingSeconds % 60
@@ -89,7 +96,7 @@ export function useCountdown(onComplete: () => void) {
     minutes,
     seconds,
     running,
-    isWarning,
+    warningLevel,
     adjustMinutes,
     adjustSeconds,
     start,

@@ -14,10 +14,10 @@ interface FlipTimerProps {
 
 export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTimerProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { minutes, seconds, running, isWarning, adjustMinutes, adjustSeconds, start, pause, stop } = useCountdown(() =>
+  const { minutes, seconds, running, warningLevel, adjustMinutes, adjustSeconds, start, pause, stop } = useCountdown(() =>
     playAlarm(settings.alarmSound),
   )
-  const warningActive = settings.warningEnabled && isWarning
+  const activeWarningLevel = settings.warningEnabled ? warningLevel : 'none'
   const remainingTotal = minutes * 60 + seconds
 
   useEffect(() => {
@@ -30,16 +30,16 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
   return (
     <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-black/10 bg-neutral-100 p-3 shadow-lg dark:border-white/10 dark:bg-neutral-900">
       <div className="flex w-full items-center gap-1">
-        <FlipDigit value={mm[0]} warning={warningActive} />
-        <FlipDigit value={mm[1]} warning={warningActive} />
+        <FlipDigit value={mm[0]} warningLevel={activeWarningLevel} />
+        <FlipDigit value={mm[1]} warningLevel={activeWarningLevel} />
         <span
           className="shrink-0 px-0.5 font-black text-neutral-400 dark:text-neutral-500"
           style={{ fontSize: 'clamp(1rem, 4.5vmin, 2.4rem)' }}
         >
           :
         </span>
-        <FlipDigit value={ss[0]} warning={warningActive} />
-        <FlipDigit value={ss[1]} warning={warningActive} />
+        <FlipDigit value={ss[0]} warningLevel={activeWarningLevel} />
+        <FlipDigit value={ss[1]} warningLevel={activeWarningLevel} />
       </div>
 
       <button
