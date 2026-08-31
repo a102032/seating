@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeftRight, ChevronDown, Cloud, CloudOff, Settings, Shuffle, User, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -49,6 +49,10 @@ export function SidePanel({
 
   const activeClass = classes.find((c) => c.id === activeClassId)
 
+  useEffect(() => {
+    if (swapMode) setListOpen(false)
+  }, [swapMode])
+
   function requestSwitch(cls: ClassData) {
     if (cls.id === activeClassId) {
       setListOpen(false)
@@ -76,8 +80,9 @@ export function SidePanel({
             <button
               type="button"
               onClick={() => setListOpen((v) => !v)}
+              disabled={swapMode}
               title="Switch class"
-              className="shrink-0 rounded-full p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+              className="shrink-0 rounded-full p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
             >
               <motion.span animate={{ rotate: listOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
                 <ChevronDown size={18} />
@@ -118,10 +123,10 @@ export function SidePanel({
         </AnimatePresence>
       </div>
 
-      <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} />
+      <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={swapMode} />
 
       <div className="flex shrink-0 flex-col gap-1.5">
-        <TactileButton onClick={onOpenSettings} className="w-full justify-start">
+        <TactileButton onClick={onOpenSettings} disabled={swapMode} className="w-full justify-start">
           <Settings size={18} /> Settings
         </TactileButton>
         <TactileButton active={swapMode} onClick={onToggleSwap} className="w-full justify-start">
@@ -133,19 +138,21 @@ export function SidePanel({
             <button
               type="button"
               onClick={onOpenPickerSettings}
+              disabled={swapMode}
               title="Random picker settings"
-              className="shrink-0 rounded-full p-1 text-neutral-500 hover:bg-black/[0.05] active:scale-95 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+              className="shrink-0 rounded-full p-1 text-neutral-500 hover:bg-black/[0.05] active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
             >
               <Settings size={15} />
             </button>
           </div>
           <div className="flex flex-col gap-1.5">
-            <TactileButton onClick={onPickStudent} className="w-full justify-start">
+            <TactileButton onClick={onPickStudent} disabled={swapMode} className="w-full justify-start">
               <User size={18} /> Pick Student
             </TactileButton>
             <TactileButton
               active={rowLocked}
               onClick={onPickRow}
+              disabled={swapMode}
               className="w-full justify-start"
               title={rowLocked ? 'A row is locked - Pick Student now draws from it. Tap the row to clear it.' : undefined}
             >
@@ -171,8 +178,9 @@ export function SidePanel({
         <button
           type="button"
           onClick={onToggleSide}
+          disabled={swapMode}
           title={`Move panel to the ${side === 'left' ? 'right' : 'left'}`}
-          className="rounded-lg p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+          className="rounded-lg p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
         >
           <ArrowLeftRight size={16} />
         </button>

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Minus, Pause, Play, Plus, Settings, Square } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useCountdown } from '../hooks/useCountdown'
 import { playAlarm } from '../lib/sound'
 import type { TimerSettings } from '../types'
@@ -9,15 +9,20 @@ import { FlipDigit } from './FlipDigit'
 interface FlipTimerProps {
   settings: TimerSettings
   onOpenSettings: () => void
+  disabled?: boolean
 }
 
-export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
+export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTimerProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { minutes, seconds, running, isWarning, adjustMinutes, adjustSeconds, start, pause, stop } = useCountdown(() =>
     playAlarm(settings.alarmSound),
   )
   const warningActive = settings.warningEnabled && isWarning
   const remainingTotal = minutes * 60 + seconds
+
+  useEffect(() => {
+    if (disabled) setMenuOpen(false)
+  }, [disabled])
 
   const mm = String(minutes).padStart(2, '0')
   const ss = String(seconds).padStart(2, '0')
@@ -40,7 +45,8 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
       <button
         type="button"
         onClick={() => setMenuOpen((v) => !v)}
-        className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-semibold text-neutral-500 hover:bg-black/5 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
+        disabled={disabled}
+        className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-semibold text-neutral-500 hover:bg-black/5 hover:text-neutral-800 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
       >
         {menuOpen ? 'Hide controls' : 'Timer controls'}
         <motion.span animate={{ rotate: menuOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
@@ -61,10 +67,10 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
               <div className="flex flex-col items-center gap-1">
                 <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400">MIN</span>
                 <div className="flex items-center gap-1">
-                  <SpinButton disabled={running} onClick={() => adjustMinutes(-1)}>
+                  <SpinButton disabled={disabled || running} onClick={() => adjustMinutes(-1)}>
                     <Minus size={14} />
                   </SpinButton>
-                  <SpinButton disabled={running} onClick={() => adjustMinutes(1)}>
+                  <SpinButton disabled={disabled || running} onClick={() => adjustMinutes(1)}>
                     <Plus size={14} />
                   </SpinButton>
                 </div>
@@ -72,30 +78,31 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
               <div className="flex flex-col items-center gap-1">
                 <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400">SEC</span>
                 <div className="flex items-center gap-1">
-                  <SpinButton disabled={running} onClick={() => adjustSeconds(-1)}>
+                  <SpinButton disabled={disabled || running} onClick={() => adjustSeconds(-1)}>
                     <Minus size={14} />
                   </SpinButton>
-                  <SpinButton disabled={running} onClick={() => adjustSeconds(1)}>
+                  <SpinButton disabled={disabled || running} onClick={() => adjustSeconds(1)}>
                     <Plus size={14} />
                   </SpinButton>
                 </div>
               </div>
               <button
                 onClick={onOpenSettings}
-                className="mt-3.5 rounded-full p-1.5 text-neutral-500 hover:bg-black/5 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
+                disabled={disabled}
+                className="mt-3.5 rounded-full p-1.5 text-neutral-500 hover:bg-black/5 hover:text-neutral-800 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
                 title="Timer settings"
               >
                 <Settings size={18} />
               </button>
             </div>
             <div className="flex items-center gap-3 pb-0.5 pt-1">
-              <SymbolButton disabled={running || remainingTotal <= 0} onClick={start} title="Start">
+              <SymbolButton disabled={disabled || running || remainingTotal <= 0} onClick={start} title="Start">
                 <Play size={20} />
               </SymbolButton>
-              <SymbolButton disabled={!running} onClick={pause} title="Pause">
+              <SymbolButton disabled={disabled || !running} onClick={pause} title="Pause">
                 <Pause size={20} />
               </SymbolButton>
-              <SymbolButton disabled={!running && remainingTotal <= 0} onClick={stop} title="Stop">
+              <SymbolButton disabled={disabled || (!running && remainingTotal <= 0)} onClick={stop} title="Stop">
                 <Square size={20} />
               </SymbolButton>
             </div>

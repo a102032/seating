@@ -203,20 +203,6 @@ export function useClasses() {
     [updateClass],
   )
 
-  const assignSeat = useCallback(
-    (classId: string, deskIndex: number, studentId: string | null) =>
-      updateClass(classId, (c) => {
-        const seating = [...c.seating]
-        // Clear this student from any other desk first (no duplicates).
-        for (let i = 0; i < seating.length; i++) {
-          if (seating[i] === studentId) seating[i] = null
-        }
-        seating[deskIndex] = studentId
-        return { ...c, seating }
-      }),
-    [updateClass],
-  )
-
   const swapSeats = useCallback(
     (classId: string, deskA: number, deskB: number) =>
       updateClass(classId, (c) => {
@@ -286,7 +272,6 @@ export function useClasses() {
     addStudents,
     updateStudent,
     deleteStudent,
-    assignSeat,
     swapSeats,
     seatClass,
     unseatAll,

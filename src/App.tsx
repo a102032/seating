@@ -48,7 +48,6 @@ export default function App() {
     addStudents,
     updateStudent,
     deleteStudent,
-    assignSeat,
     swapSeats,
     seatClass,
     unseatAll,
@@ -119,10 +118,13 @@ export default function App() {
     const { active, over } = event
     if (!over) return
     const studentId = active.data.current?.studentId as string | null | undefined
-    if (!studentId) return
+    const fromDeskIndex = active.data.current?.fromDeskIndex as number | undefined
+    if (!studentId || fromDeskIndex === undefined) return
 
     if (over.data.current?.type === 'desk') {
-      assignSeat(activeClassId, over.data.current.deskIndex as number, studentId)
+      const toDeskIndex = over.data.current.deskIndex as number
+      if (toDeskIndex === fromDeskIndex) return
+      swapSeats(activeClassId, fromDeskIndex, toDeskIndex)
     }
   }
 
