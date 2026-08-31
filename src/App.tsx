@@ -133,7 +133,6 @@ export default function App() {
       classes={classes}
       activeClassId={activeClassId}
       onSelectClass={setActiveClassId}
-      onCreateClass={() => createClass()}
       swapMode={swapMode}
       onToggleSwap={() => {
         setSwapMode((v) => !v)
@@ -187,6 +186,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         activeClass={activeClass}
+        classesCount={classes.length}
         unseatedCount={unseatedStudents.length}
         onRename={(name) => renameClass(activeClass.id, name)}
         onAddStudents={(students) => addStudents(activeClass.id, students)}

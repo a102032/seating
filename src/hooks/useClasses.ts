@@ -3,6 +3,8 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type ClassData, type Gender, type Student } from '../types'
 
+export const MAX_CLASSES = 5
+
 function genId(): string {
   return crypto.randomUUID()
 }
@@ -145,12 +147,16 @@ export function useClasses() {
 
   const activeClass = classes.find((c) => c.id === activeClassId)
 
-  const createClass = useCallback((name?: string) => {
-    const cls = makeClass(name?.trim() || `Class ${classes.length + 1}`)
-    setClasses((prev) => [...prev, cls])
-    setActiveClassId(cls.id)
-    pushToCloud(cls)
-  }, [classes.length, pushToCloud])
+  const createClass = useCallback(
+    (name?: string) => {
+      if (classes.length >= MAX_CLASSES) return
+      const cls = makeClass(name?.trim() || `Class ${classes.length + 1}`)
+      setClasses((prev) => [...prev, cls])
+      setActiveClassId(cls.id)
+      pushToCloud(cls)
+    },
+    [classes.length, pushToCloud],
+  )
 
   const renameClass = useCallback(
     (id: string, name: string) => updateClass(id, (c) => ({ ...c, name })),

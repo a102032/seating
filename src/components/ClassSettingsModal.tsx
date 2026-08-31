@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Armchair, GraduationCap, Moon, Pencil, Plus, Sun, Trash2, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv } from '../lib/csv'
+import { MAX_CLASSES } from '../hooks/useClasses'
 import type { ClassData, Gender, Student } from '../types'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
@@ -11,6 +12,7 @@ interface ClassSettingsModalProps {
   open: boolean
   onClose: () => void
   activeClass: ClassData
+  classesCount: number
   unseatedCount: number
   onRename: (name: string) => void
   onAddStudents: (students: Omit<Student, 'id'>[]) => void
@@ -38,6 +40,7 @@ export function ClassSettingsModal({
   open,
   onClose,
   activeClass,
+  classesCount,
   unseatedCount,
   onRename,
   onAddStudents,
@@ -104,7 +107,12 @@ export function ClassSettingsModal({
             <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
               <UserX size={16} /> Unseat All
             </TactileButton>
-            <TactileButton onClick={onCreateClass}>
+            <TactileButton
+              onClick={onCreateClass}
+              disabled={classesCount >= MAX_CLASSES}
+              className={classesCount >= MAX_CLASSES ? 'opacity-40' : ''}
+              title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
+            >
               <Plus size={16} /> New Class
             </TactileButton>
             <TactileButton variant="danger" className="ml-auto" onClick={() => setConfirmingDelete(true)}>

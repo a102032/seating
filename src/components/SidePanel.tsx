@@ -1,6 +1,9 @@
 import clsx from 'clsx'
-import { ArrowLeftRight, Cloud, CloudOff, Plus, Settings, Shuffle, User, Users } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowLeftRight, ChevronDown, Cloud, CloudOff, Settings, Shuffle, User, Users } from 'lucide-react'
+import { useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
+import { ConfirmModal } from './ConfirmModal'
 import { FlipTimer } from './FlipTimer'
 import { TactileButton } from './TactileButton'
 
@@ -8,7 +11,6 @@ interface SidePanelProps {
   classes: ClassData[]
   activeClassId: string | null
   onSelectClass: (id: string) => void
-  onCreateClass: () => void
   swapMode: boolean
   onToggleSwap: () => void
   onPickStudent: () => void
@@ -25,7 +27,6 @@ export function SidePanel({
   classes,
   activeClassId,
   onSelectClass,
-  onCreateClass,
   swapMode,
   onToggleSwap,
   onPickStudent,
@@ -37,6 +38,19 @@ export function SidePanel({
   side,
   onToggleSide,
 }: SidePanelProps) {
+  const [listOpen, setListOpen] = useState(false)
+  const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
+
+  const activeClass = classes.find((c) => c.id === activeClassId)
+
+  function requestSwitch(cls: ClassData) {
+    if (cls.id === activeClassId) {
+      setListOpen(false)
+      return
+    }
+    setSwitchTarget(cls)
+  }
+
   return (
     <aside
       className={clsx(
@@ -44,6 +58,60 @@ export function SidePanel({
         'dark:border-white/10 dark:bg-neutral-900/60 dark:shadow-black/20',
       )}
     >
+      <div className="shrink-0">
+        <div className="flex items-center justify-between gap-1">
+          <span
+            className="truncate px-1 font-bold text-neutral-800 dark:text-neutral-100"
+            style={{ fontSize: 'clamp(1rem, 1.9vmin, 1.3rem)' }}
+          >
+            {activeClass?.name}
+          </span>
+          {classes.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setListOpen((v) => !v)}
+              title="Switch class"
+              className="shrink-0 rounded-full p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+            >
+              <motion.span animate={{ rotate: listOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
+                <ChevronDown size={18} />
+              </motion.span>
+            </button>
+          )}
+        </div>
+
+        <AnimatePresence initial={false}>
+          {listOpen && classes.length > 1 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="mt-1.5 flex flex-col gap-1 pt-1">
+                {classes.map((cls) => (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => requestSwitch(cls)}
+                    className={clsx(
+                      'w-full truncate rounded-xl px-3 py-2 text-left font-semibold transition-colors active:scale-[0.98]',
+                      cls.id === activeClassId
+                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
+                        : 'text-neutral-600 hover:bg-black/[0.05] dark:text-neutral-300 dark:hover:bg-white/[0.08]',
+                    )}
+                    style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
+                  >
+                    {cls.name}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} />
 
       <div className="flex shrink-0 flex-col gap-1.5">
@@ -61,43 +129,16 @@ export function SidePanel({
         </TactileButton>
       </div>
 
-      <div className="h-px shrink-0 bg-black/10 dark:bg-white/10" />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-        <p className="px-1 pb-1 text-xs font-bold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Classes</p>
-        {classes.map((cls) => (
-          <button
-            key={cls.id}
-            type="button"
-            onClick={() => onSelectClass(cls.id)}
-            className={clsx(
-              'w-full shrink-0 truncate rounded-xl px-3 py-2 text-left font-semibold transition-colors active:scale-[0.98]',
-              cls.id === activeClassId
-                ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-                : 'text-neutral-600 hover:bg-black/[0.05] dark:text-neutral-300 dark:hover:bg-white/[0.08]',
-            )}
-            style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
-          >
-            {cls.name}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={onCreateClass}
-          className="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-dashed border-black/15 px-3 py-2 font-semibold text-neutral-500 hover:bg-black/[0.04] active:scale-[0.98] dark:border-white/15 dark:text-neutral-400 dark:hover:bg-white/[0.06]"
-        >
-          <Plus size={16} /> New Class
-        </button>
-      </div>
+      <div className="min-h-0 flex-1" />
 
       <div className="h-px shrink-0 bg-black/10 dark:bg-white/10" />
 
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div className="flex shrink-0 flex-col items-center gap-1.5">
         <div
-          className="flex items-center gap-1.5 px-1 text-neutral-400 dark:text-neutral-500"
+          className="flex items-center gap-1.5 text-neutral-400 dark:text-neutral-500"
           title={isCloudSynced ? 'Synced live across devices' : 'Not connected to a shared database yet - saving on this device only'}
         >
-          {isCloudSynced ? <Cloud size={18} /> : <CloudOff size={18} />}
+          {isCloudSynced ? <Cloud size={16} /> : <CloudOff size={16} />}
           <span className="text-xs font-semibold">{isCloudSynced ? 'Synced' : 'Local only'}</span>
         </div>
         <button
@@ -109,6 +150,20 @@ export function SidePanel({
           <ArrowLeftRight size={16} />
         </button>
       </div>
+
+      <ConfirmModal
+        open={switchTarget !== null}
+        title={`Switch to "${switchTarget?.name}"?`}
+        message={`You'll now see "${switchTarget?.name}"'s seating chart instead of "${activeClass?.name}". Don't worry - "${activeClass?.name}" stays saved exactly as you left it, and you can switch back anytime.`}
+        confirmLabel="Yes, Switch"
+        cancelLabel="No"
+        onCancel={() => setSwitchTarget(null)}
+        onConfirm={() => {
+          if (switchTarget) onSelectClass(switchTarget.id)
+          setSwitchTarget(null)
+          setListOpen(false)
+        }}
+      />
     </aside>
   )
 }
