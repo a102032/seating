@@ -161,11 +161,7 @@ export default function App() {
         {sidePanel}
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-          <SeatClassBanner
-            totalStudents={activeClass.students.length}
-            unseatedCount={unseatedStudents.length}
-            onSeatClass={() => seatClass(activeClass.id)}
-          />
+          <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
 
           <main className="min-h-0 flex-1">
             <DeskGrid
