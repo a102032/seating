@@ -5,7 +5,6 @@ import { useCountdown } from '../hooks/useCountdown'
 import { playAlarm } from '../lib/sound'
 import type { TimerSettings } from '../types'
 import { FlipDigit } from './FlipDigit'
-import { TactileButton } from './TactileButton'
 
 interface FlipTimerProps {
   settings: TimerSettings
@@ -18,16 +17,20 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
     playAlarm(settings.alarmSound),
   )
   const warningActive = settings.warningEnabled && isWarning
+  const remainingTotal = minutes * 60 + seconds
 
   const mm = String(minutes).padStart(2, '0')
   const ss = String(seconds).padStart(2, '0')
 
   return (
-    <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-black/10 bg-neutral-900/95 p-3 shadow-lg dark:border-white/10">
-      <div className="flex items-center gap-1">
+    <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-black/10 bg-neutral-100 p-3 shadow-lg dark:border-white/10 dark:bg-neutral-900">
+      <div className="flex w-full items-center gap-1">
         <FlipDigit value={mm[0]} warning={warningActive} />
         <FlipDigit value={mm[1]} warning={warningActive} />
-        <span className="mx-0.5 font-black text-neutral-500" style={{ fontSize: 'clamp(1.2rem, 5vmin, 3rem)' }}>
+        <span
+          className="shrink-0 px-0.5 font-black text-neutral-400 dark:text-neutral-500"
+          style={{ fontSize: 'clamp(1rem, 4.5vmin, 2.4rem)' }}
+        >
           :
         </span>
         <FlipDigit value={ss[0]} warning={warningActive} />
@@ -37,7 +40,7 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
       <button
         type="button"
         onClick={() => setMenuOpen((v) => !v)}
-        className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-semibold text-neutral-400 hover:bg-white/10 hover:text-white"
+        className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-semibold text-neutral-500 hover:bg-black/5 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
       >
         {menuOpen ? 'Hide controls' : 'Timer controls'}
         <motion.span animate={{ rotate: menuOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
@@ -56,7 +59,7 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
           >
             <div className="flex items-center gap-4 pt-1">
               <div className="flex flex-col items-center gap-1">
-                <span className="text-xs font-bold text-neutral-400">MIN</span>
+                <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400">MIN</span>
                 <div className="flex items-center gap-1">
                   <SpinButton disabled={running} onClick={() => adjustMinutes(-1)}>
                     <Minus size={14} />
@@ -67,7 +70,7 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <span className="text-xs font-bold text-neutral-400">SEC</span>
+                <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400">SEC</span>
                 <div className="flex items-center gap-1">
                   <SpinButton disabled={running} onClick={() => adjustSeconds(-1)}>
                     <Minus size={14} />
@@ -79,25 +82,22 @@ export function FlipTimer({ settings, onOpenSettings }: FlipTimerProps) {
               </div>
               <button
                 onClick={onOpenSettings}
-                className="mt-3.5 rounded-full p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white"
+                className="mt-3.5 rounded-full p-1.5 text-neutral-500 hover:bg-black/5 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
                 title="Timer settings"
               >
                 <Settings size={18} />
               </button>
             </div>
-            <div className="flex items-center gap-2 pb-0.5 pt-1">
-              {!running ? (
-                <TactileButton variant="primary" onClick={start}>
-                  <Play size={16} /> Start
-                </TactileButton>
-              ) : (
-                <TactileButton onClick={pause}>
-                  <Pause size={16} /> Pause
-                </TactileButton>
-              )}
-              <TactileButton variant="danger" onClick={stop}>
-                <Square size={16} /> Stop
-              </TactileButton>
+            <div className="flex items-center gap-3 pb-0.5 pt-1">
+              <SymbolButton disabled={running || remainingTotal <= 0} onClick={start} title="Start">
+                <Play size={20} />
+              </SymbolButton>
+              <SymbolButton disabled={!running} onClick={pause} title="Pause">
+                <Pause size={20} />
+              </SymbolButton>
+              <SymbolButton disabled={!running && remainingTotal <= 0} onClick={stop} title="Stop">
+                <Square size={20} />
+              </SymbolButton>
             </div>
           </motion.div>
         )}
@@ -113,7 +113,34 @@ function SpinButton({ children, disabled, onClick }: { children: ReactNode; disa
       whileTap={disabled ? undefined : { scale: 0.9 }}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-neutral-600 bg-neutral-800 text-neutral-200 disabled:opacity-30"
+      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-neutral-300 bg-white text-neutral-600 disabled:opacity-30 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+    >
+      {children}
+    </motion.button>
+  )
+}
+
+function SymbolButton({
+  children,
+  disabled,
+  onClick,
+  title,
+}: {
+  children: ReactNode
+  disabled: boolean
+  onClick: () => void
+  title: string
+}) {
+  return (
+    <motion.button
+      type="button"
+      whileHover={disabled ? undefined : { scale: 1.15 }}
+      whileTap={disabled ? undefined : { scale: 0.88 }}
+      disabled={disabled}
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 hover:bg-black/5 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-200 dark:hover:bg-white/10"
     >
       {children}
     </motion.button>
