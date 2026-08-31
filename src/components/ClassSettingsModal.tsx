@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Moon, Pencil, Plus, Sun, Trash2, Upload, UserX } from 'lucide-react'
+import { GraduationCap, Moon, Pencil, Plus, Sun, Trash2, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv } from '../lib/csv'
 import type { ClassData, Gender, Student } from '../types'
@@ -11,6 +11,7 @@ interface ClassSettingsModalProps {
   open: boolean
   onClose: () => void
   activeClass: ClassData
+  unseatedCount: number
   onRename: (name: string) => void
   onAddStudents: (students: Omit<Student, 'id'>[]) => void
   onUpdateStudent: (studentId: string, patch: Partial<Omit<Student, 'id'>>) => void
@@ -18,6 +19,7 @@ interface ClassSettingsModalProps {
   onCreateClass: () => void
   onDeleteClass: () => void
   onUnseatAll: () => void
+  onSeatClass: () => void
   theme: 'light' | 'dark'
   onSetTheme: (theme: 'light' | 'dark') => void
 }
@@ -35,6 +37,7 @@ export function ClassSettingsModal({
   open,
   onClose,
   activeClass,
+  unseatedCount,
   onRename,
   onAddStudents,
   onUpdateStudent,
@@ -42,6 +45,7 @@ export function ClassSettingsModal({
   onCreateClass,
   onDeleteClass,
   onUnseatAll,
+  onSeatClass,
   theme,
   onSetTheme,
 }: ClassSettingsModalProps) {
@@ -91,6 +95,19 @@ export function ClassSettingsModal({
     <>
       <Modal open={open && !confirmingDelete && !confirmingUnseatAll} onClose={closeAndReset} title="Class Settings" wide>
         <div className="flex h-full min-h-0 flex-col gap-3.5">
+          {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
+          <section className="flex shrink-0 flex-wrap items-center gap-2 border-b border-black/10 pb-3.5 dark:border-white/10">
+            <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
+              <UserX size={16} /> Unseat All
+            </TactileButton>
+            <TactileButton onClick={onCreateClass}>
+              <Plus size={16} /> New Class
+            </TactileButton>
+            <TactileButton variant="danger" className="ml-auto" onClick={() => setConfirmingDelete(true)}>
+              <Trash2 size={16} /> Delete Class
+            </TactileButton>
+          </section>
+
           {/* Appearance + Class Name, sharing a row to save vertical space */}
           <section className="flex shrink-0 flex-wrap items-end gap-3">
             <div className="min-w-[10rem] flex-1">
@@ -151,30 +168,30 @@ export function ClassSettingsModal({
             </div>
           </section>
 
-          {/* Manual add */}
+          {/* Manual add - always one row, side by side */}
           <section className="shrink-0">
             <label className="mb-1 block text-sm font-bold text-neutral-500 dark:text-neutral-400">Add a Student</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-[2fr_1fr_1fr_auto] items-center gap-2">
               <input
                 value={manualName}
                 onChange={(e) => setManualName(e.target.value)}
                 placeholder="Name"
-                className={clsx(inputClass, 'min-w-[10rem] flex-1')}
+                className={clsx(inputClass, 'min-w-0')}
               />
               <input
                 value={manualHomeroom}
                 onChange={(e) => setManualHomeroom(e.target.value)}
                 placeholder="Homeroom #"
-                className={clsx(inputClass, 'w-32')}
+                className={clsx(inputClass, 'min-w-0')}
               />
-              <select value={manualGender} onChange={(e) => setManualGender(e.target.value as Gender)} className={clsx(inputClass, 'w-auto')}>
+              <select value={manualGender} onChange={(e) => setManualGender(e.target.value as Gender)} className={clsx(inputClass, 'min-w-0')}>
                 {genderOptions.map((g) => (
                   <option key={g.value} value={g.value}>
                     {g.label}
                   </option>
                 ))}
               </select>
-              <TactileButton variant="primary" onClick={submitManualAdd}>
+              <TactileButton variant="primary" onClick={submitManualAdd} className="whitespace-nowrap">
                 <Plus size={18} /> Add
               </TactileButton>
             </div>
@@ -185,7 +202,7 @@ export function ClassSettingsModal({
             <label className="mb-1 block shrink-0 text-sm font-bold text-neutral-500 dark:text-neutral-400">
               Roster ({activeClass.students.length} students)
             </label>
-            <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-black/10 dark:border-white/10">
+            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain rounded-2xl border border-black/10 dark:border-white/10">
               {activeClass.students.length === 0 ? (
                 <p className="p-4 text-center text-neutral-400 dark:text-neutral-500">No students yet. Add some above!</p>
               ) : (
@@ -207,16 +224,19 @@ export function ClassSettingsModal({
             </div>
           </section>
 
-          {/* Class-level actions */}
-          <section className="flex shrink-0 flex-wrap items-center gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
-              <UserX size={18} /> Unseat All
-            </TactileButton>
-            <TactileButton onClick={onCreateClass}>
-              <Plus size={18} /> Create New Class
-            </TactileButton>
-            <TactileButton variant="danger" className="ml-auto" onClick={() => setConfirmingDelete(true)}>
-              <Trash2 size={18} /> Delete Class
+          {/* Primary action - seats everyone still unseated, then closes */}
+          <section className="shrink-0 border-t border-black/10 pt-3.5 dark:border-white/10">
+            <TactileButton
+              variant="primary"
+              disabled={unseatedCount === 0}
+              className={clsx('w-full', unseatedCount === 0 && 'opacity-40')}
+              onClick={() => {
+                onSeatClass()
+                closeAndReset()
+              }}
+            >
+              <GraduationCap size={18} />
+              {unseatedCount === 0 ? 'Seat Students' : `Seat Students (${unseatedCount})`}
             </TactileButton>
           </section>
         </div>

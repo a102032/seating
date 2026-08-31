@@ -197,6 +197,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         activeClass={activeClass}
+        unseatedCount={unseatedStudents.length}
         onRename={(name) => renameClass(activeClass.id, name)}
         onAddStudents={(students) => addStudents(activeClass.id, students)}
         onUpdateStudent={(studentId, patch) => updateStudent(activeClass.id, studentId, patch)}
@@ -204,6 +205,7 @@ export default function App() {
         onCreateClass={() => createClass()}
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
+        onSeatClass={() => seatClass(activeClass.id)}
         theme={theme}
         onSetTheme={setTheme}
       />
