@@ -50,8 +50,8 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         isOver && 'ring-4 ring-emerald-400',
         selected && 'ring-4 ring-blue-500 animate-pulse',
         highlight === 'dimmed' && 'opacity-25',
-        highlight === 'flashing' && 'brightness-105',
-        highlight === 'winner' && 'scale-105 z-10 shadow-2xl',
+        highlight === 'flashing' && 'brightness-110 saturate-150',
+        highlight === 'winner' && 'ring-8 ring-amber-300 scale-105 z-10 shadow-2xl dark:ring-amber-400',
         swapMode && !empty && 'cursor-pointer',
         isDragging && 'opacity-30',
       )}
