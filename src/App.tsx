@@ -2,6 +2,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
+import { PickerSettingsModal } from './components/PickerSettingsModal'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
@@ -60,6 +61,7 @@ export default function App() {
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
+  const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
@@ -69,7 +71,7 @@ export default function App() {
   }, [theme])
 
   const seating = activeClass?.seating ?? []
-  const picker = usePicker(seating)
+  const picker = usePicker(seating, activeClassId)
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
@@ -142,6 +144,7 @@ export default function App() {
       onPickRow={picker.pickRow}
       rowLocked={picker.rowLocked}
       onOpenSettings={() => setSettingsOpen(true)}
+      onOpenPickerSettings={() => setPickerSettingsOpen(true)}
       timerSettings={timerSettings}
       onOpenTimerSettings={() => setTimerSettingsOpen(true)}
       isCloudSynced={isCloudSynced}
@@ -181,6 +184,17 @@ export default function App() {
         onClose={() => setTimerSettingsOpen(false)}
         settings={timerSettings}
         onChange={updateTimerSettings}
+      />
+
+      <PickerSettingsModal
+        open={pickerSettingsOpen}
+        onClose={() => setPickerSettingsOpen(false)}
+        settings={picker.settings}
+        onUpdateSettings={picker.updateSettings}
+        studentPickCounts={picker.studentPickCounts}
+        columnPickCounts={picker.columnPickCounts}
+        studentsById={studentsById}
+        onReset={picker.resetPickHistory}
       />
 
       <ClassSettingsModal

@@ -175,6 +175,19 @@ export function primeAudio() {
   getContext()
 }
 
+// Pentatonic-ish run so consecutive random slots never clash, even played rapidly.
+const PICKER_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51]
+
+/** A short, soft blip for a single tick of a picker's flashing animation. `slot` is the desk index or column index currently lit. */
+export function playPickerTick(slot: number) {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  const frequency = PICKER_SCALE[((slot % PICKER_SCALE.length) + PICKER_SCALE.length) % PICKER_SCALE.length]
+  playTone(ctx, master, { frequency, start: 0, duration: 0.1, type: 'sine', peakGain: 0.3 })
+}
+
 export const ALARM_SOUND_LABELS: Record<AlarmSound, string> = {
   ding: 'Ding',
   chime: 'Chime',

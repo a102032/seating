@@ -19,6 +19,7 @@ interface SidePanelProps {
   onPickRow: () => void
   rowLocked: boolean
   onOpenSettings: () => void
+  onOpenPickerSettings: () => void
   timerSettings: TimerSettings
   onOpenTimerSettings: () => void
   isCloudSynced: boolean
@@ -36,6 +37,7 @@ export function SidePanel({
   onPickRow,
   rowLocked,
   onOpenSettings,
+  onOpenPickerSettings,
   timerSettings,
   onOpenTimerSettings,
   isCloudSynced,
@@ -125,17 +127,32 @@ export function SidePanel({
         <TactileButton active={swapMode} onClick={onToggleSwap} className="w-full justify-start">
           <Shuffle size={18} /> Swap Seats
         </TactileButton>
-        <TactileButton onClick={onPickStudent} className="w-full justify-start">
-          <User size={18} /> Pick Student
-        </TactileButton>
-        <TactileButton
-          active={rowLocked}
-          onClick={onPickRow}
-          className="w-full justify-start"
-          title={rowLocked ? 'A row is locked - Pick Student now draws from it. Tap the row to clear it.' : undefined}
-        >
-          <Users size={18} /> Pick Row
-        </TactileButton>
+        <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
+          <div className="mb-1.5 flex items-center justify-between px-1">
+            <span className="text-xs font-bold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Random Pickers</span>
+            <button
+              type="button"
+              onClick={onOpenPickerSettings}
+              title="Random picker settings"
+              className="shrink-0 rounded-full p-1 text-neutral-500 hover:bg-black/[0.05] active:scale-95 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+            >
+              <Settings size={15} />
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <TactileButton onClick={onPickStudent} className="w-full justify-start">
+              <User size={18} /> Pick Student
+            </TactileButton>
+            <TactileButton
+              active={rowLocked}
+              onClick={onPickRow}
+              className="w-full justify-start"
+              title={rowLocked ? 'A row is locked - Pick Student now draws from it. Tap the row to clear it.' : undefined}
+            >
+              <Users size={18} /> Pick Row
+            </TactileButton>
+          </div>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1" />
