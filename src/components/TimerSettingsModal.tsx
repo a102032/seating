@@ -19,14 +19,14 @@ export function TimerSettingsModal({ open, onClose, settings, onChange }: TimerS
       <div className="flex flex-col gap-6">
         <section className="flex items-center justify-between">
           <div>
-            <p className="font-bold text-neutral-700">25% Warning</p>
-            <p className="text-sm text-neutral-400">Turn the clock red for the final quarter of the time.</p>
+            <p className="font-semibold text-neutral-800 dark:text-neutral-100">25% Warning</p>
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">Turn the clock red for the final quarter of the time.</p>
           </div>
           <button
             type="button"
             onClick={() => onChange({ ...settings, warningEnabled: !settings.warningEnabled })}
             className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
-              settings.warningEnabled ? 'bg-rose-500' : 'bg-neutral-300'
+              settings.warningEnabled ? 'bg-red-500' : 'bg-black/15 dark:bg-white/15'
             }`}
           >
             <span
@@ -38,17 +38,17 @@ export function TimerSettingsModal({ open, onClose, settings, onChange }: TimerS
         </section>
 
         <section>
-          <p className="mb-2 font-bold text-neutral-700">Alarm Sound</p>
+          <p className="mb-2 font-semibold text-neutral-800 dark:text-neutral-100">Alarm Sound</p>
           <div className="grid grid-cols-2 gap-2">
             {soundOrder.map((sound) => (
               <button
                 key={sound}
                 type="button"
                 onClick={() => onChange({ ...settings, alarmSound: sound })}
-                className={`flex items-center justify-between rounded-xl border-2 px-3 py-2 font-semibold transition-colors ${
+                className={`flex items-center justify-between rounded-xl border px-3 py-2 font-semibold transition-colors ${
                   settings.alarmSound === sound
-                    ? 'border-indigo-600 bg-indigo-600 text-white'
-                    : 'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100'
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-black/10 bg-white text-neutral-600 hover:bg-black/[0.03] dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-white/[0.06]'
                 }`}
               >
                 {ALARM_SOUND_LABELS[sound]}

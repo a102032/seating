@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
-import { DESK_COUNT, type ClassData, type Gender, type Student } from '../types'
+import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type ClassData, type Gender, type Student } from '../types'
 
 function genId(): string {
   return crypto.randomUUID()
@@ -226,6 +226,33 @@ export function useClasses() {
     [updateClass],
   )
 
+  const seatClass = useCallback(
+    (classId: string) =>
+      updateClass(classId, (c) => {
+        const seatedIds = new Set(c.seating.filter((s): s is string => s !== null))
+        const unseated = c.students
+          .filter((s) => !seatedIds.has(s.id))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+
+        // Bottom row first, left to right, then moving up row by row.
+        const fillOrder: number[] = []
+        for (let row = DESK_ROWS - 1; row >= 0; row--) {
+          for (let col = 0; col < DESK_COLUMNS; col++) {
+            fillOrder.push(row * DESK_COLUMNS + col)
+          }
+        }
+        const emptyDesks = fillOrder.filter((i) => c.seating[i] === null)
+
+        const seating = [...c.seating]
+        emptyDesks.forEach((deskIndex, i) => {
+          const student = unseated[i]
+          if (student) seating[deskIndex] = student.id
+        })
+        return { ...c, seating }
+      }),
+    [updateClass],
+  )
+
   const unseatStudent = useCallback(
     (classId: string, studentId: string) =>
       updateClass(classId, (c) => ({
@@ -255,6 +282,7 @@ export function useClasses() {
     deleteStudent,
     assignSeat,
     swapSeats,
+    seatClass,
     unseatAll,
     unseatStudent,
     unseatedStudents,

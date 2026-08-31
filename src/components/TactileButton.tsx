@@ -14,24 +14,25 @@ interface TactileButtonProps extends NativeButtonProps {
 }
 
 const variants: Record<string, string> = {
-  default: 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-50',
-  primary: 'bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-500',
-  danger: 'bg-rose-600 border-rose-700 text-white hover:bg-rose-500',
+  default:
+    'bg-black/[0.045] text-neutral-700 hover:bg-black/[0.075] dark:bg-white/[0.06] dark:text-neutral-100 dark:hover:bg-white/[0.1]',
+  primary: 'bg-blue-600 text-white shadow-sm shadow-blue-600/25 hover:bg-blue-500',
+  danger: 'bg-red-500 text-white shadow-sm shadow-red-500/25 hover:bg-red-400',
 }
 
 export function TactileButton({ children, active, variant = 'default', className, ...props }: TactileButtonProps) {
   return (
     <motion.button
-      whileHover={{ scale: 1.04 }}
-      whileTap={{ scale: 0.94 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
       className={clsx(
-        'flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2 font-bold shadow-sm outline-none transition-colors',
-        'focus-visible:ring-4 focus-visible:ring-indigo-300',
-        active ? 'bg-emerald-500 border-emerald-600 text-white' : variants[variant],
+        'flex items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 font-semibold outline-none transition-colors duration-150',
+        'focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-900',
+        active ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25' : variants[variant],
         className,
       )}
-      style={{ touchAction: 'manipulation', fontSize: 'clamp(0.75rem, 1.5vmin, 1.05rem)' }}
+      style={{ touchAction: 'manipulation', fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
       {...props}
     >
       {children}

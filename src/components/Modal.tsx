@@ -25,32 +25,32 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
           initial={{ opacity: 0, pointerEvents: 'none' }}
           animate={{ opacity: 1, pointerEvents: 'auto' }}
           exit={{ opacity: 0, pointerEvents: 'none' }}
           onClick={onClose}
         >
           <motion.div
-            className={`flex max-h-[90vh] w-full flex-col rounded-2xl bg-white shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}
-            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+            className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-3xl border border-black/5 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-neutral-800/95 ${wide ? 'max-w-3xl' : 'max-w-lg'}`}
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 20 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            exit={{ opacity: 0, scale: 0.94, y: 16 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-              <h2 className="text-xl font-extrabold text-neutral-800">{title}</h2>
+            <div className="flex shrink-0 items-center justify-between border-b border-black/5 px-6 py-4 dark:border-white/10">
+              <h2 className="text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h2>
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                className="rounded-full p-1.5 text-neutral-400 hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"
               >
-                <X size={22} />
+                <X size={20} />
               </motion.button>
             </div>
-            <div className="overflow-y-auto px-5 py-4">{children}</div>
+            <div className="flex min-h-0 flex-1 flex-col px-6 py-4">{children}</div>
           </motion.div>
         </motion.div>
       )}

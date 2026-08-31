@@ -1,14 +1,15 @@
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
-import { FlipTimer } from './components/FlipTimer'
 import { RosterPool } from './components/RosterPool'
+import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { useClasses } from './hooks/useClasses'
 import { usePicker } from './hooks/usePicker'
 import { primeAudio } from './lib/sound'
+import { applyTheme, loadTheme, type Theme } from './lib/theme'
 import type { Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
@@ -49,6 +50,7 @@ export default function App() {
     deleteStudent,
     assignSeat,
     swapSeats,
+    seatClass,
     unseatAll,
     unseatStudent,
     unseatedStudents,
@@ -59,10 +61,14 @@ export default function App() {
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
   const [rosterOpen, setRosterOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [timerVisible, setTimerVisible] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
+  const [theme, setTheme] = useState<Theme>(loadTheme)
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating)
@@ -139,9 +145,9 @@ export default function App() {
       }}
       onPickStudent={picker.pickStudent}
       onPickRow={picker.pickRow}
-      timerVisible={timerVisible}
-      onToggleTimer={() => setTimerVisible((v) => !v)}
       onOpenSettings={() => setSettingsOpen(true)}
+      timerSettings={timerSettings}
+      onOpenTimerSettings={() => setTimerSettingsOpen(true)}
       isCloudSynced={isCloudSynced}
       side={panelSide}
       onToggleSide={togglePanelSide}
@@ -151,7 +157,7 @@ export default function App() {
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div
-        className={`flex h-[100dvh] w-[100dvw] gap-2 bg-neutral-50 p-2 sm:gap-3 sm:p-3 ${
+        className={`flex h-[100dvh] w-[100dvw] gap-3 bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)] p-2 sm:p-3 ${
           panelSide === 'right' ? 'flex-row-reverse' : 'flex-row'
         }`}
         onPointerDownCapture={primeAudio}
@@ -159,6 +165,12 @@ export default function App() {
         {sidePanel}
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <SeatClassBanner
+            totalStudents={activeClass.students.length}
+            unseatedCount={unseatedStudents.length}
+            onSeatClass={() => seatClass(activeClass.id)}
+          />
+
           <main className="min-h-0 flex-1">
             <DeskGrid
               seating={seating}
@@ -170,14 +182,7 @@ export default function App() {
             />
           </main>
 
-          <RosterPool students={unseatedStudents} open={rosterOpen} onToggle={() => setRosterOpen((v) => !v)} />
-
-          <FlipTimer
-            visible={timerVisible}
-            onClose={() => setTimerVisible(false)}
-            settings={timerSettings}
-            onOpenSettings={() => setTimerSettingsOpen(true)}
-          />
+          <RosterPool students={unseatedStudents} open={rosterOpen} onToggle={() => setRosterOpen((v) => !v)} swapMode={swapMode} />
         </div>
       </div>
 
@@ -199,6 +204,8 @@ export default function App() {
         onCreateClass={() => createClass()}
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
+        theme={theme}
+        onSetTheme={setTheme}
       />
     </DndContext>
   )

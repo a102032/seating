@@ -75,8 +75,9 @@ export function useCountdown(onComplete: () => void) {
   const stop = useCallback(() => {
     setRunning(false)
     clearTick()
-    setRemainingSeconds(configuredSeconds)
-  }, [clearTick, configuredSeconds])
+    setConfiguredSeconds(0)
+    setRemainingSeconds(0)
+  }, [clearTick])
 
   const percentRemaining = configuredSeconds > 0 ? remainingSeconds / configuredSeconds : 1
   const isWarning = remainingSeconds > 0 && percentRemaining <= 0.25
