@@ -2,7 +2,6 @@ import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } f
 import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
-import { RosterPool } from './components/RosterPool'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
@@ -59,7 +58,6 @@ export default function App() {
 
   const [swapMode, setSwapMode] = useState(false)
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
-  const [rosterOpen, setRosterOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
@@ -123,8 +121,6 @@ export default function App() {
 
     if (over.data.current?.type === 'desk') {
       assignSeat(activeClassId, over.data.current.deskIndex as number, studentId)
-    } else if (over.data.current?.type === 'roster-pool') {
-      unseatStudent(activeClassId, studentId)
     }
   }
 
@@ -181,8 +177,6 @@ export default function App() {
               onTapDesk={handleTapDesk}
             />
           </main>
-
-          <RosterPool students={unseatedStudents} open={rosterOpen} onToggle={() => setRosterOpen((v) => !v)} swapMode={swapMode} />
         </div>
       </div>
 
