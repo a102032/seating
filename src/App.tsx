@@ -140,6 +140,7 @@ export default function App() {
       }}
       onPickStudent={picker.pickStudent}
       onPickRow={picker.pickRow}
+      rowLocked={picker.rowLocked}
       onOpenSettings={() => setSettingsOpen(true)}
       timerSettings={timerSettings}
       onOpenTimerSettings={() => setTimerSettingsOpen(true)}

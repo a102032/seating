@@ -17,6 +17,7 @@ interface SidePanelProps {
   onToggleSwap: () => void
   onPickStudent: () => void
   onPickRow: () => void
+  rowLocked: boolean
   onOpenSettings: () => void
   timerSettings: TimerSettings
   onOpenTimerSettings: () => void
@@ -33,6 +34,7 @@ export function SidePanel({
   onToggleSwap,
   onPickStudent,
   onPickRow,
+  rowLocked,
   onOpenSettings,
   timerSettings,
   onOpenTimerSettings,
@@ -126,7 +128,12 @@ export function SidePanel({
         <TactileButton onClick={onPickStudent} className="w-full justify-start">
           <User size={18} /> Pick Student
         </TactileButton>
-        <TactileButton onClick={onPickRow} className="w-full justify-start">
+        <TactileButton
+          active={rowLocked}
+          onClick={onPickRow}
+          className="w-full justify-start"
+          title={rowLocked ? 'A row is locked - Pick Student now draws from it. Tap the row to clear it.' : undefined}
+        >
           <Users size={18} /> Pick Row
         </TactileButton>
       </div>

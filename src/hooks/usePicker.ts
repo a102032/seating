@@ -4,7 +4,7 @@ import type { DeskHighlight } from '../components/Desk'
 
 type PickerMode = 'idle' | 'student-flashing' | 'student-result' | 'row-flashing' | 'row-result'
 
-const FLASH_DURATION_MS = 4200
+const FLASH_DURATION_MS = 2200
 const FLASH_TICK_MS = 90
 
 function columnOf(deskIndex: number): number {
@@ -22,6 +22,8 @@ export function usePicker(seating: (string | null)[]) {
   const [winnerColumn, setWinnerColumn] = useState<number | null>(null)
   const [pickedStudentIds, setPickedStudentIds] = useState<Set<string>>(new Set())
   const [pickedColumns, setPickedColumns] = useState<Set<number>>(new Set())
+  /** A row a teacher has "drilled into" via Pick Row - Pick Student then draws only from here until it's exhausted or the teacher taps to clear it. */
+  const [rowLock, setRowLock] = useState<number | null>(null)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -38,13 +40,17 @@ export function usePicker(seating: (string | null)[]) {
   const pickStudent = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
     const currentSeating = seatingRef.current
-    let occupiedIndices = currentSeating
+    const occupiedIndices = currentSeating
       .map((studentId, index) => ({ studentId, index }))
       .filter((d): d is { studentId: string; index: number } => Boolean(d.studentId))
 
-    let eligible = occupiedIndices.filter((d) => !pickedStudentIds.has(d.studentId))
+    // Prefer drawing from a locked row, if one is active and still has someone left in it.
+    const rowEligible = rowLock !== null ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock && !pickedStudentIds.has(d.studentId)) : []
+    const stayingInRow = rowEligible.length > 0
+
+    let eligible = stayingInRow ? rowEligible : occupiedIndices.filter((d) => !pickedStudentIds.has(d.studentId))
     let usedPicked = pickedStudentIds
-    if (eligible.length === 0) {
+    if (!stayingInRow && eligible.length === 0) {
       // Everyone has been picked this session - start a fresh round.
       usedPicked = new Set()
       eligible = occupiedIndices
@@ -54,6 +60,7 @@ export function usePicker(seating: (string | null)[]) {
     clearTimers()
     setMode('student-flashing')
     setWinnerDesk(null)
+    if (!stayingInRow) setRowLock(null)
 
     const startedAt = Date.now()
     intervalRef.current = setInterval(() => {
@@ -68,7 +75,7 @@ export function usePicker(seating: (string | null)[]) {
         setMode('student-result')
       }
     }, FLASH_TICK_MS)
-  }, [mode, pickedStudentIds, clearTimers])
+  }, [mode, pickedStudentIds, rowLock, clearTimers])
 
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
@@ -93,6 +100,7 @@ export function usePicker(seating: (string | null)[]) {
         setFlashColumn(null)
         setWinnerColumn(winner)
         setPickedColumns(new Set(usedPicked).add(winner))
+        setRowLock(winner)
         setMode('row-result')
       }
     }, FLASH_TICK_MS)
@@ -104,13 +112,14 @@ export function usePicker(seating: (string | null)[]) {
     setWinnerColumn(null)
     setFlashDesk(null)
     setFlashColumn(null)
+    setRowLock(null)
   }, [])
 
   const deskHighlights: DeskHighlight[] = Array.from({ length: DESK_COUNT }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
-    if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'none'
+    if (mode === 'student-result') return winnerDesk === index ? 'none' : 'dimmed'
     if (mode === 'row-flashing') return columnOf(index) === flashColumn ? 'flashing' : 'dimmed'
-    if (mode === 'row-result') return columnOf(index) === winnerColumn ? 'winner' : 'none'
+    if (mode === 'row-result') return columnOf(index) === winnerColumn ? 'none' : 'dimmed'
     return 'none'
   })
 
@@ -118,6 +127,7 @@ export function usePicker(seating: (string | null)[]) {
     mode,
     isPicking: mode === 'student-flashing' || mode === 'row-flashing',
     hasResult: mode === 'student-result' || mode === 'row-result',
+    rowLocked: rowLock !== null,
     deskHighlights,
     pickStudent,
     pickRow,

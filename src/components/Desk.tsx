@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import type { Student } from '../types'
 
-export type DeskHighlight = 'none' | 'flashing' | 'winner' | 'dimmed'
+export type DeskHighlight = 'none' | 'flashing' | 'dimmed'
 
 interface DeskProps {
   index: number
@@ -51,7 +51,6 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         selected && 'ring-4 ring-blue-500 animate-pulse',
         highlight === 'dimmed' && 'opacity-25',
         highlight === 'flashing' && 'brightness-110 saturate-150',
-        highlight === 'winner' && 'ring-8 ring-amber-300 scale-105 z-10 shadow-2xl dark:ring-amber-400',
         swapMode && !empty && 'cursor-pointer',
         isDragging && 'opacity-30',
       )}
