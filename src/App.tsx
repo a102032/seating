@@ -1,18 +1,20 @@
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useMemo, useState } from 'react'
-import { ClassTabs } from './components/ClassTabs'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipTimer } from './components/FlipTimer'
 import { RosterPool } from './components/RosterPool'
+import { SidePanel } from './components/SidePanel'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { Toolbar } from './components/Toolbar'
 import { useClasses } from './hooks/useClasses'
 import { usePicker } from './hooks/usePicker'
 import { primeAudio } from './lib/sound'
 import type { Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
+const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
+
+type PanelSide = 'left' | 'right'
 
 function loadTimerSettings(): TimerSettings {
   try {
@@ -21,6 +23,15 @@ function loadTimerSettings(): TimerSettings {
     return { ...DEFAULT_TIMER_SETTINGS, ...JSON.parse(raw) }
   } catch {
     return DEFAULT_TIMER_SETTINGS
+  }
+}
+
+function loadPanelSide(): PanelSide {
+  try {
+    const raw = localStorage.getItem(PANEL_SIDE_KEY)
+    return raw === 'right' ? 'right' : 'left'
+  } catch {
+    return 'left'
   }
 }
 
@@ -51,6 +62,7 @@ export default function App() {
   const [timerVisible, setTimerVisible] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
+  const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
 
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating)
@@ -66,6 +78,14 @@ export default function App() {
   function updateTimerSettings(next: TimerSettings) {
     setTimerSettings(next)
     localStorage.setItem('seating-chart-timer-settings-v1', JSON.stringify(next))
+  }
+
+  function togglePanelSide() {
+    setPanelSide((prev) => {
+      const next = prev === 'left' ? 'right' : 'left'
+      localStorage.setItem(PANEL_SIDE_KEY, next)
+      return next
+    })
   }
 
   function handleTapDesk(index: number) {
@@ -106,53 +126,61 @@ export default function App() {
     return <div className="flex h-full w-full items-center justify-center text-neutral-400">Loading...</div>
   }
 
+  const sidePanel = (
+    <SidePanel
+      classes={classes}
+      activeClassId={activeClassId}
+      onSelectClass={setActiveClassId}
+      onCreateClass={() => createClass()}
+      swapMode={swapMode}
+      onToggleSwap={() => {
+        setSwapMode((v) => !v)
+        setSelectedDesk(null)
+      }}
+      onPickStudent={picker.pickStudent}
+      onPickRow={picker.pickRow}
+      timerVisible={timerVisible}
+      onToggleTimer={() => setTimerVisible((v) => !v)}
+      onOpenSettings={() => setSettingsOpen(true)}
+      isCloudSynced={isCloudSynced}
+      side={panelSide}
+      onToggleSide={togglePanelSide}
+    />
+  )
+
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div
-        className="flex h-[100dvh] w-[100dvw] flex-col bg-neutral-50 p-2 sm:p-3"
+        className={`flex h-[100dvh] w-[100dvw] gap-2 bg-neutral-50 p-2 sm:gap-3 sm:p-3 ${
+          panelSide === 'right' ? 'flex-row-reverse' : 'flex-row'
+        }`}
         onPointerDownCapture={primeAudio}
       >
-        <header className="flex h-12 shrink-0 items-center gap-3 sm:h-14">
-          <div className="min-w-0 flex-1">
-            <ClassTabs classes={classes} activeClassId={activeClassId} onSelect={setActiveClassId} onCreate={() => createClass()} />
-          </div>
-        </header>
+        {sidePanel}
 
-        <div className="flex h-10 shrink-0 items-center sm:h-12">
-          <Toolbar
-            swapMode={swapMode}
-            onToggleSwap={() => {
-              setSwapMode((v) => !v)
-              setSelectedDesk(null)
-            }}
-            onPickStudent={picker.pickStudent}
-            onPickRow={picker.pickRow}
-            onOpenTimer={() => setTimerVisible((v) => !v)}
-            onOpenSettings={() => setSettingsOpen(true)}
-            isCloudSynced={isCloudSynced}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <main className="min-h-0 flex-1">
+            <DeskGrid
+              seating={seating}
+              studentsById={studentsById}
+              swapMode={swapMode}
+              selectedDesk={selectedDesk}
+              deskHighlights={picker.deskHighlights}
+              onTapDesk={handleTapDesk}
+            />
+          </main>
+
+          <RosterPool students={unseatedStudents} open={rosterOpen} onToggle={() => setRosterOpen((v) => !v)} />
+
+          <FlipTimer
+            visible={timerVisible}
+            onClose={() => setTimerVisible(false)}
+            settings={timerSettings}
+            onOpenSettings={() => setTimerSettingsOpen(true)}
           />
         </div>
-
-        <main className="min-h-0 flex-1 py-2">
-          <DeskGrid
-            seating={seating}
-            studentsById={studentsById}
-            swapMode={swapMode}
-            selectedDesk={selectedDesk}
-            deskHighlights={picker.deskHighlights}
-            onTapDesk={handleTapDesk}
-          />
-        </main>
-
-        <RosterPool students={unseatedStudents} open={rosterOpen} onToggle={() => setRosterOpen((v) => !v)} />
       </div>
 
-      <FlipTimer
-        visible={timerVisible}
-        onClose={() => setTimerVisible(false)}
-        settings={timerSettings}
-        onOpenSettings={() => setTimerSettingsOpen(true)}
-      />
       <TimerSettingsModal
         open={timerSettingsOpen}
         onClose={() => setTimerSettingsOpen(false)}

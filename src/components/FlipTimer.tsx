@@ -32,7 +32,7 @@ export function FlipTimer({ visible, onClose, settings, onOpenSettings }: FlipTi
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -24, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="fixed right-4 top-16 z-40 flex flex-col items-center gap-2 rounded-2xl border-2 border-neutral-700 bg-neutral-900/95 p-3 shadow-2xl backdrop-blur"
+          className="absolute right-3 top-3 z-40 flex flex-col items-center gap-2 rounded-2xl border-2 border-neutral-700 bg-neutral-900/95 p-3 shadow-2xl backdrop-blur"
         >
           <div className="flex w-full items-center justify-between gap-2">
             <button
