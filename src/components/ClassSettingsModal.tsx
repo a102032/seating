@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { GraduationCap, Moon, Pencil, Plus, Sun, Trash2, Upload, UserX } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Armchair, GraduationCap, Moon, Pencil, Plus, Sun, Trash2, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv } from '../lib/csv'
 import type { ClassData, Gender, Student } from '../types'
@@ -16,6 +16,7 @@ interface ClassSettingsModalProps {
   onAddStudents: (students: Omit<Student, 'id'>[]) => void
   onUpdateStudent: (studentId: string, patch: Partial<Omit<Student, 'id'>>) => void
   onDeleteStudent: (studentId: string) => void
+  onUnseatStudent: (studentId: string) => void
   onCreateClass: () => void
   onDeleteClass: () => void
   onUnseatAll: () => void
@@ -42,6 +43,7 @@ export function ClassSettingsModal({
   onAddStudents,
   onUpdateStudent,
   onDeleteStudent,
+  onUnseatStudent,
   onCreateClass,
   onDeleteClass,
   onUnseatAll,
@@ -58,6 +60,8 @@ export function ClassSettingsModal({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
 
   useEffect(() => {
     setName(activeClass.name)
@@ -210,6 +214,7 @@ export function ClassSettingsModal({
                   <RosterRow
                     key={s.id}
                     student={s}
+                    seated={seatedIds.has(s.id)}
                     editing={editingId === s.id}
                     onEdit={() => setEditingId(s.id)}
                     onCancelEdit={() => setEditingId(null)}
@@ -218,6 +223,7 @@ export function ClassSettingsModal({
                       setEditingId(null)
                     }}
                     onDelete={() => onDeleteStudent(s.id)}
+                    onUnseat={() => onUnseatStudent(s.id)}
                   />
                 ))
               )}
@@ -246,7 +252,8 @@ export function ClassSettingsModal({
         open={confirmingUnseatAll}
         title="Unseat All Students?"
         message={`This will clear every desk in "${activeClass.name}" and move all students back to the unseated list. This can't be undone.`}
-        confirmLabel="Unseat All"
+        confirmLabel="Yes, Unseat All"
+        cancelLabel="No"
         onCancel={() => setConfirmingUnseatAll(false)}
         onConfirm={() => {
           onUnseatAll()
@@ -273,14 +280,16 @@ export function ClassSettingsModal({
 
 interface RosterRowProps {
   student: Student
+  seated: boolean
   editing: boolean
   onEdit: () => void
   onCancelEdit: () => void
   onSave: (patch: Partial<Omit<Student, 'id'>>) => void
   onDelete: () => void
+  onUnseat: () => void
 }
 
-function RosterRow({ student, editing, onEdit, onCancelEdit, onSave, onDelete }: RosterRowProps) {
+function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onDelete, onUnseat }: RosterRowProps) {
   const [name, setName] = useState(student.name)
   const [homeroom, setHomeroom] = useState(student.homeroom)
   const [gender, setGender] = useState<Gender>(student.gender)
@@ -315,6 +324,15 @@ function RosterRow({ student, editing, onEdit, onCancelEdit, onSave, onDelete }:
       />
       <span className="flex-1 truncate font-semibold text-neutral-800 dark:text-neutral-100">{student.name}</span>
       <span className="text-sm text-neutral-400 dark:text-neutral-500">Room {student.homeroom || '-'}</span>
+      {seated && (
+        <button
+          onClick={onUnseat}
+          title="Remove from seat"
+          className="rounded-full p-1.5 text-neutral-400 hover:bg-amber-100 hover:text-amber-600 dark:hover:bg-amber-500/15"
+        >
+          <Armchair size={16} />
+        </button>
+      )}
       <button
         onClick={onEdit}
         className="rounded-full p-1.5 text-neutral-400 hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"

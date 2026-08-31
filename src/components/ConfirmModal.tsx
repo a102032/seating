@@ -8,13 +8,23 @@ interface ConfirmModalProps {
   title: string
   message: string
   confirmLabel: string
+  cancelLabel?: string
   onConfirm: () => void
   onCancel: () => void
   /** If set, the confirm button stays disabled until the teacher types this text exactly. */
   requireTypedText?: string
 }
 
-export function ConfirmModal({ open, title, message, confirmLabel, onConfirm, onCancel, requireTypedText }: ConfirmModalProps) {
+export function ConfirmModal({
+  open,
+  title,
+  message,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  onConfirm,
+  onCancel,
+  requireTypedText,
+}: ConfirmModalProps) {
   const [typed, setTyped] = useState('')
 
   useEffect(() => {
@@ -48,7 +58,7 @@ export function ConfirmModal({ open, title, message, confirmLabel, onConfirm, on
         )}
 
         <div className="flex justify-end gap-2 pt-1">
-          <TactileButton onClick={onCancel}>Cancel</TactileButton>
+          <TactileButton onClick={onCancel}>{cancelLabel}</TactileButton>
           <TactileButton variant="danger" disabled={!canConfirm} className={!canConfirm ? 'opacity-40' : ''} onClick={onConfirm}>
             {confirmLabel}
           </TactileButton>

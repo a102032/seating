@@ -202,6 +202,7 @@ export default function App() {
         onAddStudents={(students) => addStudents(activeClass.id, students)}
         onUpdateStudent={(studentId, patch) => updateStudent(activeClass.id, studentId, patch)}
         onDeleteStudent={(studentId) => deleteStudent(activeClass.id, studentId)}
+        onUnseatStudent={(studentId) => unseatStudent(activeClass.id, studentId)}
         onCreateClass={() => createClass()}
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
