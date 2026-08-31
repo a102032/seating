@@ -34,7 +34,7 @@ function Face({ value, warningLevel, half }: { value: string; warningLevel: Warn
       />
       <div
         className="absolute inset-x-0 flex items-center justify-center"
-        style={{ fontSize: 'clamp(1rem, 58cqw, 3rem)', height: '200%', top: half === 'top' ? '0' : '-100%' }}
+        style={{ fontSize: 'clamp(1.2rem, 78cqw, 4.2rem)', height: '200%', top: half === 'top' ? '0' : '-100%' }}
       >
         {value}
       </div>
