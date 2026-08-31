@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeftRight, ChevronDown, Cloud, CloudOff, Settings, Shuffle, User, Users } from 'lucide-react'
 import { useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { ConfirmModal } from './ConfirmModal'
 import { FlipTimer } from './FlipTimer'
 import { TactileButton } from './TactileButton'
@@ -131,16 +133,17 @@ export function SidePanel({
 
       <div className="min-h-0 flex-1" />
 
-      <div className="h-px shrink-0 bg-black/10 dark:bg-white/10" />
+      <Separator />
 
       <div className="flex shrink-0 flex-col items-center gap-1.5">
-        <div
-          className="flex items-center gap-1.5 text-neutral-400 dark:text-neutral-500"
+        <Badge
+          variant="outline"
+          className="gap-1.5 text-neutral-400 dark:text-neutral-500"
           title={isCloudSynced ? 'Synced live across devices' : 'Not connected to a shared database yet - saving on this device only'}
         >
-          {isCloudSynced ? <Cloud size={16} /> : <CloudOff size={16} />}
-          <span className="text-xs font-semibold">{isCloudSynced ? 'Synced' : 'Local only'}</span>
-        </div>
+          {isCloudSynced ? <Cloud size={12} /> : <CloudOff size={12} />}
+          {isCloudSynced ? 'Synced' : 'Local only'}
+        </Badge>
         <button
           type="button"
           onClick={onToggleSide}

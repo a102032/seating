@@ -4,6 +4,13 @@ import clsx from 'clsx'
 import { parseRosterCsv } from '../lib/csv'
 import { MAX_CLASSES } from '../hooks/useClasses'
 import type { ClassData, Gender, Student } from '../types'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
@@ -33,8 +40,22 @@ const genderOptions: { value: Gender; label: string }[] = [
   { value: 'unspecified', label: 'Unspecified' },
 ]
 
-const inputClass =
-  'w-full rounded-xl border border-black/10 bg-white px-3 py-2 outline-none focus:border-blue-500 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100'
+function GenderSelect({ value, onChange, className }: { value: Gender; onChange: (g: Gender) => void; className?: string }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as Gender)}>
+      <SelectTrigger className={clsx('w-full', className)}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {genderOptions.map((g) => (
+          <SelectItem key={g.value} value={g.value}>
+            {g.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
 
 export function ClassSettingsModal({
   open,
@@ -103,7 +124,7 @@ export function ClassSettingsModal({
       <Modal open={open && !confirmingDelete && !confirmingUnseatAll} onClose={closeAndReset} title="Class Settings" wide>
         <div className="flex h-full min-h-0 flex-col gap-3.5">
           {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
-          <section className="flex shrink-0 flex-wrap items-center gap-2 border-b border-black/10 pb-3.5 dark:border-white/10">
+          <section className="flex shrink-0 flex-wrap items-center gap-2">
             <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
               <UserX size={16} /> Unseat All
             </TactileButton>
@@ -120,33 +141,20 @@ export function ClassSettingsModal({
             </TactileButton>
           </section>
 
+          <Separator />
+
           {/* Appearance + Class Name, sharing a row to save vertical space */}
           <section className="flex shrink-0 flex-wrap items-end gap-3">
             <div className="min-w-[10rem] flex-1">
-              <label className="mb-1 block text-sm font-bold text-neutral-500 dark:text-neutral-400">Class Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} onBlur={commitRename} className={clsx(inputClass, 'font-semibold')} />
+              <Label htmlFor="class-name" className="mb-1.5">
+                Class Name
+              </Label>
+              <Input id="class-name" value={name} onChange={(e) => setName(e.target.value)} onBlur={commitRename} className="font-semibold" />
             </div>
-            <div className="flex gap-1 rounded-xl bg-black/[0.05] p-1 dark:bg-white/[0.06]">
-              <button
-                type="button"
-                onClick={() => onSetTheme('light')}
-                className={clsx(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors',
-                  theme === 'light' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 dark:text-neutral-400',
-                )}
-              >
-                <Sun size={14} /> Light
-              </button>
-              <button
-                type="button"
-                onClick={() => onSetTheme('dark')}
-                className={clsx(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors',
-                  theme === 'dark' ? 'bg-neutral-700 text-white shadow-sm' : 'text-neutral-500 dark:text-neutral-400',
-                )}
-              >
-                <Moon size={14} /> Dark
-              </button>
+            <div className="flex items-center gap-2 rounded-xl bg-black/[0.05] px-3 py-2 dark:bg-white/[0.06]">
+              <Sun size={16} className={theme === 'light' ? 'text-amber-500' : 'text-neutral-400'} />
+              <Switch checked={theme === 'dark'} onCheckedChange={(checked) => onSetTheme(checked ? 'dark' : 'light')} aria-label="Toggle dark mode" />
+              <Moon size={16} className={theme === 'dark' ? 'text-blue-400' : 'text-neutral-400'} />
             </div>
           </section>
 
@@ -182,27 +190,11 @@ export function ClassSettingsModal({
 
           {/* Manual add - always one row, side by side */}
           <section className="shrink-0">
-            <label className="mb-1 block text-sm font-bold text-neutral-500 dark:text-neutral-400">Add a Student</label>
+            <Label className="mb-1.5">Add a Student</Label>
             <div className="grid grid-cols-[2fr_1fr_1fr_auto] items-center gap-2">
-              <input
-                value={manualName}
-                onChange={(e) => setManualName(e.target.value)}
-                placeholder="Name"
-                className={clsx(inputClass, 'min-w-0')}
-              />
-              <input
-                value={manualHomeroom}
-                onChange={(e) => setManualHomeroom(e.target.value)}
-                placeholder="Homeroom #"
-                className={clsx(inputClass, 'min-w-0')}
-              />
-              <select value={manualGender} onChange={(e) => setManualGender(e.target.value as Gender)} className={clsx(inputClass, 'min-w-0')}>
-                {genderOptions.map((g) => (
-                  <option key={g.value} value={g.value}>
-                    {g.label}
-                  </option>
-                ))}
-              </select>
+              <Input value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Name" className="min-w-0" />
+              <Input value={manualHomeroom} onChange={(e) => setManualHomeroom(e.target.value)} placeholder="Homeroom #" className="min-w-0" />
+              <GenderSelect value={manualGender} onChange={setManualGender} className="min-w-0" />
               <TactileButton variant="primary" onClick={submitManualAdd} className="whitespace-nowrap">
                 <Plus size={18} /> Add
               </TactileButton>
@@ -211,10 +203,8 @@ export function ClassSettingsModal({
 
           {/* Roster list - the only part of this modal that scrolls */}
           <section className="flex min-h-[11rem] flex-1 flex-col">
-            <label className="mb-1 block shrink-0 text-sm font-bold text-neutral-500 dark:text-neutral-400">
-              Roster ({activeClass.students.length} students)
-            </label>
-            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain rounded-2xl border border-black/10 dark:border-white/10">
+            <Label className="mb-1.5 shrink-0">Roster ({activeClass.students.length} students)</Label>
+            <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
               {activeClass.students.length === 0 ? (
                 <p className="p-4 text-center text-neutral-400 dark:text-neutral-500">No students yet. Add some above!</p>
               ) : (
@@ -235,11 +225,13 @@ export function ClassSettingsModal({
                   />
                 ))
               )}
-            </div>
+            </ScrollArea>
           </section>
 
+          <Separator />
+
           {/* Primary action - seats everyone still unseated, then closes */}
-          <section className="shrink-0 border-t border-black/10 pt-3.5 dark:border-white/10">
+          <section className="shrink-0">
             <TactileButton
               variant="primary"
               disabled={unseatedCount === 0}
@@ -305,15 +297,9 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
   if (editing) {
     return (
       <div className="flex flex-wrap items-center gap-2 border-b border-black/5 p-2 last:border-b-0 dark:border-white/5">
-        <input value={name} onChange={(e) => setName(e.target.value)} className={clsx(inputClass, 'min-w-[8rem] flex-1 py-1')} />
-        <input value={homeroom} onChange={(e) => setHomeroom(e.target.value)} className={clsx(inputClass, 'w-24 py-1')} />
-        <select value={gender} onChange={(e) => setGender(e.target.value as Gender)} className={clsx(inputClass, 'w-auto py-1')}>
-          {genderOptions.map((g) => (
-            <option key={g.value} value={g.value}>
-              {g.label}
-            </option>
-          ))}
-        </select>
+        <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 min-w-[8rem] flex-1" />
+        <Input value={homeroom} onChange={(e) => setHomeroom(e.target.value)} className="h-8 w-24" />
+        <GenderSelect value={gender} onChange={setGender} className="h-8 w-auto" />
         <TactileButton variant="primary" onClick={() => onSave({ name, homeroom, gender })}>
           Save
         </TactileButton>
@@ -331,7 +317,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         )}
       />
       <span className="flex-1 truncate font-semibold text-neutral-800 dark:text-neutral-100">{student.name}</span>
-      <span className="text-sm text-neutral-400 dark:text-neutral-500">Room {student.homeroom || '-'}</span>
+      <Badge variant="secondary">Room {student.homeroom || '-'}</Badge>
       {seated && (
         <button
           onClick={onUnseat}
