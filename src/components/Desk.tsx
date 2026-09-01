@@ -22,6 +22,11 @@ const genderStyles: Record<string, string> = {
   unspecified: 'bg-neutral-100 border-neutral-200 text-neutral-800 dark:bg-white/[0.06] dark:border-white/15 dark:text-neutral-100',
 }
 
+const avatarSrc: Partial<Record<string, string>> = {
+  boy: '/avatars/boy.png',
+  girl: '/avatars/girl.png',
+}
+
 export function Desk({ index, student, swapMode, selected, highlight, onTap }: DeskProps) {
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `desk-${index}`,
@@ -67,23 +72,31 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         )}
       >
         {student ? (
-          <motion.div
-            layout
-            className="flex w-full flex-col items-center justify-center"
-            initial={false}
-          >
-            <span
-              className="w-full truncate px-1 font-bold leading-tight"
-              style={{ fontSize: 'clamp(1.05rem, 3.4vmin, 2.75rem)' }}
-            >
-              {student.name}
-            </span>
-            <span
-              className="opacity-70"
-              style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1.35rem)' }}
-            >
-              {student.homeroom}
-            </span>
+          <motion.div layout className="flex h-full w-full items-stretch justify-center gap-1" initial={false}>
+            {avatarSrc[student.gender] && (
+              <div className="flex h-full shrink-0 items-end justify-center" style={{ width: 'clamp(1.4rem, 24%, 3.4rem)' }}>
+                <img
+                  src={avatarSrc[student.gender]}
+                  alt=""
+                  draggable={false}
+                  className="h-full w-full object-contain object-bottom select-none pointer-events-none"
+                />
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center">
+              <span
+                className="w-full truncate px-1 font-bold leading-tight"
+                style={{ fontSize: 'clamp(1.05rem, 3.4vmin, 2.75rem)' }}
+              >
+                {student.name}
+              </span>
+              <span
+                className="opacity-70"
+                style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1.35rem)' }}
+              >
+                {student.homeroom}
+              </span>
+            </div>
           </motion.div>
         ) : (
           <span
