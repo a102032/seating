@@ -4,8 +4,9 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import type { Student } from '../types'
+import { AvatarSparkles } from './AvatarSparkles'
 
-export type DeskHighlight = 'none' | 'flashing' | 'dimmed'
+export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
 
 interface DeskProps {
   index: number
@@ -73,8 +74,9 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
       >
         {student ? (
           <motion.div layout className="flex h-full w-full items-stretch justify-center gap-1" initial={false}>
-            {avatarSrc[student.gender] && (
-              <div className="flex h-full shrink-0 items-end justify-center" style={{ width: 'clamp(1.4rem, 24%, 3.4rem)' }}>
+            {avatarSrc[student.gender] ? (
+              <div className="relative flex h-full shrink-0 items-end justify-center" style={{ width: 'clamp(1.4rem, 24%, 3.4rem)' }}>
+                {highlight === 'winner' && <AvatarSparkles />}
                 <img
                   src={avatarSrc[student.gender]}
                   alt=""
@@ -82,6 +84,8 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
                   className="h-full w-full object-contain object-bottom select-none pointer-events-none"
                 />
               </div>
+            ) : (
+              highlight === 'winner' && <AvatarSparkles />
             )}
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center">
               <span

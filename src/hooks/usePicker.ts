@@ -209,7 +209,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
   const deskHighlights: DeskHighlight[] = Array.from({ length: DESK_COUNT }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
-    if (mode === 'student-result') return winnerDesk === index ? 'none' : 'dimmed'
+    if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
     if (mode === 'row-flashing') return columnOf(index) === flashColumn ? 'flashing' : 'dimmed'
     if (mode === 'row-result') return columnOf(index) === winnerColumn ? 'none' : 'dimmed'
     return 'none'
