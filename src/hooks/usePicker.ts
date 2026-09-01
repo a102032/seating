@@ -211,7 +211,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
     if (mode === 'row-flashing') return columnOf(index) === flashColumn ? 'flashing' : 'dimmed'
-    if (mode === 'row-result') return columnOf(index) === winnerColumn ? 'none' : 'dimmed'
+    if (mode === 'row-result') return columnOf(index) === winnerColumn ? 'winner' : 'dimmed'
     return 'none'
   })
 
