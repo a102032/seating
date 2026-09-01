@@ -82,7 +82,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
               className="opacity-70"
               style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1.35rem)' }}
             >
-              Room {student.homeroom}
+              {student.homeroom}
             </span>
           </motion.div>
         ) : (
