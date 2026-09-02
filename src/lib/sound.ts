@@ -188,23 +188,6 @@ export function playPickerTick(slot: number) {
   playTone(ctx, master, { frequency, start: 0, duration: 0.1, type: 'sine', peakGain: 0.3 })
 }
 
-let deleteWarningBufferPromise: Promise<AudioBuffer> | null = null
-
-function loadDeleteWarningBuffer(ctx: AudioContext): Promise<AudioBuffer> {
-  if (!deleteWarningBufferPromise) {
-    deleteWarningBufferPromise = fetch('/sounds/delete-warning.mp3')
-      .then((res) => res.arrayBuffer())
-      .then((data) => ctx.decodeAudioData(data))
-      .catch((err) => {
-        // Don't let one failed load (a slow network, a cold cache) permanently
-        // block every future tap - clear the cache so the next one retries.
-        deleteWarningBufferPromise = null
-        throw err
-      })
-  }
-  return deleteWarningBufferPromise
-}
-
 /** The safety cover's plastic snap as it flips open, followed by the recorded voice warning. */
 export function playDeleteCoverOpen() {
   const ctx = getContext()
@@ -215,16 +198,15 @@ export function playDeleteCoverOpen() {
   playNoiseBurst(ctx, master, 0, 0.03, 0.5)
   playTone(ctx, master, { frequency: 1800, start: 0, duration: 0.04, type: 'square', peakGain: 0.25 })
 
-  loadDeleteWarningBuffer(ctx)
-    .then((buffer) => {
-      const source = ctx.createBufferSource()
-      source.buffer = buffer
-      source.connect(master)
-      source.start(ctx.currentTime + 0.18)
+  // A plain <audio> element, not the Web Audio fetch/decode pipeline above - some
+  // sandboxed preview environments block fetch() of the recorded clip even when
+  // it's embedded right in the page, but a normal audio element still plays it.
+  window.setTimeout(() => {
+    const audio = new Audio('/sounds/delete-warning.mp3')
+    void audio.play().catch(() => {
+      // The cover still opens fine without the voice line if playback is blocked.
     })
-    .catch(() => {
-      // The cover still opens fine without the voice line if it can't load.
-    })
+  }, 180)
 }
 
 export const ALARM_SOUND_LABELS: Record<AlarmSound, string> = {
