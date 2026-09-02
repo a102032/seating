@@ -20,7 +20,7 @@ interface DeskProps {
 const genderStyles: Record<string, string> = {
   boy: 'bg-sky-50 border-sky-200 text-sky-900 dark:bg-sky-400/10 dark:border-sky-400/25 dark:text-sky-200',
   girl: 'bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-400/10 dark:border-rose-400/25 dark:text-rose-200',
-  unspecified: 'bg-neutral-100 border-neutral-200 text-neutral-800 dark:bg-white/[0.06] dark:border-white/15 dark:text-neutral-100',
+  unspecified: 'bg-secondary border-border text-secondary-foreground',
 }
 
 const avatarSrc: Partial<Record<string, string>> = {
@@ -50,9 +50,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
       onClick={() => onTap(index)}
       className={clsx(
         'group relative flex h-full w-full select-none flex-col items-center justify-center rounded-2xl border p-1 text-center shadow-sm transition-colors duration-150 outline-none',
-        empty
-          ? 'bg-black/[0.025] border-black/10 text-neutral-400 dark:bg-white/[0.025] dark:border-white/10 dark:text-neutral-500'
-          : genderStyles[student.gender],
+        empty ? 'bg-card/50 border-border text-muted-foreground' : genderStyles[student.gender],
         isOver && 'ring-4 ring-emerald-400',
         selected && 'ring-4 ring-blue-500 animate-pulse',
         highlight === 'dimmed' && 'opacity-25',

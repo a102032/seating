@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, GraduationCap, Moon, Pencil, Plus, Sun, Trash2, Upload, UserX } from 'lucide-react'
+import { Armchair, GraduationCap, Pencil, Plus, Trash2, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv } from '../lib/csv'
 import { MAX_CLASSES } from '../hooks/useClasses'
+import type { Theme } from '../lib/theme'
 import type { ClassData, Gender, Student } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -10,10 +11,10 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
+import { ThemePicker } from './ThemePicker'
 
 interface ClassSettingsModalProps {
   open: boolean
@@ -30,8 +31,8 @@ interface ClassSettingsModalProps {
   onDeleteClass: () => void
   onUnseatAll: () => void
   onSeatClass: () => void
-  theme: 'light' | 'dark'
-  onSetTheme: (theme: 'light' | 'dark') => void
+  theme: Theme
+  onSetTheme: (theme: Theme) => void
 }
 
 const genderOptions: { value: Gender; label: string }[] = [
@@ -143,18 +144,17 @@ export function ClassSettingsModal({
 
           <Separator />
 
-          {/* Appearance + Class Name, sharing a row to save vertical space */}
-          <section className="flex shrink-0 flex-wrap items-end gap-3">
+          {/* Class Name + Appearance */}
+          <section className="flex shrink-0 flex-wrap items-start gap-3">
             <div className="min-w-[10rem] flex-1">
               <Label htmlFor="class-name" className="mb-1.5">
                 Class Name
               </Label>
               <Input id="class-name" value={name} onChange={(e) => setName(e.target.value)} onBlur={commitRename} className="font-semibold" />
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-black/[0.05] px-3 py-2 dark:bg-white/[0.06]">
-              <Sun size={16} className={theme === 'light' ? 'text-amber-500' : 'text-neutral-400'} />
-              <Switch checked={theme === 'dark'} onCheckedChange={(checked) => onSetTheme(checked ? 'dark' : 'light')} aria-label="Toggle dark mode" />
-              <Moon size={16} className={theme === 'dark' ? 'text-blue-400' : 'text-neutral-400'} />
+            <div className="w-full min-w-[18rem] sm:w-auto sm:flex-1">
+              <Label className="mb-1.5">Appearance</Label>
+              <ThemePicker theme={theme} onSetTheme={onSetTheme} />
             </div>
           </section>
 
@@ -174,14 +174,12 @@ export function ClassSettingsModal({
               onClick={() => fileInputRef.current?.click()}
               className={clsx(
                 'flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-2.5 text-left transition-colors',
-                dragOver
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
-                  : 'border-black/15 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/15 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]',
+                dragOver ? 'border-primary bg-primary/10' : 'border-black/15 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/15 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]',
               )}
             >
-              <Upload className="shrink-0 text-neutral-400" size={20} />
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                <span className="font-semibold text-neutral-700 dark:text-neutral-200">Import a CSV roster</span> - drag a file here or
+              <Upload className="shrink-0 text-muted-foreground" size={20} />
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">Import a CSV roster</span> - drag a file here or
                 click to choose one (Name, Homeroom Number, Gender)
               </p>
               <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
@@ -206,7 +204,7 @@ export function ClassSettingsModal({
             <Label className="mb-1.5 shrink-0">Roster ({activeClass.students.length} students)</Label>
             <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
               {activeClass.students.length === 0 ? (
-                <p className="p-4 text-center text-neutral-400 dark:text-neutral-500">No students yet. Add some above!</p>
+                <p className="p-4 text-center text-muted-foreground">No students yet. Add some above!</p>
               ) : (
                 activeClass.students.map((s) => (
                   <RosterRow
@@ -316,7 +314,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
           student.gender === 'boy' ? 'bg-sky-400' : student.gender === 'girl' ? 'bg-rose-400' : 'bg-slate-400',
         )}
       />
-      <span className="flex-1 truncate font-semibold text-neutral-800 dark:text-neutral-100">{student.name}</span>
+      <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
       <Badge variant="secondary">Room {student.homeroom || '-'}</Badge>
       {seated && (
         <button
@@ -327,10 +325,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
           <Armchair size={16} />
         </button>
       )}
-      <button
-        onClick={onEdit}
-        className="rounded-full p-1.5 text-neutral-400 hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200"
-      >
+      <button onClick={onEdit} className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
         <Pencil size={16} />
       </button>
       <button onClick={onDelete} className="rounded-full p-1.5 text-neutral-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/15">

@@ -19,7 +19,7 @@ export function SeatClassBanner({ unseatedCount, onSeatClass }: SeatClassBannerP
         exit={{ opacity: 0, y: -6 }}
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
-        className="flex items-center gap-2 rounded-full bg-blue-600 px-5 py-1.5 font-semibold text-white shadow-sm shadow-blue-600/30 dark:bg-blue-500"
+        className="flex items-center gap-2 rounded-full bg-primary px-5 py-1.5 font-semibold text-primary-foreground shadow-sm shadow-primary/30"
         style={{ fontSize: 'clamp(0.75rem, 1.5vmin, 1rem)' }}
       >
         <GraduationCap size={16} />

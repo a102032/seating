@@ -9,7 +9,7 @@ interface FlipDigitProps {
 }
 
 const LEVEL_CLASSES: Record<WarningLevel, string> = {
-  none: 'bg-white text-neutral-900 dark:bg-neutral-800 dark:text-neutral-50',
+  none: 'bg-card text-card-foreground',
   yellow: 'bg-amber-400 text-amber-950',
   orange: 'bg-orange-500 text-white',
   red: 'bg-rose-600 text-rose-50',

@@ -48,7 +48,7 @@ export function ConfirmModal({
       <AlertDialogContent>
         <AlertDialogHeader>
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/10 text-red-500">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
               <AlertTriangle size={18} />
             </span>
             <div className="flex flex-col gap-2 pt-1">
@@ -61,7 +61,7 @@ export function ConfirmModal({
         {requireTypedText && (
           <div className="pl-12">
             <Label htmlFor="confirm-typed-text" className="mb-1.5">
-              Type <span className="font-bold text-neutral-700 dark:text-neutral-200">{requireTypedText}</span> to confirm
+              Type <span className="font-bold text-foreground">{requireTypedText}</span> to confirm
             </Label>
             <Input id="confirm-typed-text" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} />
           </div>

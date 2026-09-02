@@ -21,10 +21,10 @@ export function TimerSettingsModal({ open, onClose, settings, onChange }: TimerS
       <div className="flex flex-col gap-6">
         <section className="flex items-center justify-between gap-4">
           <div>
-            <Label htmlFor="warning-toggle" className="text-neutral-800 dark:text-neutral-100">
+            <Label htmlFor="warning-toggle" className="text-foreground">
               25% Warning
             </Label>
-            <p className="mt-0.5 text-sm text-neutral-400 dark:text-neutral-500">Turn the clock red for the final quarter of the time.</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">Turn the clock red for the final quarter of the time.</p>
           </div>
           <Switch
             id="warning-toggle"

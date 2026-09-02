@@ -64,16 +64,13 @@ export function SidePanel({
   return (
     <aside
       className={clsx(
-        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-white/70 p-3 shadow-xl shadow-black/5 backdrop-blur-xl backdrop-saturate-150 sm:w-64',
-        'dark:border-white/10 dark:bg-neutral-900/60 dark:shadow-black/20',
+        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 backdrop-blur-xl backdrop-saturate-150 sm:w-64',
+        'dark:border-white/10 dark:shadow-black/20',
       )}
     >
       <div className="shrink-0">
         <div className="flex items-center justify-between gap-1">
-          <span
-            className="truncate px-1 font-bold text-neutral-800 dark:text-neutral-100"
-            style={{ fontSize: 'clamp(1rem, 1.9vmin, 1.3rem)' }}
-          >
+          <span className="truncate px-1 font-bold text-foreground" style={{ fontSize: 'clamp(1rem, 1.9vmin, 1.3rem)' }}>
             {activeClass?.name}
           </span>
           {classes.length > 1 && (
@@ -82,7 +79,7 @@ export function SidePanel({
               onClick={() => setListOpen((v) => !v)}
               disabled={swapMode}
               title="Switch class"
-              className="shrink-0 rounded-full p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+              className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
             >
               <motion.span animate={{ rotate: listOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
                 <ChevronDown size={18} />
@@ -109,8 +106,8 @@ export function SidePanel({
                     className={clsx(
                       'w-full truncate rounded-xl px-3 py-2 text-left font-semibold transition-colors active:scale-[0.98]',
                       cls.id === activeClassId
-                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/25'
-                        : 'text-neutral-600 hover:bg-black/[0.05] dark:text-neutral-300 dark:hover:bg-white/[0.08]',
+                        ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                     )}
                     style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
                   >
@@ -134,13 +131,13 @@ export function SidePanel({
         </TactileButton>
         <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
           <div className="mb-1.5 flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Random Pickers</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Random Pickers</span>
             <button
               type="button"
               onClick={onOpenPickerSettings}
               disabled={swapMode}
               title="Random picker settings"
-              className="shrink-0 rounded-full p-1 text-neutral-500 hover:bg-black/[0.05] active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+              className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
             >
               <Settings size={15} />
             </button>
@@ -169,7 +166,7 @@ export function SidePanel({
       <div className="flex shrink-0 flex-col items-center gap-1.5">
         <Badge
           variant="outline"
-          className="gap-1.5 text-neutral-400 dark:text-neutral-500"
+          className="gap-1.5 text-muted-foreground"
           title={isCloudSynced ? 'Synced live across devices' : 'Not connected to a shared database yet - saving on this device only'}
         >
           {isCloudSynced ? <Cloud size={12} /> : <CloudOff size={12} />}
@@ -180,7 +177,7 @@ export function SidePanel({
           onClick={onToggleSide}
           disabled={swapMode}
           title={`Move panel to the ${side === 'left' ? 'right' : 'left'}`}
-          className="rounded-lg p-1.5 text-neutral-500 hover:bg-black/[0.05] active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.08]"
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
         >
           <ArrowLeftRight size={16} />
         </button>

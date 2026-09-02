@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 :root {
   color-scheme: light;
@@ -31,7 +31,7 @@
   --ring: #2563eb;
 }
 
-:root.dark {
+:root[data-theme='dark'] {
   color-scheme: dark;
   --app-bg-from: #1c1c1e;
   --app-bg-to: #232326;
@@ -55,6 +55,87 @@
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.14);
   --ring: #3b82f6;
+}
+
+/* School Colors - pulled from the New Taipei City Yuteh crest (burnt orange + gold on cream) */
+:root[data-theme='school'] {
+  color-scheme: light;
+  --app-bg-from: #fff6ec;
+  --app-bg-to: #fdebd3;
+
+  --background: #fffaf3;
+  --foreground: #3a2113;
+  --card: #ffffff;
+  --card-foreground: #3a2113;
+  --popover: #ffffff;
+  --popover-foreground: #3a2113;
+  --primary: #e2650e;
+  --primary-foreground: #ffffff;
+  --secondary: #fbe7cf;
+  --secondary-foreground: #7a4116;
+  --muted: #f7e4cb;
+  --muted-foreground: #93643a;
+  --accent: #fdf0dd;
+  --accent-foreground: #7a4116;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: rgba(160, 80, 10, 0.16);
+  --input: rgba(160, 80, 10, 0.2);
+  --ring: #e2650e;
+}
+
+/* Calm Sky Blue - soft powder blue, easy on the eyes all day */
+:root[data-theme='sky'] {
+  color-scheme: light;
+  --app-bg-from: #eff8ff;
+  --app-bg-to: #def0fe;
+
+  --background: #f7fbff;
+  --foreground: #1e3a5f;
+  --card: #ffffff;
+  --card-foreground: #1e3a5f;
+  --popover: #ffffff;
+  --popover-foreground: #1e3a5f;
+  --primary: #3aa9e0;
+  --primary-foreground: #ffffff;
+  --secondary: #dceffb;
+  --secondary-foreground: #1d5c86;
+  --muted: #e7f4fc;
+  --muted-foreground: #5c88a8;
+  --accent: #eaf6ff;
+  --accent-foreground: #1d5c86;
+  --destructive: #e11d48;
+  --destructive-foreground: #ffffff;
+  --border: rgba(30, 120, 180, 0.16);
+  --input: rgba(30, 120, 180, 0.2);
+  --ring: #3aa9e0;
+}
+
+/* Vibrant Elementary - ABCYA-style bold chrome on a bright sky-blue ground */
+:root[data-theme='vibrant'] {
+  color-scheme: light;
+  --app-bg-from: #6bd9f7;
+  --app-bg-to: #38bdf8;
+
+  --background: #ffffff;
+  --foreground: #1e2a44;
+  --card: #ffffff;
+  --card-foreground: #1e2a44;
+  --popover: #ffffff;
+  --popover-foreground: #1e2a44;
+  --primary: #8b5cf6;
+  --primary-foreground: #ffffff;
+  --secondary: #ffe27a;
+  --secondary-foreground: #7a4b00;
+  --muted: #f3ecff;
+  --muted-foreground: #7c5a94;
+  --accent: #d1fae5;
+  --accent-foreground: #0f7a56;
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+  --border: rgba(139, 92, 246, 0.18);
+  --input: rgba(139, 92, 246, 0.22);
+  --ring: #8b5cf6;
 }
 
 @theme inline {
@@ -128,6 +209,6 @@ button {
   border-radius: 999px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
 }

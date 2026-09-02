@@ -41,8 +41,8 @@ function ToggleRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <div>
-        <Label className="text-neutral-800 dark:text-neutral-100">{label}</Label>
-        <p className="mt-0.5 text-sm text-neutral-400 dark:text-neutral-500">{description}</p>
+        <Label className="text-foreground">{label}</Label>
+        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
@@ -103,7 +103,7 @@ export function PickerSettingsModal({
             <Label className="shrink-0">Pick History (this session)</Label>
 
             {!hasHistory ? (
-              <p className="rounded-2xl border border-black/10 p-4 text-center text-neutral-400 dark:border-white/10 dark:text-neutral-500">
+              <p className="rounded-2xl border border-black/10 p-4 text-center text-muted-foreground dark:border-white/10">
                 No one's been picked yet.
               </p>
             ) : (
@@ -111,7 +111,7 @@ export function PickerSettingsModal({
                 <div className="flex flex-col gap-3">
                   {studentEntries.length > 0 && (
                     <div>
-                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Students</p>
+                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Students</p>
                       <div className="flex flex-wrap gap-1.5">
                         {studentEntries.map((e) => (
                           <Badge key={e.id} variant="secondary">
@@ -123,7 +123,7 @@ export function PickerSettingsModal({
                   )}
                   {rowEntries.length > 0 && (
                     <div>
-                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Rows</p>
+                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Rows</p>
                       <div className="flex flex-wrap gap-1.5">
                         {rowEntries.map((e) => (
                           <Badge key={e.column} variant="secondary">
