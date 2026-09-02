@@ -162,13 +162,13 @@ export function SidePanel({
         </div>
       </div>
 
+      <div className="min-h-0 flex-1" />
+
       {theme === 'school' && (
         <div className="flex shrink-0 items-center justify-center py-1">
           <img src="/branding/school-crest.png" alt="New Taipei City Yuteh Private School crest" className="w-20 select-none" draggable={false} />
         </div>
       )}
-
-      <div className="min-h-0 flex-1" />
 
       <Separator />
 
