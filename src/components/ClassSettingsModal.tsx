@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { ConfirmModal } from './ConfirmModal'
+import { DangerCover } from './DangerCover'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { ThemePicker } from './ThemePicker'
@@ -84,6 +85,7 @@ export function ClassSettingsModal({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
+  const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
@@ -117,6 +119,7 @@ export function ClassSettingsModal({
     setConfirmingDelete(false)
     setConfirmingUnseatAll(false)
     setEditingId(null)
+    setGuardOpen(false)
     onClose()
   }
 
@@ -137,9 +140,11 @@ export function ClassSettingsModal({
             >
               <Plus size={16} /> New Class
             </TactileButton>
-            <TactileButton variant="danger" className="ml-auto" onClick={() => setConfirmingDelete(true)}>
-              <Trash2 size={16} /> Delete Class
-            </TactileButton>
+            <DangerCover open={guardOpen} onOpen={() => setGuardOpen(true)} className="ml-auto">
+              <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
+                <Trash2 size={16} /> Delete Class
+              </TactileButton>
+            </DangerCover>
           </section>
 
           <Separator />
