@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeftRight, ChevronDown, Cloud, CloudOff, Settings, Shuffle, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -25,6 +26,7 @@ interface SidePanelProps {
   isCloudSynced: boolean
   side: 'left' | 'right'
   onToggleSide: () => void
+  theme: Theme
 }
 
 export function SidePanel({
@@ -43,6 +45,7 @@ export function SidePanel({
   isCloudSynced,
   side,
   onToggleSide,
+  theme,
 }: SidePanelProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
@@ -158,6 +161,12 @@ export function SidePanel({
           </div>
         </div>
       </div>
+
+      {theme === 'school' && (
+        <div className="flex shrink-0 items-center justify-center py-1">
+          <img src="/branding/school-crest.png" alt="New Taipei City Yuteh Private School crest" className="w-20 select-none" draggable={false} />
+        </div>
+      )}
 
       <div className="min-h-0 flex-1" />
 

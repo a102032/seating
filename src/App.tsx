@@ -152,6 +152,7 @@ export default function App() {
       isCloudSynced={isCloudSynced}
       side={panelSide}
       onToggleSide={togglePanelSide}
+      theme={theme}
     />
   )
 
