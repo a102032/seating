@@ -195,6 +195,12 @@ function loadDeleteWarningBuffer(ctx: AudioContext): Promise<AudioBuffer> {
     deleteWarningBufferPromise = fetch('/sounds/delete-warning.mp3')
       .then((res) => res.arrayBuffer())
       .then((data) => ctx.decodeAudioData(data))
+      .catch((err) => {
+        // Don't let one failed load (a slow network, a cold cache) permanently
+        // block every future tap - clear the cache so the next one retries.
+        deleteWarningBufferPromise = null
+        throw err
+      })
   }
   return deleteWarningBufferPromise
 }
