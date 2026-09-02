@@ -3,8 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { playDeleteCoverOpen } from '../lib/sound'
 
-const AUTO_RECLOSE_MS = 3500
+// Long enough for the click-and-voice-warning clip (~4s) to finish before the cover re-locks itself.
+const AUTO_RECLOSE_MS = 4300
 
 interface DangerCoverProps {
   open: boolean
@@ -22,6 +24,11 @@ export function DangerCover({ open, onOpen, onAutoClose, children, className }: 
     return () => clearTimeout(timer)
   }, [open, onAutoClose])
 
+  function handleOpen() {
+    playDeleteCoverOpen()
+    onOpen()
+  }
+
   return (
     <div
       className={clsx('relative shrink-0 rounded-2xl p-1', className)}
@@ -36,7 +43,7 @@ export function DangerCover({ open, onOpen, onAutoClose, children, className }: 
         {!open && (
           <motion.button
             type="button"
-            onClick={onOpen}
+            onClick={handleOpen}
             aria-label="Lift the safety cover to reveal Delete Class"
             title="Lift the safety cover to access Delete Class"
             initial={{ rotateX: 0, opacity: 1 }}
