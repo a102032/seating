@@ -1,17 +1,27 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+
+const AUTO_RECLOSE_MS = 3500
 
 interface DangerCoverProps {
   open: boolean
   onOpen: () => void
+  onAutoClose: () => void
   children: ReactNode
   className?: string
 }
 
-/** A hazard-striped safety cover that flips open (like a missile-launch button guard) before its child button becomes tappable. */
-export function DangerCover({ open, onOpen, children, className }: DangerCoverProps) {
+/** A hazard-striped safety cover that flips open (like a missile-launch button guard) before its child button becomes tappable, and re-covers itself if left unused. */
+export function DangerCover({ open, onOpen, onAutoClose, children, className }: DangerCoverProps) {
+  useEffect(() => {
+    if (!open) return
+    const timer = setTimeout(onAutoClose, AUTO_RECLOSE_MS)
+    return () => clearTimeout(timer)
+  }, [open, onAutoClose])
+
   return (
     <div
       className={clsx('relative shrink-0 rounded-2xl p-1', className)}

@@ -1,4 +1,4 @@
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
@@ -53,7 +53,6 @@ export default function App() {
     unseatAll,
     unseatStudent,
     unseatedStudents,
-    isCloudSynced,
   } = useClasses()
 
   const [swapMode, setSwapMode] = useState(false)
@@ -77,8 +76,6 @@ export default function App() {
     activeClass?.students.forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   function updateTimerSettings(next: TimerSettings) {
     setTimerSettings(next)
@@ -113,21 +110,6 @@ export default function App() {
     setSelectedDesk(null)
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    if (!activeClassId) return
-    const { active, over } = event
-    if (!over) return
-    const studentId = active.data.current?.studentId as string | null | undefined
-    const fromDeskIndex = active.data.current?.fromDeskIndex as number | undefined
-    if (!studentId || fromDeskIndex === undefined) return
-
-    if (over.data.current?.type === 'desk') {
-      const toDeskIndex = over.data.current.deskIndex as number
-      if (toDeskIndex === fromDeskIndex) return
-      swapSeats(activeClassId, fromDeskIndex, toDeskIndex)
-    }
-  }
-
   if (!activeClass) {
     return <div className="flex h-full w-full items-center justify-center text-neutral-400">Loading...</div>
   }
@@ -149,7 +131,6 @@ export default function App() {
       onOpenPickerSettings={() => setPickerSettingsOpen(true)}
       timerSettings={timerSettings}
       onOpenTimerSettings={() => setTimerSettingsOpen(true)}
-      isCloudSynced={isCloudSynced}
       side={panelSide}
       onToggleSide={togglePanelSide}
       theme={theme}
@@ -157,16 +138,18 @@ export default function App() {
   )
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <>
       <div
         className={`flex h-[100dvh] w-[100dvw] gap-3 bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)] p-2 sm:p-3 ${
           panelSide === 'right' ? 'flex-row-reverse' : 'flex-row'
         }`}
         onPointerDownCapture={primeAudio}
       >
-        {sidePanel}
+        <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="flex shrink-0">
+          {sidePanel}
+        </motion.div>
 
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+        <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
           <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
 
           <main className="min-h-0 flex-1">
@@ -179,7 +162,7 @@ export default function App() {
               onTapDesk={handleTapDesk}
             />
           </main>
-        </div>
+        </motion.div>
       </div>
 
       <TimerSettingsModal
@@ -218,6 +201,6 @@ export default function App() {
         theme={theme}
         onSetTheme={setTheme}
       />
-    </DndContext>
+    </>
   )
 }

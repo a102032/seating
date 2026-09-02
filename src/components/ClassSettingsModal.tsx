@@ -140,7 +140,7 @@ export function ClassSettingsModal({
             >
               <Plus size={16} /> New Class
             </TactileButton>
-            <DangerCover open={guardOpen} onOpen={() => setGuardOpen(true)} className="ml-auto">
+            <DangerCover open={guardOpen} onOpen={() => setGuardOpen(true)} onAutoClose={() => setGuardOpen(false)} className="ml-auto">
               <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
                 <Trash2 size={16} /> Delete Class
               </TactileButton>

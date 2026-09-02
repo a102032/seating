@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, Minus, Pause, Play, Plus, Settings, Square } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useCountdown } from '../hooks/useCountdown'
 import { playAlarm } from '../lib/sound'
 import type { TimerSettings } from '../types'
@@ -110,13 +110,48 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
   )
 }
 
+const HOLD_DELAY_MS = 400
+const HOLD_REPEAT_MS = 90
+
 function SpinButton({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
+  const holdTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const held = useRef(false)
+
+  const clearHold = () => {
+    if (holdTimeout.current) clearTimeout(holdTimeout.current)
+    if (holdInterval.current) clearInterval(holdInterval.current)
+    holdTimeout.current = null
+    holdInterval.current = null
+  }
+
+  useEffect(() => clearHold, [])
+
+  function handlePointerDown() {
+    if (disabled) return
+    held.current = false
+    holdTimeout.current = setTimeout(() => {
+      held.current = true
+      onClick()
+      holdInterval.current = setInterval(onClick, HOLD_REPEAT_MS)
+    }, HOLD_DELAY_MS)
+  }
+
+  function handlePointerUp() {
+    if (disabled) return
+    if (!held.current) onClick()
+    clearHold()
+  }
+
   return (
     <motion.button
       whileHover={disabled ? undefined : { scale: 1.1 }}
       whileTap={disabled ? undefined : { scale: 0.9 }}
       disabled={disabled}
-      onClick={onClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={clearHold}
+      onPointerCancel={clearHold}
       className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border bg-card text-foreground disabled:opacity-30"
     >
       {children}

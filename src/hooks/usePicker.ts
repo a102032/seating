@@ -129,6 +129,11 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     }
     if (eligible.length === 0) return // no one seated at all
 
+    // The flashing sequence cycles through everyone currently in play (the whole
+    // row, or the whole class) so it always feels lively - only the final winner
+    // is drawn from the narrower "hasn't been picked yet" pool.
+    const flashPool = stayingInRow ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock) : occupiedIndices
+
     clearTimers()
     setMode('student-flashing')
     setWinnerDesk(null)
@@ -136,7 +141,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
     const startedAt = Date.now()
     intervalRef.current = setInterval(() => {
-      const pick = eligible[Math.floor(Math.random() * eligible.length)]
+      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
       setFlashDesk(pick.index)
       if (soundEnabled) playPickerTick(pick.index)
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
@@ -164,6 +169,9 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
       usedPicked = new Set()
       eligible = Array.from({ length: DESK_COLUMNS }, (_, i) => i)
     }
+    // Same idea as pickStudent: flash across every row for a lively sequence,
+    // but only ever land the winner on one that's still eligible.
+    const flashPool = Array.from({ length: DESK_COLUMNS }, (_, i) => i)
 
     clearTimers()
     setMode('row-flashing')
@@ -171,7 +179,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
     const startedAt = Date.now()
     intervalRef.current = setInterval(() => {
-      const pick = eligible[Math.floor(Math.random() * eligible.length)]
+      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
       setFlashColumn(pick)
       if (soundEnabled) playPickerTick(pick)
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {

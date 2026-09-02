@@ -6,8 +6,8 @@ const MAX_SECONDS_DIGIT = 59
 export type WarningLevel = 'none' | 'yellow' | 'orange' | 'red'
 
 export function useCountdown(onComplete: () => void) {
-  const [configuredSeconds, setConfiguredSeconds] = useState(5 * 60)
-  const [remainingSeconds, setRemainingSeconds] = useState(5 * 60)
+  const [configuredSeconds, setConfiguredSeconds] = useState(0)
+  const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [running, setRunning] = useState(false)
 
   const endTimestampRef = useRef<number | null>(null)

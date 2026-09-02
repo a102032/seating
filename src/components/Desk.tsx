@@ -1,7 +1,3 @@
-import { useDraggable } from '@dnd-kit/core'
-import { useDroppable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
-import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import type { Student } from '../types'
 import { AvatarSparkles } from './AvatarSparkles'
@@ -29,49 +25,24 @@ const avatarSrc: Partial<Record<string, string>> = {
 }
 
 export function Desk({ index, student, swapMode, selected, highlight, onTap }: DeskProps) {
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `desk-${index}`,
-    data: { type: 'desk', deskIndex: index },
-  })
-
-  const { setNodeRef: setDragRef, listeners, attributes, transform, isDragging } = useDraggable({
-    id: student ? `student-${student.id}` : `empty-desk-${index}`,
-    data: { type: 'student', fromDeskIndex: index, studentId: student?.id ?? null },
-    disabled: !student || !swapMode,
-  })
-
   const empty = !student
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
 
   return (
     <button
       type="button"
-      ref={setDropRef}
       onClick={() => onTap(index)}
       className={clsx(
         'group relative flex h-full w-full select-none flex-col items-center justify-center rounded-2xl border p-1 text-center shadow-sm transition-colors duration-150 outline-none',
         empty ? 'bg-card/50 border-border text-muted-foreground' : genderStyles[student.gender],
-        isOver && 'ring-4 ring-emerald-400',
         selected && 'ring-4 ring-blue-500 animate-pulse',
         highlight === 'dimmed' && 'opacity-25',
         highlight === 'flashing' && 'brightness-110 saturate-150',
         swapMode && !empty && 'cursor-pointer',
-        isDragging && 'opacity-30',
       )}
-      style={{ touchAction: 'none' }}
     >
-      <div
-        ref={setDragRef}
-        {...(empty || !swapMode ? {} : listeners)}
-        {...(empty || !swapMode ? {} : attributes)}
-        style={style}
-        className={clsx(
-          'flex h-full w-full flex-col items-center justify-center gap-0.5',
-          !empty && swapMode && 'cursor-grab active:cursor-grabbing',
-        )}
-      >
+      <div className="flex h-full w-full flex-col items-center justify-center gap-0.5">
         {student ? (
-          <motion.div layout className="flex h-full w-full items-stretch justify-center gap-1" initial={false}>
+          <div className="flex h-full w-full items-stretch justify-center gap-1">
             {avatarSrc[student.gender] ? (
               <div className="relative flex h-full shrink-0 items-end justify-center" style={{ width: 'clamp(1.4rem, 24%, 3.4rem)' }}>
                 {highlight === 'winner' && <AvatarSparkles />}
@@ -99,7 +70,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
                 {student.homeroom}
               </span>
             </div>
-          </motion.div>
+          </div>
         ) : (
           <span
             className="opacity-50"
