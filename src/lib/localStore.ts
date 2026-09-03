@@ -19,10 +19,12 @@ export function loadLocalState(): PersistedState | null {
   }
 }
 
-export function saveLocalState(state: PersistedState) {
+/** Returns false if the save failed (storage full or unavailable, e.g. private browsing) so callers can warn the teacher instead of silently losing changes. */
+export function saveLocalState(state: PersistedState): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    return true
   } catch {
-    // Storage full or unavailable (private browsing) - fail silently, in-memory state still works.
+    return false
   }
 }

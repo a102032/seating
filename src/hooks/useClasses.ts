@@ -48,6 +48,7 @@ export function useClasses() {
     initial?.activeClassId ?? initial?.classes?.[0]?.id ?? null,
   )
   const [loadedFromCloud, setLoadedFromCloud] = useState(!isSupabaseConfigured)
+  const [saveError, setSaveError] = useState(false)
   const pendingWrites = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const applyingRemote = useRef(false)
 
@@ -59,7 +60,7 @@ export function useClasses() {
 
   // Always cache to localStorage so the app works instantly offline / before Supabase is configured.
   useEffect(() => {
-    saveLocalState({ classes, activeClassId })
+    setSaveError(!saveLocalState({ classes, activeClassId }))
   }, [classes, activeClassId])
 
   // Initial cloud load + realtime subscription.
@@ -279,6 +280,7 @@ export function useClasses() {
     unseatedStudents,
     isCloudSynced: isSupabaseConfigured,
     loadedFromCloud,
+    saveError,
   }
 }
 

@@ -1,9 +1,10 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Settings, Shuffle, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Settings, Shuffle, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
+import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ConfirmModal } from './ConfirmModal'
 import { FlipTimer } from './FlipTimer'
@@ -25,6 +26,7 @@ interface SidePanelProps {
   side: 'left' | 'right'
   onToggleSide: () => void
   theme: Theme
+  saveError: boolean
 }
 
 export function SidePanel({
@@ -43,6 +45,7 @@ export function SidePanel({
   side,
   onToggleSide,
   theme,
+  saveError,
 }: SidePanelProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
@@ -170,6 +173,16 @@ export function SidePanel({
       <Separator />
 
       <div className="flex shrink-0 flex-col items-center gap-1.5">
+        {saveError && (
+          <Badge
+            variant="outline"
+            className="gap-1.5 border-amber-400/50 text-amber-600 dark:text-amber-400"
+            title="Changes aren't saving on this device right now (storage may be full or private-browsing mode). Export a backup from Settings when you can."
+          >
+            <TriangleAlert size={12} />
+            Not saving
+          </Badge>
+        )}
         <button
           type="button"
           onClick={onToggleSide}

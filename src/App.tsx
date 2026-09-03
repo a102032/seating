@@ -53,6 +53,7 @@ export default function App() {
     unseatAll,
     unseatStudent,
     unseatedStudents,
+    saveError,
   } = useClasses()
 
   const [swapMode, setSwapMode] = useState(false)
@@ -134,6 +135,7 @@ export default function App() {
       side={panelSide}
       onToggleSide={togglePanelSide}
       theme={theme}
+      saveError={saveError}
     />
   )
 
@@ -187,6 +189,7 @@ export default function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         activeClass={activeClass}
+        classes={classes}
         classesCount={classes.length}
         unseatedCount={unseatedStudents.length}
         onRename={(name) => renameClass(activeClass.id, name)}

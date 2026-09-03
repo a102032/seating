@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, GraduationCap, Pencil, Plus, Trash2, Upload, UserX } from 'lucide-react'
+import { Armchair, Download, GraduationCap, Pencil, Plus, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
-import { parseRosterCsv } from '../lib/csv'
+import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES } from '../hooks/useClasses'
 import type { Theme } from '../lib/theme'
-import type { ClassData, Gender, Student } from '../types'
+import { DESK_COUNT, type ClassData, type Gender, type Student } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,7 @@ interface ClassSettingsModalProps {
   open: boolean
   onClose: () => void
   activeClass: ClassData
+  classes: ClassData[]
   classesCount: number
   unseatedCount: number
   onRename: (name: string) => void
@@ -63,6 +64,7 @@ export function ClassSettingsModal({
   open,
   onClose,
   activeClass,
+  classes,
   classesCount,
   unseatedCount,
   onRename,
@@ -78,6 +80,7 @@ export function ClassSettingsModal({
   onSetTheme,
 }: ClassSettingsModalProps) {
   const [name, setName] = useState(activeClass.name)
+  const [nameError, setNameError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [manualName, setManualName] = useState('')
   const [manualHomeroom, setManualHomeroom] = useState('')
@@ -92,11 +95,22 @@ export function ClassSettingsModal({
 
   useEffect(() => {
     setName(activeClass.name)
+    setNameError(null)
   }, [activeClass.id, activeClass.name])
 
   function commitRename() {
     const trimmed = name.trim()
-    if (trimmed && trimmed !== activeClass.name) onRename(trimmed)
+    if (!trimmed || trimmed === activeClass.name) {
+      setNameError(null)
+      return
+    }
+    const isDuplicate = classes.some((c) => c.id !== activeClass.id && c.name.trim().toLowerCase() === trimmed.toLowerCase())
+    if (isDuplicate) {
+      setNameError(`You already have a class named "${trimmed}"`)
+      return
+    }
+    setNameError(null)
+    onRename(trimmed)
   }
 
   async function handleFiles(files: FileList | null) {
@@ -105,6 +119,17 @@ export function ClassSettingsModal({
     const text = await file.text()
     const parsed = parseRosterCsv(text)
     if (parsed.length > 0) onAddStudents(parsed)
+  }
+
+  function downloadRosterCsv() {
+    const csv = studentsToCsv(activeClass.students)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${activeClass.name.trim() || 'roster'}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   function submitManualAdd() {
@@ -155,7 +180,17 @@ export function ClassSettingsModal({
               <Label htmlFor="class-name" className="mb-1.5">
                 Class Name
               </Label>
-              <Input id="class-name" value={name} onChange={(e) => setName(e.target.value)} onBlur={commitRename} className="font-semibold" />
+              <Input
+                id="class-name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setNameError(null)
+                }}
+                onBlur={commitRename}
+                className={clsx('font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
+              />
+              {nameError && <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
             </div>
             <div className="w-full min-w-[18rem] sm:w-auto sm:flex-1">
               <Label className="mb-1.5">Appearance</Label>
@@ -163,8 +198,8 @@ export function ClassSettingsModal({
             </div>
           </section>
 
-          {/* CSV Upload */}
-          <section className="shrink-0">
+          {/* CSV Upload + Export */}
+          <section className="flex shrink-0 items-center gap-2">
             <div
               onDragOver={(e) => {
                 e.preventDefault()
@@ -178,7 +213,7 @@ export function ClassSettingsModal({
               }}
               onClick={() => fileInputRef.current?.click()}
               className={clsx(
-                'flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-2.5 text-left transition-colors',
+                'flex flex-1 cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-2.5 text-left transition-colors',
                 dragOver ? 'border-primary bg-primary/10' : 'border-black/15 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/15 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]',
               )}
             >
@@ -189,6 +224,14 @@ export function ClassSettingsModal({
               </p>
               <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
             </div>
+            <TactileButton
+              onClick={downloadRosterCsv}
+              disabled={activeClass.students.length === 0}
+              className={clsx('shrink-0', activeClass.students.length === 0 && 'opacity-40')}
+              title="Download this class's roster as a CSV file - keep a backup, since this app only saves on this device"
+            >
+              <Download size={16} /> Export
+            </TactileButton>
           </section>
 
           {/* Manual add - always one row, side by side */}
@@ -206,7 +249,15 @@ export function ClassSettingsModal({
 
           {/* Roster list - the only part of this modal that scrolls */}
           <section className="flex min-h-[11rem] flex-1 flex-col">
-            <Label className="mb-1.5 shrink-0">Roster ({activeClass.students.length} students)</Label>
+            <div className="mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
+              {activeClass.students.length > DESK_COUNT && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  <TriangleAlert size={13} />
+                  {activeClass.students.length - DESK_COUNT} more than the {DESK_COUNT} available desks
+                </span>
+              )}
+            </div>
             <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
               {activeClass.students.length === 0 ? (
                 <p className="p-4 text-center text-muted-foreground">No students yet. Add some above!</p>
