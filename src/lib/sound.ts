@@ -188,7 +188,7 @@ export function playPickerTick(slot: number) {
   playTone(ctx, master, { frequency, start: 0, duration: 0.1, type: 'sine', peakGain: 0.3 })
 }
 
-/** The safety cover's plastic snap as it flips open, followed by the recorded voice warning. */
+/** The safety cover's plastic snap as it flips open. */
 export function playDeleteCoverOpen() {
   const ctx = getContext()
   const master = ctx.createGain()
@@ -197,16 +197,6 @@ export function playDeleteCoverOpen() {
 
   playNoiseBurst(ctx, master, 0, 0.03, 0.5)
   playTone(ctx, master, { frequency: 1800, start: 0, duration: 0.04, type: 'square', peakGain: 0.25 })
-
-  // A plain <audio> element, not the Web Audio fetch/decode pipeline above - some
-  // sandboxed preview environments block fetch() of the recorded clip even when
-  // it's embedded right in the page, but a normal audio element still plays it.
-  window.setTimeout(() => {
-    const audio = new Audio('/sounds/delete-warning.mp3')
-    void audio.play().catch(() => {
-      // The cover still opens fine without the voice line if playback is blocked.
-    })
-  }, 180)
 }
 
 export const ALARM_SOUND_LABELS: Record<AlarmSound, string> = {

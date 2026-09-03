@@ -5,8 +5,7 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { playDeleteCoverOpen } from '../lib/sound'
 
-// Long enough for the click-and-voice-warning clip (~4s) to finish before the cover re-locks itself.
-const AUTO_RECLOSE_MS = 4300
+const AUTO_RECLOSE_MS = 3500
 
 interface DangerCoverProps {
   open: boolean
