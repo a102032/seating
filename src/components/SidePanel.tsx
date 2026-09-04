@@ -128,12 +128,14 @@ export function SidePanel({
       <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={swapMode} />
 
       <div className="flex shrink-0 flex-col gap-1.5">
-        <TactileButton onClick={onOpenSettings} disabled={swapMode} className="w-full justify-start">
-          <Settings size={18} /> Settings
-        </TactileButton>
-        <TactileButton active={swapMode} onClick={onToggleSwap} className="w-full justify-start">
-          <Shuffle size={18} /> Swap Seats
-        </TactileButton>
+        <div className="flex gap-1.5">
+          <TactileButton onClick={onOpenSettings} disabled={swapMode} className="grow shrink basis-0 !px-2 justify-center">
+            <Settings size={18} /> Settings
+          </TactileButton>
+          <TactileButton active={swapMode} onClick={onToggleSwap} className="grow shrink basis-0 !px-2 justify-center">
+            <Shuffle size={18} /> Swap Seats
+          </TactileButton>
+        </div>
         <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
           <div className="mb-1.5 flex items-center justify-between px-1">
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pickers &amp; Points</span>
