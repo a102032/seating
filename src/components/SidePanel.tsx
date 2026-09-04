@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Minus, Plus, Settings, Shuffle, Square, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
@@ -49,6 +49,8 @@ export function SidePanel({
 }: SidePanelProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
+  // Visual-only preview of the Select All / Deselect All state change - not wired to real desk selection yet.
+  const [previewAllSelected, setPreviewAllSelected] = useState(false)
 
   const activeClass = classes.find((c) => c.id === activeClassId)
 
@@ -137,24 +139,28 @@ export function SidePanel({
           <div className="flex items-stretch gap-1.5">
             <TactileButton
               disabled={swapMode}
-              title="Select All"
-              className="h-11 w-11 shrink-0 !p-0 justify-center"
+              onClick={() => setPreviewAllSelected((v) => !v)}
+              title={previewAllSelected ? 'Deselect All' : 'Select All'}
+              className={clsx(
+                'h-[38px] w-[38px] shrink-0 !px-0 justify-center',
+                previewAllSelected && 'bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-500 dark:bg-emerald-500 dark:text-white',
+              )}
             >
-              <SquareCheckBig size={19} />
+              {previewAllSelected ? <SquareCheckBig size={18} /> : <Square size={18} />}
             </TactileButton>
             <TactileButton
               disabled={swapMode}
               title="Deduct Point"
-              className="h-11 flex-1 !p-0 justify-center bg-rose-500 text-white shadow-rose-500/30 hover:bg-rose-500 dark:bg-rose-500 dark:text-white"
+              className="h-[38px] flex-1 !px-0 justify-center bg-rose-500 text-white shadow-rose-500/30 hover:bg-rose-500 dark:bg-rose-500 dark:text-white"
             >
-              <Minus size={22} strokeWidth={2.75} />
+              <Minus size={20} strokeWidth={2.75} />
             </TactileButton>
             <TactileButton
               disabled={swapMode}
               title="Award Point"
-              className="h-11 flex-1 !p-0 justify-center bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-500 dark:bg-emerald-500 dark:text-white"
+              className="h-[38px] flex-1 !px-0 justify-center bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-500 dark:bg-emerald-500 dark:text-white"
             >
-              <Plus size={22} strokeWidth={2.75} />
+              <Plus size={20} strokeWidth={2.75} />
             </TactileButton>
           </div>
         </div>
