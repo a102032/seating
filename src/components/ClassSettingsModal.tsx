@@ -88,6 +88,7 @@ export function ClassSettingsModal({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
+  const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -143,6 +144,7 @@ export function ClassSettingsModal({
   function closeAndReset() {
     setConfirmingDelete(false)
     setConfirmingUnseatAll(false)
+    setConfirmingDeleteStudent(null)
     setEditingId(null)
     setGuardOpen(false)
     onClose()
@@ -150,7 +152,7 @@ export function ClassSettingsModal({
 
   return (
     <>
-      <Modal open={open && !confirmingDelete && !confirmingUnseatAll} onClose={closeAndReset} title="Class Settings" wide>
+      <Modal open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent} onClose={closeAndReset} title="Class Settings" wide>
         <div className="flex h-full min-h-0 flex-col gap-3.5">
           {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
           <section className="flex shrink-0 flex-wrap items-center gap-2">
@@ -274,7 +276,7 @@ export function ClassSettingsModal({
                       onUpdateStudent(s.id, patch)
                       setEditingId(null)
                     }}
-                    onDelete={() => onDeleteStudent(s.id)}
+                    onDelete={() => setConfirmingDeleteStudent(s)}
                     onUnseat={() => onUnseatStudent(s.id)}
                   />
                 ))
@@ -312,6 +314,21 @@ export function ClassSettingsModal({
         onConfirm={() => {
           onUnseatAll()
           setConfirmingUnseatAll(false)
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingDeleteStudent !== null}
+        title="Remove Student?"
+        message={`This will permanently remove "${confirmingDeleteStudent?.name}" from "${activeClass.name}"'s roster${
+          confirmingDeleteStudent && seatedIds.has(confirmingDeleteStudent.id) ? ' and their seat' : ''
+        }. This can't be undone.`}
+        confirmLabel="Remove Student"
+        cancelLabel="No"
+        onCancel={() => setConfirmingDeleteStudent(null)}
+        onConfirm={() => {
+          if (confirmingDeleteStudent) onDeleteStudent(confirmingDeleteStudent.id)
+          setConfirmingDeleteStudent(null)
         }}
       />
 
