@@ -161,8 +161,9 @@ export function SidePanel({
               <Users size={18} /> Pick Row
             </TactileButton>
           </div>
-        </div>
-        <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
+
+          <Separator className="my-2" />
+
           <span className="mb-1.5 block px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Points</span>
           <div className="flex items-stretch gap-1.5">
             <TactileButton
