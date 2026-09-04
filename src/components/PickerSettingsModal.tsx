@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import type { PickerTickSound } from '../lib/sound'
 import type { Student } from '../types'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
@@ -14,6 +15,7 @@ export interface PickerSettingsValue {
   allowRepeatsStudents: boolean
   allowRepeatsRows: boolean
   soundEnabled: boolean
+  tickSound: PickerTickSound
 }
 
 interface PickerSettingsModalProps {
@@ -91,10 +93,28 @@ export function PickerSettingsModal({
             />
             <ToggleRow
               label="Picker Sound"
-              description="Soft tones play as students or rows flash by during a pick."
+              description="A sound plays as students or rows flash by during a pick."
               checked={settings.soundEnabled}
               onCheckedChange={(checked) => onUpdateSettings({ soundEnabled: checked })}
             />
+            {settings.soundEnabled && (
+              <div className="-mt-1 flex gap-1.5 pl-0.5">
+                <TactileButton
+                  active={settings.tickSound === 'beep'}
+                  onClick={() => onUpdateSettings({ tickSound: 'beep' })}
+                  className="flex-1 justify-center !py-1.5 text-sm"
+                >
+                  Beep
+                </TactileButton>
+                <TactileButton
+                  active={settings.tickSound === 'pop'}
+                  onClick={() => onUpdateSettings({ tickSound: 'pop' })}
+                  className="flex-1 justify-center !py-1.5 text-sm"
+                >
+                  Pop
+                </TactileButton>
+              </div>
+            )}
           </section>
 
           <Separator />

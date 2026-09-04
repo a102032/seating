@@ -178,8 +178,30 @@ export function primeAudio() {
 // Pentatonic-ish run so consecutive random slots never clash, even played rapidly.
 const PICKER_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51]
 
+export type PickerTickSound = 'beep' | 'pop'
+
+// A small round-robin pool of <audio> elements so rapid ticks (every 90ms) can overlap
+// cleanly instead of one tick cutting the previous one's tail off.
+const POP_POOL_SIZE = 6
+let popPool: HTMLAudioElement[] = []
+let popPoolIndex = 0
+
+function playPop() {
+  if (popPool.length === 0) {
+    popPool = Array.from({ length: POP_POOL_SIZE }, () => new Audio('/sounds/pop.mp3'))
+  }
+  const audio = popPool[popPoolIndex]
+  popPoolIndex = (popPoolIndex + 1) % popPool.length
+  audio.currentTime = 0
+  void audio.play().catch(() => {})
+}
+
 /** A short, soft blip for a single tick of a picker's flashing animation. `slot` is the desk index or column index currently lit. */
-export function playPickerTick(slot: number) {
+export function playPickerTick(slot: number, style: PickerTickSound = 'beep') {
+  if (style === 'pop') {
+    playPop()
+    return
+  }
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DESK_COLUMNS, DESK_COUNT } from '../types'
 import type { DeskHighlight } from '../components/Desk'
-import { playPickerTick } from '../lib/sound'
+import { playPickerTick, type PickerTickSound } from '../lib/sound'
 
 type PickerMode = 'idle' | 'student-flashing' | 'student-result' | 'row-flashing' | 'row-result'
 
@@ -13,12 +13,14 @@ interface PickerSettings {
   allowRepeatsStudents: boolean
   allowRepeatsRows: boolean
   soundEnabled: boolean
+  tickSound: PickerTickSound
 }
 
 const DEFAULT_SETTINGS: PickerSettings = {
   allowRepeatsStudents: false,
   allowRepeatsRows: false,
   soundEnabled: true,
+  tickSound: 'beep',
 }
 
 function loadSettings(): PickerSettings {
@@ -103,7 +105,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
   const pickStudent = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
-    const { allowRepeatsStudents, soundEnabled } = settingsRef.current
+    const { allowRepeatsStudents, soundEnabled, tickSound } = settingsRef.current
     const currentSeating = seatingRef.current
     const occupiedIndices = currentSeating
       .map((studentId, index) => ({ studentId, index }))
@@ -143,7 +145,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     intervalRef.current = setInterval(() => {
       const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
       setFlashDesk(pick.index)
-      if (soundEnabled) playPickerTick(pick.index)
+      if (soundEnabled) playPickerTick(pick.index, tickSound)
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
         clearTimers()
         const winner = eligible[Math.floor(Math.random() * eligible.length)]
@@ -162,7 +164,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
-    const { allowRepeatsRows, soundEnabled } = settingsRef.current
+    const { allowRepeatsRows, soundEnabled, tickSound } = settingsRef.current
     let eligible = Array.from({ length: DESK_COLUMNS }, (_, i) => i).filter((c) => allowRepeatsRows || !pickedColumns.has(c))
     let usedPicked = pickedColumns
     if (eligible.length === 0) {
@@ -181,7 +183,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     intervalRef.current = setInterval(() => {
       const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
       setFlashColumn(pick)
-      if (soundEnabled) playPickerTick(pick)
+      if (soundEnabled) playPickerTick(pick, tickSound)
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
         clearTimers()
         const winner = eligible[Math.floor(Math.random() * eligible.length)]
