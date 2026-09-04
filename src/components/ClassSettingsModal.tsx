@@ -153,7 +153,7 @@ export function ClassSettingsModal({
   return (
     <>
       <Modal open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent} onClose={closeAndReset} title="Class Settings" wide>
-        <div className="flex h-full min-h-0 flex-col gap-3.5">
+        <div className="flex min-h-full flex-col gap-3.5">
           {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
           <section className="flex shrink-0 flex-wrap items-center gap-2">
             <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
@@ -249,8 +249,8 @@ export function ClassSettingsModal({
             </div>
           </section>
 
-          {/* Roster list - the only part of this modal that scrolls */}
-          <section className="flex min-h-[11rem] flex-1 flex-col">
+          {/* Roster list - the only part of this modal that scrolls in normal cases */}
+          <section className="flex min-h-[6rem] flex-1 flex-col">
             <div className="mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
               {activeClass.students.length > DESK_COUNT && (

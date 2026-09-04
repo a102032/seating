@@ -78,7 +78,9 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function DialogBody({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div data-slot="dialog-body" className={cn('flex min-h-0 flex-1 flex-col px-6 pt-4 pb-6', className)} {...props} />
+  return (
+    <div data-slot="dialog-body" className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pt-4 pb-6', className)} {...props} />
+  )
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
