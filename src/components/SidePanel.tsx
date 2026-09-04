@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Settings, Shuffle, TriangleAlert, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
@@ -132,6 +132,32 @@ export function SidePanel({
         <TactileButton active={swapMode} onClick={onToggleSwap} className="w-full justify-start">
           <Shuffle size={18} /> Swap Seats
         </TactileButton>
+        <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
+          <span className="mb-1.5 block px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Points</span>
+          <div className="flex items-stretch gap-1.5">
+            <TactileButton
+              disabled={swapMode}
+              title="Select All"
+              className="h-11 w-11 shrink-0 !p-0 justify-center"
+            >
+              <SquareCheckBig size={19} />
+            </TactileButton>
+            <TactileButton
+              disabled={swapMode}
+              title="Deduct Point"
+              className="h-11 flex-1 !p-0 justify-center bg-rose-500 text-white shadow-rose-500/30 hover:bg-rose-500 dark:bg-rose-500 dark:text-white"
+            >
+              <Minus size={22} strokeWidth={2.75} />
+            </TactileButton>
+            <TactileButton
+              disabled={swapMode}
+              title="Award Point"
+              className="h-11 flex-1 !p-0 justify-center bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-500 dark:bg-emerald-500 dark:text-white"
+            >
+              <Plus size={22} strokeWidth={2.75} />
+            </TactileButton>
+          </div>
+        </div>
         <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
           <div className="mb-1.5 flex items-center justify-between px-1">
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Random Pickers</span>
