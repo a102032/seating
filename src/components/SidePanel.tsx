@@ -136,7 +136,7 @@ export function SidePanel({
         </TactileButton>
         <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
           <div className="mb-1.5 flex items-center justify-between px-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Random Pickers</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pickers &amp; Points</span>
             <button
               type="button"
               onClick={onOpenPickerSettings}
@@ -162,10 +162,7 @@ export function SidePanel({
             </TactileButton>
           </div>
 
-          <Separator className="my-2" />
-
-          <span className="mb-1.5 block px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Points</span>
-          <div className="flex items-stretch gap-1.5">
+          <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
               active={previewAllSelected}
               disabled={swapMode}
