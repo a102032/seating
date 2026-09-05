@@ -45,13 +45,16 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         {student ? (
           <div className="flex h-full w-full items-stretch justify-center gap-1">
             {avatarSrc[student.gender] ? (
-              <div className="relative flex h-full shrink-0 items-end justify-center" style={{ width: 'clamp(1.4rem, 24%, 3.4rem)' }}>
+              <div
+                className="relative flex h-full shrink-0 items-end justify-center overflow-hidden"
+                style={{ maxWidth: 'clamp(1.4rem, 24%, 3.4rem)' }}
+              >
                 {highlight === 'winner' && <AvatarSparkles />}
                 <img
                   src={avatarSrc[student.gender]}
                   alt=""
                   draggable={false}
-                  className="h-full w-full object-contain object-bottom select-none pointer-events-none"
+                  className="h-full w-auto object-contain object-bottom select-none pointer-events-none"
                 />
               </div>
             ) : (
