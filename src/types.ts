@@ -8,8 +8,8 @@ export interface Student {
 }
 
 export const DESK_COUNT = 30
-export const DESK_COLUMNS = 5
-export const DESK_ROWS = 6
+export const DESK_COLUMNS = 6
+export const DESK_ROWS = 5
 
 export interface ClassData {
   id: string

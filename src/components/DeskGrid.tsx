@@ -1,4 +1,4 @@
-import { DESK_COLUMNS, DESK_COUNT, type Student } from '../types'
+import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type Student } from '../types'
 import { Desk, type DeskHighlight } from './Desk'
 
 interface DeskGridProps {
@@ -16,7 +16,7 @@ export function DeskGrid({ seating, studentsById, swapMode, selectedDesk, deskHi
       className="grid h-full w-full gap-2 sm:gap-3"
       style={{
         gridTemplateColumns: `repeat(${DESK_COLUMNS}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(6, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${DESK_ROWS}, minmax(0, 1fr))`,
       }}
     >
       {Array.from({ length: DESK_COUNT }, (_, index) => {

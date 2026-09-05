@@ -39,6 +39,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         highlight === 'flashing' && 'brightness-110 saturate-150',
         swapMode && !empty && 'cursor-pointer',
       )}
+      style={{ containerType: 'inline-size' }}
     >
       <div className="flex h-full w-full flex-col items-center justify-center gap-0.5">
         {student ? (
@@ -59,13 +60,13 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center">
               <span
                 className="w-full truncate px-1 font-bold leading-tight"
-                style={{ fontSize: 'clamp(1.05rem, 3.4vmin, 2.75rem)' }}
+                style={{ fontSize: 'clamp(0.85rem, 10cqi, 2rem)' }}
               >
                 {student.name}
               </span>
               <span
                 className="opacity-70"
-                style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1.35rem)' }}
+                style={{ fontSize: 'clamp(0.65rem, 5cqi, 1.15rem)' }}
               >
                 {student.homeroom}
               </span>
@@ -74,7 +75,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         ) : (
           <span
             className="opacity-50"
-            style={{ fontSize: 'clamp(0.7rem, 1.6vmin, 1.15rem)' }}
+            style={{ fontSize: 'clamp(0.7rem, 6cqi, 1.15rem)' }}
           >
             Empty
           </span>
