@@ -46,16 +46,18 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
           <div className="flex h-full w-full items-stretch justify-center gap-1">
             {avatarSrc[student.gender] ? (
               <div
-                className="relative flex h-full shrink-0 items-end justify-center overflow-hidden"
-                style={{ maxWidth: 'clamp(1.4rem, 24%, 3.4rem)' }}
+                className="relative flex h-full shrink-0 items-center justify-center"
+                style={{ width: 'clamp(1.4rem, 28%, 3.6rem)' }}
               >
                 {highlight === 'winner' && <AvatarSparkles />}
-                <img
-                  src={avatarSrc[student.gender]}
-                  alt=""
-                  draggable={false}
-                  className="h-full w-auto object-contain object-bottom select-none pointer-events-none"
-                />
+                <div className="h-full w-full overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10">
+                  <img
+                    src={avatarSrc[student.gender]}
+                    alt=""
+                    draggable={false}
+                    className="h-full w-full object-contain select-none pointer-events-none"
+                  />
+                </div>
               </div>
             ) : (
               highlight === 'winner' && <AvatarSparkles />
@@ -63,7 +65,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center">
               <span
                 className="w-full truncate px-1 font-bold leading-tight"
-                style={{ fontSize: 'clamp(0.85rem, 10cqi, 2rem)' }}
+                style={{ fontSize: 'clamp(0.8rem, 9cqi, 1.9rem)' }}
               >
                 {student.name}
               </span>
