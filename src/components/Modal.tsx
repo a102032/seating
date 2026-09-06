@@ -7,12 +7,19 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   wide?: boolean
+  size?: 'default' | 'wide' | 'xl'
 }
 
-export function Modal({ open, title, onClose, children, wide }: ModalProps) {
+const sizeClassNames = {
+  default: 'max-w-lg',
+  wide: 'max-w-3xl',
+  xl: 'max-w-5xl',
+}
+
+export function Modal({ open, title, onClose, children, wide, size }: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className={wide ? 'max-w-3xl' : 'max-w-lg'}>
+      <DialogContent className={sizeClassNames[size ?? (wide ? 'wide' : 'default')]}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

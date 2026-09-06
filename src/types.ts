@@ -5,6 +5,8 @@ export interface Student {
   name: string
   homeroom: string
   gender: Gender
+  /** id of a chosen LibraryAvatar (see lib/avatarLibrary.ts) - falls back to the plain gender default when unset. */
+  avatarId?: string
 }
 
 export const DESK_COUNT = 30

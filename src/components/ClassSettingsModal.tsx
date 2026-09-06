@@ -3,6 +3,7 @@ import { Armchair, Download, GraduationCap, Pencil, Plus, Trash2, TriangleAlert,
 import clsx from 'clsx'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES } from '../hooks/useClasses'
+import { resolveAvatarSrc } from '../lib/avatarLibrary'
 import type { Theme } from '../lib/theme'
 import { DESK_COUNT, type ClassData, type Gender, type Student } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { AvatarPickerModal } from './AvatarPickerModal'
 import { ConfirmModal } from './ConfirmModal'
 import { DangerCover } from './DangerCover'
 import { Modal } from './Modal'
@@ -89,6 +91,7 @@ export function ClassSettingsModal({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
+  const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -145,6 +148,7 @@ export function ClassSettingsModal({
     setConfirmingDelete(false)
     setConfirmingUnseatAll(false)
     setConfirmingDeleteStudent(null)
+    setPickingAvatarFor(null)
     setEditingId(null)
     setGuardOpen(false)
     onClose()
@@ -152,7 +156,12 @@ export function ClassSettingsModal({
 
   return (
     <>
-      <Modal open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent} onClose={closeAndReset} title="Class Settings" wide>
+      <Modal
+        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent && !pickingAvatarFor}
+        onClose={closeAndReset}
+        title="Class Settings"
+        wide
+      >
         <div className="flex min-h-full flex-col gap-3.5">
           {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
           <section className="flex shrink-0 flex-wrap items-center gap-2">
@@ -278,6 +287,7 @@ export function ClassSettingsModal({
                     }}
                     onDelete={() => setConfirmingDeleteStudent(s)}
                     onUnseat={() => onUnseatStudent(s.id)}
+                    onPickAvatar={() => setPickingAvatarFor(s)}
                   />
                 ))
               )}
@@ -345,6 +355,16 @@ export function ClassSettingsModal({
           onClose()
         }}
       />
+
+      <AvatarPickerModal
+        open={pickingAvatarFor !== null}
+        student={pickingAvatarFor}
+        onClose={() => setPickingAvatarFor(null)}
+        onSelect={(avatarId) => {
+          if (pickingAvatarFor) onUpdateStudent(pickingAvatarFor.id, { avatarId })
+          setPickingAvatarFor(null)
+        }}
+      />
     </>
   )
 }
@@ -358,9 +378,10 @@ interface RosterRowProps {
   onSave: (patch: Partial<Omit<Student, 'id'>>) => void
   onDelete: () => void
   onUnseat: () => void
+  onPickAvatar: () => void
 }
 
-function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onDelete, onUnseat }: RosterRowProps) {
+function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onDelete, onUnseat, onPickAvatar }: RosterRowProps) {
   const [name, setName] = useState(student.name)
   const [homeroom, setHomeroom] = useState(student.homeroom)
   const [gender, setGender] = useState<Gender>(student.gender)
@@ -381,12 +402,23 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
 
   return (
     <div className="flex items-center gap-2 border-b border-black/5 p-2 last:border-b-0 hover:bg-black/[0.02] dark:border-white/5 dark:hover:bg-white/[0.04]">
-      <span
-        className={clsx(
-          'h-2.5 w-2.5 shrink-0 rounded-full',
-          student.gender === 'boy' ? 'bg-sky-400' : student.gender === 'girl' ? 'bg-rose-400' : 'bg-slate-400',
+      <button
+        type="button"
+        onClick={onPickAvatar}
+        title="Choose an avatar"
+        className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10"
+      >
+        {resolveAvatarSrc(student) ? (
+          <img src={resolveAvatarSrc(student)} alt="" draggable={false} className="h-full w-full object-contain select-none" />
+        ) : (
+          <span
+            className={clsx(
+              'block h-full w-full',
+              student.gender === 'boy' ? 'bg-sky-400' : student.gender === 'girl' ? 'bg-rose-400' : 'bg-slate-400',
+            )}
+          />
         )}
-      />
+      </button>
       <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
       <Badge variant="secondary">Room {student.homeroom || '-'}</Badge>
       {seated && (

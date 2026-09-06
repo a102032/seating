@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { resolveAvatarSrc } from '../lib/avatarLibrary'
 import type { Student } from '../types'
 import { AvatarSparkles } from './AvatarSparkles'
 
@@ -19,13 +20,9 @@ const genderStyles: Record<string, string> = {
   unspecified: 'bg-secondary border-border text-secondary-foreground',
 }
 
-const avatarSrc: Partial<Record<string, string>> = {
-  boy: '/avatars/boy.png',
-  girl: '/avatars/girl.png',
-}
-
 export function Desk({ index, student, swapMode, selected, highlight, onTap }: DeskProps) {
   const empty = !student
+  const avatarSrc = student ? resolveAvatarSrc(student) : undefined
 
   return (
     <button
@@ -44,7 +41,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
       <div className="flex h-full w-full flex-col items-center justify-center gap-0.5">
         {student ? (
           <div className="flex h-full w-full items-stretch justify-center gap-1">
-            {avatarSrc[student.gender] ? (
+            {avatarSrc ? (
               <div
                 className="relative flex h-full shrink-0 items-center justify-center"
                 style={{ width: 'clamp(1.4rem, 28%, 3.6rem)' }}
@@ -52,7 +49,7 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
                 {highlight === 'winner' && <AvatarSparkles />}
                 <div className="h-full w-full overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10">
                   <img
-                    src={avatarSrc[student.gender]}
+                    src={avatarSrc}
                     alt=""
                     draggable={false}
                     className="h-full w-full object-contain select-none pointer-events-none"
