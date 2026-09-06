@@ -123,6 +123,19 @@ const LIBRARY_FILES = [
   'yuteh_girl_volleyball.jpeg',
 ]
 
+// The self-contained demo artifact embeds a compressed copy of the library and injects this
+// global to redirect asset URLs to inline data URIs - a no-op in the real deployed app.
+declare global {
+  interface Window {
+    __DEMO_AVATAR_OVERRIDES__?: Record<string, string>
+  }
+}
+
+function libraryAssetUrl(file: string): string {
+  const override = typeof window !== 'undefined' ? window.__DEMO_AVATAR_OVERRIDES__?.[file] : undefined
+  return override ?? `/avatars/library/${file}`
+}
+
 function titleCase(slug: string): string {
   return slug
     .split('_')
@@ -140,7 +153,7 @@ function parseFile(file: string): LibraryAvatar {
     id: `${gender}-${base || 'default'}`,
     gender,
     label,
-    src: `/avatars/library/${file}`,
+    src: libraryAssetUrl(file),
     isDefault: base === '',
     isHoliday: HOLIDAY_BASE_NAMES.has(base),
   }
