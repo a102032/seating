@@ -259,11 +259,24 @@ export function useClasses() {
     (classId: string, studentIds: string[], delta: number) =>
       updateClass(classId, (c) => {
         const ids = new Set(studentIds)
-        return {
-          ...c,
-          students: c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s)),
+        const students = c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s))
+
+        // The class goal meter only ever moves forward - deductions affect a student's own
+        // tally but shouldn't undo the whole class's shared progress toward the goal.
+        let classPoints = c.classPoints ?? 0
+        if (delta > 0) {
+          classPoints += studentIds.length * delta
+          const goal = c.pointsGoal ?? 0
+          if (goal > 0 && classPoints >= goal) classPoints %= goal
         }
+
+        return { ...c, students, classPoints }
       }),
+    [updateClass],
+  )
+
+  const setPointsGoal = useCallback(
+    (classId: string, goal: number) => updateClass(classId, (c) => ({ ...c, pointsGoal: Math.max(0, Math.round(goal)) })),
     [updateClass],
   )
 
@@ -285,6 +298,7 @@ export function useClasses() {
     addStudents,
     updateStudent,
     adjustPoints,
+    setPointsGoal,
     deleteStudent,
     swapSeats,
     seatClass,

@@ -210,6 +210,30 @@ export function playPickerTick(slot: number, style: PickerTickSound = 'beep') {
   playTone(ctx, master, { frequency, start: 0, duration: 0.1, type: 'sine', peakGain: 0.3 })
 }
 
+/** A bright, snappy two-note blip for a point landing on the class goal meter. */
+export function playPointAward() {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  playTone(ctx, master, { frequency: 1046.5, start: 0, duration: 0.12, type: 'sine', peakGain: 0.35 })
+  playTone(ctx, master, { frequency: 1568, start: 0.06, duration: 0.16, type: 'sine', peakGain: 0.3 })
+}
+
+/** A triumphant rising arpeggio + sparkle burst for reaching the class point goal. */
+export function playGoalCelebration() {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5]
+  notes.forEach((freq, i) => {
+    playTone(ctx, master, { frequency: freq, start: i * 0.09, duration: 0.9 - i * 0.05, type: 'triangle', peakGain: 0.32 })
+  })
+  playNoiseBurst(ctx, master, 0, 0.4, 0.12)
+  playTone(ctx, master, { frequency: 2093, start: 0.45, duration: 0.6, type: 'sine', peakGain: 0.22 })
+}
+
 /** The safety cover's plastic snap as it flips open. */
 export function playDeleteCoverOpen() {
   const ctx = getContext()

@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { PickerSettingsModal } from './components/PickerSettingsModal'
+import { PointsGoalModal } from './components/PointsGoalModal'
+import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
@@ -48,6 +50,7 @@ export default function App() {
     addStudents,
     updateStudent,
     adjustPoints,
+    setPointsGoal,
     deleteStudent,
     swapSeats,
     seatClass,
@@ -63,6 +66,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
+  const [pointsGoalOpen, setPointsGoalOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
@@ -190,6 +194,13 @@ export default function App() {
         </motion.div>
 
         <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <PointsMeter
+            classId={activeClass.id}
+            classPoints={activeClass.classPoints ?? 0}
+            goal={activeClass.pointsGoal ?? 0}
+            onOpenGoalSettings={() => setPointsGoalOpen(true)}
+          />
+
           <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
 
           <main className="min-h-0 flex-1">
@@ -210,6 +221,13 @@ export default function App() {
         onClose={() => setTimerSettingsOpen(false)}
         settings={timerSettings}
         onChange={updateTimerSettings}
+      />
+
+      <PointsGoalModal
+        open={pointsGoalOpen}
+        onClose={() => setPointsGoalOpen(false)}
+        currentGoal={activeClass.pointsGoal ?? 0}
+        onSave={(goal) => setPointsGoal(activeClass.id, goal)}
       />
 
       <PickerSettingsModal

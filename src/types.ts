@@ -22,6 +22,10 @@ export interface ClassData {
   /** length DESK_COUNT, each slot holds a student id or null for an empty desk */
   seating: (string | null)[]
   updatedAt: string
+  /** Rolling total toward pointsGoal - wraps back down (never above the goal) each time the class hits it. Unset is treated as 0. */
+  classPoints?: number
+  /** Teacher-set target for the class points meter. Unset or 0 means the meter isn't configured yet. */
+  pointsGoal?: number
 }
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'
