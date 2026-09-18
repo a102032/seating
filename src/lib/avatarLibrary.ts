@@ -1,4 +1,5 @@
 import type { Gender, Student } from '../types'
+import { assetUrl } from './assets'
 
 export interface LibraryAvatar {
   id: string
@@ -123,19 +124,6 @@ const LIBRARY_FILES = [
   'yuteh_girl_volleyball.jpeg',
 ]
 
-// The self-contained demo artifact embeds a compressed copy of the library and injects this
-// global to redirect asset URLs to inline data URIs - a no-op in the real deployed app.
-declare global {
-  interface Window {
-    __DEMO_AVATAR_OVERRIDES__?: Record<string, string>
-  }
-}
-
-function libraryAssetUrl(file: string): string {
-  const override = typeof window !== 'undefined' ? window.__DEMO_AVATAR_OVERRIDES__?.[file] : undefined
-  return override ?? `/avatars/library/${file}`
-}
-
 function titleCase(slug: string): string {
   return slug
     .split('_')
@@ -153,7 +141,7 @@ function parseFile(file: string): LibraryAvatar {
     id: `${gender}-${base || 'default'}`,
     gender,
     label,
-    src: libraryAssetUrl(file),
+    src: assetUrl(`/avatars/library/${file}`),
     isDefault: base === '',
     isHoliday: HOLIDAY_BASE_NAMES.has(base),
   }
@@ -168,8 +156,8 @@ export function getLibraryAvatar(id: string | undefined): LibraryAvatar | undefi
 }
 
 const DEFAULT_AVATAR_SRC: Partial<Record<Gender, string>> = {
-  boy: '/avatars/boy.png',
-  girl: '/avatars/girl.png',
+  boy: assetUrl('/avatars/boy.png'),
+  girl: assetUrl('/avatars/girl.png'),
 }
 
 /** The avatar image to actually show for a student: their picked library avatar if set, else the plain gender default. */

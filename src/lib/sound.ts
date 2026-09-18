@@ -1,3 +1,4 @@
+import { assetUrl } from './assets'
 import type { AlarmSound } from '../types'
 
 let sharedContext: AudioContext | null = null
@@ -188,7 +189,7 @@ let popPoolIndex = 0
 
 function playPop() {
   if (popPool.length === 0) {
-    popPool = Array.from({ length: POP_POOL_SIZE }, () => new Audio('/sounds/pop.mp3'))
+    popPool = Array.from({ length: POP_POOL_SIZE }, () => new Audio(assetUrl('/sounds/pop.mp3')))
   }
   const audio = popPool[popPoolIndex]
   popPoolIndex = (popPoolIndex + 1) % popPool.length

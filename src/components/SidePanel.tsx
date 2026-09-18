@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { assetUrl } from '../lib/assets'
 import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -218,7 +219,12 @@ export function SidePanel({
 
       {theme === 'school' && (
         <div className="flex shrink-0 items-center justify-center py-1">
-          <img src="/branding/school-crest.png" alt="New Taipei City Yuteh Private School crest" className="w-20 select-none" draggable={false} />
+          <img
+            src={assetUrl('/branding/school-crest.png')}
+            alt="New Taipei City Yuteh Private School crest"
+            className="w-20 select-none"
+            draggable={false}
+          />
         </div>
       )}
 

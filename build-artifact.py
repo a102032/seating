@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Bundle the built app into one self-contained HTML file for the Claude artifact preview.
 
-The real app serves avatars from /avatars/library/. An artifact has no server, so every
-asset is inlined as a data URI: the 71 library avatars go into a lookup that
-lib/avatarLibrary.ts reads via window.__DEMO_AVATAR_OVERRIDES__, and the handful of
-directly-referenced assets are string-swapped inside the bundle.
+An artifact has no server, so every asset under public/ is inlined as a data URI and
+handed to the app through window.__DEMO_ASSET_OVERRIDES__, which lib/assets.ts consults
+before falling back to a real URL. Keying that map by the same path the app asks for
+means nothing here depends on how the minifier happens to quote its strings.
 """
 import base64
 import io
@@ -56,28 +56,18 @@ def main() -> None:
     css = css_path.read_text()
 
     library = sorted((PUBLIC / "avatars" / "library").glob("*.jpeg"))
-    overrides = {p.name: jpeg_data_uri(p, AVATAR_WIDTH, AVATAR_QUALITY) for p in library}
-    print(f"inlined {len(overrides)} library avatars")
-
-    # Assets the bundle references by literal path rather than through the override map.
-    direct = {
-        "/avatars/boy.png": png_data_uri(PUBLIC / "avatars" / "boy.png", AVATAR_WIDTH),
-        "/avatars/girl.png": png_data_uri(PUBLIC / "avatars" / "girl.png", AVATAR_WIDTH),
-        "/branding/school-crest.png": png_data_uri(PUBLIC / "branding" / "school-crest.png", 240),
-        "/sounds/pop.mp3": raw_data_uri(PUBLIC / "sounds" / "pop.mp3", "audio/mpeg"),
+    overrides = {
+        f"/avatars/library/{p.name}": jpeg_data_uri(p, AVATAR_WIDTH, AVATAR_QUALITY) for p in library
     }
-    # The minifier picks its own quote style (this build uses backticks), so swap every form
-    # and verify the swap actually landed - checking only that the path exists would pass
-    # even when the replacement was a no-op.
-    for path, uri in direct.items():
-        replacement = json.dumps(uri)
-        before = js
-        for quote in ('"', "'", "`"):
-            js = js.replace(f"{quote}{path}{quote}", replacement)
-        if js == before:
-            raise SystemExit(f"no quoted occurrence of {path} was replaced in the bundle")
-        if path in js:
-            raise SystemExit(f"{path} still present in the bundle after replacement")
+    overrides.update(
+        {
+            "/avatars/boy.png": png_data_uri(PUBLIC / "avatars" / "boy.png", AVATAR_WIDTH),
+            "/avatars/girl.png": png_data_uri(PUBLIC / "avatars" / "girl.png", AVATAR_WIDTH),
+            "/branding/school-crest.png": png_data_uri(PUBLIC / "branding" / "school-crest.png", 240),
+            "/sounds/pop.mp3": raw_data_uri(PUBLIC / "sounds" / "pop.mp3", "audio/mpeg"),
+        }
+    )
+    print(f"inlined {len(overrides)} assets ({len(library)} library avatars)")
 
     # Guard against the closing tag inside a string literal ending the inline script early.
     safe_js = js.replace("</script", "<\\/script")
@@ -93,7 +83,7 @@ html, body {{ margin: 0; height: 100%; }}
 #root {{ height: 100dvh; }}
 </style>
 <div id="root"></div>
-<script>window.__DEMO_AVATAR_OVERRIDES__ = {overrides_json};</script>
+<script>window.__DEMO_ASSET_OVERRIDES__ = {overrides_json};</script>
 <script type="module">
 {safe_js}
 </script>

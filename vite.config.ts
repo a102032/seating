@@ -5,6 +5,9 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages serves this repo under /seating/ rather than the domain root. Overridable
+  // via BASE_PATH so the same build can target a root-hosted deploy or the demo artifact.
+  base: process.env.BASE_PATH ?? '/seating/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
