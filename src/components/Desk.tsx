@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { Star } from 'lucide-react'
 import { resolveAvatarSrc } from '../lib/avatarLibrary'
 import type { Student } from '../types'
 import { AvatarSparkles } from './AvatarSparkles'
@@ -8,8 +9,8 @@ export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
 interface DeskProps {
   index: number
   student: Student | undefined
-  swapMode: boolean
   selected: boolean
+  pointsSelected: boolean
   highlight: DeskHighlight
   onTap: (index: number) => void
 }
@@ -20,9 +21,10 @@ const genderStyles: Record<string, string> = {
   unspecified: 'bg-secondary border-border text-secondary-foreground',
 }
 
-export function Desk({ index, student, swapMode, selected, highlight, onTap }: DeskProps) {
+export function Desk({ index, student, selected, pointsSelected, highlight, onTap }: DeskProps) {
   const empty = !student
   const avatarSrc = student ? resolveAvatarSrc(student) : undefined
+  const points = student?.points ?? 0
 
   return (
     <button
@@ -32,12 +34,22 @@ export function Desk({ index, student, swapMode, selected, highlight, onTap }: D
         'group relative flex h-full w-full select-none flex-col items-center justify-center rounded-2xl border p-1 text-center shadow-sm transition-colors duration-150 outline-none',
         empty ? 'bg-card/50 border-border text-muted-foreground' : genderStyles[student.gender],
         selected && 'ring-4 ring-blue-500 animate-pulse',
+        pointsSelected && !selected && 'ring-4 ring-emerald-500',
         highlight === 'dimmed' && 'opacity-25',
         highlight === 'flashing' && 'brightness-110 saturate-150',
-        swapMode && !empty && 'cursor-pointer',
+        !empty && 'cursor-pointer',
       )}
       style={{ containerType: 'inline-size' }}
     >
+      {!empty && points > 0 && (
+        <div
+          className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 font-bold text-amber-950 shadow-sm"
+          style={{ fontSize: 'clamp(0.6rem, 5.5cqi, 0.95rem)' }}
+        >
+          <Star size={10} className="shrink-0 fill-amber-950" />
+          {points}
+        </div>
+      )}
       <div className="flex h-full w-full flex-col items-center justify-center gap-0.5">
         {student ? (
           <div className="flex h-full w-full items-stretch justify-center gap-1">

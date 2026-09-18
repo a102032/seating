@@ -47,6 +47,7 @@ export default function App() {
     deleteClass,
     addStudents,
     updateStudent,
+    adjustPoints,
     deleteStudent,
     swapSeats,
     seatClass,
@@ -58,6 +59,7 @@ export default function App() {
 
   const [swapMode, setSwapMode] = useState(false)
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
+  const [pointsSelection, setPointsSelection] = useState<Set<number>>(new Set())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
@@ -68,6 +70,10 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
+
+  useEffect(() => {
+    setPointsSelection(new Set())
+  }, [activeClassId])
 
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating, activeClassId)
@@ -97,7 +103,16 @@ export default function App() {
       picker.dismiss()
       return
     }
-    if (!swapMode) return
+    if (!swapMode) {
+      if (!seating[index]) return
+      setPointsSelection((prev) => {
+        const next = new Set(prev)
+        if (next.has(index)) next.delete(index)
+        else next.add(index)
+        return next
+      })
+      return
+    }
 
     if (selectedDesk === null) {
       setSelectedDesk(index)
@@ -109,6 +124,23 @@ export default function App() {
     }
     swapSeats(activeClassId, selectedDesk, index)
     setSelectedDesk(null)
+  }
+
+  function toggleSelectAll() {
+    const seatedIndices = seating.reduce<number[]>((acc, id, i) => {
+      if (id) acc.push(i)
+      return acc
+    }, [])
+    const allSelected = seatedIndices.length > 0 && seatedIndices.every((i) => pointsSelection.has(i))
+    setPointsSelection(allSelected ? new Set() : new Set(seatedIndices))
+  }
+
+  function applyPointsDelta(delta: number) {
+    if (!activeClassId || pointsSelection.size === 0) return
+    const studentIds = Array.from(pointsSelection)
+      .map((i) => seating[i])
+      .filter((id): id is string => Boolean(id))
+    adjustPoints(activeClassId, studentIds, delta)
   }
 
   if (!activeClass) {
@@ -124,6 +156,7 @@ export default function App() {
       onToggleSwap={() => {
         setSwapMode((v) => !v)
         setSelectedDesk(null)
+        setPointsSelection(new Set())
       }}
       onPickStudent={picker.pickStudent}
       onPickRow={picker.pickRow}
@@ -136,6 +169,11 @@ export default function App() {
       onToggleSide={togglePanelSide}
       theme={theme}
       saveError={saveError}
+      pointsSelectedCount={pointsSelection.size}
+      allSeatedSelected={seating.length > 0 && seating.some(Boolean) && seating.every((id, i) => !id || pointsSelection.has(i))}
+      onToggleSelectAll={toggleSelectAll}
+      onAwardPoint={() => applyPointsDelta(1)}
+      onDeductPoint={() => applyPointsDelta(-1)}
     />
   )
 
@@ -158,8 +196,8 @@ export default function App() {
             <DeskGrid
               seating={seating}
               studentsById={studentsById}
-              swapMode={swapMode}
               selectedDesk={selectedDesk}
+              pointsSelection={pointsSelection}
               deskHighlights={picker.deskHighlights}
               onTapDesk={handleTapDesk}
             />

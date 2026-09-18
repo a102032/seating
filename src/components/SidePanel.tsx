@@ -27,6 +27,11 @@ interface SidePanelProps {
   onToggleSide: () => void
   theme: Theme
   saveError: boolean
+  pointsSelectedCount: number
+  allSeatedSelected: boolean
+  onToggleSelectAll: () => void
+  onAwardPoint: () => void
+  onDeductPoint: () => void
 }
 
 export function SidePanel({
@@ -46,11 +51,14 @@ export function SidePanel({
   onToggleSide,
   theme,
   saveError,
+  pointsSelectedCount,
+  allSeatedSelected,
+  onToggleSelectAll,
+  onAwardPoint,
+  onDeductPoint,
 }: SidePanelProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
-  // Visual-only preview of the Select All / Deselect All state change - not wired to real desk selection yet.
-  const [previewAllSelected, setPreviewAllSelected] = useState(false)
 
   const activeClass = classes.find((c) => c.id === activeClassId)
 
@@ -166,21 +174,36 @@ export function SidePanel({
 
           <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
-              active={previewAllSelected}
+              active={allSeatedSelected}
               disabled={swapMode}
-              onClick={() => setPreviewAllSelected((v) => !v)}
-              title={previewAllSelected ? 'Deselect All' : 'Select All'}
+              onClick={onToggleSelectAll}
+              title={allSeatedSelected ? 'Deselect All' : 'Select All'}
               className="h-[38px] w-[38px] shrink-0 !px-0 justify-center"
             >
               <SquareCheckBig size={18} />
             </TactileButton>
-            <TactileButton disabled={swapMode} title="Deduct Point" className="h-[38px] flex-1 !px-0 justify-center">
+            <TactileButton
+              disabled={swapMode || pointsSelectedCount === 0}
+              onClick={onDeductPoint}
+              title="Deduct Point"
+              className="h-[38px] flex-1 !px-0 justify-center"
+            >
               <Minus size={20} strokeWidth={2.75} />
             </TactileButton>
-            <TactileButton disabled={swapMode} title="Award Point" className="h-[38px] flex-1 !px-0 justify-center">
+            <TactileButton
+              disabled={swapMode || pointsSelectedCount === 0}
+              onClick={onAwardPoint}
+              title="Award Point"
+              className="h-[38px] flex-1 !px-0 justify-center"
+            >
               <Plus size={20} strokeWidth={2.75} />
             </TactileButton>
           </div>
+          {pointsSelectedCount > 0 && (
+            <p className="mt-1 px-1 text-center text-xs font-medium text-muted-foreground">
+              {pointsSelectedCount} student{pointsSelectedCount === 1 ? '' : 's'} selected
+            </p>
+          )}
         </div>
       </div>
 

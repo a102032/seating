@@ -4,13 +4,13 @@ import { Desk, type DeskHighlight } from './Desk'
 interface DeskGridProps {
   seating: (string | null)[]
   studentsById: Map<string, Student>
-  swapMode: boolean
   selectedDesk: number | null
+  pointsSelection: Set<number>
   deskHighlights: DeskHighlight[]
   onTapDesk: (index: number) => void
 }
 
-export function DeskGrid({ seating, studentsById, swapMode, selectedDesk, deskHighlights, onTapDesk }: DeskGridProps) {
+export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection, deskHighlights, onTapDesk }: DeskGridProps) {
   return (
     <div
       className="grid h-full w-full gap-2 sm:gap-3"
@@ -27,8 +27,8 @@ export function DeskGrid({ seating, studentsById, swapMode, selectedDesk, deskHi
             key={index}
             index={index}
             student={student}
-            swapMode={swapMode}
             selected={selectedDesk === index}
+            pointsSelected={pointsSelection.has(index)}
             highlight={deskHighlights[index] ?? 'none'}
             onTap={onTapDesk}
           />

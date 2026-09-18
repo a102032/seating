@@ -7,6 +7,8 @@ export interface Student {
   gender: Gender
   /** id of a chosen LibraryAvatar (see lib/avatarLibrary.ts) - falls back to the plain gender default when unset. */
   avatarId?: string
+  /** Accumulated class points, floored at 0. Unset is treated as 0 - older saved students predate this field. */
+  points?: number
 }
 
 export const DESK_COUNT = 30

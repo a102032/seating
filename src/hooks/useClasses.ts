@@ -255,6 +255,18 @@ export function useClasses() {
     [updateClass],
   )
 
+  const adjustPoints = useCallback(
+    (classId: string, studentIds: string[], delta: number) =>
+      updateClass(classId, (c) => {
+        const ids = new Set(studentIds)
+        return {
+          ...c,
+          students: c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s)),
+        }
+      }),
+    [updateClass],
+  )
+
   const seatedStudentIds = useMemo(() => new Set((activeClass?.seating ?? []).filter(Boolean) as string[]), [activeClass])
 
   const unseatedStudents = useMemo(
@@ -272,6 +284,7 @@ export function useClasses() {
     deleteClass,
     addStudents,
     updateStudent,
+    adjustPoints,
     deleteStudent,
     swapSeats,
     seatClass,
