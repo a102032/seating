@@ -5,7 +5,8 @@ interface DeskGridProps {
   seating: (string | null)[]
   studentsById: Map<string, Student>
   selectedDesk: number | null
-  pointsSelection: Set<number>
+  /** Student ids currently selected for a points action. */
+  pointsSelection: Set<string>
   deskHighlights: DeskHighlight[]
   onTapDesk: (index: number) => void
 }
@@ -28,7 +29,7 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
             index={index}
             student={student}
             selected={selectedDesk === index}
-            pointsSelected={pointsSelection.has(index)}
+            pointsSelected={student !== undefined && pointsSelection.has(student.id)}
             highlight={deskHighlights[index] ?? 'none'}
             onTap={onTapDesk}
           />

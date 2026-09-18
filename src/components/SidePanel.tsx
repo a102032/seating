@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
@@ -32,6 +32,8 @@ interface SidePanelProps {
   onToggleSelectAll: () => void
   onAwardPoint: () => void
   onDeductPoint: () => void
+  flipDeckOpen: boolean
+  onToggleFlipDeck: () => void
 }
 
 export function SidePanel({
@@ -56,6 +58,8 @@ export function SidePanel({
   onToggleSelectAll,
   onAwardPoint,
   onDeductPoint,
+  flipDeckOpen,
+  onToggleFlipDeck,
 }: SidePanelProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
@@ -169,6 +173,9 @@ export function SidePanel({
               title={rowLocked ? 'A row is locked - Pick Student now draws from it. Tap the row to clear it.' : undefined}
             >
               <Users size={18} /> Pick Row
+            </TactileButton>
+            <TactileButton active={flipDeckOpen} onClick={onToggleFlipDeck} disabled={swapMode} className="w-full justify-start">
+              <Layers size={18} /> Flip Cards
             </TactileButton>
           </div>
 

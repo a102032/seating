@@ -1,7 +1,9 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
+import { FlipDeck } from './components/FlipDeck'
+import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
 import { PickerSettingsModal } from './components/PickerSettingsModal'
 import { PointsGoalModal } from './components/PointsGoalModal'
 import { PointsMeter } from './components/PointsMeter'
@@ -9,6 +11,7 @@ import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { useClasses } from './hooks/useClasses'
+import { useFlipDeck } from './hooks/useFlipDeck'
 import { usePicker } from './hooks/usePicker'
 import { primeAudio } from './lib/sound'
 import { applyTheme, loadTheme, type Theme } from './lib/theme'
@@ -62,11 +65,14 @@ export default function App() {
 
   const [swapMode, setSwapMode] = useState(false)
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
-  const [pointsSelection, setPointsSelection] = useState<Set<number>>(new Set())
+  // Keyed by student id, not desk index, so a desk and a revealed flip card select the same way.
+  const [pointsSelection, setPointsSelection] = useState<Set<string>>(new Set())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
   const [pointsGoalOpen, setPointsGoalOpen] = useState(false)
+  const [flipDeckOpen, setFlipDeckOpen] = useState(false)
+  const [flipSettingsOpen, setFlipSettingsOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
@@ -81,6 +87,8 @@ export default function App() {
 
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating, activeClassId)
+  const seatedIds = useMemo(() => (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)), [activeClass])
+  const deck = useFlipDeck(seatedIds, activeClassId)
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
@@ -108,13 +116,9 @@ export default function App() {
       return
     }
     if (!swapMode) {
-      if (!seating[index]) return
-      setPointsSelection((prev) => {
-        const next = new Set(prev)
-        if (next.has(index)) next.delete(index)
-        else next.add(index)
-        return next
-      })
+      const studentId = seating[index]
+      if (!studentId) return
+      togglePointsSelection(studentId)
       return
     }
 
@@ -130,21 +134,23 @@ export default function App() {
     setSelectedDesk(null)
   }
 
+  function togglePointsSelection(studentId: string) {
+    setPointsSelection((prev) => {
+      const next = new Set(prev)
+      if (next.has(studentId)) next.delete(studentId)
+      else next.add(studentId)
+      return next
+    })
+  }
+
   function toggleSelectAll() {
-    const seatedIndices = seating.reduce<number[]>((acc, id, i) => {
-      if (id) acc.push(i)
-      return acc
-    }, [])
-    const allSelected = seatedIndices.length > 0 && seatedIndices.every((i) => pointsSelection.has(i))
-    setPointsSelection(allSelected ? new Set() : new Set(seatedIndices))
+    const allSelected = seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))
+    setPointsSelection(allSelected ? new Set() : new Set(seatedIds))
   }
 
   function applyPointsDelta(delta: number) {
     if (!activeClassId || pointsSelection.size === 0) return
-    const studentIds = Array.from(pointsSelection)
-      .map((i) => seating[i])
-      .filter((id): id is string => Boolean(id))
-    adjustPoints(activeClassId, studentIds, delta)
+    adjustPoints(activeClassId, Array.from(pointsSelection), delta)
   }
 
   if (!activeClass) {
@@ -174,10 +180,18 @@ export default function App() {
       theme={theme}
       saveError={saveError}
       pointsSelectedCount={pointsSelection.size}
-      allSeatedSelected={seating.length > 0 && seating.some(Boolean) && seating.every((id, i) => !id || pointsSelection.has(i))}
+      allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))}
       onToggleSelectAll={toggleSelectAll}
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
+      flipDeckOpen={flipDeckOpen}
+      onToggleFlipDeck={() => {
+        setFlipDeckOpen((open) => {
+          if (!open) deck.deal()
+          return !open
+        })
+        setPointsSelection(new Set())
+      }}
     />
   )
 
@@ -203,7 +217,7 @@ export default function App() {
 
           <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
 
-          <main className="min-h-0 flex-1">
+          <main className="relative min-h-0 flex-1 overflow-hidden">
             <DeskGrid
               seating={seating}
               studentsById={studentsById}
@@ -212,6 +226,32 @@ export default function App() {
               deskHighlights={picker.deskHighlights}
               onTapDesk={handleTapDesk}
             />
+
+            {/* The flip deck slides up over the seating chart and back down on the way out,
+                keeping the side panel's points buttons and the class goal meter in play. */}
+            <AnimatePresence>
+              {flipDeckOpen && (
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+                  className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
+                >
+                  <FlipDeck
+                    deck={deck}
+                    studentsById={studentsById}
+                    pointsSelection={pointsSelection}
+                    onToggleSelect={togglePointsSelection}
+                    onOpenSettings={() => setFlipSettingsOpen(true)}
+                    onExit={() => {
+                      setFlipDeckOpen(false)
+                      setPointsSelection(new Set())
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </main>
         </motion.div>
       </div>
@@ -221,6 +261,13 @@ export default function App() {
         onClose={() => setTimerSettingsOpen(false)}
         settings={timerSettings}
         onChange={updateTimerSettings}
+      />
+
+      <FlipDeckSettingsModal
+        open={flipSettingsOpen}
+        onClose={() => setFlipSettingsOpen(false)}
+        settings={deck.settings}
+        onChange={deck.updateSettings}
       />
 
       <PointsGoalModal

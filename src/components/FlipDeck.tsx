@@ -1,0 +1,177 @@
+import clsx from 'clsx'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Eye, EyeOff, Layers, Settings, Shuffle, X } from 'lucide-react'
+import { DEAL_STAGGER_MS, type useFlipDeck } from '../hooks/useFlipDeck'
+import { DESK_COLUMNS, type Student } from '../types'
+import { FlipCard } from './FlipCard'
+import { TactileButton } from './TactileButton'
+
+interface FlipDeckProps {
+  deck: ReturnType<typeof useFlipDeck>
+  studentsById: Map<string, Student>
+  pointsSelection: Set<string>
+  onToggleSelect: (studentId: string) => void
+  onOpenSettings: () => void
+  onExit: () => void
+}
+
+export function FlipDeck({ deck, studentsById, pointsSelection, onToggleSelect, onOpenSettings, onExit }: FlipDeckProps) {
+  const { inPlay, setAsideCount, phase, settings, shuffle, flip, revealAll, hideAll, anyFaceUp } = deck
+
+  return (
+    <div className="flex h-full w-full min-h-0 flex-col gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm backdrop-blur-xl">
+        <div className="flex items-center gap-1.5">
+          <TactileButton onClick={shuffle} disabled={phase !== 'ready'} className="!px-3 !py-2">
+            <Shuffle size={16} /> Shuffle
+          </TactileButton>
+          <TactileButton onClick={anyFaceUp ? hideAll : revealAll} disabled={phase !== 'ready'} className="!px-3 !py-2">
+            {anyFaceUp ? <EyeOff size={16} /> : <Eye size={16} />}
+            {anyFaceUp ? 'Hide All' : 'Reveal All'}
+          </TactileButton>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
+            <Layers size={15} />
+            {inPlay.length} left
+            {setAsideCount > 0 && <span className="font-medium opacity-60">· {setAsideCount} done</span>}
+          </span>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title="Flip card settings"
+            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent active:scale-95"
+          >
+            <Settings size={17} />
+          </button>
+          <button
+            type="button"
+            onClick={onExit}
+            title="Back to the seating chart"
+            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent active:scale-95"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative min-h-0 flex-1">
+        {phase === 'shuffling' ? (
+          <ShuffleStack count={Math.max(inPlay.length, 1)} />
+        ) : (
+          <div
+            className="grid h-full w-full auto-rows-fr gap-2 sm:gap-3"
+            style={{ gridTemplateColumns: `repeat(${DESK_COLUMNS}, minmax(0, 1fr))` }}
+          >
+            <AnimatePresence mode="popLayout">
+              {inPlay.map((card, index) => {
+                const student = studentsById.get(card.studentId)
+                if (!student) return null
+                return (
+                  <motion.div
+                    key={card.studentId}
+                    layout
+                    initial={{ opacity: 0, scale: 0.4, y: -140, rotate: -12 }}
+                    animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+                    exit={{ opacity: 0, scale: 0.3, x: 260, y: 220, rotate: 35, transition: { duration: 0.5, ease: 'easeIn' } }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 260,
+                      damping: 24,
+                      delay: phase === 'dealing' ? (index * DEAL_STAGGER_MS) / 1000 : 0,
+                    }}
+                    className="min-h-0"
+                  >
+                    <FlipCard
+                      student={student}
+                      faceUp={card.faceUp}
+                      genderColors={settings.genderColors}
+                      selectedForPoints={pointsSelection.has(card.studentId)}
+                      onTap={() => (card.faceUp ? onToggleSelect(card.studentId) : flip(card.studentId))}
+                    />
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {setAsideCount > 0 && phase !== 'shuffling' && <DiscardPile count={setAsideCount} />}
+
+        {inPlay.length === 0 && phase === 'ready' && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          >
+            <div className="rounded-2xl bg-card px-6 py-4 text-center shadow-xl">
+              <p className="text-lg font-bold text-card-foreground">Every card has been picked!</p>
+              <p className="mt-1 text-sm text-muted-foreground">Tap Shuffle to deal a fresh deck.</p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Where set-aside cards land, stacking up as the round burns down. */
+function DiscardPile({ count }: { count: number }) {
+  return (
+    <div className="pointer-events-none absolute bottom-2 right-2 flex h-24 w-20 items-center justify-center">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="absolute h-20 w-14 rounded-lg border border-black/10 bg-gradient-to-br from-violet-400 to-violet-600 opacity-90 shadow-lg dark:border-white/10"
+          style={{ transform: `rotate(${(i - 1) * 6}deg) translateY(${i * -2}px)` }}
+        />
+      ))}
+      <motion.span
+        key={count}
+        initial={{ scale: 1.5 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+        className="relative z-10 rounded-full bg-amber-400 px-2.5 py-1 text-sm font-extrabold text-amber-950 shadow-md"
+      >
+        {count}
+      </motion.span>
+    </div>
+  )
+}
+
+/** The deck cut into two halves that riffle together, a few times over. */
+function ShuffleStack({ count }: { count: number }) {
+  const leaves = Array.from({ length: Math.min(count, 10) }, (_, i) => i)
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-6">
+      <div className="relative h-56 w-44">
+        {leaves.map((i) => {
+          const leftHalf = i % 2 === 0
+          return (
+            <motion.div
+              key={i}
+              className={clsx(
+                'absolute inset-0 rounded-xl border border-black/10 bg-gradient-to-br shadow-lg dark:border-white/10',
+                leftHalf ? 'from-violet-400 to-violet-600' : 'from-sky-400 to-sky-600',
+              )}
+              animate={{
+                x: [0, leftHalf ? -90 : 90, 0, leftHalf ? -70 : 70, 0],
+                rotate: [0, leftHalf ? -12 : 12, 0, leftHalf ? -8 : 8, 0],
+                y: [0, i * -3, 0, i * -2, 0],
+              }}
+              transition={{ duration: 0.95, times: [0, 0.25, 0.5, 0.75, 1], ease: 'easeInOut', delay: i * 0.012 }}
+            />
+          )
+        })}
+      </div>
+      <motion.p
+        animate={{ opacity: [0.4, 1, 0.4] }}
+        transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+        className="text-lg font-bold text-muted-foreground"
+      >
+        Shuffling…
+      </motion.p>
+    </div>
+  )
+}

@@ -234,6 +234,54 @@ export function playGoalCelebration() {
   playTone(ctx, master, { frequency: 2093, start: 0.45, duration: 0.6, type: 'sine', peakGain: 0.22 })
 }
 
+function cardContext(): { ctx: AudioContext; master: GainNode } {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  return { ctx, master }
+}
+
+/** Cards riffling together - a run of short, dry noise bursts. */
+export function playShuffle() {
+  const { ctx, master } = cardContext()
+  for (let i = 0; i < 14; i++) {
+    playNoiseBurst(ctx, master, i * 0.035 + Math.random() * 0.012, 0.03, 0.09)
+  }
+}
+
+/** One card sliding off the deck onto the table. `delay` schedules it ahead on the audio clock, for dealing a whole hand in one call. */
+export function playCardDeal(delay = 0) {
+  const { ctx, master } = cardContext()
+  playNoiseBurst(ctx, master, delay, 0.055, 0.07)
+}
+
+/** The snap of a card turning over, with a rising tone through the turn. */
+export function playCardFlip() {
+  const { ctx, master } = cardContext()
+  playNoiseBurst(ctx, master, 0, 0.04, 0.12)
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = 'triangle'
+  const t0 = ctx.currentTime
+  osc.frequency.setValueAtTime(420, t0)
+  osc.frequency.exponentialRampToValueAtTime(880, t0 + 0.22)
+  gain.gain.setValueAtTime(0, t0)
+  gain.gain.linearRampToValueAtTime(0.16, t0 + 0.04)
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.26)
+  osc.connect(gain)
+  gain.connect(master)
+  osc.start(t0)
+  osc.stop(t0 + 0.3)
+}
+
+/** The bright little payoff the instant a card's face lands. */
+export function playCardReveal() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 1318.5, start: 0, duration: 0.4, type: 'sine', peakGain: 0.3 })
+  playTone(ctx, master, { frequency: 1975.5, start: 0.07, duration: 0.5, type: 'sine', peakGain: 0.18 })
+}
+
 /** The safety cover's plastic snap as it flips open. */
 export function playDeleteCoverOpen() {
   const ctx = getContext()
