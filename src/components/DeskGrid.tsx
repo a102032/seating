@@ -1,3 +1,4 @@
+import { fitClassNameSize } from '../lib/fitText'
 import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type Student } from '../types'
 import { Desk, type DeskHighlight } from './Desk'
 
@@ -12,6 +13,11 @@ interface DeskGridProps {
 }
 
 export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection, deskHighlights, onTapDesk }: DeskGridProps) {
+  const seated = seating.map((id) => (id ? studentsById.get(id) : undefined))
+
+  // One size for every desk, so no student's name ends up visibly smaller than the rest.
+  const nameSize = fitClassNameSize(seated.filter((s): s is Student => s !== undefined).map((s) => s.name))
+
   return (
     <div
       className="grid h-full w-full gap-2 sm:gap-3"
@@ -21,8 +27,7 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
       }}
     >
       {Array.from({ length: DESK_COUNT }, (_, index) => {
-        const studentId = seating[index]
-        const student = studentId ? studentsById.get(studentId) : undefined
+        const student = seated[index]
         return (
           <Desk
             key={index}
@@ -31,6 +36,7 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
             selected={selectedDesk === index}
             pointsSelected={student !== undefined && pointsSelection.has(student.id)}
             highlight={deskHighlights[index] ?? 'none'}
+            nameSize={nameSize}
             onTap={onTapDesk}
           />
         )

@@ -12,10 +12,12 @@ interface DeskProps {
   selected: boolean
   pointsSelected: boolean
   highlight: DeskHighlight
+  /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
+  nameSize: number
   onTap: (index: number) => void
 }
 
-export function Desk({ index, student, selected, pointsSelected, highlight, onTap }: DeskProps) {
+export function Desk({ index, student, selected, pointsSelected, highlight, nameSize, onTap }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
 
@@ -41,17 +43,26 @@ export function Desk({ index, student, selected, pointsSelected, highlight, onTa
         </span>
       ) : (
         <>
+          {/* Both corners sit over the avatar's empty top corners, leaving the whole
+              bottom row to the name. */}
+          <span
+            className="absolute left-1.5 top-1 z-10 font-semibold leading-none opacity-45"
+            style={{ fontSize: 'clamp(0.55rem, 8cqi, 1rem)' }}
+          >
+            {student.homeroom}
+          </span>
+
           {points > 0 && (
             <div
-              className="absolute bottom-1 right-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 font-bold text-amber-950 shadow-sm"
-              style={{ fontSize: 'clamp(0.6rem, 5.5cqi, 0.95rem)' }}
+              className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 font-bold leading-none text-amber-950 shadow-sm"
+              style={{ fontSize: 'clamp(0.55rem, 7.5cqi, 1rem)' }}
             >
-              <Star size={10} className="shrink-0 fill-amber-950" strokeWidth={0} />
+              <Star size={9} className="shrink-0 fill-amber-950" strokeWidth={0} />
               {points}
             </div>
           )}
 
-          <div className="relative flex min-h-0 w-full flex-[3] items-center justify-center">
+          <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
             {highlight === 'winner' && <AvatarSparkles />}
             <img
               src={resolveAvatarSrc(student)}
@@ -61,14 +72,12 @@ export function Desk({ index, student, selected, pointsSelected, highlight, onTa
             />
           </div>
 
-          <div className="flex w-full shrink-0 flex-col items-center justify-center pb-0.5">
-            <span className="w-full truncate px-1 font-bold leading-tight" style={{ fontSize: 'clamp(0.8rem, 10cqi, 1.6rem)' }}>
-              {student.name}
-            </span>
-            <span className="opacity-60" style={{ fontSize: 'clamp(0.6rem, 6cqi, 1.05rem)' }}>
-              {student.homeroom}
-            </span>
-          </div>
+          <span
+            className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-tight"
+            style={{ fontSize: `${nameSize}cqi` }}
+          >
+            {student.name}
+          </span>
         </>
       )}
     </button>
