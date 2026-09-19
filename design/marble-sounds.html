@@ -1,0 +1,409 @@
+<title>Marble Sound Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ground: #eef1f0;
+    --surface: #ffffff;
+    --surface-sunk: #e4e9e7;
+    --ink: #14211e;
+    --ink-soft: #5d706b;
+    --line: #d2dad7;
+    --glass: #1b6b5a;
+    --glass-soft: #cfe3dd;
+    --amber: #b9682f;
+    --shadow: 0 1px 2px rgba(20, 33, 30, .06), 0 8px 24px -12px rgba(20, 33, 30, .22);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f1816;
+      --surface: #182320;
+      --surface-sunk: #101a18;
+      --ink: #e7eeeb;
+      --ink-soft: #92a49f;
+      --line: #27352f;
+      --glass: #54baa0;
+      --glass-soft: #1e3a33;
+      --amber: #dd9560;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0f1816;
+    --surface: #182320;
+    --surface-sunk: #101a18;
+    --ink: #e7eeeb;
+    --ink-soft: #92a49f;
+    --line: #27352f;
+    --glass: #54baa0;
+    --glass-soft: #1e3a33;
+    --amber: #dd9560;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: Archivo, system-ui, -apple-system, sans-serif;
+    padding-inline: 20px;
+    padding-block: 40px 56px;
+    line-height: 1.5;
+  }
+
+  .wrap { max-width: 580px; margin-inline: auto; display: flex; flex-direction: column; gap: 28px; }
+
+  header { display: flex; flex-direction: column; gap: 10px; }
+
+  .eyebrow {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-soft); font-weight: 600;
+  }
+
+  h1 {
+    font-family: Fraunces, Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(30px, 7vw, 42px);
+    line-height: 1.05;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .lede { margin: 0; color: var(--ink-soft); max-width: 48ch; }
+
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+
+  .tile {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 16px;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .tile:hover { border-color: var(--glass); }
+  .tile:active { transform: scale(.994); }
+  .tile:focus-visible { outline: 2px solid var(--glass); outline-offset: 2px; }
+
+  .tile-name { font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 17px; }
+  .tile-when { font-size: 13px; color: var(--ink-soft); }
+
+  /* A glass marble: radial highlight over a coloured core with a cat's-eye swirl. */
+  .marble {
+    width: 56px; height: 56px; border-radius: 50%;
+    position: relative; flex: none;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255,255,255,.95) 0 8%, rgba(255,255,255,.35) 14%, transparent 34%),
+      radial-gradient(circle at 68% 74%, rgba(0,0,0,.28) 0 22%, transparent 60%),
+      var(--core);
+    box-shadow: inset 0 0 12px rgba(0,0,0,.3), 0 2px 5px rgba(20,33,30,.3);
+  }
+  .marble::after {
+    content: ""; position: absolute; inset: 22% 14%;
+    border-radius: 50%;
+    background: var(--swirl);
+    filter: blur(2px);
+    opacity: .85;
+    transform: rotate(-24deg);
+  }
+
+  .tile[data-playing="true"] .marble { animation: knock .34s ease; }
+  @keyframes knock {
+    0% { transform: translateY(0) scale(1); }
+    28% { transform: translateY(-5px) scale(1.06); }
+    60% { transform: translateY(0) scale(.97); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  .controls {
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+
+  .ctl { display: flex; flex-direction: column; gap: 7px; }
+  .ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .ctl-label { font-size: 13px; font-weight: 600; }
+  .ctl-val { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .ctl-hint { font-size: 12px; color: var(--ink-soft); }
+
+  input[type="range"] { width: 100%; accent-color: var(--glass); }
+  input[type="range"]:focus-visible { outline: 2px solid var(--glass); outline-offset: 4px; }
+
+  .compare {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .compare h2 {
+    font-family: Fraunces, Georgia, serif; font-weight: 600;
+    font-size: 15px; margin: 0;
+  }
+  .compare p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+
+  .ghost {
+    align-self: flex-start;
+    background: transparent;
+    border: 1px dashed var(--line);
+    border-radius: 999px;
+    padding: 9px 16px;
+    font: inherit; font-size: 13px; font-weight: 500;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .ghost:hover { border-color: var(--amber); color: var(--amber); }
+  .ghost:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  footer { font-size: 12px; color: var(--ink-soft); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile[data-playing="true"] .marble { animation: none; }
+    .tile:active { transform: none; }
+  }
+
+  @media (max-width: 420px) {
+    .tile { grid-template-columns: 44px 1fr; gap: 13px; }
+    .marble { width: 44px; height: 44px; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Seating Chart · sound design</span>
+    <h1>What the points should sound like</h1>
+    <p class="lede">
+      Four candidates, built to carry across a room rather than confirm a click. Tap each one.
+      Adjust the marble below if the size or ring feels wrong.
+    </p>
+  </header>
+
+  <div class="stack">
+    <button class="tile" data-sound="single" type="button">
+      <span class="marble" style="--core:#1b6b5a; --swirl:linear-gradient(120deg,#eafff8,#6fd9bd);"></span>
+      <span>
+        <span class="tile-name">One marble</span><br>
+        <span class="tile-when">A single student earns a point</span>
+      </span>
+    </button>
+
+    <button class="tile" data-sound="handful" type="button">
+      <span class="marble" style="--core:#b9682f; --swirl:linear-gradient(120deg,#ffeedd,#f0a86a);"></span>
+      <span>
+        <span class="tile-name">A handful</span><br>
+        <span class="tile-when">Several students at once — Select All, then award</span>
+      </span>
+    </button>
+
+    <button class="tile" data-sound="pour" type="button">
+      <span class="marble" style="--core:#2d4a86; --swirl:linear-gradient(120deg,#e6efff,#7fa5e8);"></span>
+      <span>
+        <span class="tile-name">The pour</span><br>
+        <span class="tile-when">The class hits its goal — the treasure-chest moment</span>
+      </span>
+    </button>
+
+    <button class="tile" data-sound="swirl" type="button">
+      <span class="marble" style="--core:#7a6a3f; --swirl:linear-gradient(120deg,#fffbe8,#d8c37e);"></span>
+      <span>
+        <span class="tile-name">The swirl</span><br>
+        <span class="tile-when">Attention getter — the only one that isn't a reward</span>
+      </span>
+    </button>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <div class="ctl-head">
+        <label class="ctl-label" for="size">Marble size</label>
+        <span class="ctl-val" id="size-val">standard</span>
+      </div>
+      <input type="range" id="size" min="70" max="145" value="100" step="1">
+      <span class="ctl-hint">Bigger glass rings lower. Small marbles get glassy and bright.</span>
+    </div>
+
+    <div class="ctl">
+      <div class="ctl-head">
+        <label class="ctl-label" for="ring">Ring</label>
+        <span class="ctl-val" id="ring-val">standard</span>
+      </div>
+      <input type="range" id="ring" min="50" max="180" value="100" step="1">
+      <span class="ctl-hint">How long each collision sings after it lands. Short reads as stone; long reads as crystal.</span>
+    </div>
+  </div>
+
+  <div class="compare">
+    <h2>For comparison</h2>
+    <p>This is what the app plays today when a point is awarded — a two-note blip. Fine at a desk, invisible at thirty feet.</p>
+    <button class="ghost" id="current" type="button">Play the current sound</button>
+  </div>
+
+  <footer>Nothing here is wired into the app yet. Tell me which one, and how you'd change it.</footer>
+</div>
+
+<script>
+  let ctx = null;
+  function ac() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  let noise = null;
+  function noiseBuffer(c) {
+    if (noise) return noise;
+    const len = Math.ceil(c.sampleRate * 0.05);
+    noise = c.createBuffer(1, len, c.sampleRate);
+    const d = noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return noise;
+  }
+
+  const sizeEl = document.getElementById('size');
+  const ringEl = document.getElementById('ring');
+  const pitch = () => 145 / Number(sizeEl.value);   // bigger marble -> lower pitch
+  const ringScale = () => Number(ringEl.value) / 100;
+
+  // One glass-on-glass collision: inharmonic partials over a short filtered impact.
+  function clack(dest, t, gain, pitchMul) {
+    const c = ac();
+    const p = pitch() * pitchMul;
+    const base = 1750 * p;
+    const partials = [1, 1.59, 2.23, 3.14, 4.06];
+
+    partials.forEach((m, i) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(base * m * (0.985 + Math.random() * 0.03), t);
+      const peak = (gain * 0.42) / (i * 1.7 + 1);
+      const dur = (0.22 / (1 + i * 0.5)) * ringScale();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.0015);
+      g.gain.exponentialRampToValueAtTime(0.0007, t + dur);
+      o.connect(g); g.connect(dest);
+      o.start(t); o.stop(t + dur + 0.03);
+    });
+
+    const src = c.createBufferSource();
+    src.buffer = noiseBuffer(c);
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(3100 * p, t);
+    bp.Q.value = 0.9;
+    const ng = c.createGain();
+    ng.gain.setValueAtTime(gain * 0.3, t);
+    ng.gain.exponentialRampToValueAtTime(0.0006, t + 0.022);
+    src.connect(bp); bp.connect(ng); ng.connect(dest);
+    src.start(t); src.stop(t + 0.05);
+  }
+
+  function bus(extra) {
+    const c = ac();
+    const g = c.createGain();
+    g.gain.value = 1;
+    if (extra) { g.connect(extra); extra.connect(c.destination); }
+    else g.connect(c.destination);
+    return g;
+  }
+
+  const SOUNDS = {
+    single(t) {
+      clack(bus(), t, 1, 1);
+    },
+
+    handful(t) {
+      const out = bus();
+      const n = 4;
+      for (let i = 0; i < n; i++) {
+        const at = t + i * 0.055 + Math.random() * 0.035;
+        clack(out, at, 0.85 - i * 0.08, 0.92 + Math.random() * 0.22);
+      }
+    },
+
+    pour(t) {
+      const out = bus();
+      const n = 30;
+      const span = 1.15;
+      for (let i = 0; i < n; i++) {
+        const frac = i / n;
+        // Swells as the marbles start falling, tapers as the last few settle.
+        const env = Math.sin(Math.min(1, frac * 1.25) * Math.PI * 0.85);
+        const at = t + Math.pow(frac, 0.88) * span + Math.random() * 0.03;
+        clack(out, at, (0.32 + env * 0.5) * (0.7 + Math.random() * 0.6), 0.82 + Math.random() * 0.4);
+      }
+    },
+
+    swirl(t) {
+      const c = ac();
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(5200, t);
+      lp.Q.value = 0.4;
+      const out = bus(lp);
+
+      const n = 78;
+      const span = 1.9;
+      for (let i = 0; i < n; i++) {
+        const frac = i / n;
+        // Two slow revolutions of the jar, so the rattle rises and falls like real motion.
+        const rot = 0.55 + 0.45 * Math.sin(frac * Math.PI * 4);
+        const fade = frac > 0.78 ? (1 - frac) / 0.22 : 1;
+        const at = t + frac * span + Math.random() * 0.02;
+        clack(out, at, 0.3 * rot * fade, 0.85 + Math.random() * 0.45);
+      }
+    },
+  };
+
+  document.querySelectorAll('.tile').forEach((tile) => {
+    tile.addEventListener('click', () => {
+      const c = ac();
+      SOUNDS[tile.dataset.sound](c.currentTime + 0.02);
+      tile.dataset.playing = 'true';
+      setTimeout(() => { tile.dataset.playing = 'false'; }, 360);
+    });
+  });
+
+  // The app's existing playPointAward(), reproduced for A/B.
+  document.getElementById('current').addEventListener('click', () => {
+    const c = ac();
+    const out = bus();
+    [[1046.5, 0, 0.12, 0.35], [1568, 0.06, 0.16, 0.3]].forEach(([f, s, d, peak]) => {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      const t0 = c.currentTime + 0.02 + s;
+      o.frequency.setValueAtTime(f, t0);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(peak, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+      o.connect(g); g.connect(out);
+      o.start(t0); o.stop(t0 + d + 0.05);
+    });
+  });
+
+  const SIZE_WORDS = [[85, 'small'], [115, 'standard'], [999, 'large']];
+  const RING_WORDS = [[80, 'dry'], [125, 'standard'], [999, 'crystal']];
+  function word(table, v) { return table.find(([max]) => v < max)[1]; }
+
+  function syncLabels() {
+    document.getElementById('size-val').textContent = word(SIZE_WORDS, Number(sizeEl.value));
+    document.getElementById('ring-val').textContent = word(RING_WORDS, Number(ringEl.value));
+  }
+  sizeEl.addEventListener('input', syncLabels);
+  ringEl.addEventListener('input', syncLabels);
+  syncLabels();
+</script>
