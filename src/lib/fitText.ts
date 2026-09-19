@@ -12,7 +12,7 @@ function widthAtReferenceSize(text: string): number {
     measuringContext = document.createElement('canvas').getContext('2d')
   }
   if (!measuringContext) return text.length * REFERENCE_PX * 0.58
-  measuringContext.font = `700 ${REFERENCE_PX}px Inter, system-ui, sans-serif`
+  measuringContext.font = `700 ${REFERENCE_PX}px Andika, system-ui, sans-serif`
   return measuringContext.measureText(text).width
 }
 
