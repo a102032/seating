@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, Download, GraduationCap, Pencil, Plus, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
+import { Armchair, Download, GraduationCap, Pencil, Plus, Smile, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
-import { MAX_CLASSES } from '../hooks/useClasses'
+import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Theme } from '../lib/theme'
 import { DESK_COUNT, type ClassData, type Gender, type Student } from '../types'
@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { AvatarPickerModal } from './AvatarPickerModal'
+import { ClassAvatarsModal } from './ClassAvatarsModal'
 import { ConfirmModal } from './ConfirmModal'
 import { DangerCover } from './DangerCover'
 import { Modal } from './Modal'
@@ -29,6 +30,7 @@ interface ClassSettingsModalProps {
   onRename: (name: string) => void
   onAddStudents: (students: Omit<Student, 'id'>[]) => void
   onUpdateStudent: (studentId: string, patch: Partial<Omit<Student, 'id'>>) => void
+  onAssignAvatars: (themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) => void
   onDeleteStudent: (studentId: string) => void
   onUnseatStudent: (studentId: string) => void
   onCreateClass: () => void
@@ -72,6 +74,7 @@ export function ClassSettingsModal({
   onRename,
   onAddStudents,
   onUpdateStudent,
+  onAssignAvatars,
   onDeleteStudent,
   onUnseatStudent,
   onCreateClass,
@@ -92,6 +95,7 @@ export function ClassSettingsModal({
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
+  const [assigningAvatars, setAssigningAvatars] = useState(false)
   const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -157,7 +161,7 @@ export function ClassSettingsModal({
   return (
     <>
       <Modal
-        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent && !pickingAvatarFor}
+        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent && !pickingAvatarFor && !assigningAvatars}
         onClose={closeAndReset}
         title="Class Settings"
         wide
@@ -167,6 +171,9 @@ export function ClassSettingsModal({
           <section className="flex shrink-0 flex-wrap items-center gap-2">
             <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
               <UserX size={16} /> Unseat All
+            </TactileButton>
+            <TactileButton onClick={() => setAssigningAvatars(true)} disabled={activeClass.students.length === 0}>
+              <Smile size={16} /> Class Avatars
             </TactileButton>
             <TactileButton
               onClick={onCreateClass}
@@ -354,6 +361,13 @@ export function ClassSettingsModal({
           setConfirmingDelete(false)
           onClose()
         }}
+      />
+
+      <ClassAvatarsModal
+        open={assigningAvatars}
+        students={activeClass.students}
+        onClose={() => setAssigningAvatars(false)}
+        onAssign={onAssignAvatars}
       />
 
       <AvatarPickerModal

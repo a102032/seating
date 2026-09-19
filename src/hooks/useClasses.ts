@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
+import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type ClassData, type Gender, type Student } from '../types'
 
 export const MAX_CLASSES = 5
+
+/** Who a bulk avatar assignment applies to. */
+export type AvatarScope = 'all' | 'boy' | 'girl'
 
 function genId(): string {
   return crypto.randomUUID()
@@ -194,6 +198,33 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * Hand the same character out to a whole class in one tap - setting thirty avatars
+   * one at a time is the slowest part of starting a new class.
+   */
+  const assignAvatars = useCallback(
+    (classId: string, themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) =>
+      updateClass(classId, (c) => {
+        const theme = getTheme(themeId)
+        if (!theme) return c
+        const targeted = (s: Student) => options.scope === 'all' || s.gender === options.scope
+
+        // Re-tapping the character the class already has should visibly re-roll, so in
+        // "same" mode steer the single shared draw away from the pose they're wearing.
+        const worn = c.students.find(targeted)?.avatarId?.split('/')
+        const avoid = worn?.[0] === theme.id ? worn[1] : undefined
+        const shared = options.poses === 'same' ? randomPose(theme, avoid) : undefined
+
+        return {
+          ...c,
+          students: c.students.map((s) =>
+            targeted(s) ? { ...s, avatarId: stickerId(theme.id, shared ?? randomPose(theme)) } : s,
+          ),
+        }
+      }),
+    [updateClass],
+  )
+
   const deleteStudent = useCallback(
     (classId: string, studentId: string) =>
       updateClass(classId, (c) => ({
@@ -297,6 +328,7 @@ export function useClasses() {
     deleteClass,
     addStudents,
     updateStudent,
+    assignAvatars,
     adjustPoints,
     setPointsGoal,
     deleteStudent,

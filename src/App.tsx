@@ -52,6 +52,7 @@ export default function App() {
     deleteClass,
     addStudents,
     updateStudent,
+    assignAvatars,
     adjustPoints,
     setPointsGoal,
     deleteStudent,
@@ -298,6 +299,7 @@ export default function App() {
         onRename={(name) => renameClass(activeClass.id, name)}
         onAddStudents={(students) => addStudents(activeClass.id, students)}
         onUpdateStudent={(studentId, patch) => updateStudent(activeClass.id, studentId, patch)}
+        onAssignAvatars={(themeId, options) => assignAvatars(activeClass.id, themeId, options)}
         onDeleteStudent={(studentId) => deleteStudent(activeClass.id, studentId)}
         onUnseatStudent={(studentId) => unseatStudent(activeClass.id, studentId)}
         onCreateClass={() => createClass()}

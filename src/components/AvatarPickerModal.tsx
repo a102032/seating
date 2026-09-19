@@ -49,7 +49,7 @@ export function AvatarPickerModal({ open, student, onClose, onSelect }: AvatarPi
         </ScrollArea>
 
         <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
-          <div className="grid grid-cols-4 gap-3 p-3 sm:grid-cols-6 md:grid-cols-8">
+          <div className="grid grid-cols-3 gap-3 p-3 sm:grid-cols-4 md:grid-cols-6">
             {theme.poses.map((pose) => {
               const id = stickerId(theme.id, pose)
               return (
