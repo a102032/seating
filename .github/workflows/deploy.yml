@@ -46,3 +46,23 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      # A green deploy says the artifact was published, not that the site serves it.
+      # Pages silently served the repo's source index.html for several runs while every
+      # step here reported success, so check what actually comes back over HTTP.
+      - name: Verify the published site
+        run: |
+          url="${{ steps.deployment.outputs.page_url }}"
+          echo "Checking $url"
+          html=$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$url")
+
+          if grep -q 'src/main.tsx' <<<"$html"; then
+            echo "::error::Serving the unbuilt index.html - Pages is not using the Actions artifact."
+            exit 1
+          fi
+          if ! grep -qE 'src="[^"]*/assets/index-[^"]+\.js"' <<<"$html"; then
+            echo "::error::No built bundle referenced in the served HTML."
+            echo "$html"
+            exit 1
+          fi
+          echo "Served HTML references the built bundle."
