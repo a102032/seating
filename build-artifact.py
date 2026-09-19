@@ -49,25 +49,29 @@ def raw_data_uri(path: pathlib.Path, mime: str) -> str:
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
 
 
+def svg_data_uri(path: pathlib.Path) -> str:
+    return "data:image/svg+xml;base64," + base64.b64encode(path.read_bytes()).decode()
+
+
 def main() -> None:
     js_path = next(DIST.glob("assets/*.js"))
     css_path = next(DIST.glob("assets/*.css"))
     js = js_path.read_text()
     css = css_path.read_text()
 
-    library = sorted((PUBLIC / "avatars" / "library").glob("*.jpeg"))
+    # SVG inlines as text rather than a re-encoded bitmap, so the stickers stay vector
+    # in the demo build too.
+    stickers = sorted((PUBLIC / "avatars" / "stickers").glob("*/*.svg"))
     overrides = {
-        f"/avatars/library/{p.name}": jpeg_data_uri(p, AVATAR_WIDTH, AVATAR_QUALITY) for p in library
+        f"/avatars/stickers/{p.parent.name}/{p.name}": svg_data_uri(p) for p in stickers
     }
     overrides.update(
         {
-            "/avatars/boy.png": png_data_uri(PUBLIC / "avatars" / "boy.png", AVATAR_WIDTH),
-            "/avatars/girl.png": png_data_uri(PUBLIC / "avatars" / "girl.png", AVATAR_WIDTH),
             "/branding/school-crest.png": png_data_uri(PUBLIC / "branding" / "school-crest.png", 240),
             "/sounds/pop.mp3": raw_data_uri(PUBLIC / "sounds" / "pop.mp3", "audio/mpeg"),
         }
     )
-    print(f"inlined {len(overrides)} assets ({len(library)} library avatars)")
+    print(f"inlined {len(overrides)} assets ({len(stickers)} stickers)")
 
     # Guard against the closing tag inside a string literal ending the inline script early.
     safe_js = js.replace("</script", "<\\/script")

@@ -3,7 +3,7 @@ import { Armchair, Download, GraduationCap, Pencil, Plus, Trash2, TriangleAlert,
 import clsx from 'clsx'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES } from '../hooks/useClasses'
-import { resolveAvatarSrc } from '../lib/avatarLibrary'
+import { resolveAvatarSrc } from '../lib/stickers'
 import type { Theme } from '../lib/theme'
 import { DESK_COUNT, type ClassData, type Gender, type Student } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -408,16 +408,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         title="Choose an avatar"
         className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10"
       >
-        {resolveAvatarSrc(student) ? (
-          <img src={resolveAvatarSrc(student)} alt="" draggable={false} className="h-full w-full object-contain select-none" />
-        ) : (
-          <span
-            className={clsx(
-              'block h-full w-full',
-              student.gender === 'boy' ? 'bg-sky-400' : student.gender === 'girl' ? 'bg-rose-400' : 'bg-slate-400',
-            )}
-          />
-        )}
+        <img src={resolveAvatarSrc(student)} alt="" draggable={false} className="h-full w-full object-contain select-none" />
       </button>
       <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
       <Badge variant="secondary">Room {student.homeroom || '-'}</Badge>

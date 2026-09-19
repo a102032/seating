@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
-import { resolveAvatarSrc } from '../lib/avatarLibrary'
+import { resolveAvatarSrc } from '../lib/stickers'
 import type { Gender, Student } from '../types'
 
 interface FlipCardProps {

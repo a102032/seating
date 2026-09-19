@@ -5,7 +5,7 @@ export interface Student {
   name: string
   homeroom: string
   gender: Gender
-  /** id of a chosen LibraryAvatar (see lib/avatarLibrary.ts) - falls back to the plain gender default when unset. */
+  /** Chosen sticker as "theme/pose" (see lib/stickers.ts) - falls back to a character derived from the student id. */
   avatarId?: string
   /** Accumulated class points, floored at 0. Unset is treated as 0 - older saved students predate this field. */
   points?: number
