@@ -21,13 +21,15 @@ interface DeskProps {
   wiggleDelayMs: number
   /** Bumped on every award, so a repeat award replays the pop. */
   landedTick: number
+  /** Keep shivering: every student is selected, so no dimming can show it. */
+  wiggleLoop: boolean
   highlight: DeskHighlight
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
   onTap: (index: number) => void
 }
 
-export function Desk({ index, student, selected, pointsState, wiggleDelayMs, landedTick, highlight, nameSize, onTap }: DeskProps) {
+export function Desk({ index, student, selected, pointsState, wiggleDelayMs, landedTick, wiggleLoop, highlight, nameSize, onTap }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
 
@@ -43,8 +45,9 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
         !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
         (pointsState === 'muted' || highlight === 'dimmed') && 'desk-muted',
-        pointsState === 'selected' && 'desk-wiggle',
+        pointsState === 'selected' && (wiggleLoop ? 'desk-wiggle-loop' : 'desk-wiggle'),
         pointsState === 'landed' && (landedTick % 2 === 0 ? 'desk-landed-a' : 'desk-landed-b'),
+        pointsState === 'landed' && wiggleLoop && 'desk-wiggle-loop',
         highlight === 'flashing' && 'brightness-110 saturate-150',
         !empty && 'cursor-pointer',
       )}

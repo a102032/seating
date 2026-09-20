@@ -273,6 +273,48 @@ button {
  * restart it - the computed value never changes, so the browser sees nothing to do. It is
  * the *name* that has to differ. Don't merge these into one keyframe block.
  */
+/*
+ * The one case the dimming can't cover: when every student is selected there is nothing left
+ * to recede, so the board says so by staying alive instead. A shiver with a long pause beats
+ * constant motion - thirty desks wobbling non-stop would be unbearable - and the per-desk
+ * delay DeskGrid already sets makes each cycle ripple across the grid rather than twitch in
+ * unison. This is the only continuous animation on a desk.
+ */
+@keyframes desk-wiggle-loop {
+  0%,
+  17%,
+  100% {
+    rotate: 0deg;
+  }
+  4% {
+    rotate: -2.2deg;
+  }
+  9% {
+    rotate: 1.8deg;
+  }
+  13% {
+    rotate: -0.9deg;
+  }
+}
+
+.desk-wiggle-loop {
+  animation: desk-wiggle-loop 2.4s ease-in-out infinite;
+}
+
+/* Points can land while the whole class is selected, and the pop animates scale where the
+   shiver animates rotate - so both run, which needs them named together in one shorthand. */
+.desk-landed-a.desk-wiggle-loop {
+  animation:
+    desk-landed-a 380ms ease-out,
+    desk-wiggle-loop 2.4s ease-in-out infinite;
+}
+
+.desk-landed-b.desk-wiggle-loop {
+  animation:
+    desk-landed-b 380ms ease-out,
+    desk-wiggle-loop 2.4s ease-in-out infinite;
+}
+
 @keyframes desk-landed-a {
   0% {
     scale: 1;
@@ -307,8 +349,11 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .desk-wiggle,
+  .desk-wiggle-loop,
   .desk-landed-a,
-  .desk-landed-b {
+  .desk-landed-b,
+  .desk-landed-a.desk-wiggle-loop,
+  .desk-landed-b.desk-wiggle-loop {
     animation: none;
   }
 }

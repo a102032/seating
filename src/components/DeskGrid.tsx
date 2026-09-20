@@ -24,6 +24,11 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
   const pickerOwnsBoard = deskHighlights.some((h) => h !== 'none')
   const showSelection = !pickerOwnsBoard && pointsSelection.size > 0
 
+  // With every student selected nothing is left to dim, so those desks shiver instead.
+  const seatedStudents = seated.filter((s): s is Student => s !== undefined)
+  const everyoneSelected =
+    showSelection && seatedStudents.length > 0 && seatedStudents.every((s) => pointsSelection.has(s.id))
+
   // One size for every desk, so no student's name ends up visibly smaller than the rest.
   const nameSize = fitClassNameSize(seated.filter((s): s is Student => s !== undefined).map((s) => s.name))
 
@@ -57,6 +62,7 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
             }
             wiggleDelayMs={showSelection && inSelection && staggerWiggle ? index * 18 : 0}
             landedTick={landedTick}
+            wiggleLoop={everyoneSelected && inSelection}
             highlight={deskHighlights[index] ?? 'none'}
             nameSize={nameSize}
             onTap={onTapDesk}
