@@ -10,14 +10,12 @@ const FLASH_TICK_MS = 90
 const SETTINGS_KEY = 'seating-chart-picker-settings-v1'
 
 interface PickerSettings {
-  allowRepeatsStudents: boolean
-  allowRepeatsRows: boolean
+  allowRepeats: boolean
   soundEnabled: boolean
 }
 
 const DEFAULT_SETTINGS: PickerSettings = {
-  allowRepeatsStudents: false,
-  allowRepeatsRows: false,
+  allowRepeats: false,
   soundEnabled: true,
 }
 
@@ -25,7 +23,15 @@ function loadSettings(): PickerSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
     if (!raw) return DEFAULT_SETTINGS
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+    const stored = JSON.parse(raw) as Partial<PickerSettings> & {
+      allowRepeatsStudents?: boolean
+      allowRepeatsRows?: boolean
+    }
+    // Students and rows used to have a toggle each. Carry a saved pair over by taking
+    // either one as "on", so a teacher who had turned repeats on keeps them on.
+    const allowRepeats =
+      stored.allowRepeats ?? Boolean(stored.allowRepeatsStudents || stored.allowRepeatsRows)
+    return { ...DEFAULT_SETTINGS, ...stored, allowRepeats }
   } catch {
     return DEFAULT_SETTINGS
   }
@@ -103,7 +109,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
   const pickStudent = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
-    const { allowRepeatsStudents, soundEnabled } = settingsRef.current
+    const { allowRepeats, soundEnabled } = settingsRef.current
     const currentSeating = seatingRef.current
     const occupiedIndices = currentSeating
       .map((studentId, index) => ({ studentId, index }))
@@ -112,17 +118,17 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     // Prefer drawing from a locked row, if one is active and still has someone left in it.
     const rowEligible =
       rowLock !== null
-        ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock && (allowRepeatsStudents || !pickedStudentIds.has(d.studentId)))
+        ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock && (allowRepeats || !pickedStudentIds.has(d.studentId)))
         : []
     const stayingInRow = rowEligible.length > 0
 
     let eligible = stayingInRow
       ? rowEligible
-      : allowRepeatsStudents
+      : allowRepeats
         ? occupiedIndices
         : occupiedIndices.filter((d) => !pickedStudentIds.has(d.studentId))
     let usedPicked = pickedStudentIds
-    if (!allowRepeatsStudents && !stayingInRow && eligible.length === 0) {
+    if (!allowRepeats && !stayingInRow && eligible.length === 0) {
       // Everyone has been picked this round - start a fresh round.
       usedPicked = new Set()
       eligible = occupiedIndices
@@ -162,8 +168,8 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
-    const { allowRepeatsRows, soundEnabled } = settingsRef.current
-    let eligible = Array.from({ length: DESK_COLUMNS }, (_, i) => i).filter((c) => allowRepeatsRows || !pickedColumns.has(c))
+    const { allowRepeats, soundEnabled } = settingsRef.current
+    let eligible = Array.from({ length: DESK_COLUMNS }, (_, i) => i).filter((c) => allowRepeats || !pickedColumns.has(c))
     let usedPicked = pickedColumns
     if (eligible.length === 0) {
       usedPicked = new Set()

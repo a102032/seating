@@ -12,8 +12,7 @@ import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 
 export interface PickerSettingsValue {
-  allowRepeatsStudents: boolean
-  allowRepeatsRows: boolean
+  allowRepeats: boolean
   soundEnabled: boolean
 }
 
@@ -132,34 +131,79 @@ export function PickersPointsModal({
 
   return (
     <>
-      <Modal open={open && !confirmingReset && !confirmingResetGoal && !confirmingResetStars} onClose={onClose} title="Pickers &amp; Points" wide>
-        <div className="flex h-full min-h-0 flex-col gap-5">
-          <section className="flex shrink-0 flex-col gap-3">
+      <Modal
+        open={open && !confirmingReset && !confirmingResetGoal && !confirmingResetStars}
+        onClose={onClose}
+        title="Pickers &amp; Points"
+        wide
+      >
+        {/* No h-full here: the dialog body is the scroller, and forcing this to its height
+            made the sections fight over the space and spill their text over each other. */}
+        <div className="flex flex-col gap-5">
+          <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row">
               <ToggleRow
-                label="Allow Repeats (Students)"
-                description="Off: everyone gets picked once before anyone repeats."
-                checked={settings.allowRepeatsStudents}
-                onCheckedChange={(checked) => onUpdateSettings({ allowRepeatsStudents: checked })}
+                label="Allow Repeats"
+                description="Off: everyone gets picked once before anyone repeats, and the same for rows."
+                checked={settings.allowRepeats}
+                onCheckedChange={(checked) => onUpdateSettings({ allowRepeats: checked })}
               />
               <ToggleRow
-                label="Allow Repeats (Rows)"
-                description="Off: every row comes up once before any row repeats."
-                checked={settings.allowRepeatsRows}
-                onCheckedChange={(checked) => onUpdateSettings({ allowRepeatsRows: checked })}
+                label="Picker Sound"
+                description="A sound plays as students or rows flash by during a pick."
+                checked={settings.soundEnabled}
+                onCheckedChange={(checked) => onUpdateSettings({ soundEnabled: checked })}
               />
             </div>
-            <ToggleRow
-              label="Picker Sound"
-              description="A sound plays as students or rows flash by during a pick."
-              checked={settings.soundEnabled}
-              onCheckedChange={(checked) => onUpdateSettings({ soundEnabled: checked })}
-            />
+
+            <Label>Pick History (this session)</Label>
+            {!hasHistory ? (
+              <p className="rounded-2xl border border-black/10 p-4 text-center text-muted-foreground dark:border-white/10">
+                No one&apos;s been picked yet.
+              </p>
+            ) : (
+              <ScrollArea className="max-h-44 rounded-2xl border border-black/10 dark:border-white/10">
+                <div className="flex flex-col gap-3 p-3">
+                  {studentEntries.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Students</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {studentEntries.map((e) => (
+                          <Badge key={e.id} variant="secondary">
+                            {e.name} &times;{e.count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {rowEntries.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Rows</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {rowEntries.map((e) => (
+                          <Badge key={e.column} variant="secondary">
+                            Row {e.column + 1} &times;{e.count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            )}
+            <TactileButton
+              variant="danger"
+              disabled={!hasHistory}
+              className="w-full justify-center"
+              onClick={() => setConfirmingReset(true)}
+            >
+              <RotateCcw size={16} /> Reset All Pick Counts
+            </TactileButton>
           </section>
 
           <Separator />
 
-          <section className="flex shrink-0 flex-col gap-3">
+          <section className="flex flex-col gap-3">
             <div>
               <Label className="text-foreground">Class Goal</Label>
               <p className="mt-0.5 text-sm text-muted-foreground">
@@ -203,58 +247,6 @@ export function PickersPointsModal({
                 <StarOff size={16} /> Reset All Stars
               </TactileButton>
             </div>
-          </section>
-
-          <Separator />
-
-          <section className="flex min-h-0 flex-1 flex-col gap-3">
-            <Label className="shrink-0">Pick History (this session)</Label>
-
-            {!hasHistory ? (
-              <p className="rounded-2xl border border-black/10 p-4 text-center text-muted-foreground dark:border-white/10">
-                No one's been picked yet.
-              </p>
-            ) : (
-              <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 p-3 dark:border-white/10">
-                <div className="flex flex-col gap-3">
-                  {studentEntries.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Students</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {studentEntries.map((e) => (
-                          <Badge key={e.id} variant="secondary">
-                            {e.name} &times;{e.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {rowEntries.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Rows</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {rowEntries.map((e) => (
-                          <Badge key={e.column} variant="secondary">
-                            Row {e.column + 1} &times;{e.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            )}
-          </section>
-
-          <section className="shrink-0">
-            <TactileButton
-              variant="danger"
-              disabled={!hasHistory}
-              className={!hasHistory ? 'w-full opacity-40' : 'w-full'}
-              onClick={() => setConfirmingReset(true)}
-            >
-              <RotateCcw size={16} /> Reset All Pick Counts
-            </TactileButton>
           </section>
         </div>
       </Modal>
