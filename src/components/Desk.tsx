@@ -54,10 +54,12 @@ export function Desk({ index, student, selected, pointsSelected, highlight, name
 
           {points > 0 && (
             <div
-              className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 font-bold leading-none text-amber-950 shadow-sm"
+              className="absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full border-[1.5px] border-card-foreground/25 px-[0.45em] py-[0.2em] font-bold leading-none text-card-foreground"
               style={{ fontSize: 'clamp(0.55rem, 7.5cqi, 1rem)' }}
             >
-              <Star size={9} className="shrink-0 fill-amber-950" strokeWidth={0} />
+              {/* Sized in em so the star tracks the number as the desk grows - a fixed
+                  pixel size drifts away from it on a smartboard. */}
+              <Star className="h-[0.85em] w-[0.85em] shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
               {points}
             </div>
           )}
