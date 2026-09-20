@@ -306,6 +306,20 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * Both tallies go together. The class meter is the same points seen collectively, so
+   * leaving it at 47/80 with every student on zero would be describing two different terms.
+   */
+  const resetPoints = useCallback(
+    (classId: string) =>
+      updateClass(classId, (c) => ({
+        ...c,
+        students: c.students.map((s) => ({ ...s, points: 0 })),
+        classPoints: 0,
+      })),
+    [updateClass],
+  )
+
   const setPointsGoal = useCallback(
     (classId: string, goal: number) => updateClass(classId, (c) => ({ ...c, pointsGoal: Math.max(0, Math.round(goal)) })),
     [updateClass],
@@ -331,6 +345,7 @@ export function useClasses() {
     assignAvatars,
     adjustPoints,
     setPointsGoal,
+    resetPoints,
     deleteStudent,
     swapSeats,
     seatClass,

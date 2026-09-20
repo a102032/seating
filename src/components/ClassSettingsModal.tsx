@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, Download, GraduationCap, Pencil, Plus, Smile, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
+import { Armchair, Download, GraduationCap, Pencil, Plus, RotateCcw, Smile, Star, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
@@ -36,6 +36,7 @@ interface ClassSettingsModalProps {
   onCreateClass: () => void
   onDeleteClass: () => void
   onUnseatAll: () => void
+  onResetPoints: () => void
   onSeatClass: () => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -80,6 +81,7 @@ export function ClassSettingsModal({
   onCreateClass,
   onDeleteClass,
   onUnseatAll,
+  onResetPoints,
   onSeatClass,
   theme,
   onSetTheme,
@@ -93,9 +95,11 @@ export function ClassSettingsModal({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
+  const [confirmingResetPoints, setConfirmingResetPoints] = useState(false)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
+  const totalPoints = activeClass.students.reduce((sum, s) => sum + (s.points ?? 0), 0)
   const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -161,7 +165,7 @@ export function ClassSettingsModal({
   return (
     <>
       <Modal
-        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent && !pickingAvatarFor && !assigningAvatars}
+        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingResetPoints && !confirmingDeleteStudent && !pickingAvatarFor && !assigningAvatars}
         onClose={closeAndReset}
         title="Class Settings"
         wide
@@ -174,6 +178,12 @@ export function ClassSettingsModal({
             </TactileButton>
             <TactileButton onClick={() => setAssigningAvatars(true)} disabled={activeClass.students.length === 0}>
               <Smile size={16} /> Class Avatars
+            </TactileButton>
+            <TactileButton
+              onClick={() => setConfirmingResetPoints(true)}
+              disabled={totalPoints === 0 && (activeClass.classPoints ?? 0) === 0}
+            >
+              <RotateCcw size={16} /> Reset Points
             </TactileButton>
             <TactileButton
               onClick={onCreateClass}
@@ -363,6 +373,18 @@ export function ClassSettingsModal({
         }}
       />
 
+      <ConfirmModal
+        open={confirmingResetPoints}
+        title="Reset all points?"
+        message={`This sets every student in "${activeClass.name}" back to 0 stars and empties the class goal meter. It can't be undone.`}
+        confirmLabel="Yes, Reset Points"
+        onCancel={() => setConfirmingResetPoints(false)}
+        onConfirm={() => {
+          onResetPoints()
+          setConfirmingResetPoints(false)
+        }}
+      />
+
       <ClassAvatarsModal
         open={assigningAvatars}
         students={activeClass.students}
@@ -399,6 +421,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
   const [name, setName] = useState(student.name)
   const [homeroom, setHomeroom] = useState(student.homeroom)
   const [gender, setGender] = useState<Gender>(student.gender)
+  const [points, setPoints] = useState(String(student.points ?? 0))
 
   if (editing) {
     return (
@@ -406,7 +429,22 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 min-w-[8rem] flex-1" />
         <Input value={homeroom} onChange={(e) => setHomeroom(e.target.value)} className="h-8 w-24" />
         <GenderSelect value={gender} onChange={setGender} className="h-8 w-auto" />
-        <TactileButton variant="primary" onClick={() => onSave({ name, homeroom, gender })}>
+        {/* Editable rather than a reset button: correcting a miscount ("that should be 1,
+            not 3") is the case that actually comes up, and typing 0 covers the reset. */}
+        <div className="flex items-center gap-1">
+          <Star size={14} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
+          <Input
+            value={points}
+            onChange={(e) => setPoints(e.target.value.replace(/[^0-9]/g, ''))}
+            inputMode="numeric"
+            title="Stars"
+            className="h-8 w-16"
+          />
+        </div>
+        <TactileButton
+          variant="primary"
+          onClick={() => onSave({ name, homeroom, gender, points: Math.max(0, Number(points) || 0) })}
+        >
           Save
         </TactileButton>
         <TactileButton onClick={onCancelEdit}>Cancel</TactileButton>
@@ -425,6 +463,12 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         <img src={resolveAvatarSrc(student)} alt="" draggable={false} className="h-full w-full object-contain select-none" />
       </button>
       <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
+      {(student.points ?? 0) > 0 && (
+        <Badge variant="secondary" className="gap-1">
+          <Star size={11} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
+          {student.points}
+        </Badge>
+      )}
       <Badge variant="secondary">Room {student.homeroom || '-'}</Badge>
       {seated && (
         <button

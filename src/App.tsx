@@ -55,6 +55,7 @@ export default function App() {
     assignAvatars,
     adjustPoints,
     setPointsGoal,
+    resetPoints,
     deleteStudent,
     swapSeats,
     seatClass,
@@ -370,6 +371,7 @@ export default function App() {
         onCreateClass={() => createClass()}
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
+        onResetPoints={() => resetPoints(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
         theme={theme}
         onSetTheme={setTheme}
