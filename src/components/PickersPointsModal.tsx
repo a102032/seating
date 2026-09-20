@@ -96,6 +96,9 @@ function ChipRow({
   )
 }
 
+/** How long after the last tap the goal is written. */
+const COMMIT_DELAY_MS = 400
+
 const HOLD_DELAY_MS = 400
 const HOLD_REPEAT_MS = 90
 const HOLD_REPEAT_MIN_MS = 22
@@ -161,7 +164,7 @@ function Stepper({
   const button = 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
 
   return (
-    <div className="flex-1">
+    <div className="shrink-0 sm:w-64">
       <Label htmlFor={id} className="text-foreground">
         {label}
       </Label>
@@ -227,18 +230,55 @@ export function PickersPointsModal({
   const [goal, setGoal] = useState(50)
   const [starsPer, setStarsPer] = useState(1)
 
-  // Re-seed from the live class each time it opens, so a half-typed edit never leaks back in.
-  useEffect(() => {
-    if (!open) return
-    setGoal(activeClass.pointsGoal || 50)
-    setStarsPer(activeClass.starsPerClassPoint || 1)
-  }, [open, activeClass.pointsGoal, activeClass.starsPerClassPoint])
+  // Everything else in this modal applies the moment you touch it, so the goal does too -
+  // no Save button. The write is debounced because holding the stepper would otherwise
+  // persist the class forty times a second.
+  const latest = useRef({ goal, starsPer })
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const classRef = useRef(activeClass)
+  classRef.current = activeClass
 
-  const totalStars = activeClass.students.reduce((sum, st) => sum + (st.points ?? 0), 0)
-  function commitGoal() {
-    onSaveGoal(goal, starsPer)
+  function flush() {
+    if (!commitTimer.current) return
+    clearTimeout(commitTimer.current)
+    commitTimer.current = null
+    onSaveGoal(latest.current.goal, latest.current.starsPer)
   }
 
+  function commitSoon(next: { goal: number; starsPer: number }) {
+    latest.current = next
+    if (commitTimer.current) clearTimeout(commitTimer.current)
+    commitTimer.current = setTimeout(flush, COMMIT_DELAY_MS)
+  }
+
+  function changeGoal(next: number) {
+    setGoal(next)
+    commitSoon({ goal: next, starsPer: latest.current.starsPer })
+  }
+
+  function changeStarsPer(next: number) {
+    setStarsPer(next)
+    commitSoon({ goal: latest.current.goal, starsPer: next })
+  }
+
+  // Seed once per opening, from a ref, so a debounced write landing mid-edit can't feed the
+  // saved value back into the control the teacher is still using.
+  useEffect(() => {
+    if (!open) return
+    const seeded = { goal: classRef.current.pointsGoal || 50, starsPer: classRef.current.starsPerClassPoint || 1 }
+    latest.current = seeded
+    setGoal(seeded.goal)
+    setStarsPer(seeded.starsPer)
+  }, [open])
+
+  // Don't lose an edit to closing the modal, or to the app unmounting.
+  useEffect(() => {
+    if (open) return
+    flush()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const totalStars = activeClass.students.reduce((sum, st) => sum + (st.points ?? 0), 0)
   const studentEntries = Array.from(studentPickCounts.entries())
     .map(([id, count]) => ({ id, count, name: studentsById.get(id)?.name }))
     .filter((e): e is { id: string; count: number; name: string } => Boolean(e.name))
@@ -256,11 +296,11 @@ export function PickersPointsModal({
         open={open && !confirmingReset && !confirmingResetGoal && !confirmingResetStars}
         onClose={onClose}
         title="Pickers &amp; Points"
-        wide
+        size="xl"
       >
         {/* No h-full here: the dialog body is the scroller, and forcing this to its height
             made the sections fight over the space and spill their text over each other. */}
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row">
               <ToggleRow
@@ -325,31 +365,25 @@ export function PickersPointsModal({
           <Separator />
 
           <section className="flex flex-col gap-3">
-            <div>
-              <Label className="text-foreground">Class Goal</Label>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Stars students earn fill the class meter together. Leftovers carry over, so nothing is lost.
-              </p>
+            <Label className="text-foreground">Class Goal</Label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <ChipRow
+                label="Stars for 1 class point"
+                hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
+                value={starsPer}
+                choices={STARS_PER_CHOICES}
+                onChange={changeStarsPer}
+              />
+              <Stepper
+                id="goal"
+                label="Class points to fill the goal"
+                hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
+                value={goal}
+                min={1}
+                max={999}
+                onChange={changeGoal}
+              />
             </div>
-            <ChipRow
-              label="Stars for 1 class point"
-              hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
-              value={starsPer}
-              choices={STARS_PER_CHOICES}
-              onChange={setStarsPer}
-            />
-            <Stepper
-              id="goal"
-              label="Class points to fill the goal"
-              hint={`${goal * starsPer} stars for a full meter.`}
-              value={goal}
-              min={1}
-              max={999}
-              onChange={setGoal}
-            />
-            <TactileButton active onClick={commitGoal} className="justify-center">
-              Save Class Goal
-            </TactileButton>
             <div className="flex flex-col gap-1.5 sm:flex-row">
               <TactileButton
                 variant="danger"
