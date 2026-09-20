@@ -208,6 +208,17 @@ export default function App() {
     setPointsSelection(allSelected ? new Set() : new Set(seatedIds))
   }
 
+  /**
+   * A pick takes the board over, so it replaces whatever was selected by hand rather than
+   * hiding it. Without this, dismissing the pick handed the board back to a stale selection
+   * the teacher had forgotten about - and the next award would have gone to them too.
+   */
+  function startPick(run: () => void) {
+    if (picker.isPicking) return
+    resetPointsSelection()
+    run()
+  }
+
   function applyPointsDelta(delta: number) {
     if (!activeClassId || activeSelection.size === 0) return
     adjustPoints(activeClassId, Array.from(activeSelection), delta)
@@ -247,8 +258,8 @@ export default function App() {
         setSelectedDesk(null)
         resetPointsSelection()
       }}
-      onPickStudent={picker.pickStudent}
-      onPickRow={picker.pickRow}
+      onPickStudent={() => startPick(picker.pickStudent)}
+      onPickRow={() => startPick(picker.pickRow)}
       rowLocked={picker.rowLocked}
       studentPickActive={picker.mode === 'student-flashing' || picker.mode === 'student-result'}
       rowPickActive={picker.mode === 'row-flashing' || picker.mode === 'row-result'}
