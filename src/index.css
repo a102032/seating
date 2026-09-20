@@ -224,3 +224,115 @@ button {
 [data-theme='dark'] ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/*
+ * Points selection on a desk: a pulsing glow while the teacher is choosing, then a single
+ * flash that settles once the points land.
+ *
+ * The glow is mostly *inset* plus a background tint. An outward bloom alone has to fight
+ * whatever colour the theme puts behind the grid (emerald on Vibrant Elementary's cyan is
+ * nearly invisible), and it gets clipped on the outer columns, since the grid runs to the
+ * edge of an overflow-hidden main. Light coming from inside the desk has neither problem.
+ */
+@keyframes desk-points-pulse {
+  0%,
+  100% {
+    background-color: color-mix(in srgb, #34d399 11%, var(--card));
+    box-shadow:
+      0 0 0 3px #34d399,
+      0 0 8px 2px rgb(52 211 153 / 0.45),
+      inset 0 0 10px 2px rgb(16 185 129 / 0.3);
+  }
+  50% {
+    background-color: color-mix(in srgb, #34d399 28%, var(--card));
+    box-shadow:
+      0 0 0 5px #10b981,
+      0 0 16px 5px rgb(52 211 153 / 1),
+      inset 0 0 24px 8px rgb(16 185 129 / 0.75);
+  }
+}
+
+@keyframes desk-points-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes desk-points-awarded {
+  0% {
+    box-shadow:
+      0 0 0 5px #10b981,
+      0 0 18px 6px rgb(52 211 153 / 0.95),
+      inset 0 0 40px 8px rgb(16 185 129 / 0.85);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow:
+      0 0 0 3px rgb(16 185 129 / 0.55),
+      0 0 8px 2px rgb(52 211 153 / 0.3),
+      inset 0 0 12px 0 rgb(16 185 129 / 0.22);
+    transform: scale(1);
+  }
+}
+
+@keyframes desk-points-deducted {
+  0% {
+    box-shadow:
+      0 0 0 5px #f43f5e,
+      0 0 18px 6px rgb(251 113 133 / 0.95),
+      inset 0 0 40px 8px rgb(244 63 94 / 0.8);
+    transform: scale(0.96);
+  }
+  100% {
+    box-shadow:
+      0 0 0 3px rgb(244 63 94 / 0.55),
+      0 0 8px 2px rgb(251 113 133 / 0.3),
+      inset 0 0 12px 0 rgb(244 63 94 / 0.22);
+    transform: scale(1);
+  }
+}
+
+.desk-points-selected {
+  /* Tinting the card itself is what makes a selected desk unmistakable at a glance across
+     the room, whatever the theme, and breathing the tint with the glow is what reads as a
+     pulse from the back row. color-mix keeps it right in both light and dark. */
+  background-color: color-mix(in srgb, #34d399 11%, var(--card));
+  animation:
+    desk-points-pop 260ms ease-out,
+    desk-points-pulse 1.4s ease-in-out infinite;
+}
+
+/* The settled state after an award also means "this selection is spent" - see App.tsx. */
+.desk-points-awarded {
+  background-color: color-mix(in srgb, #34d399 10%, var(--card));
+  animation: desk-points-awarded 650ms ease-out forwards;
+}
+
+.desk-points-deducted {
+  background-color: color-mix(in srgb, #f43f5e 10%, var(--card));
+  animation: desk-points-deducted 650ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-points-selected,
+  .desk-points-awarded,
+  .desk-points-deducted {
+    animation: none;
+  }
+  .desk-points-selected {
+    background-color: color-mix(in srgb, #34d399 22%, var(--card));
+    box-shadow: 0 0 0 4px #10b981, inset 0 0 20px 4px rgb(16 185 129 / 0.55);
+  }
+  .desk-points-awarded {
+    box-shadow: 0 0 0 3px rgb(16 185 129 / 0.55);
+  }
+  .desk-points-deducted {
+    box-shadow: 0 0 0 3px rgb(244 63 94 / 0.55);
+  }
+}

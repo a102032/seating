@@ -6,18 +6,21 @@ import { AvatarSparkles } from './AvatarSparkles'
 
 export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
 
+/** Where this desk sits in a points round: being chosen, or just given/taken points. */
+export type DeskPointsState = 'none' | 'selected' | 'awarded' | 'deducted'
+
 interface DeskProps {
   index: number
   student: Student | undefined
   selected: boolean
-  pointsSelected: boolean
+  pointsState: DeskPointsState
   highlight: DeskHighlight
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
   onTap: (index: number) => void
 }
 
-export function Desk({ index, student, selected, pointsSelected, highlight, nameSize, onTap }: DeskProps) {
+export function Desk({ index, student, selected, pointsState, highlight, nameSize, onTap }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
 
@@ -27,10 +30,14 @@ export function Desk({ index, student, selected, pointsSelected, highlight, name
       onClick={() => onTap(index)}
       className={clsx(
         // Rounded at the top, square at the bottom, so the desks sit on the grid like objects on a shelf.
-        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border-2 p-1 text-center shadow-sm transition-colors duration-150 outline-none',
+        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border-2 p-1 text-center shadow-sm transition-transform duration-100 outline-none',
         empty ? 'border-border bg-card/40 text-muted-foreground' : 'border-[#1b3a4b] bg-card text-card-foreground dark:border-white/25',
+        // A desk lifts under the finger, so a tap feels like it landed even before the glow.
+        !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
-        pointsSelected && !selected && 'ring-4 ring-emerald-500',
+        // The glow is a box-shadow animation in index.css - it needs to sit above its
+        // neighbours or they clip it.
+        !selected && pointsState !== 'none' && `z-20 desk-points-${pointsState}`,
         highlight === 'dimmed' && 'opacity-25',
         highlight === 'flashing' && 'brightness-110 saturate-150',
         !empty && 'cursor-pointer',

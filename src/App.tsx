@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
@@ -19,6 +19,8 @@ import type { Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
+/** How long an awarded selection stays put before it releases itself. */
+const SELECTION_RELEASE_MS = 3000
 
 type PanelSide = 'left' | 'right'
 
@@ -68,6 +70,14 @@ export default function App() {
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
   // Keyed by student id, not desk index, so a desk and a revealed flip card select the same way.
   const [pointsSelection, setPointsSelection] = useState<Set<string>>(new Set())
+  /**
+   * Non-null once the current selection has been awarded, holding the sign of that award.
+   * A spent selection is still shown (so the teacher sees what just landed) but the next
+   * desk tap replaces it instead of adding to it - otherwise a selection left over from the
+   * last award quietly collects a second point when the teacher picks someone else.
+   */
+  const [spentDelta, setSpentDelta] = useState<number | null>(null)
+  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
@@ -83,7 +93,8 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
-    setPointsSelection(new Set())
+    resetPointsSelection()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClassId])
 
   const seating = activeClass?.seating ?? []
@@ -135,7 +146,31 @@ export default function App() {
     setSelectedDesk(null)
   }
 
+  useEffect(() => () => {
+    if (releaseTimer.current) clearTimeout(releaseTimer.current)
+  }, [])
+
+  function cancelRelease() {
+    if (releaseTimer.current) {
+      clearTimeout(releaseTimer.current)
+      releaseTimer.current = null
+    }
+  }
+
+  function resetPointsSelection() {
+    cancelRelease()
+    setPointsSelection(new Set())
+    setSpentDelta(null)
+  }
+
   function togglePointsSelection(studentId: string) {
+    if (spentDelta !== null) {
+      // The round is over - start a fresh one on the desk that was just tapped.
+      cancelRelease()
+      setSpentDelta(null)
+      setPointsSelection(new Set([studentId]))
+      return
+    }
     setPointsSelection((prev) => {
       const next = new Set(prev)
       if (next.has(studentId)) next.delete(studentId)
@@ -145,6 +180,8 @@ export default function App() {
   }
 
   function toggleSelectAll() {
+    cancelRelease()
+    setSpentDelta(null)
     const allSelected = seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))
     setPointsSelection(allSelected ? new Set() : new Set(seatedIds))
   }
@@ -152,6 +189,15 @@ export default function App() {
   function applyPointsDelta(delta: number) {
     if (!activeClassId || pointsSelection.size === 0) return
     adjustPoints(activeClassId, Array.from(pointsSelection), delta)
+    // Hold the selection briefly so a second tap can stack another point on the same
+    // students, then let it go. Tapping +/- again restarts the window.
+    setSpentDelta(delta)
+    cancelRelease()
+    releaseTimer.current = setTimeout(() => {
+      releaseTimer.current = null
+      setPointsSelection(new Set())
+      setSpentDelta(null)
+    }, SELECTION_RELEASE_MS)
   }
 
   if (!activeClass) {
@@ -167,7 +213,7 @@ export default function App() {
       onToggleSwap={() => {
         setSwapMode((v) => !v)
         setSelectedDesk(null)
-        setPointsSelection(new Set())
+        resetPointsSelection()
       }}
       onPickStudent={picker.pickStudent}
       onPickRow={picker.pickRow}
@@ -192,7 +238,7 @@ export default function App() {
         const opening = !flipDeckOpen
         setFlipDeckOpen(opening)
         if (opening) deck.deal()
-        setPointsSelection(new Set())
+        resetPointsSelection()
       }}
     />
   )
@@ -225,6 +271,7 @@ export default function App() {
               studentsById={studentsById}
               selectedDesk={selectedDesk}
               pointsSelection={pointsSelection}
+              pointsPhase={spentDelta === null ? 'selected' : spentDelta > 0 ? 'awarded' : 'deducted'}
               deskHighlights={picker.deskHighlights}
               onTapDesk={handleTapDesk}
             />
@@ -248,7 +295,7 @@ export default function App() {
                     onOpenSettings={() => setFlipSettingsOpen(true)}
                     onExit={() => {
                       setFlipDeckOpen(false)
-                      setPointsSelection(new Set())
+                      resetPointsSelection()
                     }}
                   />
                 </motion.div>
