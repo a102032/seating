@@ -186,7 +186,10 @@ export function GoalCelebration({ origin, onDone }: GoalCelebrationProps) {
           transition={{ duration: 0.65, ease: 'backOut' }}
         >
           <img src={assetUrl('/treasure/chest-open.svg')} alt="" className="h-24 w-24 drop-shadow-lg" />
-          <span className="text-3xl font-extrabold text-amber-950">Treasure Found!</span>
+          <div className="text-center leading-tight">
+            <div className="text-4xl font-extrabold text-amber-950">Congratulations!</div>
+            <div className="text-2xl font-bold text-amber-900">You did it!</div>
+          </div>
         </motion.div>
       </motion.div>
     </div>,

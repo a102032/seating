@@ -331,6 +331,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setGoalEnabled = useCallback(
+    (classId: string, enabled: boolean) => updateClass(classId, (c) => ({ ...c, goalEnabled: enabled })),
+    [updateClass],
+  )
+
   /** Clears the shared meter without touching anyone's stars. */
   const resetClassGoal = useCallback(
     (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
@@ -357,6 +362,7 @@ export function useClasses() {
     assignAvatars,
     adjustPoints,
     setGoalSettings,
+    setGoalEnabled,
     resetClassGoal,
     resetPoints,
     deleteStudent,

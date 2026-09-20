@@ -27,6 +27,7 @@ interface PickersPointsModalProps {
   studentsById: Map<string, Student>
   activeClass: ClassData
   onSaveGoal: (goal: number, starsPerClassPoint: number) => void
+  onSetGoalEnabled: (enabled: boolean) => void
   onResetClassGoal: () => void
   onResetStars: () => void
   onReset: () => void
@@ -220,6 +221,7 @@ export function PickersPointsModal({
   studentsById,
   activeClass,
   onSaveGoal,
+  onSetGoalEnabled,
   onResetClassGoal,
   onResetStars,
   onReset,
@@ -238,17 +240,26 @@ export function PickersPointsModal({
   const classRef = useRef(activeClass)
   classRef.current = activeClass
 
-  function flush() {
+  /** Writes now, whether or not a debounced write was already waiting. */
+  function commitNow(next: { goal: number; starsPer: number }) {
+    if (commitTimer.current) {
+      clearTimeout(commitTimer.current)
+      commitTimer.current = null
+    }
+    latest.current = next
+    onSaveGoal(next.goal, next.starsPer)
+  }
+
+  /** Only for closing and unmounting: writes the pending edit, if there is one. */
+  function flushPending() {
     if (!commitTimer.current) return
-    clearTimeout(commitTimer.current)
-    commitTimer.current = null
-    onSaveGoal(latest.current.goal, latest.current.starsPer)
+    commitNow(latest.current)
   }
 
   function commitSoon(next: { goal: number; starsPer: number }) {
     latest.current = next
     if (commitTimer.current) clearTimeout(commitTimer.current)
-    commitTimer.current = setTimeout(flush, COMMIT_DELAY_MS)
+    commitTimer.current = setTimeout(() => commitNow(latest.current), COMMIT_DELAY_MS)
   }
 
   function changeGoal(next: number) {
@@ -274,22 +285,20 @@ export function PickersPointsModal({
   // Don't lose an edit to closing the modal, or to the app unmounting.
   useEffect(() => {
     if (open) return
-    flush()
+    flushPending()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const totalStars = activeClass.students.reduce((sum, st) => sum + (st.points ?? 0), 0)
-  // A goal of 0 means the class goal is off, and the meter isn't on screen at all.
-  const goalOn = (activeClass.pointsGoal ?? 0) > 0
+  // Off means the meter isn't on screen at all - but the goal itself is kept, so switching
+  // back on restores the number the teacher chose rather than a default.
+  const goalOn = activeClass.goalEnabled !== false && (activeClass.pointsGoal ?? 0) > 0
 
-  function setGoalEnabled(on: boolean) {
-    if (on) {
-      commitSoon({ goal: goal || 50, starsPer })
-      flush()
-    } else {
-      latest.current = { goal: 0, starsPer }
-      flush()
-    }
+  // A switch has to act on the tap, not on a debounce - so it writes straight away rather
+  // than going through the pending-edit path the steppers use.
+  function toggleGoal(on: boolean) {
+    if (on && (activeClass.pointsGoal ?? 0) <= 0) commitNow({ goal: goal || 50, starsPer })
+    onSetGoalEnabled(on)
   }
   const studentEntries = Array.from(studentPickCounts.entries())
     .map(([id, count]) => ({ id, count, name: studentsById.get(id)?.name }))
@@ -381,7 +390,7 @@ export function PickersPointsModal({
               label="Class Goal"
               description="Off: no meter on the board at all, and nothing for the class to ask about."
               checked={goalOn}
-              onCheckedChange={setGoalEnabled}
+              onCheckedChange={toggleGoal}
             />
             {goalOn && (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">

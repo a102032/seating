@@ -27,6 +27,12 @@ export interface ClassData {
   /** How many class points fill the goal. Unset or 0 means the meter isn't configured yet. */
   pointsGoal?: number
   /**
+   * Whether the class goal is switched on. Kept separate from pointsGoal so turning the
+   * meter off doesn't throw away the number the teacher set. Unset counts as on, so classes
+   * saved before this behave as they did.
+   */
+  goalEnabled?: boolean
+  /**
    * Stars a class has to earn for one class point. Unset or 1 means every star counts, which
    * is how the meter behaved before this existed - so old saved classes need no migration.
    */
