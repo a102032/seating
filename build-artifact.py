@@ -72,6 +72,7 @@ def main() -> None:
         {
             "/branding/school-crest.png": png_data_uri(PUBLIC / "branding" / "school-crest.png", 240),
             "/sounds/pop.mp3": raw_data_uri(PUBLIC / "sounds" / "pop.mp3", "audio/mpeg"),
+            "/sounds/goal-fanfare.mp3": raw_data_uri(PUBLIC / "sounds" / "goal-fanfare.mp3", "audio/mpeg"),
         }
     )
     print(f"inlined {len(overrides)} assets ({len(stickers)} stickers)")

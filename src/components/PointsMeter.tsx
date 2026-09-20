@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
-import { playCoinTick, playGoalCelebration } from '../lib/sound'
+import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
 import { GoalCelebration } from './GoalCelebration'
 
 interface PointsMeterProps {
@@ -57,11 +57,15 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
   // Null until the gif has actually decoded. The chest is what shows otherwise, so a slow
   // or blocked network costs the moment nothing.
   const [readyGif, setReadyGif] = useState<string | null>(null)
+  /** Cuts the fanfare short when the teacher closes the celebration. */
+  const stopFanfare = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     const prev = prevRef.current
     prevRef.current = { classId, value: classPoints }
     if (!prev || prev.classId !== classId) {
+      stopFanfare.current?.()
+      stopFanfare.current = null
       setDisplayPoints(classPoints)
       setPhase('idle')
       return
@@ -71,7 +75,7 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
     if (classPoints < prev.value) {
       setDisplayPoints(goal)
       setPhase('opening')
-      playGoalCelebration()
+      stopFanfare.current = playGoalCelebration()
       const box = chestRef.current?.getBoundingClientRect()
       setBurstOrigin(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null)
       return
@@ -103,6 +107,12 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
     }
   }, [classId, classPoints, goal])
 
+  // Decode the fanfare as soon as this class has a goal, so it's in memory long before the
+  // chest opens rather than starting a download at the moment it's needed.
+  useEffect(() => {
+    if (goal > 0) primeGoalFanfare()
+  }, [goal])
+
   // Fetch the gif on approach rather than when the chest opens - starting the download at
   // the moment it's needed means it arrives halfway through, which looks broken.
   const approaching = goal > 0 && classPoints / goal >= PRELOAD_FROM
@@ -130,10 +140,14 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
   /** The celebration is over: shut the lid, send the coin home, then pick up the new total. */
   function finishCelebration() {
     if (phase !== 'opening') return
+    stopFanfare.current?.()
+    stopFanfare.current = null
     setPhase('closing')
     setDisplayPoints(0)
     setTimeout(() => setPhase('idle'), CLOSE_UP_MS)
   }
+
+  useEffect(() => () => stopFanfare.current?.(), [])
 
   const pct = goal > 0 ? Math.min(100, (displayPoints / goal) * 100) : 0
   const open = phase === 'opening'

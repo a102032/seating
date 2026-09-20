@@ -211,34 +211,42 @@ export function playPointAward() {
 }
 
 /** A triumphant rising arpeggio + sparkle burst for reaching the class point goal. */
-/**
- * The chest opening. A rising brass-ish fanfare, then a shimmer for the stars pouring out.
- * Synthesised like everything else here, so it costs nothing to ship.
- */
-export function playGoalCelebration() {
-  const ctx = getContext()
-  const master = ctx.createGain()
-  master.gain.value = 1
-  master.connect(ctx.destination)
+/** The recorded fanfare, decoded once and kept. Null until it's fetched, or if it fails. */
+let fanfareBuffer: AudioBuffer | null = null
+let fanfarePending: Promise<void> | null = null
 
-  // Two stacked saw voices a fifth apart read as brass far better than one sine does.
-  const fanfare: { freq: number; start: number; dur: number }[] = [
+/**
+ * Fetch and decode the fanfare ahead of time. Called when a class goal exists, so the sound
+ * is ready in memory rather than starting a 150KB download at the moment the chest opens.
+ */
+export function primeGoalFanfare(): void {
+  if (fanfareBuffer || fanfarePending) return
+  fanfarePending = fetch(assetUrl('/sounds/goal-fanfare.mp3'))
+    .then((r) => r.arrayBuffer())
+    .then((buf) => getContext().decodeAudioData(buf))
+    .then((decoded) => {
+      fanfareBuffer = decoded
+    })
+    .catch(() => {
+      // Left null on purpose - playGoalCelebration falls back to the synthesised version.
+      fanfareBuffer = null
+    })
+}
+
+/** The synthesised fanfare, kept as the fallback for when the recording isn't available. */
+function playSynthFanfare(ctx: AudioContext, master: GainNode) {
+  const notes: { freq: number; start: number; dur: number }[] = [
     { freq: 392.0, start: 0, dur: 0.16 },
     { freq: 523.25, start: 0.14, dur: 0.16 },
     { freq: 659.25, start: 0.28, dur: 0.16 },
     { freq: 783.99, start: 0.42, dur: 0.7 },
   ]
-  fanfare.forEach(({ freq, start, dur }) => {
+  notes.forEach(({ freq, start, dur }) => {
     playTone(ctx, master, { frequency: freq, start, duration: dur, type: 'sawtooth', peakGain: 0.16 })
     playTone(ctx, master, { frequency: freq * 1.5, start, duration: dur, type: 'triangle', peakGain: 0.1 })
     playTone(ctx, master, { frequency: freq / 2, start, duration: dur, type: 'triangle', peakGain: 0.12 })
   })
-
-  // The lid coming up, then the treasure.
   playNoiseBurst(ctx, master, 0.38, 0.22, 0.1)
-
-  // A scatter of high bell tones - the stars raining - deliberately not in step with the
-  // fanfare, so it sounds like falling rather than a chord.
   const shimmer = [1567.98, 2093.0, 2637.02, 1975.53, 3135.96, 2349.32]
   shimmer.forEach((freq, i) => {
     playTone(ctx, master, {
@@ -249,6 +257,42 @@ export function playGoalCelebration() {
       peakGain: 0.13,
     })
   })
+}
+
+/**
+ * The chest opening. Returns a function that cuts the sound off, because the celebration
+ * now waits for the teacher - a ten second fanfare still blaring after they've closed it
+ * would be worse than no fanfare.
+ */
+export function playGoalCelebration(): () => void {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+
+  if (!fanfareBuffer) {
+    playSynthFanfare(ctx, master)
+    return () => {}
+  }
+
+  const source = ctx.createBufferSource()
+  source.buffer = fanfareBuffer
+  source.connect(master)
+  source.start()
+  let stopped = false
+  return () => {
+    if (stopped) return
+    stopped = true
+    // A short fade rather than a hard stop, which clicks.
+    const now = ctx.currentTime
+    master.gain.setValueAtTime(master.gain.value, now)
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.18)
+    try {
+      source.stop(now + 0.2)
+    } catch {
+      // already finished
+    }
+  }
 }
 
 /** A single coin landing - used when the meter ticks up. */
