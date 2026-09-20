@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
-import { Minus, Plus, RotateCcw, StarOff } from 'lucide-react'
+import { Check, Minus, Plus, RotateCcw, StarOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -102,6 +102,14 @@ function ChipRow({
 
 /** How long after the last tap the goal is written. */
 const COMMIT_DELAY_MS = 400
+
+function SelectedTick() {
+  return (
+    <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+      <Check size={12} strokeWidth={3.5} />
+    </span>
+  )
+}
 
 const HOLD_DELAY_MS = 400
 const HOLD_REPEAT_MS = 90
@@ -325,9 +333,12 @@ export function PickersPointsModal({
       >
         {/* No h-full here: the dialog body is the scroller, and forcing this to its height
             made the sections fight over the space and spill their text over each other. */}
-        <div className="flex flex-col gap-2.5">
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-col gap-3 sm:flex-row">
+        {/* Two columns on a wide screen. Stacked, this modal grew past the viewport every
+            time anything was added to it, and shaving paddings only ever bought one more
+            addition - side by side there is room to spare. */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+          <section className="flex flex-col gap-2.5 lg:w-[19rem] lg:shrink-0">
+            <div className="flex flex-col gap-2.5">
               <ToggleRow
                 label="Allow Repeats"
                 description="Off: everyone gets picked once before anyone repeats, and the same for rows."
@@ -387,9 +398,9 @@ export function PickersPointsModal({
             </TactileButton>
           </section>
 
-          <Separator />
+          <Separator className="lg:hidden" />
 
-          <section className="flex flex-col gap-2.5">
+          <section className="flex min-w-0 flex-1 flex-col gap-2.5">
             <ToggleRow
               label="Class Goal"
               description="Off: no meter on the board at all, and nothing for the class to ask about."
@@ -397,7 +408,7 @@ export function PickersPointsModal({
               onCheckedChange={toggleGoal}
             />
             {goalOn && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div className="flex flex-col gap-2.5">
               <ChipRow
                 label="Stars for 1 class point"
                 hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
@@ -422,19 +433,22 @@ export function PickersPointsModal({
                 {/* A filmstrip, not a grid: a wrapped grid of eleven thumbnails is tall enough
                     to push this modal back into scrolling, which is the thing we just fixed. */}
                 <div className="mt-1.5 flex gap-2 overflow-x-auto rounded-2xl border border-black/10 p-1.5 dark:border-white/10">
+                  {/* The chosen one is ringed, lifted and ticked, and everything else is
+                      dimmed. A 2px border on a thumbnail is invisible in a row of thumbnails. */}
                   <button
                     type="button"
                     onClick={() => onSetCelebrationGif('')}
                     title="Treasure chest"
                     className={clsx(
-                      'flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border-2 transition-colors active:scale-95',
+                      'relative flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl transition-all active:scale-95',
                       !activeClass.celebrationGifId
-                        ? 'border-primary bg-primary/10'
-                        : 'border-transparent bg-black/5 hover:bg-black/10 dark:bg-white/10',
+                        ? 'scale-105 bg-primary/15 ring-[3px] ring-primary ring-offset-2 ring-offset-card'
+                        : 'bg-black/5 opacity-55 hover:opacity-100 dark:bg-white/10',
                     )}
                   >
                     <img src={assetUrl('/treasure/chest-open.svg')} alt="" className="h-8 w-8" />
                     <span className="text-[10px] font-bold text-foreground">Treasure</span>
+                    {!activeClass.celebrationGifId && <SelectedTick />}
                   </button>
                   {CELEBRATION_GIFS.map((g) => (
                     <button
@@ -443,14 +457,17 @@ export function PickersPointsModal({
                       onClick={() => onSetCelebrationGif(g.id)}
                       title={g.label}
                       className={clsx(
-                        'relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-black/5 transition-colors active:scale-95 dark:bg-white/10',
-                        activeClass.celebrationGifId === g.id ? 'border-primary' : 'border-transparent',
+                        'relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-black/5 transition-all active:scale-95 dark:bg-white/10',
+                        activeClass.celebrationGifId === g.id
+                          ? 'scale-105 ring-[3px] ring-primary ring-offset-2 ring-offset-card'
+                          : 'opacity-55 hover:opacity-100',
                       )}
                     >
                       <img src={gifThumbUrl(g.id)} alt={g.label} loading="lazy" className="h-full w-full object-cover" />
                       <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-[9px] font-bold text-white">
                         {g.label}
                       </span>
+                      {activeClass.celebrationGifId === g.id && <SelectedTick />}
                     </button>
                   ))}
                 </div>

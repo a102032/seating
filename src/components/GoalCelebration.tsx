@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { assetUrl } from '../lib/assets'
@@ -11,7 +12,8 @@ interface GoalCelebrationProps {
   onDone: () => void
 }
 
-const DURATION_MS = 4200
+/** How long the particles fall for. The card itself stays until the teacher closes it. */
+const PARTICLE_MS = 4200
 // Sized for a smartboard seen from the back of a room: a couple of hundred specks reads as
 // a few bits of dust falling, not as a celebration.
 const BURST_COUNT = 170
@@ -62,17 +64,11 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (reduced) {
-      const t = setTimeout(() => doneRef.current(), 900)
-      return () => clearTimeout(t)
-    }
-
+    // No particles under reduced motion, and none without a 2d context - the card carries
+    // the moment on its own either way, and it waits for the teacher regardless.
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
     const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      const t = setTimeout(() => doneRef.current(), DURATION_MS)
-      return () => clearTimeout(t)
-    }
+    if (!ctx) return
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
     let w = window.innerWidth
@@ -123,7 +119,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         angle: Math.random() * Math.PI * 2,
         color: COLORS[i % COLORS.length],
         star: i % 3 === 0,
-        delay: Math.random() * (DURATION_MS * 0.42),
+        delay: Math.random() * (PARTICLE_MS * 0.42),
         life: 1,
       })
     }
@@ -135,7 +131,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
       const elapsed = now - started
       ctx.clearRect(0, 0, w, h)
       // Everything fades together over the last second rather than vanishing.
-      const fade = elapsed > DURATION_MS - 1000 ? Math.max(0, (DURATION_MS - elapsed) / 1000) : 1
+      const fade = elapsed > PARTICLE_MS - 1000 ? Math.max(0, (PARTICLE_MS - elapsed) / 1000) : 1
 
       for (const p of particles) {
         if (elapsed < p.delay) continue
@@ -156,8 +152,9 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         ctx.restore()
       }
 
-      if (elapsed < DURATION_MS) raf = requestAnimationFrame(frame)
-      else doneRef.current()
+      // The particles finish on their own; dismissing is the teacher's call.
+      if (elapsed < PARTICLE_MS) raf = requestAnimationFrame(frame)
+      else ctx.clearRect(0, 0, w, h)
     }
     raf = requestAnimationFrame(frame)
 
@@ -178,8 +175,8 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
       <motion.div
         className="pointer-events-none absolute inset-0 flex items-center justify-center p-6"
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 1, 1, 0] }}
-        transition={{ duration: DURATION_MS / 1000, times: [0, 0.07, 0.8, 1] }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
       >
         <div className="relative flex items-center justify-center">
           {/* Prize-wheel rays behind the card. Cheap - one spinning conic gradient. */}
@@ -222,6 +219,15 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
               )}
             </motion.div>
 
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => doneRef.current()}
+              className="pointer-events-auto absolute -right-3 -top-3 flex h-11 w-11 items-center justify-center rounded-full border-4 border-amber-200 bg-amber-500 text-amber-950 shadow-lg transition-transform hover:scale-105 active:scale-95"
+            >
+              <X size={22} strokeWidth={3} />
+            </button>
+
             <div className="text-center leading-none">
               <motion.div
                 className="text-5xl font-extrabold tracking-tight text-amber-950 drop-shadow-sm sm:text-6xl"
@@ -239,6 +245,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
               >
                 You did it!
               </motion.div>
+              <div className="mt-3 text-sm font-semibold text-amber-900/70">Tap anywhere to close</div>
             </div>
           </motion.div>
         </div>
