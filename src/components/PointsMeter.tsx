@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../lib/assets'
+import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration } from '../lib/sound'
 import { GoalCelebration } from './GoalCelebration'
 
@@ -9,6 +10,8 @@ interface PointsMeterProps {
   classId: string
   classPoints: number
   goal: number
+  /** GIPHY id for the celebration, or empty for the treasure chest. */
+  celebrationGifId?: string
   onOpenGoalSettings: () => void
 }
 
@@ -24,6 +27,8 @@ interface Sparkle {
 
 /** How full the meter has to get before the chest starts straining. */
 const RATTLE_FROM = 0.85
+/** Start fetching the celebration gif here, so it's decoded before the chest opens. */
+const PRELOAD_FROM = 0.7
 const CLOSE_UP_MS = 900
 
 const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
@@ -38,7 +43,7 @@ const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
  * nowhere. Nothing here changes the row's height - the icons sit in space the 56px row
  * already had.
  */
-export function PointsMeter({ classId, classPoints, goal, onOpenGoalSettings }: PointsMeterProps) {
+export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOpenGoalSettings }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
   const [phase, setPhase] = useState<'idle' | 'opening' | 'closing'>('idle')
@@ -49,6 +54,9 @@ export function PointsMeter({ classId, classPoints, goal, onOpenGoalSettings }: 
   // Normally mirrors classPoints, but holds at full through the celebration so the bar
   // doesn't snap back to the new run while the chest is still open.
   const [displayPoints, setDisplayPoints] = useState(classPoints)
+  // Null until the gif has actually decoded. The chest is what shows otherwise, so a slow
+  // or blocked network costs the moment nothing.
+  const [readyGif, setReadyGif] = useState<string | null>(null)
 
   useEffect(() => {
     const prev = prevRef.current
@@ -94,6 +102,30 @@ export function PointsMeter({ classId, classPoints, goal, onOpenGoalSettings }: 
       return () => clearTimeout(t)
     }
   }, [classId, classPoints, goal])
+
+  // Fetch the gif on approach rather than when the chest opens - starting the download at
+  // the moment it's needed means it arrives halfway through, which looks broken.
+  const approaching = goal > 0 && classPoints / goal >= PRELOAD_FROM
+  useEffect(() => {
+    if (!celebrationGifId) {
+      setReadyGif(null)
+      return
+    }
+    if (!approaching) return
+    const url = giphyUrl(celebrationGifId)
+    const img = new Image()
+    let cancelled = false
+    img.onload = () => {
+      if (!cancelled) setReadyGif(url)
+    }
+    img.onerror = () => {
+      if (!cancelled) setReadyGif(null)
+    }
+    img.src = url
+    return () => {
+      cancelled = true
+    }
+  }, [celebrationGifId, approaching])
 
   /** The celebration is over: shut the lid, send the coin home, then pick up the new total. */
   function finishCelebration() {
@@ -229,7 +261,7 @@ export function PointsMeter({ classId, classPoints, goal, onOpenGoalSettings }: 
         {displayPoints} / {goal}
       </motion.span>
 
-      {open && <GoalCelebration origin={burstOrigin} onDone={finishCelebration} />}
+      {open && <GoalCelebration origin={burstOrigin} gifUrl={readyGif} onDone={finishCelebration} />}
     </div>
   )
 }

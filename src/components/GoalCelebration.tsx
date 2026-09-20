@@ -6,6 +6,8 @@ import { assetUrl } from '../lib/assets'
 interface GoalCelebrationProps {
   /** Where on screen the chest is, so the burst erupts from it rather than from nowhere. */
   origin: { x: number; y: number } | null
+  /** A preloaded gif to show instead of the chest. Null falls back to the chest. */
+  gifUrl: string | null
   onDone: () => void
 }
 
@@ -49,7 +51,7 @@ function drawStar(ctx: CanvasRenderingContext2D, r: number) {
  * thirty desks stutters on a classroom smartboard, and a canvas overlay costs the layout
  * nothing. Tap anywhere to cut it short - it shares the screen with a lesson.
  */
-export function GoalCelebration({ origin, onDone }: GoalCelebrationProps) {
+export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const doneRef = useRef(onDone)
   useEffect(() => {
@@ -174,23 +176,72 @@ export function GoalCelebration({ origin, onDone }: GoalCelebrationProps) {
       {/* One focal point, so the room knows what just happened rather than only seeing
           things fall. A single element - the particles are the canvas's job. */}
       <motion.div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center p-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: [0, 1, 1, 0] }}
-        transition={{ duration: DURATION_MS / 1000, times: [0, 0.08, 0.78, 1] }}
+        transition={{ duration: DURATION_MS / 1000, times: [0, 0.07, 0.8, 1] }}
       >
-        <motion.div
-          className="flex flex-col items-center gap-3 rounded-3xl bg-amber-400/95 px-10 py-7 shadow-2xl"
-          initial={{ scale: 0.4, rotate: -8 }}
-          animate={{ scale: [0.4, 1.12, 1], rotate: [-8, 3, 0] }}
-          transition={{ duration: 0.65, ease: 'backOut' }}
-        >
-          <img src={assetUrl('/treasure/chest-open.svg')} alt="" className="h-24 w-24 drop-shadow-lg" />
-          <div className="text-center leading-tight">
-            <div className="text-4xl font-extrabold text-amber-950">Congratulations!</div>
-            <div className="text-2xl font-bold text-amber-900">You did it!</div>
-          </div>
-        </motion.div>
+        <div className="relative flex items-center justify-center">
+          {/* Prize-wheel rays behind the card. Cheap - one spinning conic gradient. */}
+          <motion.div
+            className="absolute h-[140vmin] w-[140vmin] rounded-full opacity-[0.22]"
+            style={{
+              background:
+                'repeating-conic-gradient(#fff 0deg 9deg, transparent 9deg 18deg)',
+              maskImage: 'radial-gradient(circle, #000 18%, transparent 62%)',
+              WebkitMaskImage: 'radial-gradient(circle, #000 18%, transparent 62%)',
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 26, repeat: Infinity, ease: 'linear' }}
+          />
+          <div className="absolute h-[70vmin] w-[70vmin] rounded-full bg-amber-300/35 blur-3xl" />
+
+          <motion.div
+            className="relative flex w-[min(92vw,620px)] flex-col items-center gap-5 rounded-[2.5rem] border-[6px] border-amber-200 bg-gradient-to-b from-amber-300 to-amber-500 px-10 py-9 shadow-[0_25px_80px_-12px_rgba(0,0,0,0.45)]"
+            initial={{ scale: 0.35, rotate: -10, y: 30 }}
+            animate={{ scale: [0.35, 1.1, 1], rotate: [-10, 4, 0], y: [30, -8, 0] }}
+            transition={{ duration: 0.75, ease: 'backOut' }}
+          >
+            <motion.div
+              className="w-full"
+              animate={{ y: [0, -7, 0] }}
+              transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              {gifUrl ? (
+                <img
+                  src={gifUrl}
+                  alt=""
+                  className="mx-auto max-h-[42vh] w-auto max-w-full rounded-2xl border-4 border-amber-100 object-contain shadow-lg"
+                />
+              ) : (
+                <img
+                  src={assetUrl('/treasure/chest-open.svg')}
+                  alt=""
+                  className="mx-auto h-36 w-36 drop-shadow-[0_8px_16px_rgba(0,0,0,0.25)]"
+                />
+              )}
+            </motion.div>
+
+            <div className="text-center leading-none">
+              <motion.div
+                className="text-5xl font-extrabold tracking-tight text-amber-950 drop-shadow-sm sm:text-6xl"
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.25, type: 'spring', stiffness: 260, damping: 14 }}
+              >
+                Congratulations!
+              </motion.div>
+              <motion.div
+                className="mt-2 text-2xl font-bold text-amber-900 sm:text-3xl"
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.45, duration: 0.35 }}
+              >
+                You did it!
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
       </motion.div>
     </div>,
     document.body,

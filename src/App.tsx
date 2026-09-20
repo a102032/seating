@@ -55,6 +55,7 @@ export default function App() {
     adjustPoints,
     setGoalSettings,
     setGoalEnabled,
+    setCelebrationGif,
     resetClassGoal,
     resetPoints,
     deleteStudent,
@@ -280,6 +281,7 @@ export default function App() {
               classId={activeClass.id}
               classPoints={activeClass.classPoints ?? 0}
               goal={activeClass.pointsGoal ?? 0}
+              celebrationGifId={activeClass.celebrationGifId}
               onOpenGoalSettings={() => setPickerSettingsOpen(true)}
             />
           )}
@@ -352,6 +354,7 @@ export default function App() {
         activeClass={activeClass}
         onSaveGoal={(goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer)}
         onSetGoalEnabled={(enabled) => setGoalEnabled(activeClass.id, enabled)}
+        onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onResetStars={() => resetPoints(activeClass.id)}
         onReset={picker.resetPickHistory}

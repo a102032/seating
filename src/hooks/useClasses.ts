@@ -336,6 +336,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setCelebrationGif = useCallback(
+    (classId: string, gifId: string) => updateClass(classId, (c) => ({ ...c, celebrationGifId: gifId })),
+    [updateClass],
+  )
+
   /** Clears the shared meter without touching anyone's stars. */
   const resetClassGoal = useCallback(
     (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
@@ -363,6 +368,7 @@ export function useClasses() {
     adjustPoints,
     setGoalSettings,
     setGoalEnabled,
+    setCelebrationGif,
     resetClassGoal,
     resetPoints,
     deleteStudent,

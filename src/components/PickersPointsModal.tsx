@@ -7,6 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
+import { CELEBRATION_GIFS, gifThumbUrl } from '../lib/celebrationGifs'
+import { assetUrl } from '../lib/assets'
 import type { ClassData, Student } from '../types'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
@@ -28,6 +30,7 @@ interface PickersPointsModalProps {
   activeClass: ClassData
   onSaveGoal: (goal: number, starsPerClassPoint: number) => void
   onSetGoalEnabled: (enabled: boolean) => void
+  onSetCelebrationGif: (gifId: string) => void
   onResetClassGoal: () => void
   onResetStars: () => void
   onReset: () => void
@@ -45,7 +48,7 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void
 }) {
   return (
-    <div className="flex flex-1 items-start justify-between gap-3 rounded-2xl border border-black/10 p-3 dark:border-white/10">
+    <div className="flex flex-1 items-start justify-between gap-3 rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
       <div className="min-w-0">
         <Label className="text-foreground">{label}</Label>
         <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
@@ -82,7 +85,7 @@ function ChipRow({
             type="button"
             onClick={() => onChange(choice)}
             className={clsx(
-              'h-10 min-w-10 flex-1 rounded-xl text-sm font-bold transition-colors active:scale-95',
+              'h-9 min-w-9 flex-1 rounded-xl text-sm font-bold transition-colors active:scale-95',
               choice === value
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-black/5 text-muted-foreground hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20',
@@ -92,7 +95,7 @@ function ChipRow({
           </button>
         ))}
       </div>
-      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>
   )
 }
@@ -162,7 +165,7 @@ function Stepper({
     )
   }
 
-  const button = 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
+  const button = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
 
   return (
     <div className="shrink-0 sm:w-64">
@@ -191,7 +194,7 @@ function Stepper({
             const next = Number(e.target.value.replace(/[^0-9]/g, ''))
             onChange(Math.min(max, Math.max(min, Number.isFinite(next) ? next : min)))
           }}
-          className="h-12 flex-1 text-center text-lg font-bold"
+          className="h-11 flex-1 text-center text-lg font-bold"
         />
         <button
           type="button"
@@ -206,7 +209,7 @@ function Stepper({
           <Plus size={20} strokeWidth={2.75} />
         </button>
       </div>
-      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>
   )
 }
@@ -222,6 +225,7 @@ export function PickersPointsModal({
   activeClass,
   onSaveGoal,
   onSetGoalEnabled,
+  onSetCelebrationGif,
   onResetClassGoal,
   onResetStars,
   onReset,
@@ -321,7 +325,7 @@ export function PickersPointsModal({
       >
         {/* No h-full here: the dialog body is the scroller, and forcing this to its height
             made the sections fight over the space and spill their text over each other. */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2.5">
           <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row">
               <ToggleRow
@@ -340,7 +344,7 @@ export function PickersPointsModal({
 
             <Label>Pick History (this session)</Label>
             {!hasHistory ? (
-              <p className="rounded-2xl border border-black/10 p-4 text-center text-muted-foreground dark:border-white/10">
+              <p className="rounded-2xl border border-black/10 p-3 text-center text-muted-foreground dark:border-white/10">
                 No one&apos;s been picked yet.
               </p>
             ) : (
@@ -385,7 +389,7 @@ export function PickersPointsModal({
 
           <Separator />
 
-          <section className="flex flex-col gap-3">
+          <section className="flex flex-col gap-2.5">
             <ToggleRow
               label="Class Goal"
               description="Off: no meter on the board at all, and nothing for the class to ask about."
@@ -412,6 +416,47 @@ export function PickersPointsModal({
               />
             </div>
             )}
+            {goalOn && (
+              <div>
+                <Label className="text-foreground">Celebration</Label>
+                {/* A filmstrip, not a grid: a wrapped grid of eleven thumbnails is tall enough
+                    to push this modal back into scrolling, which is the thing we just fixed. */}
+                <div className="mt-1.5 flex gap-2 overflow-x-auto rounded-2xl border border-black/10 p-1.5 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => onSetCelebrationGif('')}
+                    title="Treasure chest"
+                    className={clsx(
+                      'flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border-2 transition-colors active:scale-95',
+                      !activeClass.celebrationGifId
+                        ? 'border-primary bg-primary/10'
+                        : 'border-transparent bg-black/5 hover:bg-black/10 dark:bg-white/10',
+                    )}
+                  >
+                    <img src={assetUrl('/treasure/chest-open.svg')} alt="" className="h-8 w-8" />
+                    <span className="text-[10px] font-bold text-foreground">Treasure</span>
+                  </button>
+                  {CELEBRATION_GIFS.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => onSetCelebrationGif(g.id)}
+                      title={g.label}
+                      className={clsx(
+                        'relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-black/5 transition-colors active:scale-95 dark:bg-white/10',
+                        activeClass.celebrationGifId === g.id ? 'border-primary' : 'border-transparent',
+                      )}
+                    >
+                      <img src={gifThumbUrl(g.id)} alt={g.label} loading="lazy" className="h-full w-full object-cover" />
+                      <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-[9px] font-bold text-white">
+                        {g.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Stars are awarded whether or not a class goal exists, so clearing them stays
                 available even with the goal switched off. Only the meter's own reset hides. */}
             <div className="flex flex-col gap-1.5 sm:flex-row">

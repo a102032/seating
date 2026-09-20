@@ -33,6 +33,12 @@ export interface ClassData {
    */
   goalEnabled?: boolean
   /**
+   * Which celebration plays when the goal is reached: a GIPHY id from lib/celebrationGifs,
+   * or unset for the treasure chest. The chest is also the fallback whenever a chosen gif
+   * hasn't loaded, so a bad network never leaves the moment blank.
+   */
+  celebrationGifId?: string
+  /**
    * Stars a class has to earn for one class point. Unset or 1 means every star counts, which
    * is how the meter behaved before this existed - so old saved classes need no migration.
    */
