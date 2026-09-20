@@ -66,9 +66,13 @@ function shuffled<T>(items: T[]): T[] {
  * with its own round of picks that is deliberately independent of Pick Student's history -
  * here, setting a card aside *is* the no-repeat mechanism.
  */
-export function useFlipDeck(seatedIds: string[], classId: string | null) {
+export function useFlipDeck(seatedIds: string[], classId: string | null, visible: boolean) {
   const seatedIdsRef = useRef(seatedIds)
   seatedIdsRef.current = seatedIds
+  // Read through a ref so toggling the deck open doesn't re-run the deal effect below -
+  // opening it already deals explicitly.
+  const visibleRef = useRef(visible)
+  visibleRef.current = visible
 
   const [cards, setCards] = useState<DeckCard[]>([])
   const cardsRef = useRef(cards)
@@ -91,29 +95,35 @@ export function useFlipDeck(seatedIds: string[], classId: string | null) {
 
   useEffect(() => clearTimers, [clearTimers])
 
-  const deal = useCallback(() => {
-    clearTimers()
-    const order = shuffled(seatedIdsRef.current)
-    setCards(order.map((studentId) => ({ studentId, faceUp: false, setAside: false })))
-    setPhase('dealing')
+  /** `silent` seeds the deck without the deal sound, for when nobody is looking at it. */
+  const deal = useCallback(
+    (options?: { silent?: boolean }) => {
+      clearTimers()
+      const order = shuffled(seatedIdsRef.current)
+      setCards(order.map((studentId) => ({ studentId, faceUp: false, setAside: false })))
+      setPhase('dealing')
 
-    if (settingsRef.current.soundEnabled) {
-      order.forEach((_, i) => playCardDeal((i * DEAL_STAGGER_MS) / 1000))
-    }
-    later(() => setPhase('ready'), order.length * DEAL_STAGGER_MS + DEAL_SETTLE_MS)
-  }, [clearTimers, later])
+      if (!options?.silent && settingsRef.current.soundEnabled) {
+        order.forEach((_, i) => playCardDeal((i * DEAL_STAGGER_MS) / 1000))
+      }
+      later(() => setPhase('ready'), order.length * DEAL_STAGGER_MS + DEAL_SETTLE_MS)
+    },
+    [clearTimers, later],
+  )
 
   const shuffle = useCallback(() => {
     clearTimers()
     setPhase('shuffling')
     setCards((prev) => prev.map((c) => ({ ...c, faceUp: false, setAside: false })))
     if (settingsRef.current.soundEnabled) playShuffle()
-    later(deal, SHUFFLE_MS)
+    later(() => deal(), SHUFFLE_MS)
   }, [clearTimers, deal, later])
 
-  // A new class is a new deck entirely.
+  // A new class is a new deck entirely. This also seeds the very first deck on mount, which
+  // is why it has to stay quiet while the deck is closed - otherwise merely loading the app
+  // deals thirty cards at the room.
   useEffect(() => {
-    deal()
+    deal({ silent: !visibleRef.current })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId])
 

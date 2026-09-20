@@ -89,7 +89,7 @@ export default function App() {
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating, activeClassId)
   const seatedIds = useMemo(() => (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)), [activeClass])
-  const deck = useFlipDeck(seatedIds, activeClassId)
+  const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen)
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
@@ -187,10 +187,11 @@ export default function App() {
       onDeductPoint={() => applyPointsDelta(-1)}
       flipDeckOpen={flipDeckOpen}
       onToggleFlipDeck={() => {
-        setFlipDeckOpen((open) => {
-          if (!open) deck.deal()
-          return !open
-        })
+        // Deal outside the state updater - React may run an updater more than once, which
+        // would deal (and sound) twice.
+        const opening = !flipDeckOpen
+        setFlipDeckOpen(opening)
+        if (opening) deck.deal()
         setPointsSelection(new Set())
       }}
     />
