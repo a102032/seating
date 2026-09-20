@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { RotateCcw, StarOff } from 'lucide-react'
+import clsx from 'clsx'
+import { useEffect, useRef, useState } from 'react'
+import { Minus, Plus, RotateCcw, StarOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -53,32 +54,155 @@ function ToggleRow({
   )
 }
 
-function NumberField({
+/** The values worth offering for stars-per-class-point. Ten chips beat a slider here: no
+    drag to land accurately, and the set is small and discrete enough to show in full. */
+const STARS_PER_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+function ChipRow({
+  label,
+  hint,
+  value,
+  choices,
+  onChange,
+}: {
+  label: string
+  hint: string
+  value: number
+  choices: number[]
+  onChange: (value: number) => void
+}) {
+  return (
+    <div className="flex-1">
+      <Label className="text-foreground">{label}</Label>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {choices.map((choice) => (
+          <button
+            key={choice}
+            type="button"
+            onClick={() => onChange(choice)}
+            className={clsx(
+              'h-10 min-w-10 flex-1 rounded-xl text-sm font-bold transition-colors active:scale-95',
+              choice === value
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-black/5 text-muted-foreground hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20',
+            )}
+          >
+            {choice}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
+    </div>
+  )
+}
+
+const HOLD_DELAY_MS = 400
+const HOLD_REPEAT_MS = 90
+const HOLD_REPEAT_MIN_MS = 22
+/** Each repeat comes a little sooner than the last, so a long haul doesn't take all day. */
+const HOLD_ACCEL = 0.88
+
+function Stepper({
   id,
   label,
   hint,
   value,
+  min,
+  max,
   onChange,
 }: {
   id: string
   label: string
   hint: string
-  value: string
-  onChange: (value: string) => void
+  value: number
+  min: number
+  max: number
+  onChange: (value: number) => void
 }) {
+  // Holding a button repeats, so going from 5 to 50 isn't forty-five taps. Read the live
+  // value through a ref - the repeat closure would otherwise keep stepping off the old one.
+  const valueRef = useRef(value)
+  useEffect(() => {
+    valueRef.current = value
+  })
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  function stop() {
+    timers.current.forEach(clearTimeout)
+    timers.current = []
+  }
+
+  useEffect(() => stop, [])
+
+  function step(by: number) {
+    onChange(Math.min(max, Math.max(min, valueRef.current + by)))
+  }
+
+  function hold(by: number) {
+    step(by)
+    // A shrinking chain of timeouts rather than a fixed interval: holding to cross a big
+    // range shouldn't crawl, but the step stays 1 so you can still stop on an exact number.
+    const repeat = (delay: number) => {
+      timers.current.push(
+        setTimeout(() => {
+          step(by)
+          repeat(Math.max(HOLD_REPEAT_MIN_MS, delay * HOLD_ACCEL))
+        }, delay),
+      )
+    }
+    timers.current.push(
+      setTimeout(() => {
+        step(by)
+        repeat(HOLD_REPEAT_MS)
+      }, HOLD_DELAY_MS),
+    )
+  }
+
+  const button = 'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
+
   return (
     <div className="flex-1">
       <Label htmlFor={id} className="text-foreground">
         {label}
       </Label>
-      <Input
-        id={id}
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
-        className="mt-1"
-      />
-      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          disabled={value <= min}
+          className={button}
+          onPointerDown={() => hold(-1)}
+          onPointerUp={stop}
+          onPointerLeave={stop}
+          onPointerCancel={stop}
+        >
+          <Minus size={20} strokeWidth={2.75} />
+        </button>
+        {/* Still typeable, for the teacher who knows they want 137. */}
+        <Input
+          id={id}
+          inputMode="numeric"
+          value={String(value)}
+          onChange={(e) => {
+            const next = Number(e.target.value.replace(/[^0-9]/g, ''))
+            onChange(Math.min(max, Math.max(min, Number.isFinite(next) ? next : min)))
+          }}
+          className="h-12 flex-1 text-center text-lg font-bold"
+        />
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          disabled={value >= max}
+          className={button}
+          onPointerDown={() => hold(1)}
+          onPointerUp={stop}
+          onPointerLeave={stop}
+          onPointerCancel={stop}
+        >
+          <Plus size={20} strokeWidth={2.75} />
+        </button>
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
     </div>
   )
 }
@@ -100,22 +224,19 @@ export function PickersPointsModal({
   const [confirmingReset, setConfirmingReset] = useState(false)
   const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
   const [confirmingResetStars, setConfirmingResetStars] = useState(false)
-  const [goal, setGoal] = useState('')
-  const [starsPer, setStarsPer] = useState('')
+  const [goal, setGoal] = useState(50)
+  const [starsPer, setStarsPer] = useState(1)
 
   // Re-seed from the live class each time it opens, so a half-typed edit never leaks back in.
   useEffect(() => {
     if (!open) return
-    setGoal(String(activeClass.pointsGoal || 50))
-    setStarsPer(String(activeClass.starsPerClassPoint || 1))
+    setGoal(activeClass.pointsGoal || 50)
+    setStarsPer(activeClass.starsPerClassPoint || 1)
   }, [open, activeClass.pointsGoal, activeClass.starsPerClassPoint])
 
   const totalStars = activeClass.students.reduce((sum, st) => sum + (st.points ?? 0), 0)
-  const goalNum = Math.max(1, Number(goal) || 1)
-  const perNum = Math.max(1, Number(starsPer) || 1)
-
   function commitGoal() {
-    onSaveGoal(goalNum, perNum)
+    onSaveGoal(goal, starsPer)
   }
 
   const studentEntries = Array.from(studentPickCounts.entries())
@@ -210,22 +331,22 @@ export function PickersPointsModal({
                 Stars students earn fill the class meter together. Leftovers carry over, so nothing is lost.
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <NumberField
-                id="stars-per"
-                label="Stars for 1 class point"
-                hint={perNum === 1 ? 'Every star moves the meter.' : `${perNum} stars = 1 class point.`}
-                value={starsPer}
-                onChange={setStarsPer}
-              />
-              <NumberField
-                id="goal"
-                label="Class points to fill the goal"
-                hint={`${goalNum * perNum} stars for a full meter.`}
-                value={goal}
-                onChange={setGoal}
-              />
-            </div>
+            <ChipRow
+              label="Stars for 1 class point"
+              hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
+              value={starsPer}
+              choices={STARS_PER_CHOICES}
+              onChange={setStarsPer}
+            />
+            <Stepper
+              id="goal"
+              label="Class points to fill the goal"
+              hint={`${goal * starsPer} stars for a full meter.`}
+              value={goal}
+              min={1}
+              max={999}
+              onChange={setGoal}
+            />
             <TactileButton active onClick={commitGoal} className="justify-center">
               Save Class Goal
             </TactileButton>
