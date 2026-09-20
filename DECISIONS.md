@@ -1,7 +1,7 @@
 # Decisions
 
 Running record of what we've settled and why, so the reasoning survives between sessions.
-Newest thinking at the top of each section. Last updated 2026-09-19.
+Newest thinking at the top of each section. Last updated 2026-09-20.
 
 ## What this app is
 
@@ -45,6 +45,9 @@ Newest thinking at the top of each section. Last updated 2026-09-19.
 
 - **Points**: floored at 0. Select students (tap desks or revealed cards), then +/− in the side panel. Selection is keyed by student id, which is what lets desks and flip cards share the same controls.
 - **Class goal meter**: one shared total. Deductions affect a student's own tally but never pull the class meter backward — it's collective momentum, not a ledger. On reaching the goal: celebrate, then reset to 0 for the next goal.
+- **Two knobs on the goal, not one.** Stars convert to class points at a teacher-set rate, and the goal is counted in class points. A divisor doesn't change *pacing* — the goal alone already does, since "10 stars each, goal 8" is arithmetically "goal 80" — it changes the number the class looks at. 5/8 is a jar filling; 48/80 is a score. Leftover stars are banked, so awarding one at a time eventually counts for as much as awarding them all at once. Default is 1:1, so classes saved before this behave exactly as they did.
+- **Resetting stars and resetting the meter are separate actions.** They were briefly one, on the grounds that both describe the same term — but that argues for making both easy, not for forcing a teacher who wants one to destroy the other.
+- **Points settings live in Pickers & Points**, not Class Settings, with per-student editing in the roster (the only per-student surface). Class Settings is for the class's composition and appearance.
 - **Flip-card picker**: slides over the desk grid rather than taking the full screen, so the side panel's point buttons and the goal meter stay live. Seated students only. Its own round, independent of Pick Student's history — setting a card aside *is* the no-repeat mechanism. Gender colouring on card backs is cosmetic (all students dealt), and flipping awards no points automatically.
 - **Avatars**: Flaticon sticker packs (paid subscription), imported by `import-stickers.py` into `public/avatars/stickers/<theme>/<pose>.svg`. This replaced the Google Flow set and fixed the proportion drift outright — every sticker is drawn on the same 512×512 canvas, so nothing needs per-image CSS. A student with no avatar gets a character derived from their id, so a freshly imported class already looks varied.
 - **Bulk avatar assignment**: Class Settings → Class Avatars. Scope (everyone / boys / girls) × poses (mixed / same for all), then one tap applies; tapping the same character again re-rolls. Immediate rather than a confirm step — the undo is tapping something else.
