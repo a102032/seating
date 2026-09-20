@@ -279,6 +279,18 @@ export function PickersPointsModal({
   }, [open])
 
   const totalStars = activeClass.students.reduce((sum, st) => sum + (st.points ?? 0), 0)
+  // A goal of 0 means the class goal is off, and the meter isn't on screen at all.
+  const goalOn = (activeClass.pointsGoal ?? 0) > 0
+
+  function setGoalEnabled(on: boolean) {
+    if (on) {
+      commitSoon({ goal: goal || 50, starsPer })
+      flush()
+    } else {
+      latest.current = { goal: 0, starsPer }
+      flush()
+    }
+  }
   const studentEntries = Array.from(studentPickCounts.entries())
     .map(([id, count]) => ({ id, count, name: studentsById.get(id)?.name }))
     .filter((e): e is { id: string; count: number; name: string } => Boolean(e.name))
@@ -365,7 +377,13 @@ export function PickersPointsModal({
           <Separator />
 
           <section className="flex flex-col gap-3">
-            <Label className="text-foreground">Class Goal</Label>
+            <ToggleRow
+              label="Class Goal"
+              description="Off: no meter on the board at all, and nothing for the class to ask about."
+              checked={goalOn}
+              onCheckedChange={setGoalEnabled}
+            />
+            {goalOn && (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <ChipRow
                 label="Stars for 1 class point"
@@ -384,15 +402,20 @@ export function PickersPointsModal({
                 onChange={changeGoal}
               />
             </div>
+            )}
+            {/* Stars are awarded whether or not a class goal exists, so clearing them stays
+                available even with the goal switched off. Only the meter's own reset hides. */}
             <div className="flex flex-col gap-1.5 sm:flex-row">
-              <TactileButton
-                variant="danger"
-                disabled={(activeClass.classPoints ?? 0) === 0 && (activeClass.goalRemainder ?? 0) === 0}
-                className="flex-1 justify-center"
-                onClick={() => setConfirmingResetGoal(true)}
-              >
-                <RotateCcw size={16} /> Reset Class Goal
-              </TactileButton>
+              {goalOn && (
+                <TactileButton
+                  variant="danger"
+                  disabled={(activeClass.classPoints ?? 0) === 0 && (activeClass.goalRemainder ?? 0) === 0}
+                  className="flex-1 justify-center"
+                  onClick={() => setConfirmingResetGoal(true)}
+                >
+                  <RotateCcw size={16} /> Reset Class Goal
+                </TactileButton>
+              )}
               <TactileButton
                 variant="danger"
                 disabled={totalStars === 0}

@@ -211,17 +211,54 @@ export function playPointAward() {
 }
 
 /** A triumphant rising arpeggio + sparkle burst for reaching the class point goal. */
+/**
+ * The chest opening. A rising brass-ish fanfare, then a shimmer for the stars pouring out.
+ * Synthesised like everything else here, so it costs nothing to ship.
+ */
 export function playGoalCelebration() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
   master.connect(ctx.destination)
-  const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5]
-  notes.forEach((freq, i) => {
-    playTone(ctx, master, { frequency: freq, start: i * 0.09, duration: 0.9 - i * 0.05, type: 'triangle', peakGain: 0.32 })
+
+  // Two stacked saw voices a fifth apart read as brass far better than one sine does.
+  const fanfare: { freq: number; start: number; dur: number }[] = [
+    { freq: 392.0, start: 0, dur: 0.16 },
+    { freq: 523.25, start: 0.14, dur: 0.16 },
+    { freq: 659.25, start: 0.28, dur: 0.16 },
+    { freq: 783.99, start: 0.42, dur: 0.7 },
+  ]
+  fanfare.forEach(({ freq, start, dur }) => {
+    playTone(ctx, master, { frequency: freq, start, duration: dur, type: 'sawtooth', peakGain: 0.16 })
+    playTone(ctx, master, { frequency: freq * 1.5, start, duration: dur, type: 'triangle', peakGain: 0.1 })
+    playTone(ctx, master, { frequency: freq / 2, start, duration: dur, type: 'triangle', peakGain: 0.12 })
   })
-  playNoiseBurst(ctx, master, 0, 0.4, 0.12)
-  playTone(ctx, master, { frequency: 2093, start: 0.45, duration: 0.6, type: 'sine', peakGain: 0.22 })
+
+  // The lid coming up, then the treasure.
+  playNoiseBurst(ctx, master, 0.38, 0.22, 0.1)
+
+  // A scatter of high bell tones - the stars raining - deliberately not in step with the
+  // fanfare, so it sounds like falling rather than a chord.
+  const shimmer = [1567.98, 2093.0, 2637.02, 1975.53, 3135.96, 2349.32]
+  shimmer.forEach((freq, i) => {
+    playTone(ctx, master, {
+      frequency: freq,
+      start: 0.55 + i * 0.11 + Math.random() * 0.05,
+      duration: 0.5,
+      type: 'sine',
+      peakGain: 0.13,
+    })
+  })
+}
+
+/** A single coin landing - used when the meter ticks up. */
+export function playCoinTick() {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  playTone(ctx, master, { frequency: 1318.51, start: 0, duration: 0.14, type: 'sine', peakGain: 0.16 })
+  playTone(ctx, master, { frequency: 1975.53, start: 0.04, duration: 0.16, type: 'sine', peakGain: 0.12 })
 }
 
 function cardContext(): { ctx: AudioContext; master: GainNode } {

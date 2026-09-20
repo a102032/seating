@@ -1,8 +1,9 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { playGoalCelebration, playPointAward } from '../lib/sound'
+import { assetUrl } from '../lib/assets'
+import { playCoinTick, playGoalCelebration } from '../lib/sound'
+import { GoalCelebration } from './GoalCelebration'
 
 interface PointsMeterProps {
   classId: string
@@ -11,163 +12,211 @@ interface PointsMeterProps {
   onOpenGoalSettings: () => void
 }
 
-interface FloatingPop {
+interface Sparkle {
   id: number
-  amount: number
-}
-
-const CONFETTI_COLORS = ['#f43f5e', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#ec4899']
-
-interface ConfettiPiece {
-  id: number
-  x: number
-  y: number
-  rotate: number
+  /** Percent along the track, so sparkles sit where the coin was when it moved. */
+  pct: number
+  dx: number
+  dy: number
+  size: number
   delay: number
-  color: string
 }
 
-function CelebrationBurst() {
-  const [pieces, setPieces] = useState<ConfettiPiece[]>([])
+/** How full the meter has to get before the chest starts straining. */
+const RATTLE_FROM = 0.85
+const CLOSE_UP_MS = 900
 
-  // Randomized per burst in an effect (not during render) so each celebration looks different.
-  useEffect(() => {
-    setPieces(
-      Array.from({ length: 22 }, (_, i) => ({
-        id: i,
-        x: (Math.random() - 0.5) * 280,
-        y: -(40 + Math.random() * 90),
-        rotate: (Math.random() - 0.5) * 360,
-        delay: Math.random() * 0.15,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      })),
-    )
-  }, [])
+const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
 
-  return (
-    <motion.div
-      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-visible"
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      {pieces.map((p) => (
-        <motion.span
-          key={p.id}
-          className="absolute h-2.5 w-2.5 rounded-sm"
-          style={{ backgroundColor: p.color, left: '50%', top: '50%' }}
-          initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
-          animate={{ x: p.x, y: [0, p.y, p.y + 70], opacity: [1, 1, 0], rotate: p.rotate }}
-          transition={{ duration: 1.7, delay: p.delay, ease: 'easeOut' }}
-        />
-      ))}
-      <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-        className="absolute rounded-full bg-amber-400 px-4 py-1.5 text-sm font-extrabold whitespace-nowrap text-amber-950 shadow-lg"
-      >
-        🎉 Goal Reached!
-      </motion.div>
-    </motion.div>
-  )
-}
-
-/** A horizontal, animated class-wide progress bar toward a teacher-set point goal - meant to be visible and exciting for the whole room, not just the teacher. */
+/**
+ * The class goal, as a voyage from the map to the chest.
+ *
+ * The coin is the class: it rides the leading edge of the fill rather than the bar just
+ * growing, so the bar has something in it that moves. The chest starts rattling near the end
+ * because the last few points are the exciting ones and nothing used to mark them, and when
+ * it opens the celebration erupts from the chest's own position on screen rather than from
+ * nowhere. Nothing here changes the row's height - the icons sit in space the 56px row
+ * already had.
+ */
 export function PointsMeter({ classId, classPoints, goal, onOpenGoalSettings }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number } | null>(null)
-  const [celebrating, setCelebrating] = useState(false)
-  const [pops, setPops] = useState<FloatingPop[]>([])
-  const nextPopId = useRef(0)
-  // Normally mirrors classPoints, but during a celebration it holds at "full" so the bar
-  // doesn't snap down to the new cycle's value while the confetti is still landing.
+  const chestRef = useRef<HTMLDivElement>(null)
+  const [phase, setPhase] = useState<'idle' | 'opening' | 'closing'>('idle')
+  const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
+  const [sparkles, setSparkles] = useState<Sparkle[]>([])
+  const [pop, setPop] = useState<{ id: number; amount: number } | null>(null)
+  const nextId = useRef(0)
+  // Normally mirrors classPoints, but holds at full through the celebration so the bar
+  // doesn't snap back to the new run while the chest is still open.
   const [displayPoints, setDisplayPoints] = useState(classPoints)
 
   useEffect(() => {
     const prev = prevRef.current
     prevRef.current = { classId, value: classPoints }
-    // Just mounted or switched classes - snap to the new value without celebrating or popping.
     if (!prev || prev.classId !== classId) {
       setDisplayPoints(classPoints)
+      setPhase('idle')
       return
     }
 
+    // A drop means the goal was reached and the total wrapped.
     if (classPoints < prev.value) {
       setDisplayPoints(goal)
-      setCelebrating(true)
+      setPhase('opening')
       playGoalCelebration()
-      const t = setTimeout(() => {
-        setCelebrating(false)
-        setDisplayPoints(classPoints)
-      }, 2200)
-      return () => clearTimeout(t)
+      const box = chestRef.current?.getBoundingClientRect()
+      setBurstOrigin(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null)
+      return
     }
+
     if (classPoints > prev.value) {
       const amount = classPoints - prev.value
       setDisplayPoints(classPoints)
-      playPointAward()
-      const id = nextPopId.current++
-      setPops((p) => [...p, { id, amount }])
-      const t = setTimeout(() => setPops((p) => p.filter((x) => x.id !== id)), 1100)
+      playCoinTick()
+      const id = nextId.current++
+      setPop({ id, amount })
+      const landed = goal > 0 ? Math.min(100, (classPoints / goal) * 100) : 0
+      setSparkles((s) => [
+        ...s,
+        ...Array.from({ length: 7 }, (_, i) => ({
+          id: nextId.current++,
+          pct: landed,
+          dx: -8 - Math.random() * 34,
+          dy: (Math.random() - 0.5) * 30,
+          size: 3 + Math.random() * 4,
+          delay: i * 0.035,
+        })),
+      ])
+      const t = setTimeout(() => {
+        setPop((p) => (p?.id === id ? null : p))
+        setSparkles((s) => s.slice(-7))
+      }, 900)
       return () => clearTimeout(t)
     }
   }, [classId, classPoints, goal])
 
-  const pct = goal > 0 ? Math.min(100, (displayPoints / goal) * 100) : 0
-
-  if (goal <= 0) {
-    return (
-      <button
-        type="button"
-        onClick={onOpenGoalSettings}
-        className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/50 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent active:scale-[0.99]"
-      >
-        <Star size={16} /> Set a class goal to start the points meter
-      </button>
-    )
+  /** The celebration is over: shut the lid, send the coin home, then pick up the new total. */
+  function finishCelebration() {
+    if (phase !== 'opening') return
+    setPhase('closing')
+    setDisplayPoints(0)
+    setTimeout(() => setPhase('idle'), CLOSE_UP_MS)
   }
+
+  const pct = goal > 0 ? Math.min(100, (displayPoints / goal) * 100) : 0
+  const open = phase === 'opening'
+  const rattling = !open && goal > 0 && pct / 100 >= RATTLE_FROM
 
   return (
     <div
       className={clsx(
-        'relative flex h-14 shrink-0 items-center gap-3 overflow-visible rounded-2xl border border-border bg-card/70 px-4 shadow-sm backdrop-blur-xl transition-shadow',
-        celebrating && 'shadow-[0_0_0_3px_rgba(251,191,36,0.6)]',
+        'relative flex h-14 shrink-0 items-center gap-2.5 overflow-visible rounded-2xl border border-border bg-card/70 px-3 shadow-sm backdrop-blur-xl transition-shadow sm:gap-3 sm:px-4',
+        open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
       )}
     >
-      <button
-        type="button"
-        onClick={onOpenGoalSettings}
-        title="Change class goal"
-        className="flex shrink-0 items-center gap-1.5 rounded-full p-1 text-amber-500 transition-transform active:scale-90"
-      >
-        <motion.span animate={celebrating ? { rotate: [0, -15, 15, -10, 10, 0], scale: [1, 1.3, 1.3, 1.2, 1.2, 1] } : {}} transition={{ duration: 1.2 }}>
-          <Star size={20} className="fill-amber-400" />
-        </motion.span>
-      </button>
+      {/* Where the voyage starts. It unrolls again when a new run begins. */}
+      <motion.img
+        src={treasure('map')}
+        alt=""
+        draggable={false}
+        className="h-[30px] w-[30px] shrink-0 select-none"
+        animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
+        transition={{ duration: 0.7 }}
+      />
 
-      <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-muted">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: 'linear-gradient(90deg, #38bdf8, #a3e635, #facc15)', backgroundSize: '200% 100%', backgroundPositionX: `${100 - pct}%` }}
-          initial={false}
-          animate={{ width: `${pct}%` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-        />
+      <div className="relative h-4 flex-1">
+        <div className="absolute inset-0 overflow-hidden rounded-full bg-muted">
+          <motion.div
+            className="h-full rounded-full"
+            style={{
+              background: 'linear-gradient(90deg, #38bdf8, #a3e635, #facc15)',
+              backgroundSize: '200% 100%',
+              backgroundPositionX: `${100 - pct}%`,
+            }}
+            initial={false}
+            animate={{ width: `${pct}%` }}
+            transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+          />
+        </div>
+
+        {/* Sparkles are left behind at the point the coin reached, so they trail it. */}
         <AnimatePresence>
-          {pops.map((pop) => (
+          {sparkles.map((s) => (
+            <motion.span
+              key={s.id}
+              className="pointer-events-none absolute top-1/2 rounded-full bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.9)]"
+              style={{ left: `${s.pct}%`, width: s.size, height: s.size }}
+              initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+              animate={{ opacity: 0, x: s.dx, y: s.dy, scale: 0.2 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.75, delay: s.delay, ease: 'easeOut' }}
+            />
+          ))}
+        </AnimatePresence>
+
+        {/* The class, travelling. */}
+        <motion.img
+          src={treasure('star-coin')}
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute top-1/2 h-[26px] w-[26px] -translate-x-1/2 -translate-y-1/2 select-none drop-shadow"
+          initial={false}
+          animate={{ left: `${pct}%`, rotate: open ? [0, 360] : 0 }}
+          transition={{
+            left: { type: 'spring', stiffness: 120, damping: 18 },
+            rotate: { duration: 0.8, repeat: open ? Infinity : 0, ease: 'linear' },
+          }}
+        />
+
+        <AnimatePresence>
+          {pop && (
             <motion.span
               key={pop.id}
-              className="pointer-events-none absolute right-1 top-0 text-xs font-extrabold text-amber-600 drop-shadow-sm dark:text-amber-300"
-              initial={{ opacity: 0, y: 6, scale: 0.7 }}
-              animate={{ opacity: 1, y: -20, scale: 1 }}
+              className="pointer-events-none absolute -top-1 text-xs font-extrabold text-amber-600 drop-shadow-sm dark:text-amber-300"
+              style={{ left: `${pct}%` }}
+              initial={{ opacity: 0, y: 4, scale: 0.7 }}
+              animate={{ opacity: 1, y: -18, scale: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
+              transition={{ duration: 0.85 }}
             >
               +{pop.amount}
             </motion.span>
-          ))}
+          )}
         </AnimatePresence>
       </div>
+
+      {/* Where it's going. Straining near the end, then open. */}
+      <button
+        type="button"
+        onClick={onOpenGoalSettings}
+        title="Class goal settings"
+        className="shrink-0 rounded-xl p-0.5 transition-transform active:scale-90"
+      >
+        <motion.div
+          ref={chestRef}
+          animate={
+            open
+              ? { rotate: 0, scale: [1, 1.35, 1.15], y: [0, -6, 0] }
+              : rattling
+                ? { rotate: [0, -6, 6, -4, 4, 0], scale: [1, 1.06, 1], y: [0, -2, 0] }
+                : { rotate: 0, scale: 1, y: 0 }
+          }
+          transition={
+            open
+              ? { duration: 0.55, ease: 'backOut' }
+              : rattling
+                ? { duration: 0.9, repeat: Infinity, repeatDelay: 0.7 }
+                : { duration: 0.25 }
+          }
+        >
+          <img
+            src={treasure(open ? 'chest-open' : 'chest-closed')}
+            alt=""
+            draggable={false}
+            className="h-8 w-8 select-none"
+          />
+        </motion.div>
+      </button>
 
       <motion.span
         key={displayPoints}
@@ -180,7 +229,7 @@ export function PointsMeter({ classId, classPoints, goal, onOpenGoalSettings }: 
         {displayPoints} / {goal}
       </motion.span>
 
-      <AnimatePresence>{celebrating && <CelebrationBurst />}</AnimatePresence>
+      {open && <GoalCelebration origin={burstOrigin} onDone={finishCelebration} />}
     </div>
   )
 }

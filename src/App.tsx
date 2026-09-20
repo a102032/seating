@@ -272,12 +272,16 @@ export default function App() {
         </motion.div>
 
         <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-          <PointsMeter
-            classId={activeClass.id}
-            classPoints={activeClass.classPoints ?? 0}
-            goal={activeClass.pointsGoal ?? 0}
-            onOpenGoalSettings={() => setPickerSettingsOpen(true)}
-          />
+          {/* Hidden entirely until a goal exists - a meter on screen is a meter the class
+              will ask about every lesson, whether or not the teacher wanted one. */}
+          {(activeClass.pointsGoal ?? 0) > 0 && (
+            <PointsMeter
+              classId={activeClass.id}
+              classPoints={activeClass.classPoints ?? 0}
+              goal={activeClass.pointsGoal ?? 0}
+              onOpenGoalSettings={() => setPickerSettingsOpen(true)}
+            />
+          )}
 
           <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
 

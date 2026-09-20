@@ -65,6 +65,9 @@ def main() -> None:
     overrides = {
         f"/avatars/stickers/{p.parent.name}/{p.name}": svg_data_uri(p) for p in stickers
     }
+    for svg in sorted((PUBLIC / "treasure").glob("*.svg")):
+        overrides[f"/treasure/{svg.name}"] = svg_data_uri(svg)
+
     overrides.update(
         {
             "/branding/school-crest.png": png_data_uri(PUBLIC / "branding" / "school-crest.png", 240),
