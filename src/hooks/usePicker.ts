@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DESK_COLUMNS, DESK_COUNT } from '../types'
 import type { DeskHighlight } from '../components/Desk'
 import { playPickerTick, type PickerTickSound } from '../lib/sound'
@@ -217,6 +217,18 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     setColumnPickCounts(new Map())
   }, [])
 
+  // Memoised so App can depend on it without re-running on every render.
+  const winnerStudentIds = useMemo(() => {
+    if (winnerDesk !== null) {
+      const id = seating[winnerDesk]
+      return id ? [id] : []
+    }
+    if (winnerColumn !== null) {
+      return seating.filter((id, index): id is string => Boolean(id) && columnOf(index) === winnerColumn)
+    }
+    return []
+  }, [seating, winnerDesk, winnerColumn])
+
   const deskHighlights: DeskHighlight[] = Array.from({ length: DESK_COUNT }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
@@ -229,6 +241,8 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     mode,
     isPicking: mode === 'student-flashing' || mode === 'row-flashing',
     hasResult: mode === 'student-result' || mode === 'row-result',
+    /** Who the board is currently pointing at, so the points buttons can act on them. */
+    winnerStudentIds,
     rowLocked: rowLock !== null,
     deskHighlights,
     pickStudent,

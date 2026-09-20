@@ -20,6 +20,10 @@ interface SidePanelProps {
   onPickStudent: () => void
   onPickRow: () => void
   rowLocked: boolean
+  /** A student pick is flashing or its winner is on the board. */
+  studentPickActive: boolean
+  /** A row pick is flashing or its winner is on the board. */
+  rowPickActive: boolean
   onOpenSettings: () => void
   onOpenPickerSettings: () => void
   timerSettings: TimerSettings
@@ -46,6 +50,8 @@ export function SidePanel({
   onPickStudent,
   onPickRow,
   rowLocked,
+  studentPickActive,
+  rowPickActive,
   onOpenSettings,
   onOpenPickerSettings,
   timerSettings,
@@ -163,11 +169,11 @@ export function SidePanel({
             </button>
           </div>
           <div className="flex flex-col gap-1.5">
-            <TactileButton onClick={onPickStudent} disabled={swapMode} className="w-full justify-start">
+            <TactileButton active={studentPickActive} onClick={onPickStudent} disabled={swapMode} className="w-full justify-start">
               <User size={18} /> Pick Student
             </TactileButton>
             <TactileButton
-              active={rowLocked}
+              active={rowLocked || rowPickActive}
               onClick={onPickRow}
               disabled={swapMode}
               className="w-full justify-start"

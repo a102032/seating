@@ -78,6 +78,10 @@ export default function App() {
    */
   const [spentDelta, setSpentDelta] = useState<number | null>(null)
   const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** True when the live selection arrived in one go, so the wiggle ripples across the grid. */
+  const [staggerWiggle, setStaggerWiggle] = useState(false)
+  /** Counts awards so a repeat award on the same desks replays their pop. */
+  const [landedTick, setLandedTick] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
@@ -150,6 +154,16 @@ export default function App() {
     if (releaseTimer.current) clearTimeout(releaseTimer.current)
   }, [])
 
+  /**
+   * A picker result *is* a points selection - the board is already pointing at those
+   * students, so the +/- buttons should act on them without the teacher re-tapping each
+   * desk. It stays derived rather than copied into state so there's nothing to keep in sync.
+   */
+  const activeSelection = useMemo(
+    () => (picker.hasResult ? new Set(picker.winnerStudentIds) : pointsSelection),
+    [picker.hasResult, picker.winnerStudentIds, pointsSelection],
+  )
+
   function cancelRelease() {
     if (releaseTimer.current) {
       clearTimeout(releaseTimer.current)
@@ -161,13 +175,17 @@ export default function App() {
     cancelRelease()
     setPointsSelection(new Set())
     setSpentDelta(null)
+    setStaggerWiggle(false)
+    setLandedTick(0)
   }
 
   function togglePointsSelection(studentId: string) {
+    setStaggerWiggle(false)
     if (spentDelta !== null) {
       // The round is over - start a fresh one on the desk that was just tapped.
       cancelRelease()
       setSpentDelta(null)
+      setLandedTick(0)
       setPointsSelection(new Set([studentId]))
       return
     }
@@ -182,13 +200,26 @@ export default function App() {
   function toggleSelectAll() {
     cancelRelease()
     setSpentDelta(null)
+    setLandedTick(0)
     const allSelected = seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))
+    // Selecting everyone is the one case where nothing dims, so the ripple is the only
+    // confirmation the board gives. Deselecting needs none - the dimming lifts.
+    setStaggerWiggle(!allSelected)
     setPointsSelection(allSelected ? new Set() : new Set(seatedIds))
   }
 
   function applyPointsDelta(delta: number) {
-    if (!activeClassId || pointsSelection.size === 0) return
-    adjustPoints(activeClassId, Array.from(pointsSelection), delta)
+    if (!activeClassId || activeSelection.size === 0) return
+    adjustPoints(activeClassId, Array.from(activeSelection), delta)
+    if (picker.hasResult) {
+      // Awarding ends the pick round, but the winners stay selected so the release behaves
+      // like any other award - including a second tap for a second point.
+      setPointsSelection(new Set(activeSelection))
+      picker.dismiss()
+    }
+    // The pop should land on every desk at once, even if the selection rippled in.
+    setStaggerWiggle(false)
+    setLandedTick((t) => t + 1)
     // Hold the selection briefly so a second tap can stack another point on the same
     // students, then let it go. Tapping +/- again restarts the window.
     setSpentDelta(delta)
@@ -197,6 +228,7 @@ export default function App() {
       releaseTimer.current = null
       setPointsSelection(new Set())
       setSpentDelta(null)
+      setLandedTick(0)
     }, SELECTION_RELEASE_MS)
   }
 
@@ -218,6 +250,8 @@ export default function App() {
       onPickStudent={picker.pickStudent}
       onPickRow={picker.pickRow}
       rowLocked={picker.rowLocked}
+      studentPickActive={picker.mode === 'student-flashing' || picker.mode === 'student-result'}
+      rowPickActive={picker.mode === 'row-flashing' || picker.mode === 'row-result'}
       onOpenSettings={() => setSettingsOpen(true)}
       onOpenPickerSettings={() => setPickerSettingsOpen(true)}
       timerSettings={timerSettings}
@@ -226,8 +260,8 @@ export default function App() {
       onToggleSide={togglePanelSide}
       theme={theme}
       saveError={saveError}
-      pointsSelectedCount={pointsSelection.size}
-      allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))}
+      pointsSelectedCount={activeSelection.size}
+      allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id))}
       onToggleSelectAll={toggleSelectAll}
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
@@ -270,8 +304,9 @@ export default function App() {
               seating={seating}
               studentsById={studentsById}
               selectedDesk={selectedDesk}
-              pointsSelection={pointsSelection}
-              pointsPhase={spentDelta === null ? 'selected' : spentDelta > 0 ? 'awarded' : 'deducted'}
+              pointsSelection={activeSelection}
+              landedTick={spentDelta === null ? 0 : landedTick}
+              staggerWiggle={staggerWiggle}
               deskHighlights={picker.deskHighlights}
               onTapDesk={handleTapDesk}
             />

@@ -1,6 +1,6 @@
 import { fitClassNameSize } from '../lib/fitText'
 import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type Student } from '../types'
-import { Desk, type DeskHighlight, type DeskPointsState } from './Desk'
+import { Desk, type DeskHighlight } from './Desk'
 
 interface DeskGridProps {
   seating: (string | null)[]
@@ -8,14 +8,21 @@ interface DeskGridProps {
   selectedDesk: number | null
   /** Student ids currently selected for a points action. */
   pointsSelection: Set<string>
-  /** What the current selection is doing: still being chosen, or just awarded/deducted. */
-  pointsPhase: Exclude<DeskPointsState, 'none'>
+  /** 0 while no points have landed on this selection; otherwise bumped per award. */
+  landedTick: number
+  /** Whether this selection arrived all at once (Select All), which ripples rather than twitches. */
+  staggerWiggle: boolean
   deskHighlights: DeskHighlight[]
   onTapDesk: (index: number) => void
 }
 
-export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection, pointsPhase, deskHighlights, onTapDesk }: DeskGridProps) {
+export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection, landedTick, staggerWiggle, deskHighlights, onTapDesk }: DeskGridProps) {
   const seated = seating.map((id) => (id ? studentsById.get(id) : undefined))
+
+  // While a picker is flashing or showing its winner it owns the board's attention, so the
+  // points selection stands down rather than dimming on top of the picker's own dimming.
+  const pickerOwnsBoard = deskHighlights.some((h) => h !== 'none')
+  const showSelection = !pickerOwnsBoard && pointsSelection.size > 0
 
   // One size for every desk, so no student's name ends up visibly smaller than the rest.
   const nameSize = fitClassNameSize(seated.filter((s): s is Student => s !== undefined).map((s) => s.name))
@@ -30,13 +37,18 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
     >
       {Array.from({ length: DESK_COUNT }, (_, index) => {
         const student = seated[index]
+        const inSelection = student !== undefined && pointsSelection.has(student.id)
         return (
           <Desk
             key={index}
             index={index}
             student={student}
             selected={selectedDesk === index}
-            pointsState={student !== undefined && pointsSelection.has(student.id) ? pointsPhase : 'none'}
+            pointsState={
+              !showSelection ? 'none' : !inSelection ? 'muted' : landedTick > 0 ? 'landed' : 'selected'
+            }
+            wiggleDelayMs={showSelection && inSelection && staggerWiggle ? index * 18 : 0}
+            landedTick={landedTick}
             highlight={deskHighlights[index] ?? 'none'}
             nameSize={nameSize}
             onTap={onTapDesk}
