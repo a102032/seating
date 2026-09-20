@@ -177,9 +177,7 @@ export function primeAudio() {
 }
 
 // Pentatonic-ish run so consecutive random slots never clash, even played rapidly.
-const PICKER_SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51]
 
-export type PickerTickSound = 'beep' | 'pop'
 
 // A small round-robin pool of <audio> elements so rapid ticks (every 90ms) can overlap
 // cleanly instead of one tick cutting the previous one's tail off.
@@ -198,17 +196,8 @@ function playPop() {
 }
 
 /** A short, soft blip for a single tick of a picker's flashing animation. `slot` is the desk index or column index currently lit. */
-export function playPickerTick(slot: number, style: PickerTickSound = 'beep') {
-  if (style === 'pop') {
-    playPop()
-    return
-  }
-  const ctx = getContext()
-  const master = ctx.createGain()
-  master.gain.value = 1
-  master.connect(ctx.destination)
-  const frequency = PICKER_SCALE[((slot % PICKER_SCALE.length) + PICKER_SCALE.length) % PICKER_SCALE.length]
-  playTone(ctx, master, { frequency, start: 0, duration: 0.1, type: 'sine', peakGain: 0.3 })
+export function playPickerTick() {
+  playPop()
 }
 
 /** A bright, snappy two-note blip for a point landing on the class goal meter. */

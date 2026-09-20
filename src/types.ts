@@ -22,10 +22,17 @@ export interface ClassData {
   /** length DESK_COUNT, each slot holds a student id or null for an empty desk */
   seating: (string | null)[]
   updatedAt: string
-  /** Rolling total toward pointsGoal - wraps back down (never above the goal) each time the class hits it. Unset is treated as 0. */
+  /** Class points earned toward pointsGoal - wraps back down each time the class hits it. Unset is treated as 0. */
   classPoints?: number
-  /** Teacher-set target for the class points meter. Unset or 0 means the meter isn't configured yet. */
+  /** How many class points fill the goal. Unset or 0 means the meter isn't configured yet. */
   pointsGoal?: number
+  /**
+   * Stars a class has to earn for one class point. Unset or 1 means every star counts, which
+   * is how the meter behaved before this existed - so old saved classes need no migration.
+   */
+  starsPerClassPoint?: number
+  /** Stars banked toward the next class point, so a divisor never loses the leftovers. */
+  goalRemainder?: number
 }
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'

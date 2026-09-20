@@ -294,34 +294,46 @@ export function useClasses() {
 
         // The class goal meter only ever moves forward - deductions affect a student's own
         // tally but shouldn't undo the whole class's shared progress toward the goal.
-        let classPoints = c.classPoints ?? 0
-        if (delta > 0) {
-          classPoints += studentIds.length * delta
-          const goal = c.pointsGoal ?? 0
-          if (goal > 0 && classPoints >= goal) classPoints %= goal
-        }
+        if (delta <= 0) return { ...c, students }
 
-        return { ...c, students, classPoints }
+        // Stars convert to class points at the teacher's rate, and the leftovers are banked
+        // rather than dropped, so awarding one star at a time eventually counts for as much
+        // as awarding them all at once.
+        const perClassPoint = Math.max(1, Math.round(c.starsPerClassPoint ?? 1))
+        const banked = (c.goalRemainder ?? 0) + studentIds.length * delta
+        let classPoints = (c.classPoints ?? 0) + Math.floor(banked / perClassPoint)
+        const goal = c.pointsGoal ?? 0
+        if (goal > 0 && classPoints >= goal) classPoints %= goal
+
+        return { ...c, students, classPoints, goalRemainder: banked % perClassPoint }
       }),
     [updateClass],
   )
 
   /**
-   * Both tallies go together. The class meter is the same points seen collectively, so
-   * leaving it at 47/80 with every student on zero would be describing two different terms.
+   * Stars only. Clearing the shared meter is a separate decision - a teacher wiping
+   * individual tallies at the end of a unit usually doesn't want to destroy the class's
+   * progress toward its reward at the same time.
    */
   const resetPoints = useCallback(
     (classId: string) =>
+      updateClass(classId, (c) => ({ ...c, students: c.students.map((s) => ({ ...s, points: 0 })) })),
+    [updateClass],
+  )
+
+  const setGoalSettings = useCallback(
+    (classId: string, goal: number, starsPerClassPoint: number) =>
       updateClass(classId, (c) => ({
         ...c,
-        students: c.students.map((s) => ({ ...s, points: 0 })),
-        classPoints: 0,
+        pointsGoal: Math.max(0, Math.round(goal)),
+        starsPerClassPoint: Math.max(1, Math.round(starsPerClassPoint)),
       })),
     [updateClass],
   )
 
-  const setPointsGoal = useCallback(
-    (classId: string, goal: number) => updateClass(classId, (c) => ({ ...c, pointsGoal: Math.max(0, Math.round(goal)) })),
+  /** Clears the shared meter without touching anyone's stars. */
+  const resetClassGoal = useCallback(
+    (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
     [updateClass],
   )
 
@@ -344,7 +356,8 @@ export function useClasses() {
     updateStudent,
     assignAvatars,
     adjustPoints,
-    setPointsGoal,
+    setGoalSettings,
+    resetClassGoal,
     resetPoints,
     deleteStudent,
     swapSeats,

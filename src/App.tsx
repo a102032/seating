@@ -4,8 +4,7 @@ import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
-import { PickerSettingsModal } from './components/PickerSettingsModal'
-import { PointsGoalModal } from './components/PointsGoalModal'
+import { PickersPointsModal } from './components/PickersPointsModal'
 import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
@@ -54,7 +53,8 @@ export default function App() {
     updateStudent,
     assignAvatars,
     adjustPoints,
-    setPointsGoal,
+    setGoalSettings,
+    resetClassGoal,
     resetPoints,
     deleteStudent,
     swapSeats,
@@ -83,7 +83,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
-  const [pointsGoalOpen, setPointsGoalOpen] = useState(false)
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
   const [flipSettingsOpen, setFlipSettingsOpen] = useState(false)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
@@ -277,7 +276,7 @@ export default function App() {
             classId={activeClass.id}
             classPoints={activeClass.classPoints ?? 0}
             goal={activeClass.pointsGoal ?? 0}
-            onOpenGoalSettings={() => setPointsGoalOpen(true)}
+            onOpenGoalSettings={() => setPickerSettingsOpen(true)}
           />
 
           <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
@@ -337,14 +336,7 @@ export default function App() {
         onChange={deck.updateSettings}
       />
 
-      <PointsGoalModal
-        open={pointsGoalOpen}
-        onClose={() => setPointsGoalOpen(false)}
-        currentGoal={activeClass.pointsGoal ?? 0}
-        onSave={(goal) => setPointsGoal(activeClass.id, goal)}
-      />
-
-      <PickerSettingsModal
+      <PickersPointsModal
         open={pickerSettingsOpen}
         onClose={() => setPickerSettingsOpen(false)}
         settings={picker.settings}
@@ -352,6 +344,10 @@ export default function App() {
         studentPickCounts={picker.studentPickCounts}
         columnPickCounts={picker.columnPickCounts}
         studentsById={studentsById}
+        activeClass={activeClass}
+        onSaveGoal={(goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer)}
+        onResetClassGoal={() => resetClassGoal(activeClass.id)}
+        onResetStars={() => resetPoints(activeClass.id)}
         onReset={picker.resetPickHistory}
       />
 
@@ -371,7 +367,6 @@ export default function App() {
         onCreateClass={() => createClass()}
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
-        onResetPoints={() => resetPoints(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
         theme={theme}
         onSetTheme={setTheme}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, Download, GraduationCap, Pencil, Plus, RotateCcw, Smile, Star, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
+import { Armchair, Download, GraduationCap, Pencil, Plus, Smile, Star, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
@@ -36,7 +36,6 @@ interface ClassSettingsModalProps {
   onCreateClass: () => void
   onDeleteClass: () => void
   onUnseatAll: () => void
-  onResetPoints: () => void
   onSeatClass: () => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -81,7 +80,6 @@ export function ClassSettingsModal({
   onCreateClass,
   onDeleteClass,
   onUnseatAll,
-  onResetPoints,
   onSeatClass,
   theme,
   onSetTheme,
@@ -95,11 +93,9 @@ export function ClassSettingsModal({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
-  const [confirmingResetPoints, setConfirmingResetPoints] = useState(false)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
-  const totalPoints = activeClass.students.reduce((sum, s) => sum + (s.points ?? 0), 0)
   const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -165,7 +161,7 @@ export function ClassSettingsModal({
   return (
     <>
       <Modal
-        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingResetPoints && !confirmingDeleteStudent && !pickingAvatarFor && !assigningAvatars}
+        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent && !pickingAvatarFor && !assigningAvatars}
         onClose={closeAndReset}
         title="Class Settings"
         wide
@@ -178,12 +174,6 @@ export function ClassSettingsModal({
             </TactileButton>
             <TactileButton onClick={() => setAssigningAvatars(true)} disabled={activeClass.students.length === 0}>
               <Smile size={16} /> Class Avatars
-            </TactileButton>
-            <TactileButton
-              onClick={() => setConfirmingResetPoints(true)}
-              disabled={totalPoints === 0 && (activeClass.classPoints ?? 0) === 0}
-            >
-              <RotateCcw size={16} /> Reset Points
             </TactileButton>
             <TactileButton
               onClick={onCreateClass}
@@ -370,18 +360,6 @@ export function ClassSettingsModal({
           onDeleteClass()
           setConfirmingDelete(false)
           onClose()
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingResetPoints}
-        title="Reset all points?"
-        message={`This sets every student in "${activeClass.name}" back to 0 stars and empties the class goal meter. It can't be undone.`}
-        confirmLabel="Yes, Reset Points"
-        onCancel={() => setConfirmingResetPoints(false)}
-        onConfirm={() => {
-          onResetPoints()
-          setConfirmingResetPoints(false)
         }}
       />
 
