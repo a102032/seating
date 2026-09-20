@@ -42,10 +42,9 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
         // A desk presses in under the finger, so a tap registers before anything else moves.
         !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
-        pointsState === 'muted' && 'desk-muted',
+        (pointsState === 'muted' || highlight === 'dimmed') && 'desk-muted',
         pointsState === 'selected' && 'desk-wiggle',
         pointsState === 'landed' && (landedTick % 2 === 0 ? 'desk-landed-a' : 'desk-landed-b'),
-        highlight === 'dimmed' && 'opacity-25',
         highlight === 'flashing' && 'brightness-110 saturate-150',
         !empty && 'cursor-pointer',
       )}

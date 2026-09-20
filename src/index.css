@@ -239,8 +239,10 @@ button {
  * being motion rather than colour it implies no direction - a deduction can use the same cue
  * as an award.
  */
+/* The one dim in the app. The random pickers and the points selection are saying the same
+   thing - "these desks are in play, those aren't" - so they say it at the same strength. */
 .desk-muted {
-  opacity: 0.5;
+  opacity: 0.25;
 }
 
 @keyframes desk-wiggle {

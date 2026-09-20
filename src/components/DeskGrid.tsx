@@ -45,7 +45,15 @@ export function DeskGrid({ seating, studentsById, selectedDesk, pointsSelection,
             student={student}
             selected={selectedDesk === index}
             pointsState={
-              !showSelection ? 'none' : !inSelection ? 'muted' : landedTick > 0 ? 'landed' : 'selected'
+              // Points can land on a picker's winner too, so the pop is decided before the
+              // dimming is - the picker keeps the board, the desk still reacts.
+              inSelection && landedTick > 0
+                ? 'landed'
+                : !showSelection
+                  ? 'none'
+                  : inSelection
+                    ? 'selected'
+                    : 'muted'
             }
             wiggleDelayMs={showSelection && inSelection && staggerWiggle ? index * 18 : 0}
             landedTick={landedTick}

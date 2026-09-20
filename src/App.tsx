@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
@@ -19,8 +19,6 @@ import type { Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
-/** How long an awarded selection stays put before it releases itself. */
-const SELECTION_RELEASE_MS = 3000
 
 type PanelSide = 'left' | 'right'
 
@@ -77,7 +75,6 @@ export default function App() {
    * last award quietly collects a second point when the teacher picks someone else.
    */
   const [spentDelta, setSpentDelta] = useState<number | null>(null)
-  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** True when the live selection arrived in one go, so the wiggle ripples across the grid. */
   const [staggerWiggle, setStaggerWiggle] = useState(false)
   /** Counts awards so a repeat award on the same desks replays their pop. */
@@ -150,10 +147,6 @@ export default function App() {
     setSelectedDesk(null)
   }
 
-  useEffect(() => () => {
-    if (releaseTimer.current) clearTimeout(releaseTimer.current)
-  }, [])
-
   /**
    * A picker result *is* a points selection - the board is already pointing at those
    * students, so the +/- buttons should act on them without the teacher re-tapping each
@@ -164,15 +157,7 @@ export default function App() {
     [picker.hasResult, picker.winnerStudentIds, pointsSelection],
   )
 
-  function cancelRelease() {
-    if (releaseTimer.current) {
-      clearTimeout(releaseTimer.current)
-      releaseTimer.current = null
-    }
-  }
-
   function resetPointsSelection() {
-    cancelRelease()
     setPointsSelection(new Set())
     setSpentDelta(null)
     setStaggerWiggle(false)
@@ -183,7 +168,6 @@ export default function App() {
     setStaggerWiggle(false)
     if (spentDelta !== null) {
       // The round is over - start a fresh one on the desk that was just tapped.
-      cancelRelease()
       setSpentDelta(null)
       setLandedTick(0)
       setPointsSelection(new Set([studentId]))
@@ -198,7 +182,6 @@ export default function App() {
   }
 
   function toggleSelectAll() {
-    cancelRelease()
     setSpentDelta(null)
     setLandedTick(0)
     const allSelected = seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))
@@ -222,25 +205,13 @@ export default function App() {
   function applyPointsDelta(delta: number) {
     if (!activeClassId || activeSelection.size === 0) return
     adjustPoints(activeClassId, Array.from(activeSelection), delta)
-    if (picker.hasResult) {
-      // Awarding ends the pick round, but the winners stay selected so the release behaves
-      // like any other award - including a second tap for a second point.
-      setPointsSelection(new Set(activeSelection))
-      picker.dismiss()
-    }
-    // The pop should land on every desk at once, even if the selection rippled in.
+    // Awarding deliberately changes nothing about what the board is showing: a pick stays a
+    // pick, a selection stays selected. Only the desks react, and only for a moment. The
+    // dimmed board is the record of what is selected, so it doesn't need a timer to expire -
+    // the next thing the teacher does ends the round.
     setStaggerWiggle(false)
     setLandedTick((t) => t + 1)
-    // Hold the selection briefly so a second tap can stack another point on the same
-    // students, then let it go. Tapping +/- again restarts the window.
     setSpentDelta(delta)
-    cancelRelease()
-    releaseTimer.current = setTimeout(() => {
-      releaseTimer.current = null
-      setPointsSelection(new Set())
-      setSpentDelta(null)
-      setLandedTick(0)
-    }, SELECTION_RELEASE_MS)
   }
 
   if (!activeClass) {
