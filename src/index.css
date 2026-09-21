@@ -148,6 +148,54 @@
   --clock-fg: #f3ecff;
 }
 
+/*
+ * Comic Book - printed newsprint, not a colour scheme.
+ *
+ * The other five themes are pure token swaps. This one cannot be: what makes a page look
+ * printed is ink weight, a halftone lattice and hard shadows, none of which live in a colour
+ * token. So it is the one theme that also carries structure, in the block below the tokens.
+ *
+ * Two rules keep that from turning into a maintenance trap. It only ever reaches for hooks
+ * that already exist - data-slot on the shadcn primitives, data-ink on the three places that
+ * had none - and it changes nothing that affects layout: every outline here is a box-shadow
+ * ring rather than a border, so switching themes never reflows the board.
+ */
+:root[data-theme='comic'] {
+  color-scheme: light;
+  --app-bg-from: #ffd94a;
+  --app-bg-to: #ffc21c;
+
+  /* Warm black, the way printed ink is never quite neutral. */
+  --comic-ink: #17131a;
+  --comic-red: #e8272c;
+  --comic-blue: #2bb3e8;
+  --comic-paper: #fffdf6;
+
+  --radius: 0.6rem;
+  --background: var(--comic-paper);
+  --foreground: var(--comic-ink);
+  --card: var(--comic-paper);
+  --card-foreground: var(--comic-ink);
+  --popover: var(--comic-paper);
+  --popover-foreground: var(--comic-ink);
+  --primary: var(--comic-red);
+  --primary-foreground: #fffdf6;
+  --secondary: #ffd94a;
+  --secondary-foreground: var(--comic-ink);
+  --muted: #f2e9d8;
+  --muted-foreground: #6d5f4d;
+  --accent: #bfe8fa;
+  --accent-foreground: #0d4f6b;
+  --destructive: #d61f26;
+  --destructive-foreground: #fffdf6;
+  /* Every border-border in the app becomes ink at full strength. */
+  --border: var(--comic-ink);
+  --input: var(--comic-ink);
+  --ring: var(--comic-ink);
+  --clock-bg: var(--comic-ink);
+  --clock-fg: #ffd94a;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -416,4 +464,183 @@ button {
   .celebration-card {
     animation: none;
   }
+}
+
+/* ===========================================================================
+ * Comic Book: the printed part.
+ *
+ * Everything below is scoped to [data-theme='comic'] and does nothing in the
+ * other five themes. Outlines are box-shadow rings, never borders, so nothing
+ * here changes an element's size and switching themes cannot reflow the board.
+ * =========================================================================== */
+
+/*
+ * The page itself: a halftone lattice over the yellow ground.
+ *
+ * Two dot layers offset by half a tile give the staggered lattice real Ben-Day
+ * shading has - a single layer reads as a grid of spots, which is the giveaway
+ * that something is CSS and not print. The gradient has to be restated here
+ * because Tailwind's bg-gradient-to-br owns background-image, so layering onto
+ * it means replacing it.
+ */
+:root[data-theme='comic'] [data-ink='canvas'] {
+  background-image:
+    radial-gradient(circle, rgba(232, 39, 44, 0.38) 2.4px, transparent 2.6px),
+    radial-gradient(circle, rgba(232, 39, 44, 0.38) 2.4px, transparent 2.6px),
+    linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
+  background-size:
+    17px 17px,
+    17px 17px,
+    100% 100%;
+  background-position:
+    0 0,
+    8.5px 8.5px,
+    0 0;
+}
+
+/* Bangers for the chrome only. Student names stay in Andika - this is a tool a
+   teacher reads across a room, and an all-caps display face is the wrong thing
+   for a roster of real names. */
+:root[data-theme='comic'] [data-slot='button'],
+:root[data-theme='comic'] [data-slot='dialog-title'],
+:root[data-theme='comic'] [data-slot='alert-dialog-title'],
+:root[data-theme='comic'] [data-slot='label'],
+:root[data-theme='comic'] [data-slot='badge'] {
+  font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.045em;
+  font-weight: 400;
+}
+
+:root[data-theme='comic'] [data-slot='dialog-title'],
+:root[data-theme='comic'] [data-slot='alert-dialog-title'] {
+  font-size: 1.9rem;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  /* The cheap way to letter a title is a text-shadow offset; the honest way is a
+     stroke, so the ink sits around the glyph the way a pen would put it. */
+  -webkit-text-stroke: 1.5px var(--comic-ink);
+  paint-order: stroke fill;
+}
+
+/* Ink and a hard shadow. No blur: a blurred shadow is a lighting effect, and a
+   printed page has no lighting - it has a second impression of the plate. */
+:root[data-theme='comic'] [data-slot='button'] {
+  box-shadow:
+    0 0 0 2.5px var(--comic-ink),
+    3px 3px 0 0 var(--comic-ink);
+}
+
+:root[data-theme='comic'] [data-slot='button']:active {
+  /* Pressed: the panel drops onto its own shadow. */
+  box-shadow:
+    0 0 0 2.5px var(--comic-ink),
+    1px 1px 0 0 var(--comic-ink);
+}
+
+:root[data-theme='comic'] [data-slot='button']:disabled {
+  box-shadow:
+    0 0 0 2px rgba(23, 19, 26, 0.35),
+    2px 2px 0 0 rgba(23, 19, 26, 0.2);
+}
+
+/* Desks are the panels of the page, so they get the heaviest line on the board.
+   The grid's own padding and gaps leave room for the offset - the shadow lands
+   in the gutter rather than on a neighbour. */
+:root[data-theme='comic'] [data-ink='desk'] {
+  border-color: var(--comic-ink) !important;
+  box-shadow:
+    0 0 0 1px var(--comic-ink),
+    4px 4px 0 0 rgba(23, 19, 26, 0.85);
+}
+
+/*
+ * An empty desk is a panel with no art in it yet, so it gets the rough-pencil
+ * treatment: blank stock, dashed ink. The first pass left the card translucent
+ * with a crosshatch over it, which let the yellow ground through and put the
+ * hatch in a fight with the halftone - thirty of those read as noise.
+ */
+:root[data-theme='comic'] [data-ink='desk-empty'] {
+  background-color: rgba(255, 253, 246, 0.82) !important;
+  border-color: rgba(23, 19, 26, 0.45) !important;
+  border-style: dashed;
+}
+
+/* Dialogs are the splash panel: the heaviest frame in the app, on paper. */
+:root[data-theme='comic'] [data-slot='dialog-content'],
+:root[data-theme='comic'] [data-slot='alert-dialog-content'] {
+  box-shadow:
+    0 0 0 4px var(--comic-ink),
+    10px 10px 0 0 rgba(23, 19, 26, 0.9);
+  background-image:
+    radial-gradient(circle, rgba(232, 39, 44, 0.07) 1.2px, transparent 1.3px),
+    radial-gradient(circle, rgba(232, 39, 44, 0.07) 1.2px, transparent 1.3px);
+  background-size:
+    12px 12px,
+    12px 12px;
+  background-position:
+    0 0,
+    6px 6px;
+}
+
+:root[data-theme='comic'] [data-slot='badge'] {
+  box-shadow: 0 0 0 2px var(--comic-ink);
+  letter-spacing: 0.05em;
+}
+
+:root[data-theme='comic'] [data-slot='input'],
+:root[data-theme='comic'] [data-slot='select-trigger'] {
+  box-shadow: 0 0 0 2px var(--comic-ink);
+}
+
+:root[data-theme='comic'] [data-slot='switch'] {
+  box-shadow: 0 0 0 2px var(--comic-ink);
+}
+
+/* The scrollbar is chrome too, and a grey pill on newsprint looks like a bug. */
+:root[data-theme='comic'] ::-webkit-scrollbar-thumb {
+  background: var(--comic-ink);
+  border-radius: 2px;
+}
+
+/* The app's own containers - the side panel, its picker group, the goal meter.
+   Paper rather than the frosted translucency the other themes use: newsprint is
+   opaque, and a blurred panel over a halftone ground turns the dots to mush. */
+:root[data-theme='comic'] [data-ink='panel'] {
+  background-color: var(--comic-paper) !important;
+  background-image:
+    radial-gradient(circle, rgba(23, 19, 26, 0.055) 1.3px, transparent 1.4px),
+    radial-gradient(circle, rgba(23, 19, 26, 0.055) 1.3px, transparent 1.4px);
+  background-size:
+    13px 13px,
+    13px 13px;
+  background-position:
+    0 0,
+    6.5px 6.5px;
+  backdrop-filter: none !important;
+  border-color: var(--comic-ink) !important;
+  box-shadow:
+    0 0 0 3px var(--comic-ink),
+    6px 6px 0 0 rgba(23, 19, 26, 0.9);
+}
+
+:root[data-theme='comic'] [data-ink='group'] {
+  border-color: var(--comic-ink) !important;
+  box-shadow: 0 0 0 1.5px var(--comic-ink);
+}
+
+/* The class name is the issue title on the cover. */
+:root[data-theme='comic'] [data-ink='class-name'] {
+  font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  font-weight: 400;
+  font-size: clamp(1.3rem, 2.6vmin, 1.8rem) !important;
+}
+
+/* Section headings in the panel ("PICKERS & POINTS") are already uppercase, so
+   Bangers just makes them lettered rather than typed. */
+:root[data-theme='comic'] [data-ink='group'] .uppercase {
+  font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: var(--comic-ink);
 }

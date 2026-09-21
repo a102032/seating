@@ -1,7 +1,7 @@
-export type Theme = 'light' | 'dark' | 'school' | 'sky' | 'vibrant'
+export type Theme = 'light' | 'dark' | 'school' | 'sky' | 'vibrant' | 'comic'
 
 const THEME_KEY = 'seating-chart-theme-v1'
-const THEMES: Theme[] = ['light', 'dark', 'school', 'sky', 'vibrant']
+const THEMES: Theme[] = ['light', 'dark', 'school', 'sky', 'vibrant', 'comic']
 
 export interface ThemeOption {
   id: Theme
@@ -16,6 +16,7 @@ export const THEME_OPTIONS: ThemeOption[] = [
   { id: 'school', label: 'School Colors', preview: { from: '#fff6ec', to: '#fdebd3', accent: '#e2650e' } },
   { id: 'sky', label: 'Calm Sky Blue', preview: { from: '#eff8ff', to: '#def0fe', accent: '#3aa9e0' } },
   { id: 'vibrant', label: 'Vibrant Elementary', preview: { from: '#6bd9f7', to: '#38bdf8', accent: '#8b5cf6' } },
+  { id: 'comic', label: 'Comic Book', preview: { from: '#ffd94a', to: '#ffc21c', accent: '#e8272c' } },
 ]
 
 export function loadTheme(): Theme {

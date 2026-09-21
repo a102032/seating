@@ -37,6 +37,7 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
     <button
       type="button"
       onClick={() => onTap(index)}
+      data-ink={empty ? 'desk-empty' : 'desk'}
       className={clsx(
         // Rounded at the top, square at the bottom, so the desks sit on the grid like objects on a shelf.
         'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border-2 p-1 text-center shadow-sm transition-opacity duration-200 outline-none',

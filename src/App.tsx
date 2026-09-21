@@ -269,6 +269,10 @@ export default function App() {
   return (
     <>
       <div
+        // data-ink is where a theme may repaint the whole ground. The comic theme lays a
+        // halftone lattice over this gradient, which it can only do by replacing
+        // background-image wholesale - Tailwind's gradient owns that property.
+        data-ink="canvas"
         className={`flex h-[100dvh] w-[100dvw] gap-3 bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)] p-2 sm:p-3 ${
           panelSide === 'right' ? 'flex-row-reverse' : 'flex-row'
         }`}

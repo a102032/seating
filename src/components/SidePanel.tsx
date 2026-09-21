@@ -90,6 +90,7 @@ export function SidePanel({
 
   return (
     <aside
+      data-ink="panel"
       className={clsx(
         'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 backdrop-blur-xl backdrop-saturate-150 sm:w-64',
         'dark:border-white/10 dark:shadow-black/20',
@@ -97,7 +98,7 @@ export function SidePanel({
     >
       <div className="shrink-0">
         <div className="flex items-center justify-between gap-1">
-          <span className="truncate px-1 font-bold text-foreground" style={{ fontSize: 'clamp(1rem, 1.9vmin, 1.3rem)' }}>
+          <span data-ink="class-name" className="truncate px-1 font-bold text-foreground" style={{ fontSize: 'clamp(1rem, 1.9vmin, 1.3rem)' }}>
             {activeClass?.name}
           </span>
           {classes.length > 1 && (
@@ -158,7 +159,7 @@ export function SidePanel({
             <Shuffle size={18} /> Swap Seats
           </TactileButton>
         </div>
-        <div className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
+        <div data-ink="group" className="rounded-2xl border border-black/10 p-2 dark:border-white/10">
           <div className="mb-1.5 flex items-center justify-between px-1">
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pickers &amp; Points</span>
             <button

@@ -166,6 +166,7 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
 
   return (
     <div
+      data-ink="panel"
       className={clsx(
         'relative flex h-14 shrink-0 items-center gap-2.5 overflow-visible rounded-2xl border border-border bg-card/70 px-3 shadow-sm backdrop-blur-xl transition-shadow sm:gap-3 sm:px-4',
         open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
