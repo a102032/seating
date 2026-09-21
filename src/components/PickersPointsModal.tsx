@@ -36,14 +36,31 @@ interface PickersPointsModalProps {
   onReset: () => void
 }
 
+/**
+ * A labelled switch that describes the state it is actually in.
+ *
+ * These used to carry one fixed sentence describing the off state, which meant a switch
+ * sitting in its on position was captioned "Off: no meter on the board at all" - a sentence
+ * contradicting the control right beside it, with only a small "Off:" prefix to sort it out.
+ * Now each state has its own sentence and the prefix is rendered from `checked`, so the words
+ * and the switch cannot disagree.
+ *
+ * Both sentences are laid on top of each other in one grid cell and the inactive one is
+ * hidden rather than unmounted. The row then reserves the height of the longer sentence, so
+ * flipping a switch doesn't resize the row and shove everything below it down the modal.
+ */
 function ToggleRow({
   label,
-  description,
+  onDescription,
+  offDescription,
   checked,
   onCheckedChange,
 }: {
   label: string
-  description: string
+  /** What is true while this is on. */
+  onDescription: string
+  /** What is true while this is off. */
+  offDescription: string
   checked: boolean
   onCheckedChange: (checked: boolean) => void
 }) {
@@ -51,7 +68,14 @@ function ToggleRow({
     <div className="flex flex-1 items-start justify-between gap-3 rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
       <div className="min-w-0">
         <Label className="text-foreground">{label}</Label>
-        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        <div className="mt-0.5 grid text-sm text-muted-foreground">
+          <p className={clsx('col-start-1 row-start-1', !checked && 'invisible')}>
+            <span className="font-semibold text-foreground/70">On:</span> {onDescription}
+          </p>
+          <p className={clsx('col-start-1 row-start-1', checked && 'invisible')}>
+            <span className="font-semibold text-foreground/70">Off:</span> {offDescription}
+          </p>
+        </div>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5 shrink-0" />
     </div>
@@ -341,13 +365,15 @@ export function PickersPointsModal({
             <div className="flex flex-col gap-2.5">
               <ToggleRow
                 label="Allow Repeats"
-                description="Off: everyone gets picked once before anyone repeats, and the same for rows."
+                onDescription="Anyone can be picked again straight away."
+                offDescription="Everyone gets picked once before anyone repeats, and the same for rows."
                 checked={settings.allowRepeats}
                 onCheckedChange={(checked) => onUpdateSettings({ allowRepeats: checked })}
               />
               <ToggleRow
                 label="Picker Sound"
-                description="A sound plays as students or rows flash by during a pick."
+                onDescription="A sound plays as students or rows flash by during a pick."
+                offDescription="Picks happen silently."
                 checked={settings.soundEnabled}
                 onCheckedChange={(checked) => onUpdateSettings({ soundEnabled: checked })}
               />
@@ -403,7 +429,8 @@ export function PickersPointsModal({
           <section className="flex min-w-0 flex-1 flex-col gap-2.5">
             <ToggleRow
               label="Class Goal"
-              description="Off: no meter on the board at all, and nothing for the class to ask about."
+              onDescription="The goal meter shows at the top of the board."
+              offDescription="No meter on the board at all, and nothing for the class to ask about."
               checked={goalOn}
               onCheckedChange={toggleGoal}
             />
