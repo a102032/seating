@@ -162,8 +162,8 @@
  */
 :root[data-theme='comic'] {
   color-scheme: light;
-  --app-bg-from: #ffd94a;
-  --app-bg-to: #ffc21c;
+  --app-bg-from: #ffc82e;
+  --app-bg-to: #f79a0d;
 
   /* Warm black, the way printed ink is never quite neutral. */
   --comic-ink: #17131a;
@@ -485,16 +485,26 @@ button {
  */
 :root[data-theme='comic'] [data-ink='canvas'] {
   background-image:
-    radial-gradient(circle, rgba(232, 39, 44, 0.38) 2.4px, transparent 2.6px),
-    radial-gradient(circle, rgba(232, 39, 44, 0.38) 2.4px, transparent 2.6px),
+    radial-gradient(circle, rgba(232, 39, 44, 0.34) 2.2px, transparent 2.4px),
+    radial-gradient(circle, rgba(232, 39, 44, 0.34) 2.2px, transparent 2.4px),
+    repeating-conic-gradient(
+      from 8deg at 50% 42%,
+      rgba(255, 255, 255, 0.34) 0deg 2.6deg,
+      rgba(255, 255, 255, 0) 2.6deg 7deg
+    ),
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
     linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
   background-size:
     17px 17px,
     17px 17px,
+    100% 100%,
+    100% 100%,
     100% 100%;
   background-position:
     0 0,
     8.5px 8.5px,
+    0 0,
+    0 0,
     0 0;
 }
 
@@ -643,4 +653,96 @@ button {
   letter-spacing: 0.08em;
   font-size: 0.85rem;
   color: var(--comic-ink);
+}
+
+/*
+ * Panels in a colour, the way a comic page is never one hue.
+ *
+ * Each desk takes a tint and a matching halftone from a rotating five, so the
+ * board reads as a printed page rather than thirty identical white cards. Five
+ * against a six-column grid lays the colours out on a diagonal, which looks
+ * dealt rather than striped - a six would line them up into vertical bands.
+ *
+ * The tints stay pale on purpose. A desk carries an avatar and a name that a
+ * teacher reads from across a room, so the colour is the panel's stock, not its
+ * art - the ink outline is what does the comic work here.
+ */
+:root[data-theme='comic'] [data-ink='desk'] {
+  /*
+   * The colour lives in a bar across the top, not a glow across the whole panel.
+   * A centred glow puts its most saturated ring around the outside edge, which on
+   * this desk is exactly where the student's name sits - it read as a stripe
+   * through the type. A comic panel's caption bar is at the top anyway, and the
+   * homeroom number and points badge already live up there, so the bar frames
+   * what is there and leaves the name and the avatar on white stock.
+   */
+  background-image:
+    var(--panel-texture),
+    linear-gradient(
+      to bottom,
+      var(--panel-edge) 0%,
+      var(--panel-edge) 17%,
+      rgba(255, 255, 255, 0) 34%
+    );
+  background-size:
+    var(--panel-texture-size),
+    100% 100%;
+  background-position:
+    var(--panel-texture-pos),
+    0 0;
+}
+
+/* Two textures, alternating, so neighbouring panels aren't printed the same way:
+   a halftone lattice and the fine diagonal ruling comics use for speed. */
+:root[data-theme='comic'] [data-ink='desk'] {
+  --panel-texture:
+    radial-gradient(circle, var(--panel-dot) 1.7px, transparent 1.9px),
+    radial-gradient(circle, var(--panel-dot) 1.7px, transparent 1.9px);
+  --panel-texture-size: 11px 11px, 11px 11px;
+  --panel-texture-pos: 0 0, 5.5px 5.5px;
+}
+
+:root[data-theme='comic'] [data-ink='desk']:nth-child(2n) {
+  --panel-texture:
+    repeating-linear-gradient(
+      -45deg,
+      var(--panel-dot) 0,
+      var(--panel-dot) 1.6px,
+      transparent 1.6px,
+      transparent 9px
+    ),
+    none;
+  --panel-texture-size: 100% 100%, 100% 100%;
+  --panel-texture-pos: 0 0, 0 0;
+}
+
+:root[data-theme='comic'] [data-ink='desk']:nth-child(5n + 1) {
+  --panel-edge: #f4565a;
+  --panel-dot: rgba(232, 39, 44, 0.18);
+}
+:root[data-theme='comic'] [data-ink='desk']:nth-child(5n + 2) {
+  --panel-edge: #3fc0f2;
+  --panel-dot: rgba(43, 179, 232, 0.2);
+}
+:root[data-theme='comic'] [data-ink='desk']:nth-child(5n + 3) {
+  --panel-edge: #ffc721;
+  --panel-dot: rgba(226, 152, 0, 0.22);
+}
+:root[data-theme='comic'] [data-ink='desk']:nth-child(5n + 4) {
+  --panel-edge: #63c95a;
+  --panel-dot: rgba(86, 184, 74, 0.2);
+}
+:root[data-theme='comic'] [data-ink='desk']:nth-child(5n + 5) {
+  --panel-edge: #ab70e0;
+  --panel-dot: rgba(155, 92, 214, 0.18);
+}
+
+/* The homeroom number sits on the panel's caption bar, and at 45% it went muddy
+   on the saturated ones. Full ink instead: on a caption bar it is the one piece
+   of type competing with a colour rather than sitting on white stock. */
+:root[data-theme='comic'] [data-ink='homeroom'] {
+  opacity: 1;
+  color: var(--comic-ink);
+  font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.04em;
 }

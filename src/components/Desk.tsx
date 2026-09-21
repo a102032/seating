@@ -63,6 +63,7 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
           {/* Both corners sit over the avatar's empty top corners, leaving the whole
               bottom row to the name. */}
           <span
+            data-ink="homeroom"
             className="absolute left-1.5 top-1 z-10 font-semibold leading-none opacity-45"
             style={{ fontSize: 'clamp(0.55rem, 8cqi, 1rem)' }}
           >
