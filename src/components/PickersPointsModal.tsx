@@ -341,11 +341,19 @@ export function PickersPointsModal({
     .filter((e): e is { id: string; count: number; name: string } => Boolean(e.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 
-  const rowEntries = Array.from(columnPickCounts.entries())
-    .map(([column, count]) => ({ column, count }))
-    .sort((a, b) => a.column - b.column)
-
-  const hasHistory = studentEntries.length > 0 || rowEntries.length > 0
+  /**
+   * Rows are picked, counted and cycled like students, but they are deliberately not listed.
+   *
+   * The grid gives rows no visible label, because teachers disagree about which end of it is
+   * the front of the room - so a badge reading "Row 4" names a row the app invented, and two
+   * teachers reading it would count from opposite ends. A row pick is also a means rather
+   * than an outcome: it exists to narrow the next student pick, and that student is the thing
+   * worth recording. The counts still drive the no-repeat cycle, and resetting still clears
+   * them - they just aren't shown.
+   */
+  const hasHistory = studentEntries.length > 0
+  /** Rows alone are still state a teacher can be stuck with, so reset stays live for them. */
+  const canReset = hasHistory || columnPickCounts.size > 0
 
   return (
     <>
@@ -386,37 +394,18 @@ export function PickersPointsModal({
               </p>
             ) : (
               <ScrollArea className="max-h-44 rounded-2xl border border-black/10 dark:border-white/10">
-                <div className="flex flex-col gap-3 p-3">
-                  {studentEntries.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Students</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {studentEntries.map((e) => (
-                          <Badge key={e.id} variant="secondary">
-                            {e.name} &times;{e.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {rowEntries.length > 0 && (
-                    <div>
-                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Rows</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {rowEntries.map((e) => (
-                          <Badge key={e.column} variant="secondary">
-                            Row {e.column + 1} &times;{e.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                <div className="flex flex-wrap gap-1.5 p-3">
+                  {studentEntries.map((e) => (
+                    <Badge key={e.id} variant="secondary">
+                      {e.name} &times;{e.count}
+                    </Badge>
+                  ))}
                 </div>
               </ScrollArea>
             )}
             <TactileButton
               variant="danger"
-              disabled={!hasHistory}
+              disabled={!canReset}
               className="w-full justify-center"
               onClick={() => setConfirmingReset(true)}
             >
