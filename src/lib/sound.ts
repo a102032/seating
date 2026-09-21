@@ -210,6 +210,24 @@ export function playPointAward() {
   playTone(ctx, master, { frequency: 1568, start: 0.06, duration: 0.16, type: 'sine', peakGain: 0.3 })
 }
 
+/**
+ * A point being taken away: a dry tick, then two low notes falling.
+ *
+ * Deliberately not a buzzer. It has to read as "that went the wrong way" from the back of a
+ * classroom without sounding like a punishment, so it's short, low and quiet - the pitch drop
+ * carries the meaning, not the volume. It's the counterweight to the coin tick's rising pair.
+ */
+export function playPointDeduct() {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  // The tick, so the sound has an edge that cuts through room noise.
+  playNoiseBurst(ctx, master, 0, 0.03, 0.12)
+  playTone(ctx, master, { frequency: 233.08, start: 0, duration: 0.16, type: 'triangle', peakGain: 0.3 })
+  playTone(ctx, master, { frequency: 155.56, start: 0.1, duration: 0.26, type: 'triangle', peakGain: 0.26 })
+}
+
 /** A triumphant rising arpeggio + sparkle burst for reaching the class point goal. */
 /** The recorded fanfare, decoded once and kept. Null until it's fetched, or if it fails. */
 let fanfareBuffer: AudioBuffer | null = null

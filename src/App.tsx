@@ -12,7 +12,7 @@ import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { usePicker } from './hooks/usePicker'
-import { primeAudio } from './lib/sound'
+import { playPointDeduct, primeAudio } from './lib/sound'
 import { applyTheme, loadTheme, type Theme } from './lib/theme'
 import type { Student, TimerSettings } from './types'
 
@@ -207,6 +207,10 @@ export default function App() {
   function applyPointsDelta(delta: number) {
     if (!activeClassId || activeSelection.size === 0) return
     adjustPoints(activeClassId, Array.from(activeSelection), delta)
+    // Awards already sound: the coin ticks when the class meter moves. Taking a point away
+    // never moves the meter by design, so without this the minus button was silent - the
+    // teacher pressed it and nothing said it had landed.
+    if (delta < 0) playPointDeduct()
     // Awarding deliberately changes nothing about what the board is showing: a pick stays a
     // pick, a selection stays selected. Only the desks react, and only for a moment. The
     // dimmed board is the record of what is selected, so it doesn't need a timer to expire -

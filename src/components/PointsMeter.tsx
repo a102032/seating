@@ -17,13 +17,17 @@ interface PointsMeterProps {
 
 interface Sparkle {
   id: number
-  /** Percent along the track, so sparkles sit where the coin was when it moved. */
-  pct: number
+  /** Offset from the coin's centre, in px. The coin carries them, so this is all they need. */
   dx: number
   dy: number
   size: number
   delay: number
 }
+
+/** How many sparkles a point throws off, and how long they take to fade. */
+const SPARKLE_COUNT = 9
+const SPARKLE_STAGGER = 0.055
+const SPARKLE_LIFE_MS = 1400
 
 /** How full the meter has to get before the chest starts straining. */
 const RATTLE_FROM = 0.85
@@ -87,23 +91,30 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
       playCoinTick()
       const id = nextId.current++
       setPop({ id, amount })
-      const landed = goal > 0 ? Math.min(100, (classPoints / goal) * 100) : 0
       setSparkles((s) => [
         ...s,
-        ...Array.from({ length: 7 }, (_, i) => ({
-          id: nextId.current++,
-          pct: landed,
-          dx: -8 - Math.random() * 34,
-          dy: (Math.random() - 0.5) * 30,
-          size: 3 + Math.random() * 4,
-          delay: i * 0.035,
-        })),
+        ...Array.from({ length: SPARKLE_COUNT }, (_, i) => {
+          // Spread evenly round the circle with a little jitter, so the coin is ringed
+          // rather than flecked on one side.
+          const angle = ((i + Math.random() * 0.7) / SPARKLE_COUNT) * Math.PI * 2
+          const reach = 15 + Math.random() * 13
+          return {
+            id: nextId.current++,
+            dx: Math.cos(angle) * reach,
+            dy: Math.sin(angle) * reach,
+            size: 3 + Math.random() * 4,
+            // Staggered across the coin's travel, so it sparkles the whole way rather
+            // than flashing once on arrival.
+            delay: i * SPARKLE_STAGGER,
+          }
+        }),
       ])
-      const t = setTimeout(() => {
-        setPop((p) => (p?.id === id ? null : p))
-        setSparkles((s) => s.slice(-7))
-      }, 900)
-      return () => clearTimeout(t)
+      const popTimer = setTimeout(() => setPop((p) => (p?.id === id ? null : p)), 900)
+      const sparkleTimer = setTimeout(() => setSparkles((s) => s.slice(-SPARKLE_COUNT)), SPARKLE_LIFE_MS)
+      return () => {
+        clearTimeout(popTimer)
+        clearTimeout(sparkleTimer)
+      }
     }
   }, [classId, classPoints, goal])
 
@@ -185,50 +196,67 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
           />
         </div>
 
-        {/* Sparkles are left behind at the point the coin reached, so they trail it. */}
-        <AnimatePresence>
-          {sparkles.map((s) => (
-            <motion.span
-              key={s.id}
-              className="pointer-events-none absolute top-1/2 rounded-full bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.9)]"
-              style={{ left: `${s.pct}%`, width: s.size, height: s.size }}
-              initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-              animate={{ opacity: 0, x: s.dx, y: s.dy, scale: 0.2 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.75, delay: s.delay, ease: 'easeOut' }}
-            />
-          ))}
-        </AnimatePresence>
-
-        {/* The class, travelling. */}
-        <motion.img
-          src={treasure('star-coin')}
-          alt=""
-          draggable={false}
-          className="pointer-events-none absolute top-1/2 h-[26px] w-[26px] -translate-x-1/2 -translate-y-1/2 select-none drop-shadow"
+        {/*
+          Sparkles, the coin and the +N all hang off one anchor that springs along the track.
+          They used to be positioned independently at the destination percentage, which put
+          them on the finish line while the coin was still travelling - reading as a burst
+          jumping out ahead of it. As children they inherit the coin's motion instead, so the
+          sparkle ring travels with it.
+        */}
+        <motion.div
+          className="pointer-events-none absolute top-1/2 h-0 w-0"
           initial={false}
-          animate={{ left: `${pct}%`, rotate: open ? [0, 360] : 0 }}
-          transition={{
-            left: { type: 'spring', stiffness: 120, damping: 18 },
-            rotate: { duration: 0.8, repeat: open ? Infinity : 0, ease: 'linear' },
-          }}
-        />
+          animate={{ left: `${pct}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+        >
+          {/*
+            The class, travelling. Centred on the anchor with plain offsets, so framer's rotate
+            transform has nothing to fight over. max-w-none is load-bearing: the preflight's
+            `img { max-width: 100% }` resolves against this anchor's zero-width content box and
+            would otherwise squash the coin to nothing.
+          */}
+          <motion.img
+            src={treasure('star-coin')}
+            alt=""
+            draggable={false}
+            className="absolute h-[26px] w-[26px] max-w-none select-none drop-shadow"
+            style={{ left: -13, top: -13 }}
+            initial={false}
+            animate={{ rotate: open ? [0, 360] : 0 }}
+            transition={{ rotate: { duration: 0.8, repeat: open ? Infinity : 0, ease: 'linear' } }}
+          />
 
-        <AnimatePresence>
-          {pop && (
-            <motion.span
-              key={pop.id}
-              className="pointer-events-none absolute -top-1 text-xs font-extrabold text-amber-600 drop-shadow-sm dark:text-amber-300"
-              style={{ left: `${pct}%` }}
-              initial={{ opacity: 0, y: 4, scale: 0.7 }}
-              animate={{ opacity: 1, y: -18, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.85 }}
-            >
-              +{pop.amount}
-            </motion.span>
-          )}
-        </AnimatePresence>
+          <AnimatePresence>
+            {sparkles.map((s) => (
+              <motion.span
+                key={s.id}
+                className="absolute rounded-full bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.9)]"
+                style={{ left: -s.size / 2, top: -s.size / 2, width: s.size, height: s.size }}
+                initial={{ opacity: 0, x: s.dx * 0.55, y: s.dy * 0.55, scale: 0.4 }}
+                animate={{ opacity: [0, 1, 0], x: s.dx, y: s.dy, scale: [0.4, 1, 0.25] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.7, delay: s.delay, ease: 'easeOut' }}
+              />
+            ))}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {pop && (
+              <motion.span
+                key={pop.id}
+                className="absolute whitespace-nowrap text-xs font-extrabold text-amber-600 drop-shadow-sm dark:text-amber-300"
+                style={{ left: 9, top: -14 }}
+                initial={{ opacity: 0, y: 4, scale: 0.7 }}
+                animate={{ opacity: 1, y: -18, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.85 }}
+              >
+                +{pop.amount}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
       </div>
 
       {/* Where it's going. Straining near the end, then open. */}
