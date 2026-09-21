@@ -181,23 +181,39 @@ export function primeAudio() {
 
 // A small round-robin pool of <audio> elements so rapid ticks (every 90ms) can overlap
 // cleanly instead of one tick cutting the previous one's tail off.
-const POP_POOL_SIZE = 6
-let popPool: HTMLAudioElement[] = []
-let popPoolIndex = 0
+/**
+ * Recorded one-shots, each backed by a small ring of <audio> elements.
+ *
+ * One element per sound would cut itself off: the picker fires a tick every 90ms and a tick
+ * is 115ms long, so a single element would be rewound mid-sound on every other tick. The ring
+ * hands each call the next element, so they overlap the way the real sound does.
+ */
+const samplePools = new Map<string, { pool: HTMLAudioElement[]; next: number }>()
 
-function playPop() {
-  if (popPool.length === 0) {
-    popPool = Array.from({ length: POP_POOL_SIZE }, () => new Audio(assetUrl('/sounds/pop.mp3')))
+function playSample(file: string, size = 6, onFailure?: () => void) {
+  let entry = samplePools.get(file)
+  if (!entry) {
+    entry = { pool: Array.from({ length: size }, () => new Audio(assetUrl(file))), next: 0 }
+    samplePools.set(file, entry)
   }
-  const audio = popPool[popPoolIndex]
-  popPoolIndex = (popPoolIndex + 1) % popPool.length
+  const audio = entry.pool[entry.next]
+  entry.next = (entry.next + 1) % entry.pool.length
   audio.currentTime = 0
-  void audio.play().catch(() => {})
+  void audio.play().catch(() => onFailure?.())
 }
 
-/** A short, soft blip for a single tick of a picker's flashing animation. `slot` is the desk index or column index currently lit. */
+/**
+ * A single tick of a picker's flashing animation.
+ *
+ * pop.mp3 is the previous sound and is kept in the repo on purpose: this one is a trial, and
+ * going back is a one-word edit. The two are within 0.4 LUFS of each other, so swapping them
+ * changes the character and not the volume - the old one is a soft pop centred near 500Hz,
+ * this one is a dry tick with nearly all its energy at 3.5kHz. It also starts 47ms sooner,
+ * since pop.mp3 carries 53ms of silence before its attack and this is trimmed to 6ms, so the
+ * tick lands with the desk lighting up rather than after it.
+ */
 export function playPickerTick() {
-  playPop()
+  playSample('/sounds/tick.mp3')
 }
 
 /** A bright, snappy two-note blip for a point landing on the class goal meter. */
@@ -211,21 +227,24 @@ export function playPointAward() {
 }
 
 /**
- * A point being taken away: a dry tick, then two notes falling.
+ * A point being taken away: a recording, chosen by the teacher who uses this.
  *
- * The first version of this pitched the fall at 233Hz -> 156Hz, and it was inaudible in a
- * classroom. Not for want of gain - it rendered at a higher peak than the coin tick - but
- * because a tablet or laptop speaker cannot move air down there, so almost all of it was
- * thrown away before it reached the room. The fall is therefore voiced an octave up, where
- * small speakers actually work, with the old low note kept underneath purely as body on
- * hardware that can reproduce it. Square waves rather than triangles for the same reason:
- * the harmonics are what survive a small driver.
- *
- * It still has to read as "that went the wrong way" rather than as a punishment, so the
- * descending interval carries the meaning and the whole thing is over in a third of a
- * second. It's the counterweight to the coin tick's rising pair.
+ * It sits at -16.5 LUFS with its energy centred on 330-500Hz, which is the range a tablet or
+ * laptop speaker can actually reproduce - the trap the synthesised version fell into, where a
+ * 233Hz -> 156Hz fall measured louder than the coin tick and was still inaudible in a room
+ * because almost all of it was below what the speaker could move.
  */
 export function playPointDeduct() {
+  playSample('/sounds/point-down.mp3', 2, playSynthPointDeduct)
+}
+
+/**
+ * The synthesised deduct sound, kept as the fallback for when the recording won't play.
+ *
+ * This one is worth a fallback rather than silence: a teacher pressing minus and hearing
+ * nothing is the exact complaint that put a sound here in the first place.
+ */
+function playSynthPointDeduct() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
