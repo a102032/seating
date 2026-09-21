@@ -239,6 +239,23 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     return []
   }, [seating, winnerDesk, winnerColumn])
 
+  /**
+   * Whether the next Pick Student really will stay inside the locked row.
+   *
+   * pickStudent falls back to the whole class the moment the locked row runs out of people it
+   * may still draw (and drops the lock as it does). This mirrors that test exactly, so the
+   * button can stop advertising the row one pick before the behaviour changes rather than one
+   * pick after - a label that lies on the last click of a round is worse than no label.
+   */
+  const rowLockBinds =
+    rowLock !== null &&
+    seating.some(
+      (studentId, index) =>
+        Boolean(studentId) &&
+        columnOf(index) === rowLock &&
+        (settings.allowRepeats || !pickedStudentIds.has(studentId as string)),
+    )
+
   const deskHighlights: DeskHighlight[] = Array.from({ length: DESK_COUNT }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
@@ -254,6 +271,8 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
     /** Who the board is currently pointing at, so the points buttons can act on them. */
     winnerStudentIds,
     rowLocked: rowLock !== null,
+    /** True only while Pick Student is genuinely confined to the locked row. */
+    rowLockBinds,
     deskHighlights,
     pickStudent,
     pickRow,

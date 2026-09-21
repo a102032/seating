@@ -238,6 +238,7 @@ export default function App() {
       onPickStudent={() => startPick(picker.pickStudent)}
       onPickRow={() => startPick(picker.pickRow)}
       rowLocked={picker.rowLocked}
+      rowLockBinds={picker.rowLockBinds}
       studentPickActive={picker.mode === 'student-flashing' || picker.mode === 'student-result'}
       rowPickActive={picker.mode === 'row-flashing' || picker.mode === 'row-result'}
       onOpenSettings={() => setSettingsOpen(true)}

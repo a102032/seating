@@ -20,6 +20,8 @@ interface SidePanelProps {
   onPickStudent: () => void
   onPickRow: () => void
   rowLocked: boolean
+  /** Pick Student is currently confined to the row that was picked. */
+  rowLockBinds: boolean
   /** A student pick is flashing or its winner is on the board. */
   studentPickActive: boolean
   /** A row pick is flashing or its winner is on the board. */
@@ -50,6 +52,7 @@ export function SidePanel({
   onPickStudent,
   onPickRow,
   rowLocked,
+  rowLockBinds,
   studentPickActive,
   rowPickActive,
   onOpenSettings,
@@ -169,15 +172,23 @@ export function SidePanel({
             </button>
           </div>
           <div className="flex flex-col gap-1.5">
+            {/*
+              The label says what the button will actually do. Picking a row quietly confines
+              Pick Student to it, and the only thing that said so was a hover tooltip on the
+              other button - which does not exist on a tablet, where this app is mostly used.
+              No row number: rows carry no visible label on purpose, since teachers disagree
+              about which end of the grid is the front of the room, so "this row" is the only
+              honest way to name it. It reverts the moment the lock stops binding.
+            */}
             <TactileButton active={studentPickActive} onClick={onPickStudent} disabled={swapMode} className="w-full justify-start">
-              <User size={18} /> Pick Student
+              <User size={18} /> {rowLockBinds ? 'Pick from This Row' : 'Pick Student'}
             </TactileButton>
             <TactileButton
               active={rowLocked || rowPickActive}
               onClick={onPickRow}
               disabled={swapMode}
               className="w-full justify-start"
-              title={rowLocked ? 'A row is locked - Pick Student now draws from it. Tap the row to clear it.' : undefined}
+              title={rowLockBinds ? 'Picks are staying in this row. Tap any desk to go back to the whole class.' : undefined}
             >
               <Users size={18} /> Pick Row
             </TactileButton>
