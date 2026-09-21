@@ -16,7 +16,15 @@ interface GoalCelebrationProps {
 // Sized for a smartboard seen from the back of a room: a couple of hundred specks reads as
 // a few bits of dust falling, not as a celebration.
 const BURST_COUNT = 170
-const RAIN_COUNT = 430
+const RAIN_COUNT = 380
+/** Launched upward from along the whole bottom edge, not from a single point. */
+const FOUNTAIN_COUNT = 240
+/**
+ * Falling confetti reaches terminal velocity almost at once and then sways - without a cap
+ * it accelerates forever and drops like gravel, which is the difference between fluttering
+ * and being thrown.
+ */
+const TERMINAL_VY = 5.2
 const COLORS = ['#fb8500', '#ffb703', '#fcd227', '#f43f5e', '#22c55e', '#3b82f6', '#a855f7', '#ec4899']
 
 interface Particle {
@@ -32,8 +40,11 @@ interface Particle {
   /** Rain waits its turn so the sky keeps producing for the whole celebration. */
   delay: number
   life: number
-  /** Only rain recycles when it falls off the bottom; the burst is a one-off. */
-  rain: boolean
+  /** rain refills from the top, fountain relaunches from the bottom, burst is a one-off. */
+  kind: 'burst' | 'rain' | 'fountain'
+  /** Phase and width of the side-to-side drift as it falls. */
+  phase: number
+  sway: number
 }
 
 /** Fixed at module load so the drift doesn't reshuffle on every render. */
@@ -122,7 +133,9 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         star: i % 2 === 0,
         delay: 0,
         life: 1,
-        rain: false,
+        kind: 'burst',
+        phase: Math.random() * Math.PI * 2,
+        sway: 0.5 + Math.random() * 1.1,
       })
     }
 
@@ -140,7 +153,33 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         star: i % 3 === 0,
         delay: Math.random() * 1200,
         life: 1,
-        rain: true,
+        kind: 'rain',
+        phase: Math.random() * Math.PI * 2,
+        sway: 0.5 + Math.random() * 1.3,
+      })
+    }
+
+    // Fired upward from right along the bottom edge, spread across the full width, so the
+    // screen fills from below as well as above. Gravity turns each one over at the top of
+    // its arc and brings it back down on its own.
+    for (let i = 0; i < FOUNTAIN_COUNT; i++) {
+      particles.push({
+        x: (w * (i + 0.5)) / FOUNTAIN_COUNT + (Math.random() - 0.5) * 30,
+        y: h + 12,
+        vx: (Math.random() - 0.5) * 3.4,
+        vy: -(10 + Math.random() * 10),
+        size: 7 + Math.random() * 11,
+        spin: (Math.random() - 0.5) * 0.26,
+        angle: Math.random() * Math.PI * 2,
+        color: COLORS[i % COLORS.length],
+        star: i % 4 === 0,
+        // Evenly staggered, not randomly: random clumps, and a clump of fountains all
+        // launching together gives a big spray then a lull, then another spray.
+        delay: (i / FOUNTAIN_COUNT) * 5200 + Math.random() * 320,
+        life: 1,
+        kind: 'fountain',
+        phase: Math.random() * Math.PI * 2,
+        sway: 0.5 + Math.random() * 1.3,
       })
     }
 
@@ -157,19 +196,30 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
 
       for (const p of particles) {
         if (elapsed < p.delay) continue
-        p.x += p.vx
+        // The sway is what makes it flutter rather than fall in a straight line.
+        p.x += p.vx + Math.sin(elapsed / 230 + p.phase) * p.sway
         p.y += p.vy
-        p.vy += 0.16
+        p.vy = Math.min(p.vy + 0.16, TERMINAL_VY)
         p.vx *= 0.995
         p.angle += p.spin
         if (p.y > h + 40) {
-          // Rain recycles rather than running out: a fixed count can then fall for any
-          // length of time, which is what lets this follow the audio.
-          if (!p.rain || !refilling) continue
-          p.x = Math.random() * w
-          p.y = -20 - Math.random() * 80
-          p.vy = 2.5 + Math.random() * 3.5
-          p.vx = (Math.random() - 0.5) * 1.6
+          // Rain and fountains recycle rather than running out: a fixed count can then keep
+          // going for any duration, which is what lets this follow the audio.
+          if (p.kind === 'burst' || !refilling) continue
+          if (p.kind === 'rain') {
+            p.x = Math.random() * w
+            p.y = -20 - Math.random() * 80
+            p.vy = 2.5 + Math.random() * 3.5
+            p.vx = (Math.random() - 0.5) * 1.6
+          } else {
+            // Relaunched from a random depth below the edge, so each one waits a different
+            // moment before it climbs back into view. Firing them all the instant they land
+            // makes the fountain pulse in waves rather than run continuously.
+            p.x = Math.random() * w
+            p.y = h + 12 + Math.random() * 900
+            p.vy = -(10 + Math.random() * 10)
+            p.vx = (Math.random() - 0.5) * 3.4
+          }
         }
 
         ctx.save()
