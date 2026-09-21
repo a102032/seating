@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { assetUrl } from '../lib/assets'
@@ -326,15 +325,6 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
                 />
               )}
             </motion.div>
-
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={() => doneRef.current()}
-              className="pointer-events-auto absolute -right-3 -top-3 flex h-11 w-11 items-center justify-center rounded-full border-4 border-amber-200 bg-amber-500 text-amber-950 shadow-lg transition-transform hover:scale-105 active:scale-95"
-            >
-              <X size={22} strokeWidth={3} />
-            </button>
 
             <div className="relative text-center leading-none">
               <motion.div
