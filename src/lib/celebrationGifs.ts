@@ -22,6 +22,15 @@ export const CELEBRATION_GIFS: CelebrationGif[] = [
   { id: '1PMVNNKVIL8Ig', label: 'So Excited' },
   { id: 'iJgoGwkqb1mmH1mES3', label: 'Mighty Mops' },
   { id: 'Jp4dchTKX6BzGkZ5DL', label: 'Secret Agent' },
+  { id: 'ktU8kAKsyIauRSOoZs', label: 'Cookie Monster' },
+  { id: 'W6Lwg2xvTr6tJpuSTd', label: 'Minions' },
+  { id: 'nDSlfqf0gn5g4', label: 'SpongeBob' },
+  { id: 'cOvgh3VjLmeg8LLBtk', label: 'Mickey Mouse' },
+  { id: 'l4q7VhGsL6BnXJrc4', label: 'Lego' },
+  { id: 'BqMe4wpFLkQLWyXqwf', label: 'Woohoo' },
+  { id: '8UGGp7rQvfhe63HrFq', label: 'Big Reaction' },
+  { id: 't3sZxY5zS5B0z5zMIz', label: 'Hockey Fan' },
+  { id: 'T0pqYd3qK2XHQTXirw', label: 'Apple TV' },
 ]
 
 /** Full size, for the celebration itself. */
