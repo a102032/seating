@@ -211,21 +211,30 @@ export function playPointAward() {
 }
 
 /**
- * A point being taken away: a dry tick, then two low notes falling.
+ * A point being taken away: a dry tick, then two notes falling.
  *
- * Deliberately not a buzzer. It has to read as "that went the wrong way" from the back of a
- * classroom without sounding like a punishment, so it's short, low and quiet - the pitch drop
- * carries the meaning, not the volume. It's the counterweight to the coin tick's rising pair.
+ * The first version of this pitched the fall at 233Hz -> 156Hz, and it was inaudible in a
+ * classroom. Not for want of gain - it rendered at a higher peak than the coin tick - but
+ * because a tablet or laptop speaker cannot move air down there, so almost all of it was
+ * thrown away before it reached the room. The fall is therefore voiced an octave up, where
+ * small speakers actually work, with the old low note kept underneath purely as body on
+ * hardware that can reproduce it. Square waves rather than triangles for the same reason:
+ * the harmonics are what survive a small driver.
+ *
+ * It still has to read as "that went the wrong way" rather than as a punishment, so the
+ * descending interval carries the meaning and the whole thing is over in a third of a
+ * second. It's the counterweight to the coin tick's rising pair.
  */
 export function playPointDeduct() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
   master.connect(ctx.destination)
-  // The tick, so the sound has an edge that cuts through room noise.
-  playNoiseBurst(ctx, master, 0, 0.03, 0.12)
-  playTone(ctx, master, { frequency: 233.08, start: 0, duration: 0.16, type: 'triangle', peakGain: 0.3 })
-  playTone(ctx, master, { frequency: 155.56, start: 0.1, duration: 0.26, type: 'triangle', peakGain: 0.26 })
+  // The tick. Broadband noise survives a small speaker better than any single tone.
+  playNoiseBurst(ctx, master, 0, 0.035, 0.4)
+  playTone(ctx, master, { frequency: 523.25, start: 0, duration: 0.11, type: 'square', peakGain: 0.34 })
+  playTone(ctx, master, { frequency: 349.23, start: 0.085, duration: 0.3, type: 'square', peakGain: 0.32 })
+  playTone(ctx, master, { frequency: 174.61, start: 0.085, duration: 0.3, type: 'triangle', peakGain: 0.28 })
 }
 
 /** A triumphant rising arpeggio + sparkle burst for reaching the class point goal. */
