@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { assetUrl } from '../lib/assets'
+import { goalFanfareDurationMs } from '../lib/sound'
 
 interface GoalCelebrationProps {
   /** Where on screen the chest is, so the burst erupts from it rather than from nowhere. */
@@ -12,8 +13,6 @@ interface GoalCelebrationProps {
   onDone: () => void
 }
 
-/** How long the particles fall for. The card itself stays until the teacher closes it. */
-const PARTICLE_MS = 4200
 // Sized for a smartboard seen from the back of a room: a couple of hundred specks reads as
 // a few bits of dust falling, not as a celebration.
 const BURST_COUNT = 170
@@ -33,7 +32,23 @@ interface Particle {
   /** Rain waits its turn so the sky keeps producing for the whole celebration. */
   delay: number
   life: number
+  /** Only rain recycles when it falls off the bottom; the burst is a one-off. */
+  rain: boolean
 }
+
+/** Fixed at module load so the drift doesn't reshuffle on every render. */
+const CARD_STARS = Array.from({ length: 26 }, (_, i) => ({
+  id: i,
+  left: (i * 31) % 96,
+  size: 12 + ((i * 13) % 30),
+  duration: 6 + ((i * 7) % 50) / 10,
+  // Negative delays spread them through the cycle, so the card is already full of stars the
+  // instant it appears rather than starting empty.
+  delay: -((i * 23) % 110) / 10,
+  peak: 0.4 + ((i * 17) % 45) / 100,
+  spin: ((i * 53) % 160) - 80,
+  pale: i % 3 === 0,
+}))
 
 function drawStar(ctx: CanvasRenderingContext2D, r: number) {
   ctx.beginPath()
@@ -83,6 +98,9 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
     size()
     window.addEventListener('resize', size)
 
+    // Run for as long as the fanfare does, so the room isn't watching a still screen with
+    // music still playing.
+    const particleMs = goalFanfareDurationMs()
     const from = origin ?? { x: w / 2, y: h * 0.25 }
     const particles: Particle[] = []
 
@@ -104,6 +122,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         star: i % 2 === 0,
         delay: 0,
         life: 1,
+        rain: false,
       })
     }
 
@@ -119,8 +138,9 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         angle: Math.random() * Math.PI * 2,
         color: COLORS[i % COLORS.length],
         star: i % 3 === 0,
-        delay: Math.random() * (PARTICLE_MS * 0.42),
+        delay: Math.random() * 1200,
         life: 1,
+        rain: true,
       })
     }
 
@@ -131,7 +151,9 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
       const elapsed = now - started
       ctx.clearRect(0, 0, w, h)
       // Everything fades together over the last second rather than vanishing.
-      const fade = elapsed > PARTICLE_MS - 1000 ? Math.max(0, (PARTICLE_MS - elapsed) / 1000) : 1
+      const fade = elapsed > particleMs - 1000 ? Math.max(0, (particleMs - elapsed) / 1000) : 1
+      // Stop feeding the sky near the end so the last of it can actually land.
+      const refilling = elapsed < particleMs - 1600
 
       for (const p of particles) {
         if (elapsed < p.delay) continue
@@ -140,7 +162,15 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
         p.vy += 0.16
         p.vx *= 0.995
         p.angle += p.spin
-        if (p.y > h + 40) continue
+        if (p.y > h + 40) {
+          // Rain recycles rather than running out: a fixed count can then fall for any
+          // length of time, which is what lets this follow the audio.
+          if (!p.rain || !refilling) continue
+          p.x = Math.random() * w
+          p.y = -20 - Math.random() * 80
+          p.vy = 2.5 + Math.random() * 3.5
+          p.vx = (Math.random() - 0.5) * 1.6
+        }
 
         ctx.save()
         ctx.translate(p.x, p.y)
@@ -153,7 +183,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
       }
 
       // The particles finish on their own; dismissing is the teacher's call.
-      if (elapsed < PARTICLE_MS) raf = requestAnimationFrame(frame)
+      if (elapsed < particleMs) raf = requestAnimationFrame(frame)
       else ctx.clearRect(0, 0, w, h)
     }
     raf = requestAnimationFrame(frame)
@@ -194,13 +224,41 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
           <div className="absolute h-[70vmin] w-[70vmin] rounded-full bg-amber-300/35 blur-3xl" />
 
           <motion.div
-            className="relative flex w-[min(92vw,620px)] flex-col items-center gap-5 rounded-[2.5rem] border-[6px] border-amber-200 bg-gradient-to-b from-amber-300 to-amber-500 px-10 py-9 shadow-[0_25px_80px_-12px_rgba(0,0,0,0.45)]"
+            className="celebration-card relative flex w-[min(92vw,620px)] flex-col items-center gap-5 overflow-hidden rounded-[2.5rem] border-[6px] border-amber-200 px-10 py-9 shadow-[0_25px_80px_-12px_rgba(0,0,0,0.45)]"
             initial={{ scale: 0.35, rotate: -10, y: 30 }}
             animate={{ scale: [0.35, 1.1, 1], rotate: [-10, 4, 0], y: [30, -8, 0] }}
             transition={{ duration: 0.75, ease: 'backOut' }}
           >
+            {/* Behind everything, inside the card's rounded box. */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              {CARD_STARS.map((st) => (
+                <span
+                  key={st.id}
+                  className="celebration-star"
+                  style={
+                    {
+                      left: `${st.left}%`,
+                      width: st.size,
+                      height: st.size,
+                      '--star-duration': `${st.duration}s`,
+                      '--star-delay': `${st.delay}s`,
+                      '--star-peak': st.peak,
+                      '--star-spin': `${st.spin}deg`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <svg viewBox="0 0 24 24" className={st.pale ? 'h-full w-full text-white' : 'h-full w-full text-amber-100'}>
+                    <path
+                      fill="currentColor"
+                      d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"
+                    />
+                  </svg>
+                </span>
+              ))}
+            </div>
+
             <motion.div
-              className="w-full"
+              className="relative w-full"
               animate={{ y: [0, -7, 0] }}
               transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
             >
@@ -228,7 +286,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
               <X size={22} strokeWidth={3} />
             </button>
 
-            <div className="text-center leading-none">
+            <div className="relative text-center leading-none">
               <motion.div
                 className="text-5xl font-extrabold tracking-tight text-amber-950 drop-shadow-sm sm:text-6xl"
                 initial={{ scale: 0.7, opacity: 0 }}

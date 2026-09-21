@@ -357,3 +357,63 @@ button {
     animation: none;
   }
 }
+
+/*
+ * The celebration card's backdrop: stars of assorted sizes drifting up behind the content,
+ * with the gold slowly shifting underneath. The card was a flat block of yellow, which is a
+ * lot of dead space on the biggest moment the app has.
+ */
+@keyframes celebration-drift {
+  0% {
+    bottom: -14%;
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+  14% {
+    opacity: var(--star-peak, 0.5);
+  }
+  80% {
+    opacity: var(--star-peak, 0.5);
+  }
+  100% {
+    bottom: 108%;
+    opacity: 0;
+    transform: rotate(var(--star-spin, 60deg));
+  }
+}
+
+/*
+ * Travels on `bottom` rather than translateY. A percentage translate resolves against the
+ * element's own box - on a 20px star that's 20px of travel, which left them all piled at the
+ * bottom edge. A percentage `bottom` resolves against the container, which is what's wanted.
+ */
+.celebration-star {
+  position: absolute;
+  animation: celebration-drift var(--star-duration, 7s) linear infinite;
+  animation-delay: var(--star-delay, 0s);
+}
+
+@keyframes celebration-sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.celebration-card {
+  background-image: linear-gradient(135deg, #fcd34d 0%, #fbbf24 35%, #f59e0b 65%, #fbbf24 100%);
+  background-size: 220% 220%;
+  animation: celebration-sheen 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration-star {
+    display: none;
+  }
+  .celebration-card {
+    animation: none;
+  }
+}

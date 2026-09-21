@@ -233,6 +233,11 @@ export function primeGoalFanfare(): void {
     })
 }
 
+/** How long the celebration should run, in ms - the recording's length once it's decoded. */
+export function goalFanfareDurationMs(): number {
+  return fanfareBuffer ? fanfareBuffer.duration * 1000 : 9600
+}
+
 /** The synthesised fanfare, kept as the fallback for when the recording isn't available. */
 function playSynthFanfare(ctx: AudioContext, master: GainNode) {
   const notes: { freq: number; start: number; dur: number }[] = [
