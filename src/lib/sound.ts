@@ -15,6 +15,8 @@ function getContext(): AudioContext {
 
 interface ToneOptions {
   frequency: number
+  /** Glide to this pitch across the tone. A fast rise is what turns a blip into a pop. */
+  endFrequency?: number
   start: number
   duration: number
   type?: OscillatorType
@@ -22,11 +24,14 @@ interface ToneOptions {
   detune?: number
 }
 
-function playTone(ctx: AudioContext, master: GainNode, { frequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0 }: ToneOptions) {
+function playTone(ctx: AudioContext, master: GainNode, { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0 }: ToneOptions) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = type
   osc.frequency.setValueAtTime(frequency, ctx.currentTime + start)
+  if (endFrequency !== undefined) {
+    osc.frequency.exponentialRampToValueAtTime(endFrequency, ctx.currentTime + start + duration)
+  }
   osc.detune.setValueAtTime(detune, ctx.currentTime + start)
 
   const t0 = ctx.currentTime + start
@@ -214,6 +219,31 @@ function playSample(file: string, size = 6, onFailure?: () => void) {
  */
 export function playPickerTick() {
   playSample('/sounds/tick.mp3')
+}
+
+/**
+ * The picker landing on its winner, after the ticks stop.
+ *
+ * The ticks are deliberately flat and dry - two dozen of the same dead sound - so the landing
+ * only has to do one thing to register: have pitch, and rise. It's a pop (a sine gliding up
+ * fast, which is what a pop is) with a bright two-note sparkle on top of it, all over inside
+ * 300ms. Small on purpose: this fires on every pick, many times a lesson, so it's a full stop
+ * rather than a fanfare - the fanfare belongs to the class goal and shouldn't have a rival.
+ *
+ * Nothing here goes below 400Hz, which is the lesson the deduct sound taught: a classroom
+ * tablet cannot reproduce the bottom end, so anything that matters lives above it.
+ */
+export function playPickerLand() {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  // The pop: a fast glide up, with a noise transient to give it an edge.
+  playNoiseBurst(ctx, master, 0, 0.02, 0.3)
+  playTone(ctx, master, { frequency: 420, endFrequency: 880, start: 0, duration: 0.075, type: 'sine', peakGain: 0.72 })
+  // The sparkle: two notes up, the second ringing on as the tail.
+  playTone(ctx, master, { frequency: 1046.5, start: 0.06, duration: 0.1, type: 'triangle', peakGain: 0.46 })
+  playTone(ctx, master, { frequency: 1567.98, start: 0.115, duration: 0.22, type: 'triangle', peakGain: 0.4 })
 }
 
 /** A bright, snappy two-note blip for a point landing on the class goal meter. */

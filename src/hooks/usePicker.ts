@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DESK_COLUMNS, DESK_COUNT } from '../types'
 import type { DeskHighlight } from '../components/Desk'
-import { playPickerTick } from '../lib/sound'
+import { playPickerLand, playPickerTick } from '../lib/sound'
 
 type PickerMode = 'idle' | 'student-flashing' | 'student-result' | 'row-flashing' | 'row-result'
 
@@ -147,9 +147,8 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
     const startedAt = Date.now()
     intervalRef.current = setInterval(() => {
-      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
-      setFlashDesk(pick.index)
-      if (soundEnabled) playPickerTick()
+      // The final pass lands rather than flashing. It used to do both, which fired a tick and
+      // the landing in the same callback and buried the one under the other.
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
         clearTimers()
         const winner = eligible[Math.floor(Math.random() * eligible.length)]
@@ -162,7 +161,12 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
           return next
         })
         setMode('student-result')
+        if (soundEnabled) playPickerLand()
+        return
       }
+      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
+      setFlashDesk(pick.index)
+      if (soundEnabled) playPickerTick()
     }, FLASH_TICK_MS)
   }, [mode, pickedStudentIds, rowLock, clearTimers])
 
@@ -185,9 +189,6 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
 
     const startedAt = Date.now()
     intervalRef.current = setInterval(() => {
-      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
-      setFlashColumn(pick)
-      if (soundEnabled) playPickerTick()
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
         clearTimers()
         const winner = eligible[Math.floor(Math.random() * eligible.length)]
@@ -201,7 +202,12 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
         })
         setRowLock(winner)
         setMode('row-result')
+        if (soundEnabled) playPickerLand()
+        return
       }
+      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
+      setFlashColumn(pick)
+      if (soundEnabled) playPickerTick()
     }, FLASH_TICK_MS)
   }, [mode, pickedColumns, clearTimers])
 
