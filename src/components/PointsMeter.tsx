@@ -10,6 +10,8 @@ interface PointsMeterProps {
   classId: string
   classPoints: number
   goal: number
+  /** Times the goal has been filled. A rise here is what opens the chest. */
+  goalsReached: number
   /** GIPHY id for the celebration, or empty for the treasure chest. */
   celebrationGifId?: string
   onOpenGoalSettings: () => void
@@ -47,8 +49,8 @@ const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
  * nowhere. Nothing here changes the row's height - the icons sit in space the 56px row
  * already had.
  */
-export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOpenGoalSettings }: PointsMeterProps) {
-  const prevRef = useRef<{ classId: string; value: number } | null>(null)
+export function PointsMeter({ classId, classPoints, goal, goalsReached, celebrationGifId, onOpenGoalSettings }: PointsMeterProps) {
+  const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
   const [phase, setPhase] = useState<'idle' | 'opening' | 'closing'>('idle')
   const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
@@ -60,13 +62,13 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
   const [displayPoints, setDisplayPoints] = useState(classPoints)
   // Null until the gif has actually decoded. The chest is what shows otherwise, so a slow
   // or blocked network costs the moment nothing.
-  const [readyGif, setReadyGif] = useState<string | null>(null)
+  const [readyGif, setReadyGif] = useState<{ id: string; url: string } | null>(null)
   /** Cuts the fanfare short when the teacher closes the celebration. */
   const stopFanfare = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     const prev = prevRef.current
-    prevRef.current = { classId, value: classPoints }
+    prevRef.current = { classId, value: classPoints, reached: goalsReached }
     if (!prev || prev.classId !== classId) {
       stopFanfare.current?.()
       stopFanfare.current = null
@@ -75,13 +77,20 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
       return
     }
 
-    // A drop means the goal was reached and the total wrapped.
-    if (classPoints < prev.value) {
+    // The goal was filled: celebrate. This used to key off the total dropping, which is
+    // also what a reset or a correction looks like - so Reset Class Goal threw the party.
+    if (goalsReached > prev.reached) {
       setDisplayPoints(goal)
       setPhase('opening')
       stopFanfare.current = playGoalCelebration()
       const box = chestRef.current?.getBoundingClientRect()
       setBurstOrigin(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null)
+      return
+    }
+
+    // A fall without a fill is a reset or a correction: the coin just goes back, quietly.
+    if (classPoints < prev.value) {
+      setDisplayPoints(classPoints)
       return
     }
 
@@ -116,7 +125,7 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
         clearTimeout(sparkleTimer)
       }
     }
-  }, [classId, classPoints, goal])
+  }, [classId, classPoints, goal, goalsReached])
 
   // Decode the fanfare as soon as this class has a goal, so it's in memory long before the
   // chest opens rather than starting a download at the moment it's needed.
@@ -128,16 +137,12 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
   // the moment it's needed means it arrives halfway through, which looks broken.
   const approaching = goal > 0 && classPoints / goal >= PRELOAD_FROM
   useEffect(() => {
-    if (!celebrationGifId) {
-      setReadyGif(null)
-      return
-    }
-    if (!approaching) return
+    if (!celebrationGifId || !approaching) return
     const url = giphyUrl(celebrationGifId)
     const img = new Image()
     let cancelled = false
     img.onload = () => {
-      if (!cancelled) setReadyGif(url)
+      if (!cancelled) setReadyGif({ id: celebrationGifId, url })
     }
     img.onerror = () => {
       if (!cancelled) setReadyGif(null)
@@ -304,7 +309,11 @@ export function PointsMeter({ classId, classPoints, goal, celebrationGifId, onOp
         {displayPoints} / {goal}
       </motion.span>
 
-      {open && <GoalCelebration origin={burstOrigin} gifUrl={readyGif} onDone={finishCelebration} />}
+      {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
+          be kept, so the chest could open on the gif the teacher had just switched away from. */}
+      {open && (
+        <GoalCelebration origin={burstOrigin} gifUrl={readyGif && readyGif.id === celebrationGifId ? readyGif.url : null} onDone={finishCelebration} />
+      )}
     </div>
   )
 }

@@ -32,6 +32,7 @@ interface PickersPointsModalProps {
   onSetGoalEnabled: (enabled: boolean) => void
   onSetCelebrationGif: (gifId: string) => void
   onResetClassGoal: () => void
+  onSetClassPoints: (points: number) => void
   onResetStars: () => void
   onReset: () => void
 }
@@ -259,6 +260,7 @@ export function PickersPointsModal({
   onSetGoalEnabled,
   onSetCelebrationGif,
   onResetClassGoal,
+  onSetClassPoints,
   onResetStars,
   onReset,
 }: PickersPointsModalProps) {
@@ -432,15 +434,30 @@ export function PickersPointsModal({
                 choices={STARS_PER_CHOICES}
                 onChange={changeStarsPer}
               />
-              <Stepper
-                id="goal"
-                label="Class points to fill the goal"
-                hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
-                value={goal}
-                min={1}
-                max={999}
-                onChange={changeGoal}
-              />
+              {/* Side by side, so the second stepper costs the modal no height - it was
+                  sized to fit the screen without scrolling, and it should stay that way. */}
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-4">
+                <Stepper
+                  id="goal"
+                  label="Class points to fill the goal"
+                  hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
+                  value={goal}
+                  min={1}
+                  max={999}
+                  onChange={changeGoal}
+                />
+                {/* The one place the meter can be corrected. A point that landed by mistake
+                    had no way back before this, short of resetting the whole run. */}
+                <Stepper
+                  id="class-points"
+                  label="Class points on the meter now"
+                  hint="Fix a point that landed by mistake. Never opens the chest."
+                  value={Math.min(goal, activeClass.classPoints ?? 0)}
+                  min={0}
+                  max={goal}
+                  onChange={onSetClassPoints}
+                />
+              </div>
             </div>
             )}
             {goalOn && (

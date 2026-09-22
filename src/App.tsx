@@ -62,6 +62,7 @@ export default function App() {
     setGoalEnabled,
     setCelebrationGif,
     resetClassGoal,
+    setClassPoints,
     resetPoints,
     deleteStudent,
     swapSeats,
@@ -432,6 +433,7 @@ export default function App() {
             <PointsMeter
               classId={activeClass.id}
               classPoints={activeClass.classPoints ?? 0}
+              goalsReached={activeClass.goalsReached ?? 0}
               goal={activeClass.pointsGoal ?? 0}
               celebrationGifId={activeClass.celebrationGifId}
               onOpenGoalSettings={() => setPickerSettingsOpen(true)}
@@ -575,6 +577,7 @@ export default function App() {
         onSetGoalEnabled={(enabled) => setGoalEnabled(activeClass.id, enabled)}
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
+        onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
         onResetStars={() => resetPoints(activeClass.id)}
         onReset={picker.resetPickHistory}
       />

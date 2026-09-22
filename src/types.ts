@@ -46,6 +46,12 @@ export interface ClassData {
   /** Stars banked toward the next class point, so a divisor never loses the leftovers. */
   goalRemainder?: number
   /**
+   * How many times the class has filled its goal. The meter celebrates when this climbs -
+   * never on classPoints falling, since a reset or a correction is a fall too, and used to
+   * throw the party.
+   */
+  goalsReached?: number
+  /**
    * The last groups the teacher made, membership and any points not yet handed out. Kept so
    * "Group Activity" can pick up where it left off - a teacher running the same teams all
    * week shouldn't have to re-deal every lesson. Cleared only by making new groups.

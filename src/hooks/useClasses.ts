@@ -69,8 +69,12 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
   if (amount <= 0) return c
   let classPoints = (c.classPoints ?? 0) + amount
   const goal = c.pointsGoal ?? 0
-  if (goal > 0 && classPoints >= goal) classPoints %= goal
-  return { ...c, classPoints }
+  let goalsReached = c.goalsReached ?? 0
+  if (goal > 0 && classPoints >= goal) {
+    goalsReached += Math.floor(classPoints / goal)
+    classPoints %= goal
+  }
+  return { ...c, classPoints, goalsReached }
 }
 
 /** The class goal has to exist and be switched on for group points to have anywhere to go. */
@@ -360,6 +364,20 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * Set the meter directly - the tucked-away fix for a point that landed by mistake, the way
+   * a student's stars can be edited in the roster. Held to the goal, and never a celebration.
+   */
+  const setClassPoints = useCallback(
+    (classId: string, points: number) =>
+      updateClass(classId, (c) => {
+        const goal = c.pointsGoal ?? 0
+        const clamped = Math.max(0, Math.round(points))
+        return { ...c, classPoints: goal > 0 ? Math.min(goal, clamped) : clamped }
+      }),
+    [updateClass],
+  )
+
   /** Clears the shared meter without touching anyone's stars. */
   const resetClassGoal = useCallback(
     (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
@@ -449,6 +467,7 @@ export function useClasses() {
     setGoalEnabled,
     setCelebrationGif,
     resetClassGoal,
+    setClassPoints,
     resetPoints,
     deleteStudent,
     swapSeats,
