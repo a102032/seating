@@ -15,6 +15,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
+import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
 import { playGroupsDone, playPointDeduct, primeAudio } from './lib/sound'
@@ -162,6 +163,16 @@ export default function App() {
 
   /** The saved groups as they stand today - anyone who has left their desk since is out. */
   const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], activeClass?.seating ?? []), [activeClass])
+  /**
+   * The pickers, while the group cards are up. The seating chart's picker lights up desks,
+   * which are behind the cards and so invisible here, which is why the panel's two picker
+   * buttons hand over to this one instead of being greyed out.
+   */
+  const groupPicker = useGroupPicker(groups, {
+    allowRepeats: picker.settings.allowRepeats,
+    soundEnabled: picker.settings.soundEnabled,
+    resetKey: dealTick,
+  })
 
   function openGroupActivity() {
     setFlipDeckOpen(false)
@@ -207,6 +218,7 @@ export default function App() {
    * stars is not something that should happen as a side effect of leaving a screen.
    */
   function requestExitGroups() {
+    groupPicker.dismiss()
     if (summarizeGroupPoints(groups).totalPoints > 0) setExitPromptOpen(true)
     else setGroupActivityOpen(false)
   }
@@ -383,12 +395,17 @@ export default function App() {
         setSelectedDesk(null)
         resetPointsSelection()
       }}
-      onPickStudent={() => startPick(picker.pickStudent)}
-      onPickRow={() => startPick(picker.pickRow)}
+      onPickStudent={() => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent))}
+      onPickRow={() => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow))}
+      groupMode={groupActivityOpen}
       rowLocked={picker.rowLocked}
       rowLockBinds={picker.rowLockBinds}
-      studentPickActive={picker.mode === 'student-flashing' || picker.mode === 'student-result'}
-      rowPickActive={picker.mode === 'row-flashing' || picker.mode === 'row-result'}
+      studentPickActive={
+        groupActivityOpen ? groupPicker.pick?.kind === 'student' : picker.mode === 'student-flashing' || picker.mode === 'student-result'
+      }
+      rowPickActive={
+        groupActivityOpen ? groupPicker.pick?.kind === 'group' : picker.mode === 'row-flashing' || picker.mode === 'row-result'
+      }
       onOpenSettings={() => setSettingsOpen(true)}
       onOpenPickerSettings={() => setPickerSettingsOpen(true)}
       timerSettings={timerSettings}
@@ -533,6 +550,8 @@ export default function App() {
                     chimes={groupChimes}
                     locked={groupsLocked}
                     onToggleLock={() => setGroupsLocked((v) => !v)}
+                    pick={groupPicker.pick}
+                    onDismissPick={groupPicker.dismiss}
                   />
                 </motion.div>
               )}

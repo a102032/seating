@@ -14,6 +14,7 @@ import {
   playStatusHelp,
   playStatusReady,
 } from '../lib/sound'
+import type { GroupPick } from '../hooks/useGroupPicker'
 import type { GroupStatus, Student, StudentGroup } from '../types'
 import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
 import { TactileButton } from './TactileButton'
@@ -43,6 +44,9 @@ interface GroupActivityProps {
    */
   locked: boolean
   onToggleLock: () => void
+  /** A pick running on the cards: a whole group, or one student out of the groups. */
+  pick: GroupPick | null
+  onDismissPick: () => void
 }
 
 /** Chips sit in the stack this long before the first one is dealt. */
@@ -234,6 +238,8 @@ export function GroupActivity({
   chimes,
   locked,
   onToggleLock,
+  pick,
+  onDismissPick,
 }: GroupActivityProps) {
   /** The chip that's been picked up and is waiting for a card to be tapped. */
   const [lifted, setLifted] = useState<string | null>(null)
@@ -418,7 +424,10 @@ export function GroupActivity({
             centred on the board, fit their contents, and every card in a deal shares the
             tallest one's height (the 1fr rows of an auto-height grid), so a lopsided group
             can't make its card the odd one out. */}
-        <div className="flex h-full flex-col overflow-hidden">
+        {/* A landed pick clears on a tap anywhere, the same as one on the seating chart.
+            Chips, the status chip and the score buttons stop the click themselves, so the
+            things a teacher might be reaching for still do their own job. */}
+        <div className="flex h-full flex-col overflow-hidden" onClick={() => pick && onDismissPick()}>
           <div
             className="my-auto grid p-0.5 text-base"
             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: gridGap }}
@@ -426,6 +435,9 @@ export function GroupActivity({
             {groups.map((group) => {
               const fg = groupTextColor(group.color)
               const status = statusStyle(group.status)
+              const groupPick = pick?.kind === 'group'
+              const litCard = groupPick && (pick.flashId === group.id || pick.winnerId === group.id)
+              const wonCard = groupPick && pick.winnerId === group.id
               const liftedHere = liftedChip !== null && group.studentIds.includes(liftedChip)
               const dropTarget = liftedChip !== null && !liftedHere
               return (
@@ -440,12 +452,19 @@ export function GroupActivity({
                     'relative flex min-h-0 flex-col overflow-hidden rounded-2xl border-[3px] bg-card text-card-foreground shadow-md',
                     dropTarget && 'cursor-pointer',
                     status.id === 'help' && 'card-help-pulse',
+                    groupPick && !litCard && 'opacity-35',
+                    litCard && 'brightness-110 saturate-150',
+                    wonCard && 'card-pick-winner',
                   )}
                   // A real border, not a ring outside the card: a ring is clipped wherever a card
                   // meets the edge of the board, and showed up on some sides and not others.
                   // Hidden rather than unmounted while its copy is down at the picker, so the
                   // grid keeps its shape and the copy looks like the card itself flew.
-                  style={{ borderColor: group.color, visibility: picking?.group.id === group.id ? 'hidden' : undefined }}
+                  style={{
+                    borderColor: group.color,
+                    visibility: picking?.group.id === group.id ? 'hidden' : undefined,
+                  }}
+                  animate={wonCard ? { scale: 1.04 } : { scale: 1 }}
                 >
                   {/* The colour band is the group's name tag - it's what the class will call them. */}
                   <header className={clsx('flex shrink-0 items-center px-3', d.headerPad)} style={{ background: group.color, color: fg }}>
@@ -511,6 +530,7 @@ export function GroupActivity({
                         // through the deal instead of growing chip by chip.
                         if (dealing && slot.index >= dealt) return <Chip key={studentId} student={student} widthEm={chipEm} placeholder />
                         const isLifted = liftedChip === studentId
+                        const studentPick = pick?.kind === 'student'
                         return (
                           <Chip
                             key={studentId}
@@ -519,6 +539,8 @@ export function GroupActivity({
                             tint={group.color}
                             plain={status.wash !== null}
                             lifted={isLifted}
+                            dimmed={studentPick && pick.flashId !== studentId && pick.winnerId !== studentId}
+                            won={studentPick && pick.winnerId === studentId}
                             // A tap anywhere on another card means "move here", chips
                             // included - the teacher is aiming at the card, not the name.
                             onClick={() => {
@@ -646,6 +668,10 @@ interface ChipProps {
    */
   plain?: boolean
   lifted?: boolean
+  /** Someone else is being picked right now, so this name stands back. */
+  dimmed?: boolean
+  /** This name is the one the picker landed on. */
+  won?: boolean
   /** Holds a dealt chip's place in its card while it's still in the stack. */
   placeholder?: boolean
   stacked?: boolean
@@ -654,7 +680,7 @@ interface ChipProps {
 }
 
 /** A student's name tag: homeroom number and name, one size for the whole class. */
-function Chip({ student, widthEm, tint, plain, lifted, placeholder, stacked, onClick, title }: ChipProps) {
+function Chip({ student, widthEm, tint, plain, lifted, dimmed, won, placeholder, stacked, onClick, title }: ChipProps) {
   // A name too long for the chip shrinks to fit rather than being cut off - it's the one
   // student whose name is long, and "Alexandr…" on a scoreboard is worse than small type.
   const needed = textWidthEm(student.name) + textWidthEm(student.homeroom) * 0.72 + CHIP_CHROME_EM
@@ -668,6 +694,7 @@ function Chip({ student, widthEm, tint, plain, lifted, placeholder, stacked, onC
     stacked && 'bg-card ring-1 ring-black/10 dark:ring-white/15',
     plain && !stacked && 'bg-card',
     lifted && 'z-20 ring-[3px] ring-amber-400',
+    won && 'z-20 shadow-lg ring-[3px] ring-amber-400',
   )
   const style = { width: `${widthEm}em`, background: plain || !tint ? undefined : `${tint}22` }
   const inner = (
@@ -699,7 +726,9 @@ function Chip({ student, widthEm, tint, plain, lifted, placeholder, stacked, onC
       // No opacity in the entrance: framer takes a chip's start opacity for its flight from
       // the last snapshot, and a chip still fading in would then fly in half-faded.
       initial={stacked ? { scale: 0.6 } : false}
-      animate={{ scale: lifted ? 1.06 : 1 }}
+      // Opacity goes through framer rather than a class: these chips carry a layoutId, and
+      // the shared-layout pass writes an inline opacity that a class can never win against.
+      animate={{ scale: lifted || won ? 1.06 : 1, opacity: dimmed ? 0.3 : 1 }}
       transition={{ type: 'spring', stiffness: 280, damping: 26 }}
       onClick={(e) => {
         e.stopPropagation()

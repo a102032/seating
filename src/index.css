@@ -715,6 +715,16 @@ button {
 /* The homeroom number sits on the panel's caption bar, and at 45% it went muddy
    on the saturated ones. Full ink instead: on a caption bar it is the one piece
    of type competing with a colour rather than sitting on white stock. */
+/* The card a pick landed on. A class rather than an inline style: framer-motion owns the
+   style object on these cards and will not clear a box-shadow once it has set one, so the
+   ring outlived the pick and every winner stayed ringed. Amber is never a group's colour
+   and never a status, so a win can't be misread as either. */
+.card-pick-winner {
+  box-shadow:
+    0 0 0 5px #fbbf24,
+    0 14px 34px rgba(0, 0, 0, 0.3) !important;
+}
+
 /* A group asking for help: the whole card breathes a soft red ring, so it reads from across
    the room without flashing at the class. A ring rather than a scale, so nothing reflows and
    the grid stays exactly where the layout planner put it. Help is the only status that moves:
