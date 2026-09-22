@@ -527,7 +527,10 @@ button {
 /* Desks are the panels of the page, so they get the heaviest line on the board.
    The grid's own padding and gaps leave room for the offset - the shadow lands
    in the gutter rather than on a neighbour. */
+/* The ink is this theme's whole point, so it sets its own weight rather than
+   inheriting the hairline every other theme now uses. */
 :root[data-theme='comic'] [data-ink='desk'] {
+  border-width: 2px !important;
   border-color: var(--comic-ink) !important;
   box-shadow:
     0 0 0 1px var(--comic-ink),
@@ -542,6 +545,7 @@ button {
  */
 :root[data-theme='comic'] [data-ink='desk-empty'] {
   background-color: rgba(255, 253, 246, 0.82) !important;
+  border-width: 2px !important;
   border-color: rgba(23, 19, 26, 0.45) !important;
   border-style: dashed;
 }

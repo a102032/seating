@@ -40,8 +40,15 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
       data-ink={empty ? 'desk-empty' : 'desk'}
       className={clsx(
         // Rounded at the top, square at the bottom, so the desks sit on the grid like objects on a shelf.
-        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border-2 p-1 text-center shadow-sm transition-opacity duration-200 outline-none',
-        empty ? 'border-border bg-card/40 text-muted-foreground' : 'border-[#1b3a4b] bg-card text-card-foreground dark:border-white/25',
+        // A hairline and a little lift, not an outline. This was a 2px #1b3a4b - a fixed
+        // dark navy that ignored the theme, so on a bright ground it read as thirty
+        // near-black boxes. Borderless was tried and fails on the Light theme, where a
+        // white desk on a near-white ground loses its edge entirely; a hairline also
+        // survives a classroom projector, which washes soft shadows out.
+        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border p-1 text-center shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] transition-opacity duration-200 outline-none',
+        empty
+          ? 'border-border bg-card/40 text-muted-foreground'
+          : 'border-[rgba(0,0,0,0.12)] bg-card text-card-foreground dark:border-[rgba(255,255,255,0.16)]',
         // A desk presses in under the finger, so a tap registers before anything else moves.
         !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
