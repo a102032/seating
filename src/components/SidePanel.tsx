@@ -166,6 +166,10 @@ export function SidePanel({
 
       <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={swapMode} />
 
+      {/* The panel's spare room sits here rather than at the bottom, so opening the clock's
+          controls eats the gap instead of shoving every button below it down the panel. */}
+      <div className="min-h-0 flex-1" />
+
       <div className="flex shrink-0 flex-col gap-1.5">
         <div className="flex gap-1.5">
           {/* Both of these rearrange the class underneath a running activity, and a locked
@@ -277,8 +281,6 @@ export function SidePanel({
           )}
         </div>
       </div>
-
-      <div className="min-h-0 flex-1" />
 
       <Separator />
 
