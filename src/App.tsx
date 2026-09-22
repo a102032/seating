@@ -270,7 +270,6 @@ export default function App() {
       onOpenTimerSettings={() => setTimerSettingsOpen(true)}
       side={panelSide}
       onToggleSide={togglePanelSide}
-      theme={theme}
       saveError={saveError}
       pointsSelectedCount={activeSelection.size}
       allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id))}

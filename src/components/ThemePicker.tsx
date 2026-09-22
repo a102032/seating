@@ -9,7 +9,7 @@ interface ThemePickerProps {
 
 export function ThemePicker({ theme, onSetTheme }: ThemePickerProps) {
   return (
-    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
       {THEME_OPTIONS.map((opt) => {
         const active = opt.id === theme
         return (

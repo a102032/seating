@@ -61,35 +61,6 @@
   --clock-fg: var(--muted-foreground);
 }
 
-/* School Colors - pulled from the New Taipei City Yuteh crest (burnt orange + gold), orange front and center like the crest itself */
-:root[data-theme='school'] {
-  color-scheme: light;
-  --app-bg-from: #f4903f;
-  --app-bg-to: #e2650e;
-
-  --background: #fffaf3;
-  --foreground: #3a2113;
-  --card: #ffffff;
-  --card-foreground: #3a2113;
-  --popover: #ffffff;
-  --popover-foreground: #3a2113;
-  --primary: #e2650e;
-  --primary-foreground: #ffffff;
-  --secondary: #fbe7cf;
-  --secondary-foreground: #7a4116;
-  --muted: #f7e4cb;
-  --muted-foreground: #93643a;
-  --accent: #fdf0dd;
-  --accent-foreground: #7a4116;
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: rgba(160, 80, 10, 0.16);
-  --input: rgba(160, 80, 10, 0.2);
-  --ring: #e2650e;
-  --clock-bg: var(--muted);
-  --clock-fg: var(--muted-foreground);
-}
-
 /* Calm Sky Blue - soft powder blue, easy on the eyes all day */
 :root[data-theme='sky'] {
   color-scheme: light;
@@ -844,4 +815,42 @@ button {
     0 0 10px rgba(255, 255, 255, 0.22),
     0 1px 0 rgba(0, 0, 0, 0.25);
   letter-spacing: 0.01em;
+}
+
+/* The chalk note over the delete cover. The arrow draws itself on each time the
+   settings open - it's what pulls the eye to the note - and the words fade up
+   just ahead of it. */
+@keyframes danger-note-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes danger-note-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.danger-note {
+  animation: danger-note-fade 0.4s ease-out 0.25s both;
+}
+.danger-note-line,
+.danger-note-head {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: danger-note-draw 0.45s ease-out forwards;
+}
+.danger-note-line {
+  animation-delay: 0.45s;
+}
+.danger-note-head {
+  animation-delay: 0.85s;
+  animation-duration: 0.2s;
 }

@@ -2,8 +2,6 @@ import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { assetUrl } from '../lib/assets'
-import type { Theme } from '../lib/theme'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -32,7 +30,6 @@ interface SidePanelProps {
   onOpenTimerSettings: () => void
   side: 'left' | 'right'
   onToggleSide: () => void
-  theme: Theme
   saveError: boolean
   pointsSelectedCount: number
   allSeatedSelected: boolean
@@ -61,7 +58,6 @@ export function SidePanel({
   onOpenTimerSettings,
   side,
   onToggleSide,
-  theme,
   saveError,
   pointsSelectedCount,
   allSeatedSelected,
@@ -234,17 +230,6 @@ export function SidePanel({
       </div>
 
       <div className="min-h-0 flex-1" />
-
-      {theme === 'school' && (
-        <div className="flex shrink-0 items-center justify-center py-1">
-          <img
-            src={assetUrl('/branding/school-crest.png')}
-            alt="New Taipei City Yuteh Private School crest"
-            className="w-20 select-none"
-            draggable={false}
-          />
-        </div>
-      )}
 
       <Separator />
 

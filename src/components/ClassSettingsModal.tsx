@@ -168,7 +168,7 @@ export function ClassSettingsModal({
       >
         <div className="flex min-h-full flex-col gap-3.5">
           {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
-          <section className="flex shrink-0 flex-wrap items-center gap-2">
+          <section className="sm:pt-8 flex shrink-0 flex-wrap items-center gap-2">
             <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
               <UserX size={16} /> Unseat All
             </TactileButton>
@@ -183,7 +183,13 @@ export function ClassSettingsModal({
             >
               <Plus size={16} /> New Class
             </TactileButton>
-            <DangerCover open={guardOpen} onOpen={() => setGuardOpen(true)} onAutoClose={() => setGuardOpen(false)} className="ml-auto">
+            <DangerCover
+              open={guardOpen}
+              onOpen={() => setGuardOpen(true)}
+              onAutoClose={() => setGuardOpen(false)}
+              className="ml-auto"
+              note={['Delete Class…', 'Be careful!']}
+            >
               <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
                 <Trash2 size={16} /> Delete Class
               </TactileButton>
@@ -194,7 +200,7 @@ export function ClassSettingsModal({
 
           {/* Class Name + Appearance */}
           <section className="flex shrink-0 flex-wrap items-start gap-3">
-            <div className="min-w-[10rem] flex-1">
+            <div className="min-w-[10rem] flex-1 sm:flex-none sm:basis-[14rem]">
               <Label htmlFor="class-name" className="mb-1.5">
                 Class Name
               </Label>
@@ -210,7 +216,7 @@ export function ClassSettingsModal({
               />
               {nameError && <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
             </div>
-            <div className="w-full min-w-[18rem] sm:w-auto sm:flex-1">
+            <div className="w-full min-w-[18rem] sm:w-auto sm:min-w-0 sm:flex-1">
               <Label className="mb-1.5">Appearance</Label>
               <ThemePicker theme={theme} onSetTheme={onSetTheme} />
             </div>
