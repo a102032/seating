@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, Square, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -195,23 +195,22 @@ export function SidePanel({
           </div>
 
           {/*
-            Select All used to be a bare icon square wedged between two other icon
-            squares - nothing told it apart from +/- at a glance, and the checkbox it
-            was meant to evoke wasn't visibly a checkbox. It now spells out the word
-            and swaps between an empty and a checked box, and +/- shrink to fixed
-            icon-width to give it the room - they only ever needed an icon anyway,
-            the row already read "select everyone, then +/-" left to right.
+            Pick All used to be a bare icon square wedged between two other icon
+            squares - nothing told it apart from +/- at a glance. It says the word
+            now, in the vocabulary of the buttons above it (Pick Student, Pick Row),
+            and +/- shrink to fixed icon-width to give it the room - they only ever
+            needed a glyph, and the row already read "pick everyone, then +/-" left
+            to right. No icon: the highlight is the state, the word is the action.
           */}
           <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
               active={allSeatedSelected}
               disabled={swapMode}
               onClick={onToggleSelectAll}
-              title={allSeatedSelected ? 'Deselect All' : 'Select All'}
-              className="h-[38px] flex-1 !px-2 justify-center gap-1.5 text-xs"
+              title={allSeatedSelected ? 'Unpick All' : 'Pick All'}
+              className="h-[38px] flex-1 !px-2 justify-center"
             >
-              {allSeatedSelected ? <SquareCheckBig size={17} /> : <Square size={17} />}
-              {allSeatedSelected ? 'Deselect All' : 'Select All'}
+              {allSeatedSelected ? 'Unpick All' : 'Pick All'}
             </TactileButton>
             <TactileButton
               disabled={swapMode || pointsSelectedCount === 0}
