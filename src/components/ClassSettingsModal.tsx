@@ -168,7 +168,7 @@ export function ClassSettingsModal({
       >
         <div className="flex min-h-full flex-col gap-3.5">
           {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
-          <section className="sm:pt-8 flex shrink-0 flex-wrap items-center gap-2">
+          <section className="flex shrink-0 flex-wrap items-center gap-2">
             <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
               <UserX size={16} /> Unseat All
             </TactileButton>

@@ -20,8 +20,8 @@ export interface ThemeOption {
 export const THEME_OPTIONS: ThemeOption[] = [
   { id: 'light', label: 'Light', preview: { from: '#f5f5f7', to: '#eef1f6', accent: '#2563eb' } },
   { id: 'dark', label: 'Dark', preview: { from: '#1c1c1e', to: '#232326', accent: '#3b82f6' } },
-  { id: 'sky', label: 'Calm Sky Blue', preview: { from: '#eff8ff', to: '#def0fe', accent: '#3aa9e0' } },
-  { id: 'vibrant', label: 'Vibrant Elementary', preview: { from: '#6bd9f7', to: '#38bdf8', accent: '#8b5cf6' } },
+  { id: 'sky', label: 'Sky Blue', preview: { from: '#eff8ff', to: '#def0fe', accent: '#3aa9e0' } },
+  { id: 'vibrant', label: 'Elementary', preview: { from: '#6bd9f7', to: '#38bdf8', accent: '#8b5cf6' } },
   { id: 'comic', label: 'Comic Book', preview: { from: '#ffd94a', to: '#ffc21c', accent: '#e8272c' } },
 ]
 
