@@ -450,7 +450,11 @@ export default function App() {
           {sidePanel}
         </motion.div>
 
-        <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+        <motion.div
+          layout
+          transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2"
+        >
           {/* Hidden entirely until a goal exists - a meter on screen is a meter the class
               will ask about every lesson, whether or not the teacher wanted one. */}
           {(activeClass.pointsGoal ?? 0) > 0 && activeClass.goalEnabled !== false && (
@@ -518,7 +522,6 @@ export default function App() {
                   <GroupActivity
                     groups={groups}
                     studentsById={studentsById}
-                    pointsMode={effectiveGroupPointsMode(activeClass)}
                     dealTick={dealTick}
                     canShuffle={groupScheme !== null}
                     onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}

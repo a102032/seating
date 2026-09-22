@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { Lock, LockOpen, LogOut, Minus, Plus, Shuffle, Star, Target, Users } from 'lucide-react'
+import { Lock, LockOpen, LogOut, Minus, Plus, Shuffle, Star, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { textWidthEm } from '../lib/fitText'
 import { groupTextColor } from '../lib/groups'
@@ -14,14 +14,13 @@ import {
   playStatusHelp,
   playStatusReady,
 } from '../lib/sound'
-import type { GroupPointsMode, GroupStatus, Student, StudentGroup } from '../types'
+import type { GroupStatus, Student, StudentGroup } from '../types'
 import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
 import { TactileButton } from './TactileButton'
 
 interface GroupActivityProps {
   groups: StudentGroup[]
   studentsById: Map<string, Student>
-  pointsMode: GroupPointsMode
   /**
    * Non-zero asks for a deal: the chips gather into a stack and are dealt out. Bumped for
    * every new deal, and 0 when saved groups are being picked up - those just appear.
@@ -224,7 +223,6 @@ interface ChipSlot {
 export function GroupActivity({
   groups,
   studentsById,
-  pointsMode,
   dealTick,
   canShuffle,
   onAdjustPoints,
@@ -394,17 +392,6 @@ export function GroupActivity({
         </div>
 
         <div className="flex items-center gap-2">
-          <span
-            className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground"
-            title={
-              pointsMode === 'students'
-                ? 'Every student gets a star for each of their group’s points'
-                : 'Each group point becomes one class point on the goal meter'
-            }
-          >
-            {pointsMode === 'students' ? <Users size={15} /> : <Target size={15} />}
-            <span className="hidden sm:inline">{pointsMode === 'students' ? 'Stars to each student' : 'Points to class goal'}</span>
-          </span>
           {/* For when students come up to the board to change their own light: nothing else
               answers to a tap until the teacher unlocks. */}
           <TactileButton
