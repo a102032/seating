@@ -100,9 +100,7 @@ export function effectiveGroupPointsMode(c: ClassData): GroupPointsMode {
 export function useClasses() {
   const initial = useMemo(() => loadLocalState(), [])
   const [classes, setClasses] = useState<ClassData[]>(initial?.classes ?? [makeClass('Class 1')])
-  const [activeClassId, setActiveClassId] = useState<string | null>(
-    initial?.activeClassId ?? initial?.classes?.[0]?.id ?? null,
-  )
+  const [activeClassId, setActiveClassId] = useState<string | null>(initial?.activeClassId ?? initial?.classes?.[0]?.id ?? null)
   const [loadedFromCloud, setLoadedFromCloud] = useState(!isSupabaseConfigured)
   const [saveError, setSaveError] = useState(false)
   const pendingWrites = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -178,9 +176,7 @@ export function useClasses() {
     const existingTimer = pendingWrites.current.get(cls.id)
     if (existingTimer) clearTimeout(existingTimer)
     const timer = setTimeout(() => {
-      void supabase!
-        .from('classes')
-        .upsert({ id: cls.id, name: cls.name, students: cls.students, seating: cls.seating })
+      void supabase!.from('classes').upsert({ id: cls.id, name: cls.name, students: cls.students, seating: cls.seating })
       pendingWrites.current.delete(cls.id)
     }, 400)
     pendingWrites.current.set(cls.id, timer)
@@ -215,22 +211,16 @@ export function useClasses() {
     [classes.length, pushToCloud],
   )
 
-  const renameClass = useCallback(
-    (id: string, name: string) => updateClass(id, (c) => ({ ...c, name })),
-    [updateClass],
-  )
+  const renameClass = useCallback((id: string, name: string) => updateClass(id, (c) => ({ ...c, name })), [updateClass])
 
-  const deleteClass = useCallback(
-    (id: string) => {
-      setClasses((prev) => {
-        const next = prev.filter((c) => c.id !== id)
-        return next.length > 0 ? next : [makeClass('Class 1')]
-      })
-      setActiveClassId((current) => (current === id ? null : current))
-      if (supabase) void supabase.from('classes').delete().eq('id', id)
-    },
-    [],
-  )
+  const deleteClass = useCallback((id: string) => {
+    setClasses((prev) => {
+      const next = prev.filter((c) => c.id !== id)
+      return next.length > 0 ? next : [makeClass('Class 1')]
+    })
+    setActiveClassId((current) => (current === id ? null : current))
+    if (supabase) void supabase.from('classes').delete().eq('id', id)
+  }, [])
 
   const addStudents = useCallback(
     (classId: string, students: Omit<Student, 'id'>[]) =>
@@ -269,9 +259,7 @@ export function useClasses() {
 
         return {
           ...c,
-          students: c.students.map((s) =>
-            targeted(s) ? { ...s, avatarId: stickerId(theme.id, shared ?? randomPose(theme)) } : s,
-          ),
+          students: c.students.map((s) => (targeted(s) ? { ...s, avatarId: stickerId(theme.id, shared ?? randomPose(theme)) } : s)),
         }
       }),
     [updateClass],
@@ -297,10 +285,7 @@ export function useClasses() {
     [updateClass],
   )
 
-  const unseatAll = useCallback(
-    (classId: string) => updateClass(classId, (c) => ({ ...c, seating: emptySeating() })),
-    [updateClass],
-  )
+  const unseatAll = useCallback((classId: string) => updateClass(classId, (c) => ({ ...c, seating: emptySeating() })), [updateClass])
 
   const seatClass = useCallback(
     (classId: string) =>
@@ -349,8 +334,7 @@ export function useClasses() {
    * progress toward its reward at the same time.
    */
   const resetPoints = useCallback(
-    (classId: string) =>
-      updateClass(classId, (c) => ({ ...c, students: c.students.map((s) => ({ ...s, points: 0 })) })),
+    (classId: string) => updateClass(classId, (c) => ({ ...c, students: c.students.map((s) => ({ ...s, points: 0 })) })),
     [updateClass],
   )
 
@@ -396,10 +380,7 @@ export function useClasses() {
 
   // --- Group Activity -------------------------------------------------------------------
 
-  const setGroups = useCallback(
-    (classId: string, groups: StudentGroup[]) => updateClass(classId, (c) => ({ ...c, groups })),
-    [updateClass],
-  )
+  const setGroups = useCallback((classId: string, groups: StudentGroup[]) => updateClass(classId, (c) => ({ ...c, groups })), [updateClass])
 
   const adjustGroupPoints = useCallback(
     (classId: string, groupId: string, delta: number) =>
@@ -413,6 +394,12 @@ export function useClasses() {
   const moveStudentToGroup = useCallback(
     (classId: string, studentId: string, groupId: string) =>
       updateClass(classId, (c) => ({ ...c, groups: moveStudent(c.groups ?? [], studentId, groupId) })),
+    [updateClass],
+  )
+
+  /** Every group back to zero, for a fresh round of the same activity. */
+  const resetGroupPoints = useCallback(
+    (classId: string) => updateClass(classId, (c) => ({ ...c, groups: (c.groups ?? []).map((g) => ({ ...g, points: 0 })) })),
     [updateClass],
   )
 
@@ -484,6 +471,7 @@ export function useClasses() {
     unseatedStudents,
     setGroups,
     adjustGroupPoints,
+    resetGroupPoints,
     moveStudentToGroup,
     setGroupStatus,
     setGroupPointsMode,

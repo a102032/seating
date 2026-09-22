@@ -43,6 +43,8 @@ interface SidePanelProps {
   groupActivityOpen: boolean
   /** The board is locked for students: the activity can't be left from here either. */
   groupActivityLocked: boolean
+  /** The board is locked for students, so the controls that would undo their work stand down. */
+  groupsLocked: boolean
   onToggleGroupActivity: () => void
 }
 
@@ -75,6 +77,7 @@ export function SidePanel({
   onToggleFlipDeck,
   groupActivityOpen,
   groupActivityLocked,
+  groupsLocked,
   onToggleGroupActivity,
 }: SidePanelProps) {
   // The group cards carry their own scores, so the board's pickers and +/- stand down
@@ -165,10 +168,18 @@ export function SidePanel({
 
       <div className="flex shrink-0 flex-col gap-1.5">
         <div className="flex gap-1.5">
-          <TactileButton onClick={onOpenSettings} disabled={swapMode} className="grow shrink basis-0 !px-2 justify-center">
+          {/* Both of these rearrange the class underneath a running activity, and a locked
+              board means students are the ones standing at it. */}
+          <TactileButton onClick={onOpenSettings} disabled={swapMode || groupsLocked} className="grow shrink basis-0 !px-2 justify-center">
             <Settings size={18} /> Settings
           </TactileButton>
-          <TactileButton active={swapMode} onClick={onToggleSwap} className="grow shrink basis-0 !px-2 justify-center">
+          <TactileButton
+            active={swapMode}
+            onClick={onToggleSwap}
+            disabled={groupActivityOpen}
+            className="grow shrink basis-0 !px-2 justify-center"
+            title={groupActivityOpen ? 'Seats can\u2019t be swapped while the group cards are up' : undefined}
+          >
             <Shuffle size={18} /> Swap Seats
           </TactileButton>
         </div>

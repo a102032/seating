@@ -82,6 +82,7 @@ export default function App() {
     unseatedStudents,
     setGroups,
     adjustGroupPoints,
+    resetGroupPoints,
     moveStudentToGroup,
     setGroupStatus,
     setGroupPointsMode,
@@ -115,6 +116,8 @@ export default function App() {
   const [groupScheme, setGroupScheme] = useState<GroupScheme | null>(null)
   /** Non-zero asks the activity to deal; bumped for every deal, and set back to 0 when saved groups are picked up. */
   const [dealTick, setDealTick] = useState(0)
+  /** Whether the current deal came from Shuffle, which is the only thing that riffles. */
+  const [dealWasShuffle, setDealWasShuffle] = useState(false)
   /** Exit was tapped with points still on the board, and the teacher is being asked what to do with them. */
   const [exitPromptOpen, setExitPromptOpen] = useState(false)
   /** Students are at the board: only the status lights answer to a tap. Cleared by a new deal or a class switch. */
@@ -184,6 +187,7 @@ export default function App() {
     if (!activeClassId) return
     setGroups(activeClassId, buildGroups(scheme, seating, studentsById, groups))
     setGroupScheme(scheme)
+    setDealWasShuffle(false)
     setDealTick((t) => t + 1)
     setGroupsLocked(false)
     openGroupActivity()
@@ -209,6 +213,7 @@ export default function App() {
   function shuffleGroups() {
     if (!activeClassId || !groupScheme) return
     setGroups(activeClassId, buildGroups(groupScheme, seating, studentsById, groups))
+    setDealWasShuffle(true)
     setDealTick((t) => t + 1)
   }
 
@@ -429,6 +434,7 @@ export default function App() {
       }}
       groupActivityOpen={groupActivityOpen}
       groupActivityLocked={groupActivityOpen && groupsLocked}
+      groupsLocked={groupActivityOpen && groupsLocked}
       onToggleGroupActivity={() => {
         if (groupActivityOpen) requestExitGroups()
         else setGroupModalOpen(true)
@@ -540,7 +546,9 @@ export default function App() {
                     groups={groups}
                     studentsById={studentsById}
                     dealTick={dealTick}
+                    dealWasShuffle={dealWasShuffle}
                     canShuffle={groupScheme !== null}
+                    onResetPoints={() => resetGroupPoints(activeClass.id)}
                     onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}
                     onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
                     onNewGroups={() => setGroupModalOpen(true)}

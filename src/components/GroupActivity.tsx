@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { Lock, LockOpen, LogOut, Minus, Plus, Shuffle, Star, Users } from 'lucide-react'
+import { Lock, LockOpen, LogOut, Minus, Plus, RotateCcw, Shuffle, Star, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { textWidthEm } from '../lib/fitText'
 import { groupTextColor } from '../lib/groups'
@@ -17,6 +17,7 @@ import {
 import type { GroupPick } from '../hooks/useGroupPicker'
 import type { GroupStatus, Student, StudentGroup } from '../types'
 import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
+import { ConfirmModal } from './ConfirmModal'
 import { TactileButton } from './TactileButton'
 
 interface GroupActivityProps {
@@ -28,6 +29,9 @@ interface GroupActivityProps {
    */
   dealTick: number
   canShuffle: boolean
+  /** This deal came from the Shuffle button, so it gets the riffle sound. A first deal doesn't. */
+  dealWasShuffle: boolean
+  onResetPoints: () => void
   onAdjustPoints: (groupId: string, delta: number) => void
   onMove: (studentId: string, groupId: string) => void
   onNewGroups: () => void
@@ -229,6 +233,8 @@ export function GroupActivity({
   studentsById,
   dealTick,
   canShuffle,
+  dealWasShuffle,
+  onResetPoints,
   onAdjustPoints,
   onMove,
   onNewGroups,
@@ -245,6 +251,7 @@ export function GroupActivity({
   const [lifted, setLifted] = useState<string | null>(null)
   /** The group whose status is being chosen, with the card's rect so the copy can fly from it. */
   const [picking, setPicking] = useState<{ group: StudentGroup; from: DOMRect } | null>(null)
+  const [confirmingReset, setConfirmingReset] = useState(false)
   /**
    * How many chips have left the stack; Infinity while no deal is running. A fresh deal
    * starts in the stack from the first frame, so the chips never flash up in the cards
@@ -314,7 +321,9 @@ export function GroupActivity({
     clearTimers()
     setLifted(null)
     setDealt(0)
-    playShuffle()
+    // The riffle belongs to the Shuffle button. On a first deal there is nothing to shuffle,
+    // and playing it there made every new set of groups sound like two sounds at once.
+    if (dealWasShuffle) playShuffle()
     const total = slots.length
     for (let i = 1; i <= total; i++) {
       timers.current.push(
@@ -394,6 +403,14 @@ export function GroupActivity({
             title={canShuffle ? 'Deal these groups again' : 'Tap New Groups to shuffle'}
           >
             <Shuffle size={16} /> Shuffle
+          </TactileButton>
+          <TactileButton
+            onClick={() => setConfirmingReset(true)}
+            disabled={dealing || locked || groups.every((g) => g.points === 0)}
+            className="!px-3 !py-2"
+            title="Set every group's score back to 0"
+          >
+            <RotateCcw size={16} /> Reset Points
           </TactileButton>
         </div>
 
@@ -561,6 +578,9 @@ export function GroupActivity({
                       'flex shrink-0 items-center justify-center gap-2 border-t border-black/5 dark:border-white/10',
                       d.footerPad,
                     )}
+                    // The wash runs to the bottom of the card. Stopping it above the score
+                    // left every card two-tone and cut the colour in half at a distance.
+                    style={{ background: status.wash ?? undefined }}
                   >
                     <TactileButton
                       onClick={(e) => {
@@ -642,6 +662,19 @@ export function GroupActivity({
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmingReset}
+        title="Reset every group's points?"
+        message="All the groups go back to 0. Nothing else changes - the groups themselves stay exactly as they are."
+        confirmLabel="Yes, Reset"
+        cancelLabel="No"
+        onCancel={() => setConfirmingReset(false)}
+        onConfirm={() => {
+          onResetPoints()
+          setConfirmingReset(false)
+        }}
+      />
 
       {pickingGroup && picking && (
         <GroupStatusPicker
