@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, TriangleAlert, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, TriangleAlert, User, Users, UsersRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +38,8 @@ interface SidePanelProps {
   onDeductPoint: () => void
   flipDeckOpen: boolean
   onToggleFlipDeck: () => void
+  groupActivityOpen: boolean
+  onToggleGroupActivity: () => void
 }
 
 export function SidePanel({
@@ -66,7 +68,12 @@ export function SidePanel({
   onDeductPoint,
   flipDeckOpen,
   onToggleFlipDeck,
+  groupActivityOpen,
+  onToggleGroupActivity,
 }: SidePanelProps) {
+  // The group cards carry their own scores, so the board's pickers and +/- stand down
+  // while the activity is up - the same way Swap Seats quiets everything else.
+  const busy = swapMode || groupActivityOpen
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
 
@@ -177,20 +184,23 @@ export function SidePanel({
               about which end of the grid is the front of the room, so "this row" is the only
               honest way to name it. It reverts the moment the lock stops binding.
             */}
-            <TactileButton active={studentPickActive} onClick={onPickStudent} disabled={swapMode} className="w-full justify-start">
+            <TactileButton active={studentPickActive} onClick={onPickStudent} disabled={busy} className="w-full justify-start">
               <User size={18} /> {rowLockBinds ? 'Pick from This Row' : 'Pick Student'}
             </TactileButton>
             <TactileButton
               active={rowLocked || rowPickActive}
               onClick={onPickRow}
-              disabled={swapMode}
+              disabled={busy}
               className="w-full justify-start"
               title={rowLockBinds ? 'Picks are staying in this row. Tap any desk to go back to the whole class.' : undefined}
             >
               <Users size={18} /> Pick Row
             </TactileButton>
-            <TactileButton active={flipDeckOpen} onClick={onToggleFlipDeck} disabled={swapMode} className="w-full justify-start">
+            <TactileButton active={flipDeckOpen} onClick={onToggleFlipDeck} disabled={busy} className="w-full justify-start">
               <Layers size={18} /> Flip Cards
+            </TactileButton>
+            <TactileButton active={groupActivityOpen} onClick={onToggleGroupActivity} disabled={swapMode} className="w-full justify-start">
+              <UsersRound size={18} /> Group Activity
             </TactileButton>
           </div>
 
@@ -205,7 +215,7 @@ export function SidePanel({
           <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
               active={allSeatedSelected}
-              disabled={swapMode}
+              disabled={busy}
               onClick={onToggleSelectAll}
               title={allSeatedSelected ? 'Unpick All' : 'Pick All'}
               // Wide enough for "Unpick All", so +/- don't change width when the label does.
@@ -216,7 +226,7 @@ export function SidePanel({
             {/* The word takes what the word needs; +/- share the rest. They're the two
                 buttons a teacher taps most, so the free space is theirs. */}
             <TactileButton
-              disabled={swapMode || pointsSelectedCount === 0}
+              disabled={busy || pointsSelectedCount === 0}
               onClick={onDeductPoint}
               title="Deduct Point"
               className="h-[38px] min-w-9 flex-1 !px-0 justify-center"
@@ -224,7 +234,7 @@ export function SidePanel({
               <Minus size={20} strokeWidth={2.75} />
             </TactileButton>
             <TactileButton
-              disabled={swapMode || pointsSelectedCount === 0}
+              disabled={busy || pointsSelectedCount === 0}
               onClick={onAwardPoint}
               title="Award Point"
               className="h-[38px] min-w-9 flex-1 !px-0 justify-center"

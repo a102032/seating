@@ -434,6 +434,19 @@ export function playCardReveal() {
   playTone(ctx, master, { frequency: 1975.5, start: 0.07, duration: 0.5, type: 'sine', peakGain: 0.18 })
 }
 
+/**
+ * The group activity finishing and its points going out: a short rising three-note run, so
+ * "Done" sounds like a full stop rather than a click. Kept above 500Hz for the same reason as
+ * every other cue here - a classroom tablet has no bottom end.
+ */
+export function playGroupsDone() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.16, type: 'triangle', peakGain: 0.34 })
+  playTone(ctx, master, { frequency: 1046.5, start: 0.11, duration: 0.16, type: 'triangle', peakGain: 0.34 })
+  playTone(ctx, master, { frequency: 1567.98, start: 0.22, duration: 0.42, type: 'triangle', peakGain: 0.36 })
+  playTone(ctx, master, { frequency: 2093, start: 0.26, duration: 0.4, type: 'sine', peakGain: 0.16 })
+}
+
 /** The safety cover's plastic snap as it flips open. */
 export function playDeleteCoverOpen() {
   const ctx = getContext()

@@ -45,6 +45,30 @@ export interface ClassData {
   starsPerClassPoint?: number
   /** Stars banked toward the next class point, so a divisor never loses the leftovers. */
   goalRemainder?: number
+  /**
+   * The last groups the teacher made, membership and any points not yet handed out. Kept so
+   * "Group Activity" can pick up where it left off - a teacher running the same teams all
+   * week shouldn't have to re-deal every lesson. Cleared only by making new groups.
+   */
+  groups?: StudentGroup[]
+  /** Where a group's points go when the activity ends. Unset means each student. */
+  groupPointsMode?: GroupPointsMode
+}
+
+/**
+ * What a group's points become when the activity finishes: a star for every member, or
+ * one class point per group point straight onto the class goal meter.
+ */
+export type GroupPointsMode = 'students' | 'goal'
+
+export interface StudentGroup {
+  id: string
+  name: string
+  /** A fixed hex colour, the same on every theme - it *is* the group's identity on screen. */
+  color: string
+  studentIds: string[]
+  /** Points earned this session, floored at 0. Zeroed when the activity finishes. */
+  points: number
 }
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'

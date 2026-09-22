@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
-import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type ClassData, type Gender, type Student } from '../types'
+import { moveStudent } from '../lib/groups'
+import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type ClassData, type Gender, type GroupPointsMode, type Student, type StudentGroup } from '../types'
 
 export const MAX_CLASSES = 5
 
@@ -43,6 +44,43 @@ function rowToClass(row: SupabaseRow): ClassData {
     seating: row.seating ?? emptySeating(),
     updatedAt: row.updated_at,
   }
+}
+
+/**
+ * Give every listed student `delta` stars, and move the class goal meter along with them.
+ *
+ * The meter only ever moves forward - deductions affect a student's own tally but shouldn't
+ * undo the whole class's shared progress toward the goal. Stars convert to class points at
+ * the teacher's rate, and the leftovers are banked rather than dropped, so awarding one star
+ * at a time eventually counts for as much as awarding them all at once.
+ */
+function awardStars(c: ClassData, studentIds: string[], delta: number): ClassData {
+  const ids = new Set(studentIds)
+  const students = c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s))
+  if (delta <= 0) return { ...c, students }
+
+  const perClassPoint = Math.max(1, Math.round(c.starsPerClassPoint ?? 1))
+  const banked = (c.goalRemainder ?? 0) + studentIds.length * delta
+  return addClassPoints({ ...c, students, goalRemainder: banked % perClassPoint }, Math.floor(banked / perClassPoint))
+}
+
+/** Move the goal meter by whole class points, wrapping back down when the goal is hit. */
+function addClassPoints(c: ClassData, amount: number): ClassData {
+  if (amount <= 0) return c
+  let classPoints = (c.classPoints ?? 0) + amount
+  const goal = c.pointsGoal ?? 0
+  if (goal > 0 && classPoints >= goal) classPoints %= goal
+  return { ...c, classPoints }
+}
+
+/** The class goal has to exist and be switched on for group points to have anywhere to go. */
+export function goalIsLive(c: ClassData): boolean {
+  return (c.pointsGoal ?? 0) > 0 && c.goalEnabled !== false
+}
+
+/** The mode a class will actually use: "class goal" falls back to students while there's no goal. */
+export function effectiveGroupPointsMode(c: ClassData): GroupPointsMode {
+  return c.groupPointsMode === 'goal' && goalIsLive(c) ? 'goal' : 'students'
 }
 
 export function useClasses() {
@@ -287,26 +325,7 @@ export function useClasses() {
   )
 
   const adjustPoints = useCallback(
-    (classId: string, studentIds: string[], delta: number) =>
-      updateClass(classId, (c) => {
-        const ids = new Set(studentIds)
-        const students = c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s))
-
-        // The class goal meter only ever moves forward - deductions affect a student's own
-        // tally but shouldn't undo the whole class's shared progress toward the goal.
-        if (delta <= 0) return { ...c, students }
-
-        // Stars convert to class points at the teacher's rate, and the leftovers are banked
-        // rather than dropped, so awarding one star at a time eventually counts for as much
-        // as awarding them all at once.
-        const perClassPoint = Math.max(1, Math.round(c.starsPerClassPoint ?? 1))
-        const banked = (c.goalRemainder ?? 0) + studentIds.length * delta
-        let classPoints = (c.classPoints ?? 0) + Math.floor(banked / perClassPoint)
-        const goal = c.pointsGoal ?? 0
-        if (goal > 0 && classPoints >= goal) classPoints %= goal
-
-        return { ...c, students, classPoints, goalRemainder: banked % perClassPoint }
-      }),
+    (classId: string, studentIds: string[], delta: number) => updateClass(classId, (c) => awardStars(c, studentIds, delta)),
     [updateClass],
   )
 
@@ -347,6 +366,66 @@ export function useClasses() {
     [updateClass],
   )
 
+  // --- Group Activity -------------------------------------------------------------------
+
+  const setGroups = useCallback(
+    (classId: string, groups: StudentGroup[]) => updateClass(classId, (c) => ({ ...c, groups })),
+    [updateClass],
+  )
+
+  const adjustGroupPoints = useCallback(
+    (classId: string, groupId: string, delta: number) =>
+      updateClass(classId, (c) => ({
+        ...c,
+        groups: (c.groups ?? []).map((g) => (g.id === groupId ? { ...g, points: Math.max(0, g.points + delta) } : g)),
+      })),
+    [updateClass],
+  )
+
+  const moveStudentToGroup = useCallback(
+    (classId: string, studentId: string, groupId: string) =>
+      updateClass(classId, (c) => ({ ...c, groups: moveStudent(c.groups ?? [], studentId, groupId) })),
+    [updateClass],
+  )
+
+  const renameGroup = useCallback(
+    (classId: string, groupId: string, name: string) =>
+      updateClass(classId, (c) => ({
+        ...c,
+        groups: (c.groups ?? []).map((g) => (g.id === groupId ? { ...g, name: name.trim() || g.name } : g)),
+      })),
+    [updateClass],
+  )
+
+  const setGroupPointsMode = useCallback(
+    (classId: string, mode: GroupPointsMode) => updateClass(classId, (c) => ({ ...c, groupPointsMode: mode })),
+    [updateClass],
+  )
+
+  /**
+   * The activity is over: hand the groups' points out the way the teacher chose, then zero
+   * them. The groups themselves stay, so the same teams can be picked up again tomorrow.
+   */
+  const finishGroupActivity = useCallback(
+    (classId: string) =>
+      updateClass(classId, (c) => {
+        const groups = c.groups ?? []
+        let next = c
+        if (effectiveGroupPointsMode(c) === 'students') {
+          groups.forEach((g) => {
+            if (g.points > 0) next = awardStars(next, g.studentIds, g.points)
+          })
+        } else {
+          next = addClassPoints(
+            next,
+            groups.reduce((sum, g) => sum + g.points, 0),
+          )
+        }
+        return { ...next, groups: groups.map((g) => ({ ...g, points: 0 })) }
+      }),
+    [updateClass],
+  )
+
   const seatedStudentIds = useMemo(() => new Set((activeClass?.seating ?? []).filter(Boolean) as string[]), [activeClass])
 
   const unseatedStudents = useMemo(
@@ -377,6 +456,12 @@ export function useClasses() {
     unseatAll,
     unseatStudent,
     unseatedStudents,
+    setGroups,
+    adjustGroupPoints,
+    moveStudentToGroup,
+    renameGroup,
+    setGroupPointsMode,
+    finishGroupActivity,
     isCloudSynced: isSupabaseConfigured,
     loadedFromCloud,
     saveError,

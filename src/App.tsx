@@ -4,16 +4,19 @@ import { ClassSettingsModal } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
+import { GroupActivity } from './components/GroupActivity'
+import { GroupActivityModal } from './components/GroupActivityModal'
 import { PickersPointsModal } from './components/PickersPointsModal'
 import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { MAX_CLASSES, useClasses } from './hooks/useClasses'
+import { effectiveGroupPointsMode, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { usePicker } from './hooks/usePicker'
-import { playPointDeduct, primeAudio } from './lib/sound'
+import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
+import { playGroupsDone, playPointDeduct, primeAudio } from './lib/sound'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import type { Student, TimerSettings } from './types'
 
@@ -65,6 +68,12 @@ export default function App() {
     unseatAll,
     unseatStudent,
     unseatedStudents,
+    setGroups,
+    adjustGroupPoints,
+    moveStudentToGroup,
+    renameGroup,
+    setGroupPointsMode,
+    finishGroupActivity,
     saveError,
   } = useClasses()
 
@@ -88,6 +97,13 @@ export default function App() {
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
   const [flipSettingsOpen, setFlipSettingsOpen] = useState(false)
+  const [groupModalOpen, setGroupModalOpen] = useState(false)
+  const [groupActivityOpen, setGroupActivityOpen] = useState(false)
+  /** How the current groups were made, so Shuffle can deal the same shape again. Null for saved groups. */
+  const [groupScheme, setGroupScheme] = useState<GroupScheme | null>(null)
+  /** Counts deals, so the cards replay their fly-in on each one and not when saved groups are picked up. */
+  const [dealTick, setDealTick] = useState(0)
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
@@ -104,8 +120,17 @@ export default function App() {
 
   useEffect(() => {
     resetPointsSelection()
+    // Another class is another set of groups; the activity closes rather than showing them.
+    setGroupActivityOpen(false)
+    setGroupScheme(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClassId])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 5000)
+    return () => clearTimeout(timer)
+  }, [toast])
 
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating, activeClassId)
@@ -117,6 +142,55 @@ export default function App() {
     activeClass?.students.forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
+
+  /** The saved groups as they stand today - anyone who has left their desk since is out. */
+  const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], seating), [activeClass, seating])
+
+  function openGroupActivity() {
+    setFlipDeckOpen(false)
+    resetPointsSelection()
+    setGroupActivityOpen(true)
+  }
+
+  function startGroups(scheme: GroupScheme) {
+    if (!activeClassId) return
+    setGroups(activeClassId, buildGroups(scheme, seating, studentsById, groups))
+    setGroupScheme(scheme)
+    setDealTick((t) => t + 1)
+    openGroupActivity()
+  }
+
+  function continueGroups() {
+    if (!activeClassId) return
+    setGroups(activeClassId, groups)
+    setGroupScheme(null)
+    openGroupActivity()
+  }
+
+  function shuffleGroups() {
+    if (!activeClassId || !groupScheme) return
+    setGroups(activeClassId, buildGroups(groupScheme, seating, studentsById, groups))
+    setDealTick((t) => t + 1)
+  }
+
+  /** Done: the points go out the way the teacher chose, and the board comes back. */
+  function finishGroups() {
+    if (!activeClass) return
+    const { totalPoints, studentsAwarded } = summarizeGroupPoints(groups)
+    const mode = effectiveGroupPointsMode(activeClass)
+    finishGroupActivity(activeClass.id)
+    setGroupActivityOpen(false)
+    if (totalPoints > 0) playGroupsDone()
+    setToast({
+      id: Date.now(),
+      text:
+        totalPoints === 0
+          ? 'No points this time. Your groups are saved for next time.'
+          : mode === 'students'
+            ? `${studentsAwarded} students got their group’s stars. Groups saved for next time.`
+            : `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal. Groups saved for next time.`,
+    })
+  }
 
   /** New Class from the splash: make it, then drop the teacher straight into its roster. */
   function startNewClassFromSplash() {
@@ -285,6 +359,11 @@ export default function App() {
         if (opening) deck.deal()
         resetPointsSelection()
       }}
+      groupActivityOpen={groupActivityOpen}
+      onToggleGroupActivity={() => {
+        if (groupActivityOpen) setGroupActivityOpen(false)
+        else setGroupModalOpen(true)
+      }}
     />
   )
 
@@ -371,9 +450,65 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Group Activity slides in from the side the way a class turns to face its
+                teams - and back out the same way when the board returns. */}
+            <AnimatePresence>
+              {groupActivityOpen && (
+                <motion.div
+                  initial={{ x: '100%', opacity: 0.6 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: '100%', opacity: 0.6 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+                  className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
+                >
+                  <GroupActivity
+                    groups={groups}
+                    studentsById={studentsById}
+                    pointsMode={effectiveGroupPointsMode(activeClass)}
+                    dealTick={dealTick}
+                    canShuffle={groupScheme !== null}
+                    onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}
+                    onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
+                    onRename={(groupId, name) => renameGroup(activeClass.id, groupId, name)}
+                    onNewGroups={() => setGroupModalOpen(true)}
+                    onShuffle={shuffleGroups}
+                    onHide={() => setGroupActivityOpen(false)}
+                    onDone={finishGroups}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </main>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key={toast.id}
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            onClick={() => setToast(null)}
+            className="fixed bottom-5 left-1/2 z-40 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border border-black/10 bg-card px-5 py-3 text-center font-semibold text-card-foreground shadow-2xl dark:border-white/10"
+          >
+            {toast.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <GroupActivityModal
+        open={groupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        activeClass={activeClass}
+        studentsById={studentsById}
+        lastGroups={groups}
+        onStart={startGroups}
+        onContinue={continueGroups}
+        onSetPointsMode={(mode) => setGroupPointsMode(activeClass.id, mode)}
+      />
 
       <TimerSettingsModal
         open={timerSettingsOpen}
