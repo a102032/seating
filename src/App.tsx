@@ -14,7 +14,7 @@ import { MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { usePicker } from './hooks/usePicker'
 import { playPointDeduct, primeAudio } from './lib/sound'
-import { applyTheme, loadTheme, type Theme } from './lib/theme'
+import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import type { Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
@@ -425,7 +425,11 @@ export default function App() {
         onUnseatAll={() => unseatAll(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
         theme={theme}
-        onSetTheme={setTheme}
+        onSetTheme={(next) => {
+          // A pick from the picker is the only thing that gets remembered - see chooseTheme.
+          setTheme(next)
+          chooseTheme(next)
+        }}
       />
     </>
   )
