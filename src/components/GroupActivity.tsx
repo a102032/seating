@@ -86,10 +86,8 @@ const DENSITY = {
     chipGap: 'gap-2',
     statusIcon: 16,
     footerPad: 'p-1.5',
-    button: 'h-[38px] max-w-[50px]',
-    score: 'min-w-[3.5rem] text-2xl',
-    star: 20,
-    sign: 20,
+    buttonH: 'h-[38px]',
+    score: 'text-2xl',
   },
   compact: {
     headerPad: 'py-1',
@@ -98,10 +96,8 @@ const DENSITY = {
     chipGap: 'gap-1.5',
     statusIcon: 15,
     footerPad: 'p-1',
-    button: 'h-8 max-w-10',
-    score: 'min-w-[2.75rem] text-xl',
-    star: 17,
-    sign: 18,
+    buttonH: 'h-8',
+    score: 'text-xl',
   },
   tight: {
     headerPad: 'py-0.5',
@@ -110,10 +106,8 @@ const DENSITY = {
     chipGap: 'gap-1',
     statusIcon: 13,
     footerPad: 'p-0.5',
-    button: 'h-7 max-w-9',
-    score: 'min-w-[2.5rem] text-lg',
-    star: 15,
-    sign: 16,
+    buttonH: 'h-7',
+    score: 'text-lg',
   },
 } as const
 
@@ -370,6 +364,17 @@ export function GroupActivity({
   // Every card in a deal is the same width, so the word is shown on all of them or none.
   const cardWidth = columns > 0 ? (board.width - GRID_PAD_PX - (columns - 1) * gridGap) / columns : 0
   const showStatusLabel = cardWidth >= 235
+  // The points row is sized by the card's width, not by the density. Density is chosen to
+  // make the cards fit by height, so a board that went to eight columns can leave a card
+  // half as wide carrying a row built for a wide one - which is how the buttons ended up
+  // clipped at the card's edges. Heights still come from the density, so the layout the
+  // planner worked out stays true.
+  const points =
+    cardWidth >= 260
+      ? { width: 'max-w-[50px]', score: 'min-w-[3.5rem]', star: 20, sign: 20 }
+      : cardWidth >= 200
+        ? { width: 'max-w-11', score: 'min-w-[3rem]', star: 18, sign: 18 }
+        : { width: 'max-w-9', score: 'min-w-[2.25rem]', star: 15, sign: 16 }
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
@@ -560,12 +565,18 @@ export function GroupActivity({
                       // flex-1 with a cap rather than a fixed width: on a wide card they are
                       // the side panel's size, on a narrow one they give ground instead of
                       // pushing each other out of the card.
-                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.button)}
+                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
                     >
-                      <Minus size={d.sign} strokeWidth={2.75} />
+                      <Minus size={points.sign} strokeWidth={2.75} />
                     </TactileButton>
-                    <span className={clsx('flex shrink-0 items-center justify-center gap-1 px-1 font-extrabold tabular-nums', d.score)}>
-                      <Star size={d.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
+                    <span
+                      className={clsx(
+                        'flex shrink-0 items-center justify-center gap-1 px-1 font-extrabold tabular-nums',
+                        d.score,
+                        points.score,
+                      )}
+                    >
+                      <Star size={points.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
                       <motion.span
                         key={group.points}
                         initial={{ scale: 1.5 }}
@@ -583,9 +594,9 @@ export function GroupActivity({
                       }}
                       disabled={dealing}
                       title="Give a point"
-                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.button)}
+                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
                     >
-                      <Plus size={d.sign} strokeWidth={2.75} />
+                      <Plus size={points.sign} strokeWidth={2.75} />
                     </TactileButton>
                   </footer>
                 </motion.section>
