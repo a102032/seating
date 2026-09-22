@@ -746,3 +746,123 @@ button {
   font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.04em;
 }
+
+/* ===========================================================================
+ * Splash screen: the chalkboard.
+ *
+ * One fixed look, on purpose - it doesn't follow the app theme. A splash is
+ * the app's front door and the teacher hasn't picked anything yet, so it
+ * gets the one design that says "classroom" without qualification. Every
+ * colour below is literal for that reason; none of it reads a token.
+ * =========================================================================== */
+
+/* Classroom supplies drifting up the board. Travels on `bottom` rather than a
+   percentage translate, for the same reason the celebration stars do: a
+   percentage translateY resolves against the element's own box, and a 30px
+   pencil would only ever climb 30px. */
+@keyframes splash-float {
+  0% {
+    bottom: -12%;
+    opacity: 0;
+    transform: translateX(0) rotate(var(--from-rot, -8deg));
+  }
+  10% {
+    opacity: var(--peak, 0.8);
+  }
+  50% {
+    transform: translateX(var(--sway, 14px)) rotate(var(--mid-rot, 6deg));
+  }
+  /* Gone well before the top edge, so nothing rides up through the bunting at
+     full strength - the first cut had books overlapping the flags. */
+  72% {
+    opacity: var(--peak, 0.8);
+  }
+  94% {
+    opacity: 0;
+  }
+  100% {
+    bottom: 108%;
+    opacity: 0;
+    transform: translateX(0) rotate(var(--to-rot, -4deg));
+  }
+}
+
+/*
+ * The erased patch. A real board has a smudge where the chalk was wiped to make
+ * room for writing, and that smudge is what keeps the doodles off the words:
+ * anything drifting behind the headline dims to a ghost as it passes, rather
+ * than sitting on the type at full strength. It's the board's own colour, so it
+ * reads as a wipe and not as a card laid on top.
+ */
+.splash-erased {
+  background: radial-gradient(
+    ellipse 60% 62% at 50% 50%,
+    rgba(43, 93, 76, 0.92) 0%,
+    rgba(43, 93, 76, 0.86) 45%,
+    rgba(43, 93, 76, 0.45) 72%,
+    rgba(43, 93, 76, 0) 100%
+  );
+}
+
+.splash-float {
+  position: absolute;
+  animation: splash-float var(--dur, 14s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  /* A soft chalk halo - the line looks laid on the board, not printed. */
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.35));
+  will-change: bottom, transform, opacity;
+}
+
+/* Bunting swings from its string. Origin at the top so the string is the pivot. */
+@keyframes splash-sway {
+  0%,
+  100% {
+    transform: rotate(-1.2deg);
+  }
+  50% {
+    transform: rotate(1.2deg);
+  }
+}
+
+.splash-bunting {
+  transform-origin: 50% 0;
+  animation: splash-sway 5.5s ease-in-out infinite;
+}
+
+/* Chalk accent marks - the little "!" strokes beside a chalk headline. */
+@keyframes splash-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.splash-twinkle {
+  animation: splash-twinkle 2.2s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  transform-origin: center;
+}
+
+/* The chalk grain. feTurbulence gives a dusty, uneven surface for free; without it
+   the board is a flat green rectangle and nothing reads as chalk on it. */
+.splash-board {
+  background-color: #2b5d4c;
+  background-image:
+    radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0) 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Chalk lettering. A faint halo, and the face itself is drawn as a sketch. */
+.splash-chalk {
+  font-family: 'Cabin Sketch', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.22),
+    0 1px 0 rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.01em;
+}

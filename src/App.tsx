@@ -295,9 +295,10 @@ export default function App() {
         {splashOpen && (
           <SplashScreen
             classes={classes}
-            activeClassId={activeClassId}
-            onSelectClass={setActiveClassId}
-            onStart={() => setSplashOpen(false)}
+            onOpenClass={(id) => {
+              setActiveClassId(id)
+              setSplashOpen(false)
+            }}
             onNewClass={startNewClassFromSplash}
             onSetUpFirst={setUpFirstClass}
             canAddClass={classes.length < MAX_CLASSES}
