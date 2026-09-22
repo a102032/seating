@@ -36,8 +36,60 @@ const CHIP_CHROME_EM = 0.8 * 2 + 0.35
 /** The widest a chip may grow for a long name; past this the name shrinks inside the chip instead. */
 const CHIP_MAX_EM = 11
 const CHIP_MIN_EM = 5.5
-/** A card's border and body padding, either side - what it needs beyond one chip's width. */
-const CARD_CHROME_PX = 3 * 2 + 8 * 2
+/** The card's fixed dimensions the layout planner has to account for, in px. */
+const CARD_BORDER_PX = 3 * 2
+const CARD_BODY_PAD_PX = 8 * 2
+const CHIP_GAP_PX = 8
+const CHIP_HEIGHT_EM = 2.25
+const GRID_PAD_PX = 2 * 2
+/** How far the chips may shrink to make a deal fit the board, before the board clips instead. */
+const CHIP_SCALES = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5]
+
+interface BoardMetrics {
+  width: number
+  height: number
+  /** The chip font at full size, in px. */
+  fontPx: number
+  /** Measured from a rendered card, so the plan is never guessing at the chrome. */
+  header: number
+  footer: number
+}
+
+/**
+ * The column count and chip size that fit every card on the board at once.
+ *
+ * The app never scrolls - that's a rule, not a preference - so the board can't just be as
+ * tall as thirteen cards need. Every dimension in a card is known here, which means the
+ * layout can be planned rather than measured after the fact: try the nicest column count
+ * first at full-size chips, then more columns, and only when no column count fits shrink the
+ * chips a step (all of them - one size for the class holds) and try again.
+ */
+function planLayout(sizes: number[], chipEm: number, board: BoardMetrics): { columns: number; chipScale: number } {
+  const n = sizes.length
+  const preferred = Math.max(1, columnsFor(n))
+  if (board.width === 0 || n === 0) return { columns: preferred, chipScale: 1 }
+  const gap = board.width >= 640 ? 12 : 8
+  const width = board.width - GRID_PAD_PX
+  const height = board.height - GRID_PAD_PX
+  let fallback = { columns: preferred, chipScale: CHIP_SCALES[CHIP_SCALES.length - 1] }
+  for (const chipScale of CHIP_SCALES) {
+    const chipW = chipEm * board.fontPx * chipScale
+    const chipH = CHIP_HEIGHT_EM * board.fontPx * chipScale
+    for (let columns = preferred; columns <= n; columns++) {
+      const cardW = (width - (columns - 1) * gap) / columns
+      const inner = cardW - CARD_BORDER_PX - CARD_BODY_PAD_PX
+      // Narrower than a chip, and every extra column is narrower still.
+      if (inner < chipW) break
+      const perRow = Math.floor((inner + CHIP_GAP_PX) / (chipW + CHIP_GAP_PX))
+      const rows = Math.max(1, ...sizes.map((size) => Math.ceil(size / perRow)))
+      const cardH = CARD_BORDER_PX + board.header + CARD_BODY_PAD_PX + rows * chipH + (rows - 1) * CHIP_GAP_PX + board.footer
+      const gridRows = Math.ceil(n / columns)
+      if (gridRows * cardH + (gridRows - 1) * gap <= height) return { columns, chipScale }
+      fallback = { columns, chipScale }
+    }
+  }
+  return fallback
+}
 
 /** Columns for a given number of cards, chosen so the grid is always full - no half-empty last row. */
 function columnsFor(count: number): number {
@@ -89,13 +141,19 @@ export function GroupActivity({
   const [dealt, setDealt] = useState(() => (dealTick === 0 ? Infinity : 0))
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const boardRef = useRef<HTMLDivElement>(null)
-  /** The board's width and the chip font in px, so the column count can promise every chip fits at full size. */
-  const [board, setBoard] = useState({ width: 0, fontPx: 16 })
+  const [board, setBoard] = useState<BoardMetrics>({ width: 0, height: 0, fontPx: 16, header: 40, footer: 51 })
 
   useEffect(() => {
     const el = boardRef.current
     if (!el) return
-    const update = () => setBoard({ width: el.clientWidth, fontPx: parseFloat(getComputedStyle(el).fontSize) || 16 })
+    const update = () =>
+      setBoard({
+        width: el.clientWidth,
+        height: el.clientHeight,
+        fontPx: parseFloat(getComputedStyle(el).fontSize) || 16,
+        header: el.querySelector<HTMLElement>('[data-group-id] header')?.offsetHeight ?? 40,
+        footer: el.querySelector<HTMLElement>('[data-group-id] footer')?.offsetHeight ?? 51,
+      })
     update()
     const observer = new ResizeObserver(update)
     observer.observe(el)
@@ -170,12 +228,12 @@ export function GroupActivity({
 
   const dealing = dealt !== Infinity
   const inStack = dealing ? slots.filter((s) => s.index >= dealt) : []
-  // Never more columns than the chips allow: a chip is one size everywhere, so a card
-  // must be at least a chip wide, plus its border and padding.
-  const gapPx = board.width >= 640 ? 12 : 8
-  const cardMinPx = chipEm * board.fontPx + CARD_CHROME_PX
-  const maxColumns = board.width > 0 ? Math.max(1, Math.floor((board.width + gapPx) / (cardMinPx + gapPx))) : 99
-  const columns = Math.max(1, Math.min(columnsFor(groups.length), maxColumns))
+  const { columns, chipScale } = planLayout(
+    groups.map((g) => g.studentIds.length),
+    chipEm,
+    board,
+  )
+  const chipFont = `calc(var(--chip-font) * ${chipScale})`
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
@@ -213,12 +271,11 @@ export function GroupActivity({
       </div>
 
       <div ref={boardRef} className="relative min-h-0 flex-1" style={{ fontSize: 'var(--chip-font)' }}>
-        {/* Scrolls only when the cards outgrow the board; otherwise they sit centred on it.
-            Cards fit their contents, and every card in a deal shares the tallest one's
-            height (the 1fr rows of an auto-height grid), so a lopsided group can't make its
-            card the odd one out. Centred with auto margins rather than content-center, so
-            the grid's own height stays its content's and nothing is cut off when it scrolls. */}
-        <div className="flex h-full flex-col overflow-y-auto">
+        {/* Never scrolls: planLayout picks columns and chip size so the cards fit. They sit
+            centred on the board, fit their contents, and every card in a deal shares the
+            tallest one's height (the 1fr rows of an auto-height grid), so a lopsided group
+            can't make its card the odd one out. */}
+        <div className="flex h-full flex-col overflow-hidden">
           <div
             className="my-auto grid gap-2 p-0.5 text-base sm:gap-3"
             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr' }}
@@ -268,7 +325,7 @@ export function GroupActivity({
                         style={{ borderColor: group.color }}
                       />
                     )}
-                    <div className="flex flex-wrap content-start justify-center gap-2" style={{ fontSize: 'var(--chip-font)' }}>
+                    <div className="flex flex-wrap content-start justify-center gap-2" style={{ fontSize: chipFont }}>
                       {group.studentIds.length === 0 && (
                         <span className="w-full py-3 text-center text-sm font-medium text-muted-foreground">
                           Empty - tap here to move someone in
@@ -346,7 +403,7 @@ export function GroupActivity({
 
         {/* The stack the chips are dealt from. The next chip to go sits on top. */}
         {dealing && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center" style={{ fontSize: chipFont }}>
             <div className="relative" style={{ width: `${chipEm}em`, height: '2.25em' }}>
               {[...inStack].reverse().map((slot) => {
                 const student = studentsById.get(slot.studentId)
@@ -404,7 +461,9 @@ function Chip({ student, widthEm, tint, lifted, placeholder, stacked, onClick, t
   const nameScale = needed > widthEm ? Math.max(0.6, (widthEm - CHIP_CHROME_EM) / (needed - CHIP_CHROME_EM)) : 1
   const className = clsx(
     // A fixed height, so a chip whose name had to shrink stays the same size as its neighbours.
-    'flex h-[2.25em] shrink-0 items-center gap-[0.35em] rounded-full px-[0.8em] font-bold leading-none shadow-sm select-none',
+    // Any clipping happens at the chip, never at the name: a name box clipped at one line
+    // height cut the tails off every y and g.
+    'flex h-[2.25em] shrink-0 items-center gap-[0.35em] overflow-hidden rounded-full px-[0.8em] font-bold leading-tight shadow-sm select-none',
     placeholder ? 'invisible' : 'text-card-foreground',
     stacked && 'bg-card ring-1 ring-black/10 dark:ring-white/15',
     lifted && 'z-20 ring-[3px] ring-amber-400',
@@ -413,7 +472,7 @@ function Chip({ student, widthEm, tint, lifted, placeholder, stacked, onClick, t
   const inner = (
     <>
       <span className="shrink-0 text-[0.72em] font-semibold opacity-50">{student.homeroom}</span>
-      <span className="truncate" style={{ fontSize: `${nameScale}em` }}>
+      <span className="whitespace-nowrap" style={{ fontSize: `${nameScale}em` }}>
         {student.name}
       </span>
     </>
