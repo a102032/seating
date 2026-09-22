@@ -8,8 +8,9 @@ import { PickersPointsModal } from './components/PickersPointsModal'
 import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
+import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { useClasses } from './hooks/useClasses'
+import { MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { usePicker } from './hooks/usePicker'
 import { playPointDeduct, primeAudio } from './lib/sound'
@@ -90,6 +91,12 @@ export default function App() {
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
+  /**
+   * The splash is up until the teacher starts a class, on every open rather than once.
+   * Opening this app is something a teacher does at the top of a lesson, so a deliberate
+   * "start" is the moment they're already having - and it costs one tap to get past.
+   */
+  const [splashOpen, setSplashOpen] = useState(true)
 
   useEffect(() => {
     applyTheme(theme)
@@ -110,6 +117,22 @@ export default function App() {
     activeClass?.students.forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
+
+  /** New Class from the splash: make it, then drop the teacher straight into its roster. */
+  function startNewClassFromSplash() {
+    createClass()
+    setSplashOpen(false)
+    setSettingsOpen(true)
+  }
+
+  /**
+   * First run. The class already exists - useClasses seeds one - so this opens that empty
+   * class rather than creating a second one next to it.
+   */
+  function setUpFirstClass() {
+    setSplashOpen(false)
+    setSettingsOpen(true)
+  }
 
   function updateTimerSettings(next: TimerSettings) {
     setTimerSettings(next)
@@ -268,6 +291,20 @@ export default function App() {
 
   return (
     <>
+      <AnimatePresence>
+        {splashOpen && (
+          <SplashScreen
+            classes={classes}
+            activeClassId={activeClassId}
+            onSelectClass={setActiveClassId}
+            onStart={() => setSplashOpen(false)}
+            onNewClass={startNewClassFromSplash}
+            onSetUpFirst={setUpFirstClass}
+            canAddClass={classes.length < MAX_CLASSES}
+          />
+        )}
+      </AnimatePresence>
+
       <div
         // data-ink is where a theme may repaint the whole ground. The comic theme lays a
         // halftone lattice over this gradient, which it can only do by replacing

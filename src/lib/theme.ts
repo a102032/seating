@@ -19,6 +19,10 @@ export const THEME_OPTIONS: ThemeOption[] = [
   { id: 'comic', label: 'Comic Book', preview: { from: '#ffd94a', to: '#ffc21c', accent: '#e8272c' } },
 ]
 
+/** Vibrant Elementary until a teacher actually picks something else - not the OS's light/dark
+    preference, which used to decide it. A phone or tablet set to dark mode was landing every
+    new class on the Dark theme with no say in it; Vibrant is the theme the app is designed
+    to show off first. */
 export function loadTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_KEY)
@@ -26,7 +30,7 @@ export function loadTheme(): Theme {
   } catch {
     // ignore
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'vibrant'
 }
 
 export function applyTheme(theme: Theme) {
