@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, Square, SquareCheckBig, TriangleAlert, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -194,21 +194,30 @@ export function SidePanel({
             </TactileButton>
           </div>
 
+          {/*
+            Select All used to be a bare icon square wedged between two other icon
+            squares - nothing told it apart from +/- at a glance, and the checkbox it
+            was meant to evoke wasn't visibly a checkbox. It now spells out the word
+            and swaps between an empty and a checked box, and +/- shrink to fixed
+            icon-width to give it the room - they only ever needed an icon anyway,
+            the row already read "select everyone, then +/-" left to right.
+          */}
           <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
               active={allSeatedSelected}
               disabled={swapMode}
               onClick={onToggleSelectAll}
               title={allSeatedSelected ? 'Deselect All' : 'Select All'}
-              className="h-[38px] w-[38px] shrink-0 !px-0 justify-center"
+              className="h-[38px] flex-1 !px-2 justify-center gap-1.5 text-xs"
             >
-              <SquareCheckBig size={18} />
+              {allSeatedSelected ? <SquareCheckBig size={17} /> : <Square size={17} />}
+              {allSeatedSelected ? 'Deselect All' : 'Select All'}
             </TactileButton>
             <TactileButton
               disabled={swapMode || pointsSelectedCount === 0}
               onClick={onDeductPoint}
               title="Deduct Point"
-              className="h-[38px] flex-1 !px-0 justify-center"
+              className="h-[38px] w-9 shrink-0 !px-0 justify-center"
             >
               <Minus size={20} strokeWidth={2.75} />
             </TactileButton>
@@ -216,7 +225,7 @@ export function SidePanel({
               disabled={swapMode || pointsSelectedCount === 0}
               onClick={onAwardPoint}
               title="Award Point"
-              className="h-[38px] flex-1 !px-0 justify-center"
+              className="h-[38px] w-9 shrink-0 !px-0 justify-center"
             >
               <Plus size={20} strokeWidth={2.75} />
             </TactileButton>
