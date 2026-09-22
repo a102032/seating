@@ -50,7 +50,7 @@ const CHALK = {
   lavender: '#c9b8f0',
 } as const
 
-const FLAGS = ['#ef8a7a', '#f6c65b', '#6cc4a1', '#5fb3d9', '#b48fe0', '#f29bb4', '#f0a35e']
+const FLAGS = ['#e8604f', '#f4b53a', '#3fb27f', '#3a9fd6', '#9b6fd8', '#ec6f9a', '#f08a3c']
 const CARDS = [CHALK.yellow, CHALK.mint, CHALK.sky, CHALK.pink, CHALK.lavender, CHALK.peach]
 
 const INK = '#1f4a3b'
@@ -100,42 +100,53 @@ const DRIFTERS: Drifter[] = [
 ]
 
 function Bunting() {
-  // A string sagging between the top corners, with flags hung along it.
-  const n = 13
+  // The string runs corner to corner across the frame - past the edges, so it reads as
+  // tied off out of sight rather than starting on the slate - and sags to the middle.
+  const n = 11
+  const flagW = 74
+  const flagH = 88
   const flags = Array.from({ length: n }, (_, i) => {
-    const t = i / (n - 1)
-    const x = 40 + t * 920
-    // Catenary-ish sag: lowest in the middle.
-    const y = 14 + Math.sin(t * Math.PI) * 26
+    const t = (i + 0.5) / n
+    const x = t * 1000
+    const y = 10 + Math.sin(t * Math.PI) * 44
     return { x, y, color: FLAGS[i % FLAGS.length] }
   })
-  const path = flags.map((f, i) => `${i === 0 ? 'M' : 'L'} ${f.x} ${f.y}`).join(' ')
+  const string = [{ x: -8, y: 4 }, ...flags, { x: 1008, y: 4 }]
+  const path = string.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
   return (
+    // No preserveAspectRatio="none": it stretched the flags into slivers on a phone. The
+    // viewBox sets the aspect, the width is the frame's, the height follows - so the
+    // flags stay triangles at every size and the string always spans edge to edge.
     <svg
-      viewBox="0 0 1000 110"
-      preserveAspectRatio="none"
-      className="pointer-events-none absolute inset-x-0 top-0 h-[14%] w-full"
+      viewBox="0 0 1000 150"
+      className="pointer-events-none absolute inset-x-0 top-0 z-20 h-auto w-full"
       style={{ overflow: 'visible' }}
       aria-hidden
     >
       <defs>
-        {/* The flags hang a little off the slate, so they throw a shadow onto it. */}
-        <filter id="bunting-shadow" x="-10%" y="-10%" width="120%" height="160%">
-          <feDropShadow dx="2" dy="5" stdDeviation="3" floodColor="#000" floodOpacity="0.45" />
+        <filter id="bunting-shadow" x="-10%" y="-20%" width="120%" height="170%">
+          <feDropShadow dx="3" dy="7" stdDeviation="4" floodColor="#000" floodOpacity="0.5" />
         </filter>
+        {/* Cloth: a touch lighter at the top edge, darker toward the point. Laid over
+            every flag so they read as solid and hung, not as pastel cut-outs. */}
+        <linearGradient id="flag-shade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
+          <stop offset="0.35" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.22" />
+        </linearGradient>
       </defs>
       <g filter="url(#bunting-shadow)">
-        <path d={path} fill="none" stroke={CHALK.white} strokeWidth="3" strokeLinecap="round" />
-        {flags.map((f, i) => (
-          <polygon
-            key={i}
-            points={`${f.x - 26},${f.y} ${f.x + 26},${f.y} ${f.x},${f.y + 52}`}
-            fill={f.color}
-            stroke={CHALK.white}
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-          />
-        ))}
+        <path d={path} fill="none" stroke="#e9dcc3" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        {flags.map((f, i) => {
+          const pts = `${f.x - flagW / 2},${f.y} ${f.x + flagW / 2},${f.y} ${f.x},${f.y + flagH}`
+          return (
+            <g key={i}>
+              <polygon points={pts} fill={f.color} />
+              <polygon points={pts} fill="url(#flag-shade)" />
+              <polygon points={pts} fill="none" stroke="rgba(30,25,20,0.55)" strokeWidth="2" strokeLinejoin="round" />
+            </g>
+          )
+        })}
       </g>
     </svg>
   )
@@ -252,9 +263,9 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
       >
         {/* The wooden frame. */}
-        <div className="rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
+        <div className="relative rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
+          <Bunting />
           <div className="splash-board relative overflow-hidden rounded-lg" style={{ minHeight: 'min(78vh, 640px)' }}>
-            <Bunting />
 
             {/* The chalk-drawn inner border. */}
             <div
