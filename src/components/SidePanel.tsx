@@ -198,9 +198,9 @@ export function SidePanel({
             Pick All used to be a bare icon square wedged between two other icon
             squares - nothing told it apart from +/- at a glance. It says the word
             now, in the vocabulary of the buttons above it (Pick Student, Pick Row),
-            and +/- shrink to fixed icon-width to give it the room - they only ever
-            needed a glyph, and the row already read "pick everyone, then +/-" left
-            to right. No icon: the highlight is the state, the word is the action.
+            sized to the word; +/- share whatever is left, since they're the two
+            buttons a teacher taps most. No icon: the highlight is the state, the
+            word is the action.
           */}
           <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
@@ -208,15 +208,18 @@ export function SidePanel({
               disabled={swapMode}
               onClick={onToggleSelectAll}
               title={allSeatedSelected ? 'Unpick All' : 'Pick All'}
-              className="h-[38px] flex-1 !px-2 justify-center"
+              // Wide enough for "Unpick All", so +/- don't change width when the label does.
+              className="h-[38px] w-[6.25rem] shrink-0 !px-0 justify-center"
             >
               {allSeatedSelected ? 'Unpick All' : 'Pick All'}
             </TactileButton>
+            {/* The word takes what the word needs; +/- share the rest. They're the two
+                buttons a teacher taps most, so the free space is theirs. */}
             <TactileButton
               disabled={swapMode || pointsSelectedCount === 0}
               onClick={onDeductPoint}
               title="Deduct Point"
-              className="h-[38px] w-9 shrink-0 !px-0 justify-center"
+              className="h-[38px] min-w-9 flex-1 !px-0 justify-center"
             >
               <Minus size={20} strokeWidth={2.75} />
             </TactileButton>
@@ -224,7 +227,7 @@ export function SidePanel({
               disabled={swapMode || pointsSelectedCount === 0}
               onClick={onAwardPoint}
               title="Award Point"
-              className="h-[38px] w-9 shrink-0 !px-0 justify-center"
+              className="h-[38px] min-w-9 flex-1 !px-0 justify-center"
             >
               <Plus size={20} strokeWidth={2.75} />
             </TactileButton>
