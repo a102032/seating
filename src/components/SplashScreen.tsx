@@ -50,7 +50,7 @@ const CHALK = {
   lavender: '#c9b8f0',
 } as const
 
-const FLAGS = ['#e8604f', '#f4b53a', '#3fb27f', '#3a9fd6', '#9b6fd8', '#ec6f9a', '#f08a3c']
+const FLAGS = ['#ef8a7a', '#f6c65b', '#6cc4a1', '#5fb3d9', '#b48fe0', '#f29bb4', '#f0a35e']
 const CARDS = [CHALK.yellow, CHALK.mint, CHALK.sky, CHALK.pink, CHALK.lavender, CHALK.peach]
 
 const INK = '#1f4a3b'
@@ -100,23 +100,24 @@ const DRIFTERS: Drifter[] = [
 ]
 
 function Bunting() {
-  // The string runs corner to corner across the frame - past the edges, so it reads as
-  // tied off out of sight rather than starting on the slate - and sags to the middle.
+  // The string sags from corner to corner. y(t) below is the sag; its derivative gives the
+  // slope at each flag, which is what the flag is rotated to - a flat-topped flag on a
+  // sloping string floats off it at one corner, which is what the last cut got wrong.
+  const sag = (t: number) => 10 + Math.sin(t * Math.PI) * 44
+  const slope = (t: number) => ((44 * Math.PI * Math.cos(t * Math.PI)) / 1000) * (180 / Math.PI)
   const n = 11
-  const flagW = 74
-  const flagH = 88
+  const flagW = 72
+  const flagH = 86
   const flags = Array.from({ length: n }, (_, i) => {
     const t = (i + 0.5) / n
-    const x = t * 1000
-    const y = 10 + Math.sin(t * Math.PI) * 44
-    return { x, y, color: FLAGS[i % FLAGS.length] }
+    return { x: t * 1000, y: sag(t), rot: slope(t), color: FLAGS[i % FLAGS.length] }
   })
-  const string = [{ x: -8, y: 4 }, ...flags, { x: 1008, y: 4 }]
-  const path = string.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+  // The string as a smooth curve, sampled, running just past both corners.
+  const string = Array.from({ length: 41 }, (_, i) => {
+    const t = -0.01 + (i / 40) * 1.02
+    return `${i === 0 ? 'M' : 'L'} ${t * 1000} ${sag(Math.min(1, Math.max(0, t)))}`
+  }).join(' ')
   return (
-    // No preserveAspectRatio="none": it stretched the flags into slivers on a phone. The
-    // viewBox sets the aspect, the width is the frame's, the height follows - so the
-    // flags stay triangles at every size and the string always spans edge to edge.
     <svg
       viewBox="0 0 1000 150"
       className="pointer-events-none absolute inset-x-0 top-0 z-20 h-auto w-full"
@@ -125,30 +126,183 @@ function Bunting() {
     >
       <defs>
         <filter id="bunting-shadow" x="-10%" y="-20%" width="120%" height="170%">
-          <feDropShadow dx="3" dy="7" stdDeviation="4" floodColor="#000" floodOpacity="0.5" />
+          <feDropShadow dx="2" dy="5" stdDeviation="2.5" floodColor="#000" floodOpacity="0.55" />
         </filter>
-        {/* Cloth: a touch lighter at the top edge, darker toward the point. Laid over
-            every flag so they read as solid and hung, not as pastel cut-outs. */}
+        {/* A little body in the cloth - lighter at the fold, a shade darker toward the
+            point - so pastel reads as fabric rather than tissue. The hue is untouched. */}
         <linearGradient id="flag-shade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
-          <stop offset="0.35" stopColor="#fff" stopOpacity="0" />
-          <stop offset="1" stopColor="#000" stopOpacity="0.22" />
+          <stop offset="0" stopColor="#fff" stopOpacity="0.18" />
+          <stop offset="0.3" stopColor="#fff" stopOpacity="0" />
+          <stop offset="1" stopColor="#000" stopOpacity="0.16" />
         </linearGradient>
       </defs>
       <g filter="url(#bunting-shadow)">
-        <path d={path} fill="none" stroke="#e9dcc3" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
         {flags.map((f, i) => {
-          const pts = `${f.x - flagW / 2},${f.y} ${f.x + flagW / 2},${f.y} ${f.x},${f.y + flagH}`
+          const pts = `${-flagW / 2},0 ${flagW / 2},0 0,${flagH}`
           return (
-            <g key={i}>
+            <g key={i} transform={`translate(${f.x} ${f.y}) rotate(${f.rot})`}>
               <polygon points={pts} fill={f.color} />
               <polygon points={pts} fill="url(#flag-shade)" />
-              <polygon points={pts} fill="none" stroke="rgba(30,25,20,0.55)" strokeWidth="2" strokeLinejoin="round" />
+              <polygon points={pts} fill="none" stroke={CHALK.white} strokeWidth="3" strokeLinejoin="round" />
             </g>
           )
         })}
+        <path d={string} fill="none" stroke={CHALK.white} strokeWidth="3.5" strokeLinecap="round" />
       </g>
     </svg>
+  )
+}
+
+/**
+ * Drawings the kids left on the board - sun, cloud, cat, house, the usual - each at its
+ * own angle the way they'd land. Hand-drawn paths, roughened with a displacement filter so
+ * the lines wobble like chalk. Kept to the edges and corners, and quiet, so they're set
+ * dressing for the welcome and not competition for it. The mid-edge ones hide on a phone,
+ * where the cards take that space.
+ */
+const DOODLES: {
+  Shape: (props: { color: string }) => React.ReactElement
+  style: React.CSSProperties
+  rotate: number
+  color: string
+  opacity: number
+  small?: boolean
+}[] = [
+  { Shape: Sun, style: { left: '3%', top: '13%', '--w': '9cqw' } as React.CSSProperties, rotate: -12, color: CHALK.yellow, opacity: 0.6 },
+  { Shape: Cloud, style: { right: '5%', top: '15%', '--w': '11cqw' } as React.CSSProperties, rotate: 6, color: CHALK.white, opacity: 0.5 },
+  { Shape: Tree, style: { left: '5%', bottom: '8%', '--w': '8cqw' } as React.CSSProperties, rotate: 5, color: CHALK.mint, opacity: 0.6 },
+  { Shape: House, style: { right: '6%', bottom: '9%', '--w': '9cqw' } as React.CSSProperties, rotate: -7, color: CHALK.peach, opacity: 0.55 },
+  { Shape: Cat, style: { left: '4%', top: '44%', '--w': '7.5cqw' } as React.CSSProperties, rotate: 14, color: CHALK.pink, opacity: 0.55, small: true },
+  { Shape: Dog, style: { right: '4%', top: '42%', '--w': '8cqw' } as React.CSSProperties, rotate: -10, color: CHALK.sky, opacity: 0.55, small: true },
+  { Shape: AppleDoodle, style: { left: '20%', bottom: '7%', '--w': '5.5cqw' } as React.CSSProperties, rotate: 18, color: CHALK.pink, opacity: 0.55, small: true },
+  { Shape: Flower, style: { right: '22%', bottom: '6%', '--w': '6cqw' } as React.CSSProperties, rotate: -15, color: CHALK.lavender, opacity: 0.55, small: true },
+  { Shape: Heart, style: { left: '16%', top: '22%', '--w': '4.5cqw' } as React.CSSProperties, rotate: -22, color: CHALK.pink, opacity: 0.5, small: true },
+  { Shape: Smiley, style: { right: '14%', top: '31%', '--w': '5cqw' } as React.CSSProperties, rotate: 12, color: CHALK.yellow, opacity: 0.5, small: true },
+  { Shape: Sum, style: { left: '38%', bottom: '5%', '--w': '13cqw' } as React.CSSProperties, rotate: -4, color: CHALK.white, opacity: 0.5 },
+  { Shape: StarShape, style: { left: '27%', bottom: '24%', '--w': '4.5cqw' } as React.CSSProperties, rotate: 20, color: CHALK.yellow, opacity: 0.5, small: true },
+]
+
+function ChalkDoodles() {
+  return (
+    <div className="pointer-events-none absolute inset-0" style={{ containerType: 'inline-size' }}>
+      <svg width="0" height="0" className="absolute" aria-hidden>
+        <filter id="chalk-rough">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="7" />
+          <feDisplacementMap in="SourceGraphic" scale="2.6" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+      {DOODLES.map((d, i) => (
+        <div
+          key={i}
+          className={`splash-doodle ${d.small ? 'hidden sm:block' : ''}`}
+          style={{ ...d.style, transform: `rotate(${d.rotate}deg)`, opacity: d.opacity }}
+        >
+          <svg viewBox="0 0 100 100" className="h-auto w-full" style={{ filter: 'url(#chalk-rough)' }} aria-hidden>
+            <g fill="none" stroke={d.color} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+              <d.Shape color={d.color} />
+            </g>
+          </svg>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* The drawings. Deliberately a little off - that's the point. */
+function Sun() {
+  return (
+    <>
+      <circle cx="50" cy="52" r="17" />
+      {Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2 + 0.2
+        const x1 = 50 + Math.cos(a) * 24, y1 = 52 + Math.sin(a) * 24
+        const x2 = 50 + Math.cos(a) * (34 + (i % 2) * 4), y2 = 52 + Math.sin(a) * (34 + (i % 2) * 4)
+        return <path key={i} d={`M${x1} ${y1} L${x2} ${y2}`} />
+      })}
+      <path d="M43 50 q2 -3 4 0 M53 49 q2 -3 4 0 M42 58 q8 7 16 0" />
+    </>
+  )
+}
+function Cloud() {
+  return <path d="M22 66 q-12 -2 -9 -13 q3 -10 15 -8 q3 -14 18 -12 q13 2 15 12 q13 -4 18 6 q5 11 -6 15 z" />
+}
+function Tree() {
+  return (
+    <>
+      <path d="M50 12 L26 46 h14 L22 72 h56 L60 46 h14 z" />
+      <path d="M45 72 v18 h10 v-18" />
+    </>
+  )
+}
+function House() {
+  return (
+    <>
+      <path d="M18 50 L50 20 L82 50" />
+      <path d="M26 46 v36 h48 v-36" />
+      <path d="M44 82 v-20 h12 v20" />
+      <path d="M32 56 h10 v10 h-10 z M58 56 h10 v10 h-10 z" />
+    </>
+  )
+}
+function Cat() {
+  return (
+    <>
+      <path d="M28 40 L24 16 L42 30 M72 40 L76 16 L58 30" />
+      <circle cx="50" cy="52" r="24" />
+      <path d="M40 48 q2 -3 4 0 M56 48 q2 -3 4 0 M48 58 l2 2 l2 -2" />
+      <path d="M22 54 h16 M22 62 l16 -3 M78 54 h-16 M78 62 l-16 -3" />
+    </>
+  )
+}
+function Dog() {
+  return (
+    <>
+      <circle cx="50" cy="50" r="24" />
+      <path d="M28 38 q-10 4 -8 22 q2 10 10 6 M72 38 q10 4 8 22 q-2 10 -10 6" />
+      <path d="M40 46 q2 -3 4 0 M56 46 q2 -3 4 0" />
+      <path d="M46 56 q4 -3 8 0 q-4 5 -8 0 M50 58 v6 M42 66 q8 6 16 0" />
+    </>
+  )
+}
+function AppleDoodle() {
+  return (
+    <>
+      <path d="M50 30 q-16 -8 -24 8 q-6 14 4 32 q6 12 20 8 q14 4 20 -8 q10 -18 4 -32 q-8 -16 -24 -8 z" />
+      <path d="M50 30 q0 -10 6 -14 M50 30 q8 -12 20 -10 q-4 10 -20 10" />
+    </>
+  )
+}
+function Flower() {
+  return (
+    <>
+      <circle cx="50" cy="42" r="9" />
+      {Array.from({ length: 6 }, (_, i) => {
+        const a = (i / 6) * Math.PI * 2
+        return <circle key={i} cx={50 + Math.cos(a) * 17} cy={42 + Math.sin(a) * 17} r="8" />
+      })}
+      <path d="M50 51 v36 M50 72 q-12 -4 -14 -12 M50 78 q12 -4 14 -12" />
+    </>
+  )
+}
+function Heart() {
+  return <path d="M50 82 q-30 -22 -30 -42 q0 -14 14 -14 q10 0 16 10 q6 -10 16 -10 q14 0 14 14 q0 20 -30 42 z" />
+}
+function Smiley() {
+  return (
+    <>
+      <circle cx="50" cy="50" r="30" />
+      <path d="M38 42 q2 -4 5 0 M57 42 q2 -4 5 0 M34 58 q16 16 32 0" />
+    </>
+  )
+}
+function StarShape() {
+  return <path d="M50 14 L60 40 L88 42 L66 60 L73 88 L50 72 L27 88 L34 60 L12 42 L40 40 z" />
+}
+function Sum({ color }: { color: string }) {
+  return (
+    <text x="4" y="62" fill={color} stroke="none" fontFamily="'Cabin Sketch', 'Andika', sans-serif" fontWeight="700" fontSize="34">
+      2+2=4
+    </text>
   )
 }
 
@@ -170,28 +324,28 @@ function ChalkMarks({ className, delay, flip }: { className: string; delay: numb
   )
 }
 
-/** The ledge under the board, with an eraser and three sticks of chalk on it. */
+/** The ledge under the board, with an eraser and three sticks of chalk sitting on it. */
 function ChalkTray() {
   return (
     <div
-      className="relative mx-auto w-[96%] rounded-b-lg bg-gradient-to-b from-[#c48f4f] via-[#a9773a] to-[#8d5f2b] shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+      className="relative z-20 mx-auto w-[96%] rounded-b-lg bg-gradient-to-b from-[#c48f4f] via-[#a9773a] to-[#8d5f2b] shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
       style={{ height: 'clamp(14px, 1.9vw, 26px)' }}
     >
       {/* The lip - a lighter edge along the front. */}
       <div className="absolute inset-x-0 top-0 h-[3px] bg-[#e0b57a]/70" />
-      {/* Eraser: felt block on top, wooden back below. */}
+      {/* Eraser, felt down, standing on the lip. */}
       <div
-        className="absolute left-[7%] rounded-[3px] bg-gradient-to-b from-[#5b8bb5] to-[#2f5d84] shadow-[0_3px_5px_rgba(0,0,0,0.4)]"
-        style={{ width: 'clamp(64px, 9vw, 124px)', height: 'clamp(20px, 2.8vw, 38px)', bottom: '55%' }}
+        className="absolute left-[7%] rounded-[3px] bg-gradient-to-b from-[#5b8bb5] to-[#2f5d84] shadow-[0_3px_5px_rgba(0,0,0,0.45)]"
+        style={{ width: 'clamp(64px, 9vw, 124px)', height: 'clamp(20px, 2.8vw, 38px)', bottom: 'calc(100% - 5px)' }}
       >
         <div className="absolute inset-x-0 bottom-0 h-[32%] rounded-b-[3px] bg-[#ebe6d8]" />
       </div>
-      {/* Chalk sticks. */}
-      <div className="absolute right-[8%] flex items-end" style={{ bottom: '58%', gap: 'clamp(6px, 0.8vw, 12px)' }}>
+      {/* Chalk, lying on the lip. */}
+      <div className="absolute right-[8%] flex items-end" style={{ bottom: 'calc(100% - 6px)', gap: 'clamp(6px, 0.8vw, 12px)' }}>
         {[CHALK.white, CHALK.pink, CHALK.yellow].map((c, i) => (
           <div
             key={i}
-            className="rounded-full shadow-[0_2px_3px_rgba(0,0,0,0.4)]"
+            className="rounded-full shadow-[0_2px_3px_rgba(0,0,0,0.45)]"
             style={{
               background: `linear-gradient(to bottom, #fff 0%, ${c} 55%, rgba(0,0,0,0.12) 100%)`,
               width: 'clamp(38px, 5.2vw, 72px)',
@@ -266,6 +420,7 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
         <div className="relative rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
           <Bunting />
           <div className="splash-board relative overflow-hidden rounded-lg" style={{ minHeight: 'min(78vh, 640px)' }}>
+            <ChalkDoodles />
 
             {/* The chalk-drawn inner border. */}
             <div

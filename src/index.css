@@ -816,25 +816,24 @@ button {
 }
 
 /*
- * The board: slate, with the marks of having been erased.
- *
- * The smears are wide, flat ellipses of low-alpha white laid at different heights
- * and widths, because an eraser moves side to side - a real wiped board is a set
- * of horizontal-ish streaks, not a uniform haze. Two are brighter where "strokes"
- * would overlap. The feTurbulence grain underneath gives the slate its dust; without
- * it the board is a flat grey rectangle and nothing on it reads as chalk.
+ * The board: slate, with its dust. The feTurbulence grain is what makes anything
+ * on it read as chalk - without it the board is a flat grey rectangle.
  */
 .splash-board {
   background-color: #3d4348;
   background-image:
-    radial-gradient(ellipse 34% 9% at 22% 28%, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(ellipse 42% 11% at 64% 36%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(ellipse 30% 8% at 40% 52%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(ellipse 46% 12% at 70% 64%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(ellipse 36% 10% at 28% 76%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(ellipse 28% 7% at 78% 84%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 60% 45% at 50% 48%, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 100%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* A kid's drawing on the board. Sized against the board's width so a sun in the
+   corner stays a corner sun on a phone rather than swallowing the headline. */
+.splash-doodle {
+  position: absolute;
+  pointer-events: none;
+  width: var(--w, 9cqw);
+  height: auto;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.18));
 }
 
 /* Chalk lettering. A faint halo, and the face itself is drawn as a sketch. */
