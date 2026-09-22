@@ -46,6 +46,7 @@ export function GroupActivityModal({
   const seating = activeClass.seating
   const seatedCount = seating.filter(Boolean).length
   const goalLive = goalIsLive(activeClass)
+  // Shown as it will behave: "goal" with the goal switched off would fall back to students.
   const mode: GroupPointsMode = activeClass.groupPointsMode === 'goal' && goalLive ? 'goal' : 'students'
   const lastPoints = lastGroups.reduce((sum, g) => sum + g.points, 0)
 
@@ -168,19 +169,13 @@ export function GroupActivityModal({
                 active={mode === 'students'}
                 onClick={() => onSetPointsMode('students')}
               />
-              <ModeButton
-                icon={<Target size={18} />}
-                label="Class Goal"
-                active={mode === 'goal'}
-                disabled={!goalLive}
-                onClick={() => onSetPointsMode('goal')}
-              />
+              <ModeButton icon={<Target size={18} />} label="Class Goal" active={mode === 'goal'} onClick={() => onSetPointsMode('goal')} />
             </div>
             <p className="mt-2 px-1 text-sm text-muted-foreground">
               {mode === 'students'
-                ? 'When you tap Done, every student gets a star for each point their group earned.'
-                : 'When you tap Done, each group point becomes one class point on the goal meter. No stars for students.'}
-              {!goalLive && ' (Turn on a class goal in Pickers & Points to send points there instead.)'}
+                ? 'Every student gets a star for each point their group earns.'
+                : `Each group point becomes one class point on the goal meter (goal: ${activeClass.pointsGoal}). No stars for students.`}
+              {mode === 'students' && !goalLive && ' Choosing Class Goal switches the class goal on for you.'}
             </p>
           </section>
         </div>

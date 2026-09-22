@@ -30,3 +30,8 @@ export function fitClassNameSize(names: string[]): number {
   const fitted = (AVAILABLE_CQI * REFERENCE_PX) / widest
   return Math.min(MAX_CQI, Math.max(MIN_CQI, fitted))
 }
+
+/** Width of `text` in em, in the app's bold face - for sizing a box to a name before it renders. */
+export function textWidthEm(text: string): number {
+  return widthAtReferenceSize(text) / REFERENCE_PX
+}

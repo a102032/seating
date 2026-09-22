@@ -717,9 +717,8 @@ button {
    of type competing with a colour rather than sitting on white stock. */
 /* Group cards are panels too: the group's colour stays in its band, the ink takes the edge. */
 :root[data-theme='comic'] [data-ink='group-card'] {
-  box-shadow:
-    0 0 0 2.5px var(--comic-ink),
-    4px 4px 0 0 var(--comic-ink) !important;
+  border-color: var(--comic-ink) !important;
+  box-shadow: 4px 4px 0 0 var(--comic-ink);
 }
 
 :root[data-theme='comic'] [data-ink='homeroom'] {

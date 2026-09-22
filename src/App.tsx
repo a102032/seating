@@ -6,19 +6,20 @@ import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
+import { GroupExitModal } from './components/GroupExitModal'
 import { PickersPointsModal } from './components/PickersPointsModal'
 import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { effectiveGroupPointsMode, MAX_CLASSES, useClasses } from './hooks/useClasses'
+import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
 import { playGroupsDone, playPointDeduct, primeAudio } from './lib/sound'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
-import type { Student, TimerSettings } from './types'
+import type { GroupPointsMode, Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
@@ -101,8 +102,10 @@ export default function App() {
   const [groupActivityOpen, setGroupActivityOpen] = useState(false)
   /** How the current groups were made, so Shuffle can deal the same shape again. Null for saved groups. */
   const [groupScheme, setGroupScheme] = useState<GroupScheme | null>(null)
-  /** Counts deals, so the cards replay their fly-in on each one and not when saved groups are picked up. */
+  /** Non-zero asks the activity to deal; bumped for every deal, and set back to 0 when saved groups are picked up. */
   const [dealTick, setDealTick] = useState(0)
+  /** Exit was tapped with points still on the board, and the teacher is being asked what to do with them. */
+  const [exitPromptOpen, setExitPromptOpen] = useState(false)
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
@@ -144,7 +147,7 @@ export default function App() {
   }, [activeClass])
 
   /** The saved groups as they stand today - anyone who has left their desk since is out. */
-  const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], seating), [activeClass, seating])
+  const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], activeClass?.seating ?? []), [activeClass])
 
   function openGroupActivity() {
     setFlipDeckOpen(false)
@@ -164,6 +167,7 @@ export default function App() {
     if (!activeClassId) return
     setGroups(activeClassId, groups)
     setGroupScheme(null)
+    setDealTick(0)
     openGroupActivity()
   }
 
@@ -173,23 +177,46 @@ export default function App() {
     setDealTick((t) => t + 1)
   }
 
-  /** Done: the points go out the way the teacher chose, and the board comes back. */
-  function finishGroups() {
+  /**
+   * One way out. With nothing on the scoreboard it just closes; with points, the teacher is
+   * asked whether they go out now or wait with the groups - handing thirty students their
+   * stars is not something that should happen as a side effect of leaving a screen.
+   */
+  function requestExitGroups() {
+    if (summarizeGroupPoints(groups).totalPoints > 0) setExitPromptOpen(true)
+    else setGroupActivityOpen(false)
+  }
+
+  /** The points go out the way the teacher chose, and the board comes back. */
+  function giveOutGroupPoints() {
     if (!activeClass) return
     const { totalPoints, studentsAwarded } = summarizeGroupPoints(groups)
     const mode = effectiveGroupPointsMode(activeClass)
     finishGroupActivity(activeClass.id)
+    setExitPromptOpen(false)
     setGroupActivityOpen(false)
-    if (totalPoints > 0) playGroupsDone()
+    playGroupsDone()
     setToast({
       id: Date.now(),
       text:
-        totalPoints === 0
-          ? 'No points this time. Your groups are saved for next time.'
-          : mode === 'students'
-            ? `${studentsAwarded} students got their group’s stars. Groups saved for next time.`
-            : `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal. Groups saved for next time.`,
+        mode === 'students'
+          ? `${studentsAwarded} students got their group’s stars.`
+          : `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal.`,
     })
+  }
+
+  /**
+   * Class Goal as a destination needs a class goal. Rather than greying the button out and
+   * sending the teacher to another modal to find out why, choosing it switches the goal on
+   * right here - with the number they last set, or the same default Pickers & Points uses.
+   */
+  function chooseGroupPointsMode(mode: GroupPointsMode) {
+    if (!activeClass) return
+    if (mode === 'goal' && !goalIsLive(activeClass)) {
+      setGoalSettings(activeClass.id, activeClass.pointsGoal || 50, activeClass.starsPerClassPoint || 1)
+      setGoalEnabled(activeClass.id, true)
+    }
+    setGroupPointsMode(activeClass.id, mode)
   }
 
   /** New Class from the splash: make it, then drop the teacher straight into its roster. */
@@ -361,7 +388,7 @@ export default function App() {
       }}
       groupActivityOpen={groupActivityOpen}
       onToggleGroupActivity={() => {
-        if (groupActivityOpen) setGroupActivityOpen(false)
+        if (groupActivityOpen) requestExitGroups()
         else setGroupModalOpen(true)
       }}
     />
@@ -473,8 +500,7 @@ export default function App() {
                     onRename={(groupId, name) => renameGroup(activeClass.id, groupId, name)}
                     onNewGroups={() => setGroupModalOpen(true)}
                     onShuffle={shuffleGroups}
-                    onHide={() => setGroupActivityOpen(false)}
-                    onDone={finishGroups}
+                    onExit={requestExitGroups}
                   />
                 </motion.div>
               )}
@@ -507,7 +533,19 @@ export default function App() {
         lastGroups={groups}
         onStart={startGroups}
         onContinue={continueGroups}
-        onSetPointsMode={(mode) => setGroupPointsMode(activeClass.id, mode)}
+        onSetPointsMode={chooseGroupPointsMode}
+      />
+
+      <GroupExitModal
+        open={exitPromptOpen}
+        onClose={() => setExitPromptOpen(false)}
+        groups={groups}
+        pointsMode={effectiveGroupPointsMode(activeClass)}
+        onGiveOut={giveOutGroupPoints}
+        onKeep={() => {
+          setExitPromptOpen(false)
+          setGroupActivityOpen(false)
+        }}
       />
 
       <TimerSettingsModal
