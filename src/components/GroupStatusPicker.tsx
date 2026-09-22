@@ -14,9 +14,11 @@ export interface StatusStyle {
   /** Text and icon colour on top of `color`. */
   fg: string
   /**
-   * The wash laid over the card's body. Working has none: if every card were tinted the
-   * board would go one flat colour and the signal would be worth nothing. Leaving Working
-   * plain means the only coloured cards are the ones asking for something.
+   * The wash laid over the card's body. Strong on purpose: this is read across a classroom,
+   * not at arm's length, and a faint tint was indistinguishable from the next card at the
+   * back of the room. The name chips sit on the plain card colour so they stay crisp on top
+   * of it. Working has none: if every card were tinted the board would go one flat colour
+   * and the signal would be worth nothing.
    */
   wash: string | null
 }
@@ -28,9 +30,9 @@ export interface StatusStyle {
  */
 export const STATUSES: StatusStyle[] = [
   { id: 'working', label: 'Working', icon: Pencil, color: '#64748b', fg: '#ffffff', wash: null },
-  { id: 'help', label: 'Help', icon: CircleHelp, color: '#ef4444', fg: '#ffffff', wash: 'rgba(239, 68, 68, 0.16)' },
-  { id: 'ready', label: 'Ready', icon: ThumbsUp, color: '#f59e0b', fg: '#451a03', wash: 'rgba(245, 158, 11, 0.18)' },
-  { id: 'done', label: 'Done', icon: Check, color: '#22c55e', fg: '#ffffff', wash: 'rgba(34, 197, 94, 0.16)' },
+  { id: 'help', label: 'Help', icon: CircleHelp, color: '#ef4444', fg: '#ffffff', wash: 'rgba(239, 68, 68, 0.72)' },
+  { id: 'ready', label: 'Ready', icon: ThumbsUp, color: '#f59e0b', fg: '#451a03', wash: 'rgba(245, 158, 11, 0.8)' },
+  { id: 'done', label: 'Done', icon: Check, color: '#22c55e', fg: '#ffffff', wash: 'rgba(34, 197, 94, 0.72)' },
 ]
 
 export function statusStyle(status: GroupStatus | undefined): StatusStyle {

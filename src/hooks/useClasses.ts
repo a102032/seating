@@ -416,15 +416,6 @@ export function useClasses() {
     [updateClass],
   )
 
-  const renameGroup = useCallback(
-    (classId: string, groupId: string, name: string) =>
-      updateClass(classId, (c) => ({
-        ...c,
-        groups: (c.groups ?? []).map((g) => (g.id === groupId ? { ...g, name: name.trim() || g.name } : g)),
-      })),
-    [updateClass],
-  )
-
   const setGroupStatus = useCallback(
     (classId: string, groupId: string, status: GroupStatus) =>
       updateClass(classId, (c) => ({ ...c, groups: (c.groups ?? []).map((g) => (g.id === groupId ? { ...g, status } : g)) })),
@@ -494,7 +485,6 @@ export function useClasses() {
     setGroups,
     adjustGroupPoints,
     moveStudentToGroup,
-    renameGroup,
     setGroupStatus,
     setGroupPointsMode,
     finishGroupActivity,

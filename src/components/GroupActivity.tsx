@@ -16,8 +16,6 @@ import {
 } from '../lib/sound'
 import type { GroupPointsMode, GroupStatus, Student, StudentGroup } from '../types'
 import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
-import { Input } from '@/components/ui/input'
-import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 
 interface GroupActivityProps {
@@ -32,7 +30,6 @@ interface GroupActivityProps {
   canShuffle: boolean
   onAdjustPoints: (groupId: string, delta: number) => void
   onMove: (studentId: string, groupId: string) => void
-  onRename: (groupId: string, name: string) => void
   onNewGroups: () => void
   onShuffle: () => void
   onExit: () => void
@@ -89,7 +86,7 @@ const DENSITY = {
     chipGap: 'gap-2',
     statusIcon: 16,
     footerPad: 'p-1.5',
-    button: 'h-[38px] w-[50px]',
+    button: 'h-[38px] max-w-[50px]',
     score: 'min-w-[3.5rem] text-2xl',
     star: 20,
     sign: 20,
@@ -101,7 +98,7 @@ const DENSITY = {
     chipGap: 'gap-1.5',
     statusIcon: 15,
     footerPad: 'p-1',
-    button: 'h-8 w-10',
+    button: 'h-8 max-w-10',
     score: 'min-w-[2.75rem] text-xl',
     star: 17,
     sign: 18,
@@ -113,7 +110,7 @@ const DENSITY = {
     chipGap: 'gap-1',
     statusIcon: 13,
     footerPad: 'p-0.5',
-    button: 'h-7 w-9',
+    button: 'h-7 max-w-9',
     score: 'min-w-[2.5rem] text-lg',
     star: 15,
     sign: 16,
@@ -238,7 +235,6 @@ export function GroupActivity({
   canShuffle,
   onAdjustPoints,
   onMove,
-  onRename,
   onNewGroups,
   onShuffle,
   onExit,
@@ -249,7 +245,6 @@ export function GroupActivity({
 }: GroupActivityProps) {
   /** The chip that's been picked up and is waiting for a card to be tapped. */
   const [lifted, setLifted] = useState<string | null>(null)
-  const [renaming, setRenaming] = useState<StudentGroup | null>(null)
   /** The group whose status is being chosen, with the card's rect so the copy can fly from it. */
   const [picking, setPicking] = useState<{ group: StudentGroup; from: DOMRect } | null>(null)
   /**
@@ -462,21 +457,15 @@ export function GroupActivity({
                 >
                   {/* The colour band is the group's name tag - it's what the class will call them. */}
                   <header className={clsx('flex shrink-0 items-center px-3', d.headerPad)} style={{ background: group.color, color: fg }}>
-                    {/* No pencil: it is the Working icon now, and two pencils on one card
-                        would be confusing. The name itself is the rename target. */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        if (lifted || locked) return
-                        e.stopPropagation()
-                        setRenaming(group)
-                      }}
-                      title={locked ? undefined : 'Rename this group'}
-                      className="min-w-0 flex-1 truncate rounded-lg px-1 py-0.5 text-left font-extrabold leading-tight hover:bg-white/15 active:scale-[0.98]"
+                    {/* Plain text, not a button. Groups are Group 1, 2, 3 or Boys and Girls
+                        and that is enough; a rename field stretching to the status chip was
+                        mostly a way for a student to open a dialog by accident. */}
+                    <span
+                      className="min-w-0 flex-1 truncate font-extrabold leading-tight"
                       style={{ fontSize: `calc(clamp(1rem, 2.2vmin, 1.4rem) * ${d.nameScale})` }}
                     >
                       {group.name}
-                    </button>
+                    </span>
 
                     {/* The status target. It stays live when the board is locked - it is the
                         one thing students are here to tap. */}
@@ -490,8 +479,16 @@ export function GroupActivity({
                         if (card) setPicking({ group, from: card.getBoundingClientRect() })
                       }}
                       title={`${status.label} - tap to change`}
-                      className="flex shrink-0 items-center gap-1 rounded-full bg-white/25 px-1.5 py-1 font-bold whitespace-nowrap active:scale-95"
-                      style={{ fontSize: `calc(clamp(0.8rem, 1.6vmin, 1rem) * ${d.nameScale})` }}
+                      className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-bold whitespace-nowrap active:scale-95"
+                      // The chip wears the status colour, not a faded white, so it says the
+                      // same thing the card body does. The ring in the band's own text colour
+                      // keeps it separate when a red group is also asking for help.
+                      style={{
+                        background: status.color,
+                        color: status.fg,
+                        boxShadow: `0 0 0 2px ${fg}`,
+                        fontSize: `calc(clamp(0.82rem, 1.7vmin, 1.05rem) * ${d.nameScale})`,
+                      }}
                     >
                       <status.icon size={d.statusIcon} strokeWidth={2.75} />
                       {showStatusLabel && <span>{status.label}</span>}
@@ -560,11 +557,14 @@ export function GroupActivity({
                       }}
                       disabled={group.points === 0 || dealing}
                       title="Take a point away"
-                      className={clsx('shrink-0 !px-0 justify-center', d.button)}
+                      // flex-1 with a cap rather than a fixed width: on a wide card they are
+                      // the side panel's size, on a narrow one they give ground instead of
+                      // pushing each other out of the card.
+                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.button)}
                     >
                       <Minus size={d.sign} strokeWidth={2.75} />
                     </TactileButton>
-                    <span className={clsx('flex items-center justify-center gap-1 px-1 font-extrabold tabular-nums', d.score)}>
+                    <span className={clsx('flex shrink-0 items-center justify-center gap-1 px-1 font-extrabold tabular-nums', d.score)}>
                       <Star size={d.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
                       <motion.span
                         key={group.points}
@@ -583,7 +583,7 @@ export function GroupActivity({
                       }}
                       disabled={dealing}
                       title="Give a point"
-                      className={clsx('shrink-0 !px-0 justify-center', d.button)}
+                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.button)}
                     >
                       <Plus size={d.sign} strokeWidth={2.75} />
                     </TactileButton>
@@ -633,15 +633,6 @@ export function GroupActivity({
           onClose={() => setPicking(null)}
         />
       )}
-
-      <RenameGroupModal
-        group={renaming}
-        onClose={() => setRenaming(null)}
-        onSave={(name) => {
-          if (renaming) onRename(renaming.id, name)
-          setRenaming(null)
-        }}
-      />
     </div>
   )
 }
@@ -723,45 +714,5 @@ function Chip({ student, widthEm, tint, plain, lifted, placeholder, stacked, onC
     >
       {inner}
     </motion.button>
-  )
-}
-
-/** The one place typing is allowed, and it's optional: "Group 3" is a fine name. */
-function RenameGroupModal({ group, onClose, onSave }: { group: StudentGroup | null; onClose: () => void; onSave: (name: string) => void }) {
-  return (
-    <Modal open={group !== null} onClose={onClose} title="Rename Group">
-      {/* Keyed so each group opens with its own name, without an effect to copy it in. */}
-      <RenameForm key={group?.id ?? 'none'} group={group} onClose={onClose} onSave={onSave} />
-    </Modal>
-  )
-}
-
-function RenameForm({ group, onClose, onSave }: { group: StudentGroup | null; onClose: () => void; onSave: (name: string) => void }) {
-  const [name, setName] = useState(group?.name ?? '')
-  return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(e) => {
-        e.preventDefault()
-        onSave(name)
-      }}
-    >
-      <Input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        maxLength={24}
-        autoFocus
-        placeholder={group?.name}
-        className="text-lg font-bold"
-      />
-      <div className="flex gap-2">
-        <TactileButton type="button" onClick={onClose} className="flex-1 justify-center">
-          Cancel
-        </TactileButton>
-        <TactileButton type="submit" active className="flex-1 justify-center">
-          Save
-        </TactileButton>
-      </div>
-    </form>
   )
 }

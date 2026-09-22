@@ -134,9 +134,8 @@ function makeGroup(index: number, studentIds: string[], name?: string, color?: {
 
 /**
  * Deal the seated class into groups. Random schemes shuffle first; rows and gender are
- * fixed by the board. `previous` lets a re-shuffle keep any names the teacher typed, so
- * "Red Team" survives a second deal of the same shape - and keeps each card's identity by
- * position, so a shuffle re-deals the chips without tearing the cards down around them.
+ * fixed by the board. `previous` keeps each card's identity by position, so a shuffle
+ * re-deals the chips without tearing the cards down around them.
  */
 export function buildGroups(
   scheme: GroupScheme,
@@ -146,23 +145,16 @@ export function buildGroups(
 ): StudentGroup[] {
   const seated = seatedStudents(seating, studentsById)
   const ids = seated.map((s) => s.student.id)
-  const keepName = (i: number, fallback: string) => {
-    const prev = previous?.[i]
-    if (!prev) return fallback
-    // Only a name the teacher chose is worth carrying; a default name is regenerated so a
-    // new shape never shows "Group 1, Group 2, Group 4".
-    return /^Group \d+$/.test(prev.name) || prev.name === 'Boys' || prev.name === 'Girls' ? fallback : prev.name
-  }
   const keepId = (i: number) => previous?.[i]?.id
 
   switch (scheme.kind) {
     case 'count':
       return deal(shuffled(ids), Math.min(scheme.count, ids.length)).map((members, i) =>
-        makeGroup(i, members, keepName(i, `Group ${i + 1}`), undefined, keepId(i)),
+        makeGroup(i, members, `Group ${i + 1}`, undefined, keepId(i)),
       )
     case 'size':
       return deal(shuffled(ids), groupsForSize(ids.length, scheme.size)).map((members, i) =>
-        makeGroup(i, members, keepName(i, `Group ${i + 1}`), undefined, keepId(i)),
+        makeGroup(i, members, `Group ${i + 1}`, undefined, keepId(i)),
       )
     case 'gender': {
       const byGender: Record<Gender, string[]> = {
@@ -175,8 +167,8 @@ export function buildGroups(
       // shorter, one at a time, so the two sides stay as even as the class allows.
       byGender.unspecified.forEach((id) => (byGender.boy.length <= byGender.girl.length ? byGender.boy : byGender.girl).push(id))
       return [
-        makeGroup(0, byGender.boy, keepName(0, 'Boys'), GENDER_COLORS.boy, keepId(0)),
-        makeGroup(1, byGender.girl, keepName(1, 'Girls'), GENDER_COLORS.girl, keepId(1)),
+        makeGroup(0, byGender.boy, 'Boys', GENDER_COLORS.boy, keepId(0)),
+        makeGroup(1, byGender.girl, 'Girls', GENDER_COLORS.girl, keepId(1)),
       ]
     }
     case 'rows': {
@@ -187,7 +179,7 @@ export function buildGroups(
       })
       return Array.from(rows.keys())
         .sort((a, b) => a - b)
-        .map((row, i) => makeGroup(i, rows.get(row) ?? [], keepName(i, `Group ${i + 1}`), undefined, keepId(i)))
+        .map((row, i) => makeGroup(i, rows.get(row) ?? [], `Group ${i + 1}`, undefined, keepId(i)))
     }
   }
 }

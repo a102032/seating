@@ -82,7 +82,6 @@ export default function App() {
     setGroups,
     adjustGroupPoints,
     moveStudentToGroup,
-    renameGroup,
     setGroupStatus,
     setGroupPointsMode,
     finishGroupActivity,
@@ -524,7 +523,6 @@ export default function App() {
                     canShuffle={groupScheme !== null}
                     onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}
                     onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
-                    onRename={(groupId, name) => renameGroup(activeClass.id, groupId, name)}
                     onNewGroups={() => setGroupModalOpen(true)}
                     onShuffle={shuffleGroups}
                     onExit={requestExitGroups}
