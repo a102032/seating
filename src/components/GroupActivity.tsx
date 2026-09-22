@@ -1,21 +1,6 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import {
-  Check,
-  ClipboardCheck,
-  Hammer,
-  Hand,
-  Lock,
-  LockOpen,
-  LogOut,
-  Minus,
-  Pencil,
-  Plus,
-  Shuffle,
-  Star,
-  Target,
-  Users,
-} from 'lucide-react'
+import { Lock, LockOpen, LogOut, Minus, Plus, Shuffle, Star, Target, Users } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { textWidthEm } from '../lib/fitText'
 import { groupTextColor } from '../lib/groups'
@@ -30,6 +15,7 @@ import {
   playStatusReady,
 } from '../lib/sound'
 import type { GroupPointsMode, GroupStatus, Student, StudentGroup } from '../types'
+import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
 import { Input } from '@/components/ui/input'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
@@ -54,23 +40,14 @@ interface GroupActivityProps {
   /** A soft chime when a group taps Need Help, Ready or Done. */
   chimes: boolean
   /**
-   * Students are at the board: only the status lights answer to a tap. Everything that
-   * moves a name, changes a score or leaves the screen is frozen until the teacher unlocks.
+   * Students are at the board. Everything that would destroy work is frozen: moving a name,
+   * rename, New Groups, Shuffle and Exit. Status and points stay live, because awarding a
+   * point for being on task is a normal thing to do in the middle of an activity and
+   * unlocking to do it would be backwards.
    */
   locked: boolean
   onToggleLock: () => void
 }
-
-/**
- * The four lights, in the order a group's work usually goes. Colours are fixed on every
- * theme and the same on every card - a status is never confused with a group's colour.
- */
-const STATUSES: { id: GroupStatus; label: string; icon: typeof Hand; bg: string; fg: string }[] = [
-  { id: 'working', label: 'Working', icon: Hammer, bg: '#64748b', fg: '#ffffff' },
-  { id: 'help', label: 'Need Help', icon: Hand, bg: '#ef4444', fg: '#ffffff' },
-  { id: 'ready', label: 'Ready to Check', icon: ClipboardCheck, bg: '#f59e0b', fg: '#451a03' },
-  { id: 'done', label: 'Done', icon: Check, bg: '#22c55e', fg: '#ffffff' },
-]
 
 /** Chips sit in the stack this long before the first one is dealt. */
 const GATHER_MS = 520
@@ -110,11 +87,7 @@ const DENSITY = {
     nameScale: 1,
     bodyPad: 'p-2',
     chipGap: 'gap-2',
-    stripPad: 'py-1.5',
-    light: 'h-9',
-    dim: 'w-9',
-    lit: 'px-3',
-    icon: 17,
+    statusIcon: 16,
     footerPad: 'p-1.5',
     button: 'h-[38px] w-[50px]',
     score: 'min-w-[3.5rem] text-2xl',
@@ -126,11 +99,7 @@ const DENSITY = {
     nameScale: 0.85,
     bodyPad: 'p-1.5',
     chipGap: 'gap-1.5',
-    stripPad: 'py-1',
-    light: 'h-7',
-    dim: 'w-7',
-    lit: 'px-2.5',
-    icon: 15,
+    statusIcon: 15,
     footerPad: 'p-1',
     button: 'h-8 w-10',
     score: 'min-w-[2.75rem] text-xl',
@@ -142,11 +111,7 @@ const DENSITY = {
     nameScale: 0.75,
     bodyPad: 'p-1',
     chipGap: 'gap-1',
-    stripPad: 'py-0.5',
-    light: 'h-6',
-    dim: 'w-6',
-    lit: 'px-2',
-    icon: 13,
+    statusIcon: 13,
     footerPad: 'p-0.5',
     button: 'h-7 w-9',
     score: 'min-w-[2.5rem] text-lg',
@@ -165,23 +130,24 @@ interface CardChrome {
   header: number
   bodyPad: number
   chipGap: number
-  strip: number
   footer: number
   gridGap: number
 }
 
 function cardChrome(density: Density, headerFontPx: number): CardChrome {
-  const nameLine = Math.ceil(headerFontPx * DENSITY[density].nameScale * 1.25)
+  const style = DENSITY[density]
+  // The band is as tall as whichever is taller, the group's name or the status chip.
+  const headerLine = Math.max(Math.ceil(headerFontPx * style.nameScale * 1.25), style.statusIcon + 8)
   switch (density) {
     case 'normal':
-      // header py-1.5 + name button py-0.5; body p-2, gap-2; lights h-9 in py-1.5; buttons 38px in p-1.5 + border
-      return { density, header: 12 + 4 + nameLine, bodyPad: 16, chipGap: 8, strip: 12 + 36, footer: 12 + 38 + 1, gridGap: 12 }
+      // header py-1.5 + inner py-0.5; body p-2, gap-2; buttons 38px in p-1.5 + border
+      return { density, header: 12 + 4 + headerLine, bodyPad: 16, chipGap: 8, footer: 12 + 38 + 1, gridGap: 12 }
     case 'compact':
-      // header py-1; body p-1.5, gap-1.5; lights h-7 in py-1; buttons h-8 in p-1 + border
-      return { density, header: 8 + 4 + nameLine, bodyPad: 12, chipGap: 6, strip: 8 + 28, footer: 8 + 32 + 1, gridGap: 8 }
+      // header py-1; body p-1.5, gap-1.5; buttons h-8 in p-1 + border
+      return { density, header: 8 + 4 + headerLine, bodyPad: 12, chipGap: 6, footer: 8 + 32 + 1, gridGap: 8 }
     case 'tight':
-      // header py-0.5; body p-1, gap-1; lights h-6 in py-0.5; buttons h-7 in p-0.5 + border
-      return { density, header: 4 + 4 + nameLine, bodyPad: 8, chipGap: 4, strip: 4 + 24, footer: 4 + 28 + 1, gridGap: 8 }
+      // header py-0.5; body p-1, gap-1; buttons h-7 in p-0.5 + border
+      return { density, header: 4 + 4 + headerLine, bodyPad: 8, chipGap: 4, footer: 4 + 28 + 1, gridGap: 8 }
   }
 }
 
@@ -224,8 +190,7 @@ function planLayout(sizes: number[], chipEm: number, board: BoardMetrics): Layou
         if (inner < chipW) break
         const perRow = Math.floor((inner + chrome.chipGap) / (chipW + chrome.chipGap))
         const rows = Math.max(1, ...sizes.map((size) => Math.ceil(size / perRow)))
-        const cardH =
-          CARD_BORDER_PX + chrome.header + chrome.bodyPad + rows * chipH + (rows - 1) * chrome.chipGap + chrome.strip + chrome.footer
+        const cardH = CARD_BORDER_PX + chrome.header + chrome.bodyPad + rows * chipH + (rows - 1) * chrome.chipGap + chrome.footer
         const gridRows = Math.ceil(n / columns)
         const overflow = gridRows * cardH + (gridRows - 1) * gap - height
         if (overflow <= 0) return { columns, chipScale, chrome }
@@ -285,6 +250,8 @@ export function GroupActivity({
   /** The chip that's been picked up and is waiting for a card to be tapped. */
   const [lifted, setLifted] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<StudentGroup | null>(null)
+  /** The group whose status is being chosen, with the card's rect so the copy can fly from it. */
+  const [picking, setPicking] = useState<{ group: StudentGroup; from: DOMRect } | null>(null)
   /**
    * How many chips have left the stack; Infinity while no deal is running. A fresh deal
    * starts in the stack from the first frame, so the chips never flash up in the cards
@@ -381,6 +348,9 @@ export function GroupActivity({
     else if (status === 'done') playStatusDone()
   }
 
+  /** The live group behind the open picker, so its copy shows the status that was just set. */
+  const pickingGroup = picking ? (groups.find((g) => g.id === picking.group.id) ?? picking.group) : null
+
   function move(studentId: string, groupId: string) {
     const from = groups.find((g) => g.studentIds.includes(studentId))
     setLifted(null)
@@ -402,6 +372,9 @@ export function GroupActivity({
   const d = DENSITY[chrome.density]
   const gridGap = board.width >= 640 ? chrome.gridGap : 8
   const chipFont = `calc(var(--chip-font) * ${chipScale})`
+  // Every card in a deal is the same width, so the word is shown on all of them or none.
+  const cardWidth = columns > 0 ? (board.width - GRID_PAD_PX - (columns - 1) * gridGap) / columns : 0
+  const showStatusLabel = cardWidth >= 235
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
@@ -441,8 +414,8 @@ export function GroupActivity({
             className="!px-3 !py-2"
             title={
               locked
-                ? 'Names and scores are frozen; only the status lights work. Tap to unlock.'
-                : 'Freeze names and scores so students can tap their own status light'
+                ? 'Names are frozen so students can tap their own status. Points still work. Tap to unlock.'
+                : 'Freeze the names so students can come up and tap their own status'
             }
           >
             {locked ? <Lock size={16} /> : <LockOpen size={16} />} {locked ? 'Locked' : 'Lock'}
@@ -465,6 +438,7 @@ export function GroupActivity({
           >
             {groups.map((group) => {
               const fg = groupTextColor(group.color)
+              const status = statusStyle(group.status)
               const liftedHere = liftedChip !== null && group.studentIds.includes(liftedChip)
               const dropTarget = liftedChip !== null && !liftedHere
               return (
@@ -478,13 +452,18 @@ export function GroupActivity({
                   className={clsx(
                     'relative flex min-h-0 flex-col overflow-hidden rounded-2xl border-[3px] bg-card text-card-foreground shadow-md',
                     dropTarget && 'cursor-pointer',
+                    status.id === 'help' && 'card-help-pulse',
                   )}
                   // A real border, not a ring outside the card: a ring is clipped wherever a card
                   // meets the edge of the board, and showed up on some sides and not others.
-                  style={{ borderColor: group.color }}
+                  // Hidden rather than unmounted while its copy is down at the picker, so the
+                  // grid keeps its shape and the copy looks like the card itself flew.
+                  style={{ borderColor: group.color, visibility: picking?.group.id === group.id ? 'hidden' : undefined }}
                 >
                   {/* The colour band is the group's name tag - it's what the class will call them. */}
                   <header className={clsx('flex shrink-0 items-center px-3', d.headerPad)} style={{ background: group.color, color: fg }}>
+                    {/* No pencil: it is the Working icon now, and two pencils on one card
+                        would be confusing. The name itself is the rename target. */}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -492,16 +471,37 @@ export function GroupActivity({
                         e.stopPropagation()
                         setRenaming(group)
                       }}
-                      title="Rename this group"
-                      className="flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-0.5 text-left font-extrabold leading-tight hover:bg-white/15 active:scale-[0.98]"
+                      title={locked ? undefined : 'Rename this group'}
+                      className="min-w-0 flex-1 truncate rounded-lg px-1 py-0.5 text-left font-extrabold leading-tight hover:bg-white/15 active:scale-[0.98]"
                       style={{ fontSize: `calc(clamp(1rem, 2.2vmin, 1.4rem) * ${d.nameScale})` }}
                     >
-                      <span className="truncate">{group.name}</span>
-                      <Pencil size={13} className="shrink-0 opacity-60" />
+                      {group.name}
+                    </button>
+
+                    {/* The status target. It stays live when the board is locked - it is the
+                        one thing students are here to tap. */}
+                    <button
+                      type="button"
+                      data-status-target={group.status ?? 'working'}
+                      disabled={dealing}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const card = (e.currentTarget as HTMLElement).closest('[data-group-id]')
+                        if (card) setPicking({ group, from: card.getBoundingClientRect() })
+                      }}
+                      title={`${status.label} - tap to change`}
+                      className="flex shrink-0 items-center gap-1 rounded-full bg-white/25 px-1.5 py-1 font-bold whitespace-nowrap active:scale-95"
+                      style={{ fontSize: `calc(clamp(0.8rem, 1.6vmin, 1rem) * ${d.nameScale})` }}
+                    >
+                      <status.icon size={d.statusIcon} strokeWidth={2.75} />
+                      {showStatusLabel && <span>{status.label}</span>}
                     </button>
                   </header>
 
-                  <div className={clsx('relative min-h-0 flex-1', d.bodyPad)}>
+                  {/* The body carries the status, because it is the biggest surface a card
+                      has. Working has no wash, so a board of working groups looks calm and a
+                      single red card is impossible to miss. */}
+                  <div className={clsx('relative min-h-0 flex-1', d.bodyPad)} style={{ background: status.wash ?? undefined }}>
                     {dropTarget && (
                       <div
                         className="pointer-events-none absolute inset-1 animate-pulse rounded-xl border-2 border-dashed"
@@ -528,6 +528,7 @@ export function GroupActivity({
                             student={student}
                             widthEm={chipEm}
                             tint={group.color}
+                            plain={status.wash !== null}
                             lifted={isLifted}
                             // A tap anywhere on another card means "move here", chips
                             // included - the teacher is aiming at the card, not the name.
@@ -541,53 +542,6 @@ export function GroupActivity({
                         )
                       })}
                     </div>
-                  </div>
-
-                  {/* The status lights: one lit with its word, three dim. One tap goes straight
-                      to any state - no cycling past the one you wanted. This is the one
-                      control that stays live for students when the board is locked. */}
-                  <div
-                    data-status-strip
-                    className={clsx(
-                      'flex shrink-0 items-center justify-center gap-1.5 border-t border-black/5 px-2 dark:border-white/10',
-                      d.stripPad,
-                    )}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {STATUSES.map((status) => {
-                      const lit = (group.status ?? 'working') === status.id
-                      const Icon = status.icon
-                      return (
-                        <motion.button
-                          key={status.id}
-                          type="button"
-                          layout
-                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                          onClick={() => setStatus(group, status.id)}
-                          disabled={dealing}
-                          title={lit ? status.label : `Set to ${status.label}`}
-                          data-status={status.id}
-                          data-lit={lit || undefined}
-                          className={clsx(
-                            'flex shrink-0 items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-colors active:scale-95',
-                            d.light,
-                            lit
-                              ? `${d.lit} shadow-sm`
-                              : `${d.dim} bg-black/5 text-foreground/45 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20`,
-                            lit && status.id === 'help' && 'status-help-pulse',
-                          )}
-                          style={{
-                            background: lit ? status.bg : undefined,
-                            color: lit ? status.fg : undefined,
-                            fontSize: 'clamp(0.8rem, 1.5vmin, 1rem)',
-                            touchAction: 'manipulation',
-                          }}
-                        >
-                          <Icon size={d.icon} strokeWidth={2.5} />
-                          {lit && <span>{status.label}</span>}
-                        </motion.button>
-                      )
-                    })}
                   </div>
 
                   {/* The same +/- as the side panel - one size for a point, wherever it's given. */}
@@ -604,7 +558,7 @@ export function GroupActivity({
                         onAdjustPoints(group.id, -1)
                         playPointDeduct()
                       }}
-                      disabled={group.points === 0 || dealing || locked}
+                      disabled={group.points === 0 || dealing}
                       title="Take a point away"
                       className={clsx('shrink-0 !px-0 justify-center', d.button)}
                     >
@@ -627,7 +581,7 @@ export function GroupActivity({
                         onAdjustPoints(group.id, 1)
                         playPointAward()
                       }}
-                      disabled={dealing || locked}
+                      disabled={dealing}
                       title="Give a point"
                       className={clsx('shrink-0 !px-0 justify-center', d.button)}
                     >
@@ -669,6 +623,17 @@ export function GroupActivity({
         )}
       </div>
 
+      {pickingGroup && picking && (
+        <GroupStatusPicker
+          group={pickingGroup}
+          studentsById={studentsById}
+          chipEm={chipEm}
+          from={picking.from}
+          onChoose={(next) => setStatus(pickingGroup, next)}
+          onClose={() => setPicking(null)}
+        />
+      )}
+
       <RenameGroupModal
         group={renaming}
         onClose={() => setRenaming(null)}
@@ -686,6 +651,11 @@ interface ChipProps {
   widthEm: number
   /** The group's colour, washed out behind the name. Neutral while in the stack. */
   tint?: string
+  /**
+   * The body behind this chip is carrying a status wash, so the chip drops its group tint
+   * and sits on the plain card colour. Two washes stacked turn every name muddy.
+   */
+  plain?: boolean
   lifted?: boolean
   /** Holds a dealt chip's place in its card while it's still in the stack. */
   placeholder?: boolean
@@ -695,7 +665,7 @@ interface ChipProps {
 }
 
 /** A student's name tag: homeroom number and name, one size for the whole class. */
-function Chip({ student, widthEm, tint, lifted, placeholder, stacked, onClick, title }: ChipProps) {
+function Chip({ student, widthEm, tint, plain, lifted, placeholder, stacked, onClick, title }: ChipProps) {
   // A name too long for the chip shrinks to fit rather than being cut off - it's the one
   // student whose name is long, and "Alexandr…" on a scoreboard is worse than small type.
   const needed = textWidthEm(student.name) + textWidthEm(student.homeroom) * 0.72 + CHIP_CHROME_EM
@@ -707,9 +677,10 @@ function Chip({ student, widthEm, tint, lifted, placeholder, stacked, onClick, t
     'flex h-[2.25em] shrink-0 items-center gap-[0.35em] overflow-hidden rounded-full px-[0.8em] font-bold leading-tight shadow-sm select-none disabled:cursor-default',
     placeholder ? 'invisible' : 'text-card-foreground',
     stacked && 'bg-card ring-1 ring-black/10 dark:ring-white/15',
+    plain && !stacked && 'bg-card',
     lifted && 'z-20 ring-[3px] ring-amber-400',
   )
-  const style = { width: `${widthEm}em`, background: tint ? `${tint}22` : undefined }
+  const style = { width: `${widthEm}em`, background: plain || !tint ? undefined : `${tint}22` }
   const inner = (
     <>
       <span className="shrink-0 text-[0.72em] font-semibold opacity-50">{student.homeroom}</span>

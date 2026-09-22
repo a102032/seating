@@ -715,22 +715,31 @@ button {
 /* The homeroom number sits on the panel's caption bar, and at 45% it went muddy
    on the saturated ones. Full ink instead: on a caption bar it is the one piece
    of type competing with a colour rather than sitting on white stock. */
-/* A group's Need Help light: a soft ring that breathes out, so it reads from across the room
-   without flashing at the class. */
-@keyframes status-help-pulse {
+/* A group asking for help: the whole card breathes a soft red ring, so it reads from across
+   the room without flashing at the class. A ring rather than a scale, so nothing reflows and
+   the grid stays exactly where the layout planner put it. Help is the only status that moves:
+   ready and done are "when you get a chance", help is asking for you now. */
+@keyframes card-help-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 9px rgba(239, 68, 68, 0);
+    box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
   }
 }
 
-.status-help-pulse {
-  animation: status-help-pulse 1.7s ease-out infinite;
+.card-help-pulse {
+  animation: card-help-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-help-pulse {
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.45);
+  }
 }
 
 /* Group cards are panels too: the group's colour stays in its band, the ink takes the edge. */
