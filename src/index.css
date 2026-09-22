@@ -787,23 +787,6 @@ button {
   }
 }
 
-/*
- * The erased patch. A real board has a smudge where the chalk was wiped to make
- * room for writing, and that smudge is what keeps the doodles off the words:
- * anything drifting behind the headline dims to a ghost as it passes, rather
- * than sitting on the type at full strength. It's the board's own colour, so it
- * reads as a wipe and not as a card laid on top.
- */
-.splash-erased {
-  background: radial-gradient(
-    ellipse 60% 62% at 50% 50%,
-    rgba(43, 93, 76, 0.92) 0%,
-    rgba(43, 93, 76, 0.86) 45%,
-    rgba(43, 93, 76, 0.45) 72%,
-    rgba(43, 93, 76, 0) 100%
-  );
-}
-
 .splash-float {
   position: absolute;
   animation: splash-float var(--dur, 14s) linear infinite;
@@ -811,22 +794,6 @@ button {
   /* A soft chalk halo - the line looks laid on the board, not printed. */
   filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.35));
   will-change: bottom, transform, opacity;
-}
-
-/* Bunting swings from its string. Origin at the top so the string is the pivot. */
-@keyframes splash-sway {
-  0%,
-  100% {
-    transform: rotate(-1.2deg);
-  }
-  50% {
-    transform: rotate(1.2deg);
-  }
-}
-
-.splash-bunting {
-  transform-origin: 50% 0;
-  animation: splash-sway 5.5s ease-in-out infinite;
 }
 
 /* Chalk accent marks - the little "!" strokes beside a chalk headline. */
@@ -848,13 +815,26 @@ button {
   transform-origin: center;
 }
 
-/* The chalk grain. feTurbulence gives a dusty, uneven surface for free; without it
-   the board is a flat green rectangle and nothing reads as chalk on it. */
+/*
+ * The board: slate, with the marks of having been erased.
+ *
+ * The smears are wide, flat ellipses of low-alpha white laid at different heights
+ * and widths, because an eraser moves side to side - a real wiped board is a set
+ * of horizontal-ish streaks, not a uniform haze. Two are brighter where "strokes"
+ * would overlap. The feTurbulence grain underneath gives the slate its dust; without
+ * it the board is a flat grey rectangle and nothing on it reads as chalk.
+ */
 .splash-board {
-  background-color: #2b5d4c;
+  background-color: #3d4348;
   background-image:
-    radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0) 70%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    radial-gradient(ellipse 34% 9% at 22% 28%, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 42% 11% at 64% 36%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 30% 8% at 40% 52%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 46% 12% at 70% 64%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 36% 10% at 28% 76%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 28% 7% at 78% 84%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Chalk lettering. A faint halo, and the face itself is drawn as a sketch. */

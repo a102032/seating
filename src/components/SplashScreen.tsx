@@ -75,26 +75,28 @@ interface Drifter {
 }
 
 const DRIFTERS: Drifter[] = [
-  { Icon: Pencil, left: 4, size: 34, dur: 15, delay: -2, color: CHALK.yellow, sway: 16, peak: 0.85 },
-  { Icon: Ruler, left: 13, size: 40, dur: 18, delay: -9, color: CHALK.sky, sway: -12, peak: 0.75 },
-  { Icon: Apple, left: 21, size: 30, dur: 13, delay: -5, color: CHALK.pink, sway: 10, peak: 0.85 },
-  { Icon: Book, left: 29, size: 36, dur: 17, delay: -13, color: CHALK.mint, sway: -18, peak: 0.8 },
-  { Icon: Highlighter, left: 37, size: 30, dur: 14, delay: -1, color: CHALK.peach, sway: 14, peak: 0.8 },
-  { Icon: Eraser, left: 45, size: 32, dur: 16, delay: -7, color: CHALK.lavender, sway: -10, peak: 0.75 },
-  { Icon: Star, left: 52, size: 24, dur: 12, delay: -3, color: CHALK.yellow, sway: 20, peak: 0.9 },
-  { Icon: NotebookPen, left: 59, size: 38, dur: 19, delay: -11, color: CHALK.sky, sway: -14, peak: 0.75 },
-  { Icon: Scissors, left: 66, size: 30, dur: 15, delay: -6, color: CHALK.pink, sway: 12, peak: 0.8 },
-  { Icon: Calculator, left: 73, size: 34, dur: 17, delay: -14, color: CHALK.mint, sway: -16, peak: 0.75 },
-  { Icon: Paperclip, left: 80, size: 26, dur: 13, delay: -4, color: CHALK.white, sway: 18, peak: 0.7 },
-  { Icon: Backpack, left: 87, size: 38, dur: 18, delay: -10, color: CHALK.peach, sway: -12, peak: 0.8 },
-  { Icon: Palette, left: 94, size: 32, dur: 16, delay: -8, color: CHALK.lavender, sway: 10, peak: 0.8 },
-  { Icon: Globe, left: 9, size: 34, dur: 20, delay: -16, color: CHALK.sky, sway: 14, peak: 0.7 },
-  { Icon: BookOpen, left: 25, size: 36, dur: 16, delay: -12, color: CHALK.yellow, sway: -14, peak: 0.75 },
-  { Icon: FlaskConical, left: 41, size: 30, dur: 14, delay: -9, color: CHALK.mint, sway: 12, peak: 0.8 },
-  { Icon: GraduationCap, left: 56, size: 36, dur: 18, delay: -15, color: CHALK.white, sway: -18, peak: 0.75 },
-  { Icon: Star, left: 70, size: 20, dur: 11, delay: -2, color: CHALK.peach, sway: 16, peak: 0.9 },
-  { Icon: Pencil, left: 84, size: 28, dur: 14, delay: -7, color: CHALK.pink, sway: -10, peak: 0.8 },
-  { Icon: Apple, left: 97, size: 26, dur: 15, delay: -11, color: CHALK.mint, sway: 12, peak: 0.85 },
+  { Icon: Pencil, left: 2, size: 44, dur: 15, delay: -2, color: CHALK.yellow, sway: 16, peak: 0.8 },
+  { Icon: Ruler, left: 7, size: 50, dur: 18, delay: -9, color: CHALK.sky, sway: -12, peak: 0.7 },
+  { Icon: Apple, left: 12, size: 38, dur: 13, delay: -5, color: CHALK.pink, sway: 10, peak: 0.8 },
+  { Icon: Book, left: 4, size: 46, dur: 17, delay: -13, color: CHALK.mint, sway: -18, peak: 0.75 },
+  { Icon: Highlighter, left: 10, size: 38, dur: 14, delay: -1, color: CHALK.peach, sway: 14, peak: 0.75 },
+  { Icon: Eraser, left: 15, size: 40, dur: 16, delay: -7, color: CHALK.lavender, sway: -10, peak: 0.7 },
+  { Icon: Globe, left: 6, size: 44, dur: 20, delay: -16, color: CHALK.sky, sway: 14, peak: 0.65 },
+  { Icon: Star, left: 14, size: 28, dur: 12, delay: -3, color: CHALK.yellow, sway: 20, peak: 0.85 },
+  { Icon: Scissors, left: 85, size: 38, dur: 15, delay: -6, color: CHALK.pink, sway: 12, peak: 0.75 },
+  { Icon: Calculator, left: 91, size: 42, dur: 17, delay: -14, color: CHALK.mint, sway: -16, peak: 0.7 },
+  { Icon: Paperclip, left: 96, size: 34, dur: 13, delay: -4, color: CHALK.white, sway: 18, peak: 0.65 },
+  { Icon: Backpack, left: 88, size: 48, dur: 18, delay: -10, color: CHALK.peach, sway: -12, peak: 0.75 },
+  { Icon: Palette, left: 94, size: 42, dur: 16, delay: -8, color: CHALK.lavender, sway: 10, peak: 0.75 },
+  { Icon: NotebookPen, left: 83, size: 46, dur: 19, delay: -11, color: CHALK.sky, sway: -14, peak: 0.7 },
+  { Icon: FlaskConical, left: 97, size: 38, dur: 14, delay: -9, color: CHALK.mint, sway: 12, peak: 0.75 },
+  { Icon: Star, left: 90, size: 26, dur: 11, delay: -2, color: CHALK.peach, sway: 16, peak: 0.85 },
+  // A few down the middle: hidden behind the board most of the way, they surface above and
+  // below it, so the wall doesn't read as two strips with a dead centre.
+  { Icon: BookOpen, left: 30, size: 44, dur: 16, delay: -12, color: CHALK.yellow, sway: -14, peak: 0.7 },
+  { Icon: GraduationCap, left: 50, size: 46, dur: 18, delay: -15, color: CHALK.white, sway: -18, peak: 0.7 },
+  { Icon: Pencil, left: 68, size: 36, dur: 14, delay: -7, color: CHALK.pink, sway: -10, peak: 0.75 },
+  { Icon: Apple, left: 42, size: 34, dur: 15, delay: -11, color: CHALK.mint, sway: 12, peak: 0.8 },
 ]
 
 function Bunting() {
@@ -112,21 +114,29 @@ function Bunting() {
     <svg
       viewBox="0 0 1000 110"
       preserveAspectRatio="none"
-      className="splash-bunting pointer-events-none absolute inset-x-0 top-0 h-[14%] w-full"
+      className="pointer-events-none absolute inset-x-0 top-0 h-[14%] w-full"
+      style={{ overflow: 'visible' }}
       aria-hidden
     >
-      <path d={path} fill="none" stroke={CHALK.white} strokeWidth="2.5" strokeLinecap="round" opacity="0.85" />
-      {flags.map((f, i) => (
-        <polygon
-          key={i}
-          points={`${f.x - 26},${f.y} ${f.x + 26},${f.y} ${f.x},${f.y + 52}`}
-          fill={f.color}
-          stroke={CHALK.white}
-          strokeWidth="2"
-          strokeLinejoin="round"
-          opacity="0.95"
-        />
-      ))}
+      <defs>
+        {/* The flags hang a little off the slate, so they throw a shadow onto it. */}
+        <filter id="bunting-shadow" x="-10%" y="-10%" width="120%" height="160%">
+          <feDropShadow dx="2" dy="5" stdDeviation="3" floodColor="#000" floodOpacity="0.45" />
+        </filter>
+      </defs>
+      <g filter="url(#bunting-shadow)">
+        <path d={path} fill="none" stroke={CHALK.white} strokeWidth="3" strokeLinecap="round" />
+        {flags.map((f, i) => (
+          <polygon
+            key={i}
+            points={`${f.x - 26},${f.y} ${f.x + 26},${f.y} ${f.x},${f.y + 52}`}
+            fill={f.color}
+            stroke={CHALK.white}
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+          />
+        ))}
+      </g>
     </svg>
   )
 }
@@ -152,18 +162,31 @@ function ChalkMarks({ className, delay, flip }: { className: string; delay: numb
 /** The ledge under the board, with an eraser and three sticks of chalk on it. */
 function ChalkTray() {
   return (
-    <div className="relative mx-auto h-4 w-[96%] rounded-b-md bg-gradient-to-b from-[#c48f4f] to-[#8d5f2b] shadow-[0_5px_10px_rgba(0,0,0,0.3)]">
-      {/* Eraser */}
-      <div className="absolute -top-3.5 left-[8%] h-4 w-14 rounded-sm bg-gradient-to-b from-[#4f7fa8] to-[#2f5d84] shadow-[0_2px_3px_rgba(0,0,0,0.35)]">
-        <div className="absolute inset-x-0 bottom-0 h-1.5 rounded-b-sm bg-[#e8e4d8]" />
+    <div
+      className="relative mx-auto w-[96%] rounded-b-lg bg-gradient-to-b from-[#c48f4f] via-[#a9773a] to-[#8d5f2b] shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
+      style={{ height: 'clamp(14px, 1.9vw, 26px)' }}
+    >
+      {/* The lip - a lighter edge along the front. */}
+      <div className="absolute inset-x-0 top-0 h-[3px] bg-[#e0b57a]/70" />
+      {/* Eraser: felt block on top, wooden back below. */}
+      <div
+        className="absolute left-[7%] rounded-[3px] bg-gradient-to-b from-[#5b8bb5] to-[#2f5d84] shadow-[0_3px_5px_rgba(0,0,0,0.4)]"
+        style={{ width: 'clamp(64px, 9vw, 124px)', height: 'clamp(20px, 2.8vw, 38px)', bottom: '55%' }}
+      >
+        <div className="absolute inset-x-0 bottom-0 h-[32%] rounded-b-[3px] bg-[#ebe6d8]" />
       </div>
-      {/* Chalk sticks */}
-      <div className="absolute -top-2 right-[9%] flex gap-1.5">
+      {/* Chalk sticks. */}
+      <div className="absolute right-[8%] flex items-end" style={{ bottom: '58%', gap: 'clamp(6px, 0.8vw, 12px)' }}>
         {[CHALK.white, CHALK.pink, CHALK.yellow].map((c, i) => (
           <div
             key={i}
-            className="h-2 w-8 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.35)]"
-            style={{ background: c, transform: `rotate(${i === 1 ? -3 : i === 2 ? 4 : 0}deg)` }}
+            className="rounded-full shadow-[0_2px_3px_rgba(0,0,0,0.4)]"
+            style={{
+              background: `linear-gradient(to bottom, #fff 0%, ${c} 55%, rgba(0,0,0,0.12) 100%)`,
+              width: 'clamp(38px, 5.2vw, 72px)',
+              height: 'clamp(8px, 1vw, 14px)',
+              transform: `rotate(${i === 1 ? -4 : i === 2 ? 5 : 0}deg)`,
+            }}
           />
         ))}
       </div>
@@ -195,8 +218,35 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
       exit={{ opacity: 0, scale: 1.03 }}
       transition={{ duration: 0.4 }}
     >
+      {/* The drift, on the wall. Behind the frame, so the supplies show in the space
+          around the board and never on it; the board is opaque and hides them as they
+          pass behind. Pointer-events off so nothing here ever eats a tap. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {DRIFTERS.map((d, i) => (
+          <span
+            key={i}
+            className="splash-float"
+            style={
+              {
+                left: `${d.left}%`,
+                color: d.color,
+                '--dur': `${d.dur}s`,
+                '--delay': `${d.delay}s`,
+                '--sway': `${d.sway}px`,
+                '--peak': d.peak,
+                '--from-rot': `${(i % 3) * 7 - 10}deg`,
+                '--mid-rot': `${(i % 4) * 5 - 6}deg`,
+                '--to-rot': `${(i % 5) * 6 - 12}deg`,
+              } as CSSProperties
+            }
+          >
+            <d.Icon size={d.size} strokeWidth={1.75} />
+          </span>
+        ))}
+      </div>
+
       <motion.div
-        className="flex w-full max-w-5xl flex-col"
+        className="relative z-10 flex w-full max-w-5xl flex-col"
         initial={{ scale: 0.92, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
@@ -212,39 +262,8 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
               style={{ borderColor: 'rgba(244,241,232,0.55)' }}
             />
 
-            {/* The drift. Pointer-events off so nothing here ever eats a tap. */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              {DRIFTERS.map((d, i) => (
-                <span
-                  key={i}
-                  className="splash-float"
-                  style={
-                    {
-                      left: `${d.left}%`,
-                      color: d.color,
-                      '--dur': `${d.dur}s`,
-                      '--delay': `${d.delay}s`,
-                      '--sway': `${d.sway}px`,
-                      '--peak': d.peak,
-                      '--from-rot': `${(i % 3) * 7 - 10}deg`,
-                      '--mid-rot': `${(i % 4) * 5 - 6}deg`,
-                      '--to-rot': `${(i % 5) * 6 - 12}deg`,
-                    } as CSSProperties
-                  }
-                >
-                  <d.Icon size={d.size} strokeWidth={1.75} />
-                </span>
-              ))}
-            </div>
-
             {/* What the teacher reads and taps. */}
             <div className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
-              <div className="relative flex flex-col items-center">
-              {/* The wipe behind the writing - see .splash-erased. Sized to this group,
-                  not the board: the first cut spanned the board's height and dimmed the
-                  bunting along with the doodles. Oversized past the group so its edge
-                  feathers out beyond the cards rather than cutting across them. */}
-              <div className="splash-erased pointer-events-none absolute -inset-x-[14%] -inset-y-[22%]" />
               <div className="relative">
                 <ChalkMarks className="-left-12 top-0 sm:-left-16" delay={0} />
                 <ChalkMarks className="-right-12 top-1 sm:-right-16" delay={0.9} flip />
@@ -307,7 +326,6 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
                   )
                 )}
               </motion.div>
-              </div>
             </div>
           </div>
         </div>
