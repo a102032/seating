@@ -1,11 +1,35 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { LogOut, Minus, Pencil, Plus, Shuffle, Star, Target, Users } from 'lucide-react'
+import {
+  Check,
+  ClipboardCheck,
+  Hammer,
+  Hand,
+  Lock,
+  LockOpen,
+  LogOut,
+  Minus,
+  Pencil,
+  Plus,
+  Shuffle,
+  Star,
+  Target,
+  Users,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { textWidthEm } from '../lib/fitText'
 import { groupTextColor } from '../lib/groups'
-import { playCardDeal, playCardFlip, playPointAward, playPointDeduct, playShuffle } from '../lib/sound'
-import type { GroupPointsMode, Student, StudentGroup } from '../types'
+import {
+  playCardDeal,
+  playCardFlip,
+  playPointAward,
+  playPointDeduct,
+  playShuffle,
+  playStatusDone,
+  playStatusHelp,
+  playStatusReady,
+} from '../lib/sound'
+import type { GroupPointsMode, GroupStatus, Student, StudentGroup } from '../types'
 import { Input } from '@/components/ui/input'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
@@ -26,7 +50,27 @@ interface GroupActivityProps {
   onNewGroups: () => void
   onShuffle: () => void
   onExit: () => void
+  onSetStatus: (groupId: string, status: GroupStatus) => void
+  /** A soft chime when a group taps Need Help, Ready or Done. */
+  chimes: boolean
+  /**
+   * Students are at the board: only the status lights answer to a tap. Everything that
+   * moves a name, changes a score or leaves the screen is frozen until the teacher unlocks.
+   */
+  locked: boolean
+  onToggleLock: () => void
 }
+
+/**
+ * The four lights, in the order a group's work usually goes. Colours are fixed on every
+ * theme and the same on every card - a status is never confused with a group's colour.
+ */
+const STATUSES: { id: GroupStatus; label: string; icon: typeof Hand; bg: string; fg: string }[] = [
+  { id: 'working', label: 'Working', icon: Hammer, bg: '#64748b', fg: '#ffffff' },
+  { id: 'help', label: 'Need Help', icon: Hand, bg: '#ef4444', fg: '#ffffff' },
+  { id: 'ready', label: 'Ready to Check', icon: ClipboardCheck, bg: '#f59e0b', fg: '#451a03' },
+  { id: 'done', label: 'Done', icon: Check, bg: '#22c55e', fg: '#ffffff' },
+]
 
 /** Chips sit in the stack this long before the first one is dealt. */
 const GATHER_MS = 520
@@ -38,8 +82,6 @@ const CHIP_MAX_EM = 11
 const CHIP_MIN_EM = 5.5
 /** The card's fixed dimensions the layout planner has to account for, in px. */
 const CARD_BORDER_PX = 3 * 2
-const CARD_BODY_PAD_PX = 8 * 2
-const CHIP_GAP_PX = 8
 const CHIP_HEIGHT_EM = 2.25
 const GRID_PAD_PX = 2 * 2
 /** How far the chips may shrink to make a deal fit the board, before the board clips instead. */
@@ -50,42 +92,148 @@ interface BoardMetrics {
   height: number
   /** The chip font at full size, in px. */
   fontPx: number
-  /** Measured from a rendered card, so the plan is never guessing at the chrome. */
-  header: number
-  footer: number
+  /** The group-name font in px, from the same clamp the header uses. */
+  headerFontPx: number
 }
 
 /**
- * The column count and chip size that fit every card on the board at once.
+ * How tightly a card is packed. Normal is the design; compact and tight give up padding,
+ * light size and button size, in that order, so that the names - the thing that has to be
+ * read from the back of the room - are the last thing to shrink.
+ */
+type Density = 'normal' | 'compact' | 'tight'
+
+/** The classes each density renders with. The numbers in cardChrome are these, in px. */
+const DENSITY = {
+  normal: {
+    headerPad: 'py-1.5',
+    nameScale: 1,
+    bodyPad: 'p-2',
+    chipGap: 'gap-2',
+    stripPad: 'py-1.5',
+    light: 'h-9',
+    dim: 'w-9',
+    lit: 'px-3',
+    icon: 17,
+    footerPad: 'p-1.5',
+    button: 'h-[38px] w-[50px]',
+    score: 'min-w-[3.5rem] text-2xl',
+    star: 20,
+    sign: 20,
+  },
+  compact: {
+    headerPad: 'py-1',
+    nameScale: 0.85,
+    bodyPad: 'p-1.5',
+    chipGap: 'gap-1.5',
+    stripPad: 'py-1',
+    light: 'h-7',
+    dim: 'w-7',
+    lit: 'px-2.5',
+    icon: 15,
+    footerPad: 'p-1',
+    button: 'h-8 w-10',
+    score: 'min-w-[2.75rem] text-xl',
+    star: 17,
+    sign: 18,
+  },
+  tight: {
+    headerPad: 'py-0.5',
+    nameScale: 0.75,
+    bodyPad: 'p-1',
+    chipGap: 'gap-1',
+    stripPad: 'py-0.5',
+    light: 'h-6',
+    dim: 'w-6',
+    lit: 'px-2',
+    icon: 13,
+    footerPad: 'p-0.5',
+    button: 'h-7 w-9',
+    score: 'min-w-[2.5rem] text-lg',
+    star: 15,
+    sign: 16,
+  },
+} as const
+
+/**
+ * A card's chrome - everything that isn't chips - at each density, in px. Computed from the
+ * classes above rather than measured, because the plan decides which density renders:
+ * measuring the result would have the plan chasing its own output.
+ */
+interface CardChrome {
+  density: Density
+  header: number
+  bodyPad: number
+  chipGap: number
+  strip: number
+  footer: number
+  gridGap: number
+}
+
+function cardChrome(density: Density, headerFontPx: number): CardChrome {
+  const nameLine = Math.ceil(headerFontPx * DENSITY[density].nameScale * 1.25)
+  switch (density) {
+    case 'normal':
+      // header py-1.5 + name button py-0.5; body p-2, gap-2; lights h-9 in py-1.5; buttons 38px in p-1.5 + border
+      return { density, header: 12 + 4 + nameLine, bodyPad: 16, chipGap: 8, strip: 12 + 36, footer: 12 + 38 + 1, gridGap: 12 }
+    case 'compact':
+      // header py-1; body p-1.5, gap-1.5; lights h-7 in py-1; buttons h-8 in p-1 + border
+      return { density, header: 8 + 4 + nameLine, bodyPad: 12, chipGap: 6, strip: 8 + 28, footer: 8 + 32 + 1, gridGap: 8 }
+    case 'tight':
+      // header py-0.5; body p-1, gap-1; lights h-6 in py-0.5; buttons h-7 in p-0.5 + border
+      return { density, header: 4 + 4 + nameLine, bodyPad: 8, chipGap: 4, strip: 4 + 24, footer: 4 + 28 + 1, gridGap: 8 }
+  }
+}
+
+interface LayoutPlan {
+  columns: number
+  chipScale: number
+  chrome: CardChrome
+}
+
+/**
+ * The column count, chip size and card chrome that fit every card on the board at once.
  *
  * The app never scrolls - that's a rule, not a preference - so the board can't just be as
  * tall as thirteen cards need. Every dimension in a card is known here, which means the
  * layout can be planned rather than measured after the fact: try the nicest column count
- * first at full-size chips, then more columns, and only when no column count fits shrink the
- * chips a step (all of them - one size for the class holds) and try again.
+ * first at full-size chips, then more columns; then tighten the card's chrome; and only
+ * when nothing fits shrink the chips a step (all of them - one size for the class holds)
+ * and try again. Names are what has to be read from the back of the room, so they are the
+ * last thing to give.
  */
-function planLayout(sizes: number[], chipEm: number, board: BoardMetrics): { columns: number; chipScale: number } {
+function planLayout(sizes: number[], chipEm: number, board: BoardMetrics): LayoutPlan {
   const n = sizes.length
   const preferred = Math.max(1, columnsFor(n))
-  if (board.width === 0 || n === 0) return { columns: preferred, chipScale: 1 }
-  const gap = board.width >= 640 ? 12 : 8
+  const chromes = (['normal', 'compact', 'tight'] as const).map((density) => cardChrome(density, board.headerFontPx))
+  if (board.width === 0 || n === 0) return { columns: preferred, chipScale: 1, chrome: chromes[0] }
   const width = board.width - GRID_PAD_PX
   const height = board.height - GRID_PAD_PX
-  let fallback = { columns: preferred, chipScale: CHIP_SCALES[CHIP_SCALES.length - 1] }
+  // If nothing fits, the plan that overflows least - the board clips the rest, never scrolls.
+  let fallback: LayoutPlan = { columns: preferred, chipScale: CHIP_SCALES[CHIP_SCALES.length - 1], chrome: chromes[2] }
+  let fallbackOverflow = Infinity
   for (const chipScale of CHIP_SCALES) {
     const chipW = chipEm * board.fontPx * chipScale
     const chipH = CHIP_HEIGHT_EM * board.fontPx * chipScale
-    for (let columns = preferred; columns <= n; columns++) {
-      const cardW = (width - (columns - 1) * gap) / columns
-      const inner = cardW - CARD_BORDER_PX - CARD_BODY_PAD_PX
-      // Narrower than a chip, and every extra column is narrower still.
-      if (inner < chipW) break
-      const perRow = Math.floor((inner + CHIP_GAP_PX) / (chipW + CHIP_GAP_PX))
-      const rows = Math.max(1, ...sizes.map((size) => Math.ceil(size / perRow)))
-      const cardH = CARD_BORDER_PX + board.header + CARD_BODY_PAD_PX + rows * chipH + (rows - 1) * CHIP_GAP_PX + board.footer
-      const gridRows = Math.ceil(n / columns)
-      if (gridRows * cardH + (gridRows - 1) * gap <= height) return { columns, chipScale }
-      fallback = { columns, chipScale }
+    for (const chrome of chromes) {
+      const gap = board.width >= 640 ? chrome.gridGap : 8
+      for (let columns = preferred; columns <= n; columns++) {
+        const cardW = (width - (columns - 1) * gap) / columns
+        const inner = cardW - CARD_BORDER_PX - chrome.bodyPad
+        // Narrower than a chip, and every extra column is narrower still.
+        if (inner < chipW) break
+        const perRow = Math.floor((inner + chrome.chipGap) / (chipW + chrome.chipGap))
+        const rows = Math.max(1, ...sizes.map((size) => Math.ceil(size / perRow)))
+        const cardH =
+          CARD_BORDER_PX + chrome.header + chrome.bodyPad + rows * chipH + (rows - 1) * chrome.chipGap + chrome.strip + chrome.footer
+        const gridRows = Math.ceil(n / columns)
+        const overflow = gridRows * cardH + (gridRows - 1) * gap - height
+        if (overflow <= 0) return { columns, chipScale, chrome }
+        if (overflow < fallbackOverflow) {
+          fallbackOverflow = overflow
+          fallback = { columns, chipScale, chrome }
+        }
+      }
     }
   }
   return fallback
@@ -129,6 +277,10 @@ export function GroupActivity({
   onNewGroups,
   onShuffle,
   onExit,
+  onSetStatus,
+  chimes,
+  locked,
+  onToggleLock,
 }: GroupActivityProps) {
   /** The chip that's been picked up and is waiting for a card to be tapped. */
   const [lifted, setLifted] = useState<string | null>(null)
@@ -141,19 +293,21 @@ export function GroupActivity({
   const [dealt, setDealt] = useState(() => (dealTick === 0 ? Infinity : 0))
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const boardRef = useRef<HTMLDivElement>(null)
-  const [board, setBoard] = useState<BoardMetrics>({ width: 0, height: 0, fontPx: 16, header: 40, footer: 51 })
+  const [board, setBoard] = useState<BoardMetrics>({ width: 0, height: 0, fontPx: 16, headerFontPx: 16 })
 
   useEffect(() => {
     const el = boardRef.current
     if (!el) return
-    const update = () =>
+    const update = () => {
+      // The same clamp(1rem, 2.2vmin, 1.4rem) the group name renders at.
+      const vmin = Math.min(window.innerWidth, window.innerHeight)
       setBoard({
         width: el.clientWidth,
         height: el.clientHeight,
         fontPx: parseFloat(getComputedStyle(el).fontSize) || 16,
-        header: el.querySelector<HTMLElement>('[data-group-id] header')?.offsetHeight ?? 40,
-        footer: el.querySelector<HTMLElement>('[data-group-id] footer')?.offsetHeight ?? 51,
+        headerFontPx: Math.min(22.4, Math.max(16, 0.022 * vmin)),
       })
+    }
     update()
     const observer = new ResizeObserver(update)
     observer.observe(el)
@@ -218,6 +372,15 @@ export function GroupActivity({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealTick])
 
+  function setStatus(group: StudentGroup, status: GroupStatus) {
+    if ((group.status ?? 'working') === status) return
+    onSetStatus(group.id, status)
+    if (!chimes) return
+    if (status === 'help') playStatusHelp()
+    else if (status === 'ready') playStatusReady()
+    else if (status === 'done') playStatusDone()
+  }
+
   function move(studentId: string, groupId: string) {
     const from = groups.find((g) => g.studentIds.includes(studentId))
     setLifted(null)
@@ -226,25 +389,30 @@ export function GroupActivity({
     playCardFlip()
   }
 
+  // A chip lifted before the lock was tapped stays lifted in state but not on screen, so a
+  // student can't complete a move the teacher started.
+  const liftedChip = locked ? null : lifted
   const dealing = dealt !== Infinity
   const inStack = dealing ? slots.filter((s) => s.index >= dealt) : []
-  const { columns, chipScale } = planLayout(
+  const { columns, chipScale, chrome } = planLayout(
     groups.map((g) => g.studentIds.length),
     chipEm,
     board,
   )
+  const d = DENSITY[chrome.density]
+  const gridGap = board.width >= 640 ? chrome.gridGap : 8
   const chipFont = `calc(var(--chip-font) * ${chipScale})`
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm backdrop-blur-xl">
         <div className="flex items-center gap-1.5">
-          <TactileButton onClick={onNewGroups} disabled={dealing} className="!px-3 !py-2">
+          <TactileButton onClick={onNewGroups} disabled={dealing || locked} className="!px-3 !py-2">
             <Users size={16} /> New Groups
           </TactileButton>
           <TactileButton
             onClick={onShuffle}
-            disabled={!canShuffle || dealing}
+            disabled={!canShuffle || dealing || locked}
             className="!px-3 !py-2"
             title={canShuffle ? 'Deal these groups again' : 'Tap New Groups to shuffle'}
           >
@@ -264,7 +432,22 @@ export function GroupActivity({
             {pointsMode === 'students' ? <Users size={15} /> : <Target size={15} />}
             <span className="hidden sm:inline">{pointsMode === 'students' ? 'Stars to each student' : 'Points to class goal'}</span>
           </span>
-          <TactileButton onClick={onExit} disabled={dealing} className="!px-3 !py-2">
+          {/* For when students come up to the board to change their own light: nothing else
+              answers to a tap until the teacher unlocks. */}
+          <TactileButton
+            active={locked}
+            onClick={onToggleLock}
+            disabled={dealing}
+            className="!px-3 !py-2"
+            title={
+              locked
+                ? 'Names and scores are frozen; only the status lights work. Tap to unlock.'
+                : 'Freeze names and scores so students can tap their own status light'
+            }
+          >
+            {locked ? <Lock size={16} /> : <LockOpen size={16} />} {locked ? 'Locked' : 'Lock'}
+          </TactileButton>
+          <TactileButton onClick={onExit} disabled={dealing || locked} className="!px-3 !py-2">
             <LogOut size={16} /> Exit Group Activity
           </TactileButton>
         </div>
@@ -277,13 +460,13 @@ export function GroupActivity({
             can't make its card the odd one out. */}
         <div className="flex h-full flex-col overflow-hidden">
           <div
-            className="my-auto grid gap-2 p-0.5 text-base sm:gap-3"
-            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr' }}
+            className="my-auto grid p-0.5 text-base"
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: gridGap }}
           >
             {groups.map((group) => {
               const fg = groupTextColor(group.color)
-              const liftedHere = lifted !== null && group.studentIds.includes(lifted)
-              const dropTarget = lifted !== null && !liftedHere
+              const liftedHere = liftedChip !== null && group.studentIds.includes(liftedChip)
+              const dropTarget = liftedChip !== null && !liftedHere
               return (
                 <motion.section
                   key={group.id}
@@ -291,7 +474,7 @@ export function GroupActivity({
                   data-group-id={group.id}
                   data-ink="group-card"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  onClick={() => lifted && move(lifted, group.id)}
+                  onClick={() => lifted && !locked && move(lifted, group.id)}
                   className={clsx(
                     'relative flex min-h-0 flex-col overflow-hidden rounded-2xl border-[3px] bg-card text-card-foreground shadow-md',
                     dropTarget && 'cursor-pointer',
@@ -301,31 +484,31 @@ export function GroupActivity({
                   style={{ borderColor: group.color }}
                 >
                   {/* The colour band is the group's name tag - it's what the class will call them. */}
-                  <header className="flex shrink-0 items-center px-3 py-1.5" style={{ background: group.color, color: fg }}>
+                  <header className={clsx('flex shrink-0 items-center px-3', d.headerPad)} style={{ background: group.color, color: fg }}>
                     <button
                       type="button"
                       onClick={(e) => {
-                        if (lifted) return
+                        if (lifted || locked) return
                         e.stopPropagation()
                         setRenaming(group)
                       }}
                       title="Rename this group"
                       className="flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-0.5 text-left font-extrabold leading-tight hover:bg-white/15 active:scale-[0.98]"
-                      style={{ fontSize: 'clamp(1rem, 2.2vmin, 1.4rem)' }}
+                      style={{ fontSize: `calc(clamp(1rem, 2.2vmin, 1.4rem) * ${d.nameScale})` }}
                     >
                       <span className="truncate">{group.name}</span>
                       <Pencil size={13} className="shrink-0 opacity-60" />
                     </button>
                   </header>
 
-                  <div className="relative min-h-0 flex-1 p-2">
+                  <div className={clsx('relative min-h-0 flex-1', d.bodyPad)}>
                     {dropTarget && (
                       <div
                         className="pointer-events-none absolute inset-1 animate-pulse rounded-xl border-2 border-dashed"
                         style={{ borderColor: group.color }}
                       />
                     )}
-                    <div className="flex flex-wrap content-start justify-center gap-2" style={{ fontSize: chipFont }}>
+                    <div className={clsx('flex flex-wrap content-start justify-center', d.chipGap)} style={{ fontSize: chipFont }}>
                       {group.studentIds.length === 0 && (
                         <span className="w-full py-3 text-center text-sm font-medium text-muted-foreground">
                           Empty - tap here to move someone in
@@ -338,7 +521,7 @@ export function GroupActivity({
                         // Still in the stack: hold its place, so the card keeps its height
                         // through the deal instead of growing chip by chip.
                         if (dealing && slot.index >= dealt) return <Chip key={studentId} student={student} widthEm={chipEm} placeholder />
-                        const isLifted = lifted === studentId
+                        const isLifted = liftedChip === studentId
                         return (
                           <Chip
                             key={studentId}
@@ -348,7 +531,11 @@ export function GroupActivity({
                             lifted={isLifted}
                             // A tap anywhere on another card means "move here", chips
                             // included - the teacher is aiming at the card, not the name.
-                            onClick={() => (dropTarget ? move(lifted!, group.id) : setLifted(isLifted ? null : studentId))}
+                            onClick={() => {
+                              if (locked) return
+                              if (dropTarget) move(lifted!, group.id)
+                              else setLifted(isLifted ? null : studentId)
+                            }}
                             title={isLifted ? 'Now tap the group to move them to' : 'Tap, then tap another group to move them'}
                           />
                         )
@@ -356,8 +543,60 @@ export function GroupActivity({
                     </div>
                   </div>
 
+                  {/* The status lights: one lit with its word, three dim. One tap goes straight
+                      to any state - no cycling past the one you wanted. This is the one
+                      control that stays live for students when the board is locked. */}
+                  <div
+                    data-status-strip
+                    className={clsx(
+                      'flex shrink-0 items-center justify-center gap-1.5 border-t border-black/5 px-2 dark:border-white/10',
+                      d.stripPad,
+                    )}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {STATUSES.map((status) => {
+                      const lit = (group.status ?? 'working') === status.id
+                      const Icon = status.icon
+                      return (
+                        <motion.button
+                          key={status.id}
+                          type="button"
+                          layout
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          onClick={() => setStatus(group, status.id)}
+                          disabled={dealing}
+                          title={lit ? status.label : `Set to ${status.label}`}
+                          data-status={status.id}
+                          data-lit={lit || undefined}
+                          className={clsx(
+                            'flex shrink-0 items-center justify-center gap-1.5 rounded-full font-bold whitespace-nowrap transition-colors active:scale-95',
+                            d.light,
+                            lit
+                              ? `${d.lit} shadow-sm`
+                              : `${d.dim} bg-black/5 text-foreground/45 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20`,
+                            lit && status.id === 'help' && 'status-help-pulse',
+                          )}
+                          style={{
+                            background: lit ? status.bg : undefined,
+                            color: lit ? status.fg : undefined,
+                            fontSize: 'clamp(0.8rem, 1.5vmin, 1rem)',
+                            touchAction: 'manipulation',
+                          }}
+                        >
+                          <Icon size={d.icon} strokeWidth={2.5} />
+                          {lit && <span>{status.label}</span>}
+                        </motion.button>
+                      )
+                    })}
+                  </div>
+
                   {/* The same +/- as the side panel - one size for a point, wherever it's given. */}
-                  <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-black/5 p-1.5 dark:border-white/10">
+                  <footer
+                    className={clsx(
+                      'flex shrink-0 items-center justify-center gap-2 border-t border-black/5 dark:border-white/10',
+                      d.footerPad,
+                    )}
+                  >
                     <TactileButton
                       onClick={(e) => {
                         e.stopPropagation()
@@ -365,14 +604,14 @@ export function GroupActivity({
                         onAdjustPoints(group.id, -1)
                         playPointDeduct()
                       }}
-                      disabled={group.points === 0 || dealing}
+                      disabled={group.points === 0 || dealing || locked}
                       title="Take a point away"
-                      className="h-[38px] w-[50px] shrink-0 !px-0 justify-center"
+                      className={clsx('shrink-0 !px-0 justify-center', d.button)}
                     >
-                      <Minus size={20} strokeWidth={2.75} />
+                      <Minus size={d.sign} strokeWidth={2.75} />
                     </TactileButton>
-                    <span className="flex min-w-[3.5rem] items-center justify-center gap-1 px-1 text-2xl font-extrabold tabular-nums">
-                      <Star size={20} className="fill-amber-500 text-amber-500" strokeWidth={0} />
+                    <span className={clsx('flex items-center justify-center gap-1 px-1 font-extrabold tabular-nums', d.score)}>
+                      <Star size={d.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
                       <motion.span
                         key={group.points}
                         initial={{ scale: 1.5 }}
@@ -388,11 +627,11 @@ export function GroupActivity({
                         onAdjustPoints(group.id, 1)
                         playPointAward()
                       }}
-                      disabled={dealing}
+                      disabled={dealing || locked}
                       title="Give a point"
-                      className="h-[38px] w-[50px] shrink-0 !px-0 justify-center"
+                      className={clsx('shrink-0 !px-0 justify-center', d.button)}
                     >
-                      <Plus size={20} strokeWidth={2.75} />
+                      <Plus size={d.sign} strokeWidth={2.75} />
                     </TactileButton>
                   </footer>
                 </motion.section>
@@ -417,7 +656,9 @@ export function GroupActivity({
                   <div
                     key={slot.studentId}
                     className="absolute inset-0"
-                    style={{ transform: `translate(${(depth % 3) - 1}px, ${-Math.min(depth, 12) * 0.6}px) rotate(${((slot.index * 7) % 5) - 2}deg)` }}
+                    style={{
+                      transform: `translate(${(depth % 3) - 1}px, ${-Math.min(depth, 12) * 0.6}px) rotate(${((slot.index * 7) % 5) - 2}deg)`,
+                    }}
                   >
                     <Chip student={student} widthEm={chipEm} stacked />
                   </div>
@@ -463,7 +704,7 @@ function Chip({ student, widthEm, tint, lifted, placeholder, stacked, onClick, t
     // A fixed height, so a chip whose name had to shrink stays the same size as its neighbours.
     // Any clipping happens at the chip, never at the name: a name box clipped at one line
     // height cut the tails off every y and g.
-    'flex h-[2.25em] shrink-0 items-center gap-[0.35em] overflow-hidden rounded-full px-[0.8em] font-bold leading-tight shadow-sm select-none',
+    'flex h-[2.25em] shrink-0 items-center gap-[0.35em] overflow-hidden rounded-full px-[0.8em] font-bold leading-tight shadow-sm select-none disabled:cursor-default',
     placeholder ? 'invisible' : 'text-card-foreground',
     stacked && 'bg-card ring-1 ring-black/10 dark:ring-white/15',
     lifted && 'z-20 ring-[3px] ring-amber-400',

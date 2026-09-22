@@ -23,6 +23,7 @@ import type { GroupPointsMode, Student, TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
+const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
 type PanelSide = 'left' | 'right'
 
@@ -33,6 +34,14 @@ function loadTimerSettings(): TimerSettings {
     return { ...DEFAULT_TIMER_SETTINGS, ...JSON.parse(raw) }
   } catch {
     return DEFAULT_TIMER_SETTINGS
+  }
+}
+
+function loadGroupChimes(): boolean {
+  try {
+    return localStorage.getItem(GROUP_CHIMES_KEY) !== '0'
+  } catch {
+    return true
   }
 }
 
@@ -74,6 +83,7 @@ export default function App() {
     adjustGroupPoints,
     moveStudentToGroup,
     renameGroup,
+    setGroupStatus,
     setGroupPointsMode,
     finishGroupActivity,
     saveError,
@@ -107,6 +117,9 @@ export default function App() {
   const [dealTick, setDealTick] = useState(0)
   /** Exit was tapped with points still on the board, and the teacher is being asked what to do with them. */
   const [exitPromptOpen, setExitPromptOpen] = useState(false)
+  /** Students are at the board: only the status lights answer to a tap. Cleared by a new deal or a class switch. */
+  const [groupsLocked, setGroupsLocked] = useState(false)
+  const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
@@ -127,6 +140,7 @@ export default function App() {
     // Another class is another set of groups; the activity closes rather than showing them.
     setGroupActivityOpen(false)
     setGroupScheme(null)
+    setGroupsLocked(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClassId])
 
@@ -161,7 +175,17 @@ export default function App() {
     setGroups(activeClassId, buildGroups(scheme, seating, studentsById, groups))
     setGroupScheme(scheme)
     setDealTick((t) => t + 1)
+    setGroupsLocked(false)
     openGroupActivity()
+  }
+
+  function updateGroupChimes(on: boolean) {
+    setGroupChimes(on)
+    try {
+      localStorage.setItem(GROUP_CHIMES_KEY, on ? '1' : '0')
+    } catch {
+      // ignore
+    }
   }
 
   function continueGroups() {
@@ -388,6 +412,7 @@ export default function App() {
         resetPointsSelection()
       }}
       groupActivityOpen={groupActivityOpen}
+      groupActivityLocked={groupActivityOpen && groupsLocked}
       onToggleGroupActivity={() => {
         if (groupActivityOpen) requestExitGroups()
         else setGroupModalOpen(true)
@@ -503,6 +528,10 @@ export default function App() {
                     onNewGroups={() => setGroupModalOpen(true)}
                     onShuffle={shuffleGroups}
                     onExit={requestExitGroups}
+                    onSetStatus={(groupId, status) => setGroupStatus(activeClass.id, groupId, status)}
+                    chimes={groupChimes}
+                    locked={groupsLocked}
+                    onToggleLock={() => setGroupsLocked((v) => !v)}
                   />
                 </motion.div>
               )}
@@ -536,6 +565,8 @@ export default function App() {
         onStart={startGroups}
         onContinue={continueGroups}
         onSetPointsMode={chooseGroupPointsMode}
+        chimes={groupChimes}
+        onSetChimes={updateGroupChimes}
       />
 
       <GroupExitModal

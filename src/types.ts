@@ -67,9 +67,16 @@ export interface ClassData {
  */
 export type GroupPointsMode = 'students' | 'goal'
 
+/**
+ * Where a group is with its work - the digital cousin of the red, yellow and green cups on a
+ * group's table. Unset means working.
+ */
+export type GroupStatus = 'working' | 'help' | 'ready' | 'done'
+
 export interface StudentGroup {
   id: string
   name: string
+  status?: GroupStatus
   /** A fixed hex colour, the same on every theme - it *is* the group's identity on screen. */
   color: string
   studentIds: string[]

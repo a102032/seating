@@ -447,6 +447,31 @@ export function playGroupsDone() {
   playTone(ctx, master, { frequency: 2093, start: 0.26, duration: 0.4, type: 'sine', peakGain: 0.16 })
 }
 
+/**
+ * A group asking for the teacher. Two soft notes, the second lower: "excuse me", not an
+ * alarm. The teacher is usually bent over another group with their back to the board, and
+ * this is how they find out without anyone shouting.
+ */
+export function playStatusHelp() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 987.77, start: 0, duration: 0.22, type: 'sine', peakGain: 0.32 })
+  playTone(ctx, master, { frequency: 783.99, start: 0.2, duration: 0.36, type: 'sine', peakGain: 0.32 })
+}
+
+/** A group ready to be checked: the same two notes the other way up. */
+export function playStatusReady() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.22, type: 'sine', peakGain: 0.32 })
+  playTone(ctx, master, { frequency: 987.77, start: 0.2, duration: 0.36, type: 'sine', peakGain: 0.32 })
+}
+
+/** A group finishing: one bright ding, the students' small reward for tapping it. */
+export function playStatusDone() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 1318.5, start: 0, duration: 0.4, type: 'sine', peakGain: 0.3 })
+  playTone(ctx, master, { frequency: 1975.5, start: 0.07, duration: 0.5, type: 'sine', peakGain: 0.18 })
+}
+
 /** The safety cover's plastic snap as it flips open. */
 export function playDeleteCoverOpen() {
   const ctx = getContext()

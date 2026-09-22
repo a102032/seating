@@ -39,6 +39,8 @@ interface SidePanelProps {
   flipDeckOpen: boolean
   onToggleFlipDeck: () => void
   groupActivityOpen: boolean
+  /** The board is locked for students: the activity can't be left from here either. */
+  groupActivityLocked: boolean
   onToggleGroupActivity: () => void
 }
 
@@ -69,6 +71,7 @@ export function SidePanel({
   flipDeckOpen,
   onToggleFlipDeck,
   groupActivityOpen,
+  groupActivityLocked,
   onToggleGroupActivity,
 }: SidePanelProps) {
   // The group cards carry their own scores, so the board's pickers and +/- stand down
@@ -199,7 +202,12 @@ export function SidePanel({
             <TactileButton active={flipDeckOpen} onClick={onToggleFlipDeck} disabled={busy} className="w-full justify-start">
               <Layers size={18} /> Flip Cards
             </TactileButton>
-            <TactileButton active={groupActivityOpen} onClick={onToggleGroupActivity} disabled={swapMode} className="w-full justify-start">
+            <TactileButton
+              active={groupActivityOpen}
+              onClick={onToggleGroupActivity}
+              disabled={swapMode || groupActivityLocked}
+              className="w-full justify-start"
+            >
               <UsersRound size={18} /> Group Activity
             </TactileButton>
           </div>

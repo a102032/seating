@@ -4,6 +4,7 @@ import { describeScheme, type GroupScheme } from '../lib/groups'
 import { goalIsLive } from '../hooks/useClasses'
 import type { ClassData, GroupPointsMode, Student, StudentGroup } from '../types'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
 
 interface GroupActivityModalProps {
@@ -16,6 +17,8 @@ interface GroupActivityModalProps {
   onStart: (scheme: GroupScheme) => void
   onContinue: () => void
   onSetPointsMode: (mode: GroupPointsMode) => void
+  chimes: boolean
+  onSetChimes: (on: boolean) => void
 }
 
 const COUNT_OPTIONS = [2, 3, 4, 5, 6]
@@ -42,6 +45,8 @@ export function GroupActivityModal({
   onStart,
   onContinue,
   onSetPointsMode,
+  chimes,
+  onSetChimes,
 }: GroupActivityModalProps) {
   const seating = activeClass.seating
   const seatedCount = seating.filter(Boolean).length
@@ -177,6 +182,20 @@ export function GroupActivityModal({
                 : `Each group point becomes one class point on the goal meter (goal: ${activeClass.pointsGoal}). No stars for students.`}
               {mode === 'students' && !goalLive && ' Choosing Class Goal switches the class goal on for you.'}
             </p>
+          </section>
+
+          <section className="flex items-center justify-between gap-4 rounded-2xl border border-black/10 p-3 dark:border-white/10">
+            <div className="min-w-0">
+              <Label htmlFor="status-chimes" className="text-foreground">
+                Status Chimes
+              </Label>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {chimes
+                  ? 'On: a soft chime when a group taps Need Help, Ready to Check or Done - so you hear it with your back to the board.'
+                  : 'Off: the lights change silently.'}
+              </p>
+            </div>
+            <Switch id="status-chimes" checked={chimes} onCheckedChange={onSetChimes} className="shrink-0" />
           </section>
         </div>
       )}

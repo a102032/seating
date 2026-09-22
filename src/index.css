@@ -715,6 +715,24 @@ button {
 /* The homeroom number sits on the panel's caption bar, and at 45% it went muddy
    on the saturated ones. Full ink instead: on a caption bar it is the one piece
    of type competing with a colour rather than sitting on white stock. */
+/* A group's Need Help light: a soft ring that breathes out, so it reads from across the room
+   without flashing at the class. */
+@keyframes status-help-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.status-help-pulse {
+  animation: status-help-pulse 1.7s ease-out infinite;
+}
+
 /* Group cards are panels too: the group's colour stays in its band, the ink takes the edge. */
 :root[data-theme='comic'] [data-ink='group-card'] {
   border-color: var(--comic-ink) !important;

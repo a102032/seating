@@ -3,7 +3,17 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
-import { DESK_COLUMNS, DESK_COUNT, DESK_ROWS, type ClassData, type Gender, type GroupPointsMode, type Student, type StudentGroup } from '../types'
+import {
+  DESK_COLUMNS,
+  DESK_COUNT,
+  DESK_ROWS,
+  type ClassData,
+  type Gender,
+  type GroupPointsMode,
+  type GroupStatus,
+  type Student,
+  type StudentGroup,
+} from '../types'
 
 export const MAX_CLASSES = 5
 
@@ -415,6 +425,12 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setGroupStatus = useCallback(
+    (classId: string, groupId: string, status: GroupStatus) =>
+      updateClass(classId, (c) => ({ ...c, groups: (c.groups ?? []).map((g) => (g.id === groupId ? { ...g, status } : g)) })),
+    [updateClass],
+  )
+
   const setGroupPointsMode = useCallback(
     (classId: string, mode: GroupPointsMode) => updateClass(classId, (c) => ({ ...c, groupPointsMode: mode })),
     [updateClass],
@@ -479,6 +495,7 @@ export function useClasses() {
     adjustGroupPoints,
     moveStudentToGroup,
     renameGroup,
+    setGroupStatus,
     setGroupPointsMode,
     finishGroupActivity,
     isCloudSynced: isSupabaseConfigured,
