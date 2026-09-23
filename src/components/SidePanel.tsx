@@ -278,30 +278,36 @@ export function SidePanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1" />
+      {/* The bottom strip. mt-auto keeps it at the foot of the panel on tall screens. It used
+          to be an empty flex-1 spacer, which shrank to nothing when the timer controls were
+          open but still carried the panel's 12px gap on both sides - 12px of pure dead space
+          at exactly the moment the panel was out of room. The gaps around the divider are
+          6px rather than the panel's 12px; the negative margin pulls the divider up into
+          the gap above it. */}
+      <div className="mt-auto flex shrink-0 flex-col gap-1.5">
+        <Separator className="-mt-1.5" />
 
-      <Separator />
-
-      <div className="flex shrink-0 flex-col items-center gap-1.5">
-        {saveError && (
-          <Badge
-            variant="outline"
-            className="gap-1.5 border-amber-400/50 text-amber-600 dark:text-amber-400"
-            title="Changes aren't saving on this device right now (storage may be full or private-browsing mode). Export a backup from Settings when you can."
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+          {saveError && (
+            <Badge
+              variant="outline"
+              className="gap-1.5 border-amber-400/50 text-amber-600 dark:text-amber-400"
+              title="Changes aren't saving on this device right now (storage may be full or private-browsing mode). Export a backup from Settings when you can."
+            >
+              <TriangleAlert size={12} />
+              Not saving
+            </Badge>
+          )}
+          <button
+            type="button"
+            onClick={onToggleSide}
+            disabled={swapMode}
+            title={`Move panel to the ${side === 'left' ? 'right' : 'left'}`}
+            className="rounded-lg p-1 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           >
-            <TriangleAlert size={12} />
-            Not saving
-          </Badge>
-        )}
-        <button
-          type="button"
-          onClick={onToggleSide}
-          disabled={swapMode}
-          title={`Move panel to the ${side === 'left' ? 'right' : 'left'}`}
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
-        >
-          <ArrowLeftRight size={16} />
-        </button>
+            <ArrowLeftRight size={16} />
+          </button>
+        </div>
       </div>
 
       <ConfirmModal
