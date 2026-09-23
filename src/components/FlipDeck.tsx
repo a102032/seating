@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useRef, useState } from 'react'
 import { ArrowDownRight, Eye, EyeOff, Layers, RotateCcw, Settings, Shuffle, X } from 'lucide-react'
 import { DEAL_STAGGER_MS, type FlipMode, type useFlipDeck } from '../hooks/useFlipDeck'
 import { DESK_COLUMNS, type Student } from '../types'
@@ -14,13 +15,38 @@ interface FlipDeckProps {
 }
 
 export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDeckProps) {
-  const { inPlay, setAsideCount, phase, settings, updateSettings, shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
+  const { cards, inPlay, setAsideCount, phase, settings, updateSettings, shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
+  const boardRef = useRef<HTMLDivElement>(null)
+  /** Where each discarded card has to travel to reach the pile, measured when it was tapped. */
+  const [flyTo, setFlyTo] = useState(new Map<string, FlyTo>())
+  /** Discards that have finished their flight - the pile counts a card when it lands, not when it leaves. */
+  const [landed, setLanded] = useState(new Set<string>())
+  const pileCount = cards.filter((c) => c.setAside && landed.has(c.studentId)).length
+
+  function tapCard(studentId: string) {
+    const card = cards.find((c) => c.studentId === studentId)
+    const board = boardRef.current?.getBoundingClientRect()
+    const el = document.querySelector(`[data-flip-card="${studentId}"]`)?.getBoundingClientRect()
+    if (card?.faceUp && settings.flipMode === 'discard' && board && el) {
+      // The pile's own box: bottom-2 right-2, w-20 h-24.
+      const pileX = board.right - 8 - PILE_W / 2
+      const pileY = board.bottom - 8 - PILE_H / 2
+      const flight = { x: pileX - (el.left + el.width / 2), y: pileY - (el.top + el.height / 2), scale: PILE_CARD_W / el.width }
+      setFlyTo((prev) => new Map(prev).set(studentId, flight))
+    }
+    tap(studentId)
+  }
+
+  function reshuffle() {
+    setLanded(new Set())
+    shuffle()
+  }
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm backdrop-blur-xl">
         <div className="flex items-center gap-1.5">
-          <TactileButton onClick={shuffle} disabled={phase !== 'ready'} className="!px-3 !py-2">
+          <TactileButton onClick={reshuffle} disabled={phase !== 'ready'} className="!px-3 !py-2">
             <Shuffle size={16} /> Shuffle
           </TactileButton>
           <TactileButton onClick={anyFaceUp ? hideAll : revealAll} disabled={phase !== 'ready'} className="!px-3 !py-2">
@@ -60,45 +86,56 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
         {phase === 'shuffling' ? (
           <ShuffleStack count={Math.max(inPlay.length, 1)} />
         ) : (
+          // Every card keeps its slot for the whole round. A discarded card leaves an empty
+          // space rather than letting the rest close up, so nothing grows, shrinks or moves
+          // while the class is looking for the card they meant to pick.
           <div
+            ref={boardRef}
             className="grid h-full w-full auto-rows-fr gap-2 sm:gap-3"
             style={{ gridTemplateColumns: `repeat(${DESK_COLUMNS}, minmax(0, 1fr))` }}
           >
-            <AnimatePresence mode="popLayout">
-              {inPlay.map((card, index) => {
-                const student = studentsById.get(card.studentId)
-                if (!student) return null
-                return (
-                  <motion.div
-                    key={card.studentId}
-                    layout
-                    initial={{ opacity: 0, scale: 0.4, y: -140, rotate: -12 }}
-                    animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
-                    exit={{ opacity: 0, scale: 0.3, x: 260, y: 220, rotate: 35, transition: { duration: 0.5, ease: 'easeIn' } }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 260,
-                      damping: 24,
-                      delay: phase === 'dealing' ? (index * DEAL_STAGGER_MS) / 1000 : 0,
-                    }}
-                    className="min-h-0"
+            {cards.map((card, index) => {
+              const student = studentsById.get(card.studentId)
+              if (!student) return null
+              return (
+                // Raised while its card flies out, so it crosses the board over the other cards.
+                <div key={card.studentId} className={clsx('relative min-h-0', card.setAside && 'z-20')}>
+                  <AnimatePresence
+                    custom={flyTo.get(card.studentId)}
+                    onExitComplete={() => setLanded((prev) => new Set(prev).add(card.studentId))}
                   >
-                    <FlipCard
-                      student={student}
-                      faceUp={card.faceUp}
-                      genderColors={settings.genderColors}
-                      active={card.studentId === activeId}
-                      dimmed={card.faceUp && card.spent}
-                      onTap={() => tap(card.studentId)}
-                    />
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
+                    {!card.setAside && (
+                      <motion.div
+                        variants={CARD_VARIANTS}
+                        initial="dealt"
+                        animate="placed"
+                        exit="discarded"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 260,
+                          damping: 24,
+                          delay: phase === 'dealing' ? (index * DEAL_STAGGER_MS) / 1000 : 0,
+                        }}
+                        className="h-full min-h-0"
+                      >
+                        <FlipCard
+                          student={student}
+                          faceUp={card.faceUp}
+                          genderColors={settings.genderColors}
+                          active={card.studentId === activeId}
+                          dimmed={card.faceUp && card.spent}
+                          onTap={() => tapCard(card.studentId)}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
           </div>
         )}
 
-        {setAsideCount > 0 && phase !== 'shuffling' && <DiscardPile count={setAsideCount} />}
+        {pileCount > 0 && phase !== 'shuffling' && <DiscardPile count={pileCount} />}
 
         {inPlay.length === 0 && phase === 'ready' && (
           <motion.div
@@ -160,6 +197,30 @@ function FlipModeSwitch({ mode, onChange }: { mode: FlipMode; onChange: (mode: F
       </div>
     </div>
   )
+}
+
+interface FlyTo {
+  x: number
+  y: number
+  scale: number
+}
+
+const PILE_W = 80
+const PILE_H = 96
+const PILE_CARD_W = 56
+
+const CARD_VARIANTS = {
+  dealt: { opacity: 0, scale: 0.4, x: 0, y: -140, rotate: -12 },
+  placed: { opacity: 1, scale: 1, x: 0, y: 0, rotate: 0 },
+  // Straight onto the pile, shrinking to a pile card's size on the way, and gone as it lands.
+  discarded: (to?: FlyTo) => ({
+    x: to?.x ?? 0,
+    y: to?.y ?? 0,
+    scale: to?.scale ?? 0.3,
+    rotate: 12,
+    opacity: [1, 1, 0],
+    transition: { duration: 0.55, ease: [0.4, 0, 0.2, 1] as const, opacity: { duration: 0.55, times: [0, 0.8, 1] } },
+  }),
 }
 
 /** Where set-aside cards land, stacking up as the round burns down. */
