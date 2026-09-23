@@ -156,13 +156,23 @@ export default function App() {
   const seating = activeClass?.seating ?? []
   const picker = usePicker(seating, activeClassId)
   const seatedIds = useMemo(() => (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)), [activeClass])
-  const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen)
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
     activeClass?.students.forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
+
+  const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen, {
+    genderOf: (id) => studentsById.get(id)?.gender ?? 'unspecified',
+    // Bonus points land the way any award does, class meter included.
+    onEveryone: () => {
+      if (activeClassId) adjustPoints(activeClassId, seatedIds, 1)
+    },
+    onJackpot: (id, points) => {
+      if (activeClassId) adjustPoints(activeClassId, [id], points)
+    },
+  })
 
   /** The saved groups as they stand today - anyone who has left their desk since is out. */
   const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], activeClass?.seating ?? []), [activeClass])
@@ -625,6 +635,7 @@ export default function App() {
         onClose={() => setFlipSettingsOpen(false)}
         settings={deck.settings}
         onChange={deck.updateSettings}
+        roundStarted={deck.roundStarted}
       />
 
       <PickersPointsModal

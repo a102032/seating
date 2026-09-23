@@ -24,7 +24,11 @@ interface ToneOptions {
   detune?: number
 }
 
-function playTone(ctx: AudioContext, master: GainNode, { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0 }: ToneOptions) {
+function playTone(
+  ctx: AudioContext,
+  master: GainNode,
+  { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0 }: ToneOptions,
+) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = type
@@ -182,7 +186,6 @@ export function primeAudio() {
 }
 
 // Pentatonic-ish run so consecutive random slots never clash, even played rapidly.
-
 
 // A small round-robin pool of <audio> elements so rapid ticks (every 90ms) can overlap
 // cleanly instead of one tick cutting the previous one's tail off.
@@ -490,4 +493,24 @@ export const ALARM_SOUND_LABELS: Record<AlarmSound, string> = {
   trainWhistle: 'Train Whistle',
   guitar: 'Guitar',
   rooster: 'Rooster',
+}
+
+/**
+ * A bonus card turning over, or a jackpot landing on a student: a quick rising sparkle.
+ * Deliberately small - the class goal owns the one big celebration in this app, and a
+ * fanfare for every lucky card would wear it down.
+ */
+export function playBonus() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 1046.5, start: 0, duration: 0.14, type: 'triangle', peakGain: 0.26 })
+  playTone(ctx, master, { frequency: 1318.5, start: 0.07, duration: 0.14, type: 'triangle', peakGain: 0.26 })
+  playTone(ctx, master, { frequency: 1567.98, start: 0.14, duration: 0.18, type: 'triangle', peakGain: 0.28 })
+  playTone(ctx, master, { frequency: 2093, start: 0.21, duration: 0.4, type: 'sine', peakGain: 0.18 })
+}
+
+/** Oops!: a sliding "wah-wah", the dud card's groan. Stays above 400Hz so a tablet speaker still carries it. */
+export function playOops() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 740, endFrequency: 620, start: 0, duration: 0.24, type: 'triangle', peakGain: 0.3 })
+  playTone(ctx, master, { frequency: 620, endFrequency: 440, start: 0.26, duration: 0.5, type: 'triangle', peakGain: 0.3 })
 }

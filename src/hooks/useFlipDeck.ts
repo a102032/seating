@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { playCardDeal, playCardFlip, playCardReveal, playShuffle } from '../lib/sound'
+import { playBonus, playCardDeal, playCardFlip, playCardReveal, playOops, playShuffle } from '../lib/sound'
+import { DESK_COLUMNS, type Gender } from '../types'
 
 /**
  * What a tap on a face-up card does. Nothing about a picked card is ever timed: it stays
@@ -9,13 +10,33 @@ export type FlipMode = 'stay' | 'discard'
 
 export interface FlipDeckSettings {
   flipMode: FlipMode
+  /** Shuffle bonus cards in among the students. */
+  bonusCards: boolean
+  /** Which kinds go in the deck when bonus cards are on. */
+  bonusKinds: BonusKind[]
   /** Colour card backs by gender, so the class can be told to pick only blue or only pink. */
   genderColors: boolean
   soundEnabled: boolean
 }
 
+/**
+ * Bonus cards. Everyone +1 gives every seated student a point; Jackpot +3 waits on the
+ * toolbar and lands on the next student flipped; Oops! does nothing at all - the one
+ * "bad" card is a dud, because a flip is luck and losing points to luck isn't fair.
+ */
+export type BonusKind = 'everyone' | 'jackpot' | 'oops'
+export const BONUS_KINDS: BonusKind[] = ['everyone', 'jackpot', 'oops']
+export const JACKPOT_POINTS = 3
+
+/** The order bonus cards are added in: one of each first, then Jackpots and Oops, so a big deck isn't mostly class-wide points. */
+const BONUS_SEQUENCE: BonusKind[] = ['jackpot', 'oops', 'everyone', 'oops', 'jackpot', 'oops']
+
 export interface DeckCard {
+  /** The student's id, or a made-up one for a bonus card. The card's identity either way. */
   studentId: string
+  bonus?: BonusKind
+  /** Whose colour its back takes when backs are coloured by gender. A bonus card borrows one, so it can't be spotted face down. */
+  back: Gender
   faceUp: boolean
   setAside: boolean
   /** Face up, but a later flip has taken the turn - shown dimmed. */
@@ -28,6 +49,8 @@ const SETTINGS_KEY = 'seating-chart-flip-deck-settings-v1'
 
 const DEFAULT_SETTINGS: FlipDeckSettings = {
   flipMode: 'stay',
+  bonusCards: false,
+  bonusKinds: BONUS_KINDS,
   genderColors: true,
   soundEnabled: true,
 }
@@ -49,7 +72,10 @@ function loadSettings(): FlipDeckSettings {
     const { afterFlip, ...saved } = JSON.parse(raw)
     // Older saves had a timed "after flip" choice; Set Aside is the one that became Discard.
     const flipMode: FlipMode = saved.flipMode ?? (afterFlip === 'setAside' ? 'discard' : 'stay')
-    return { ...DEFAULT_SETTINGS, ...saved, flipMode }
+    const bonusKinds: BonusKind[] = Array.isArray(saved.bonusKinds)
+      ? saved.bonusKinds.filter((k: string) => (BONUS_KINDS as string[]).includes(k))
+      : BONUS_KINDS
+    return { ...DEFAULT_SETTINGS, ...saved, flipMode, bonusKinds }
   } catch {
     return DEFAULT_SETTINGS
   }
@@ -63,6 +89,35 @@ function saveSettings(settings: FlipDeckSettings) {
   }
 }
 
+/**
+ * How many bonus cards, and how many columns, so the board comes out as full rows. A few
+ * bonus cards (3-6, fewer for a small class), with columns kept near the seating chart's six
+ * and rows kept to five where it can, since the board is wider than it is tall. A class
+ * size no mix makes even gets the closest one.
+ */
+export function planDeck(students: number, withBonus: boolean): { bonus: number; columns: number } {
+  if (!withBonus || students === 0) return { bonus: 0, columns: DESK_COLUMNS }
+  const most = Math.min(6, Math.max(1, Math.ceil(students / 4)))
+  const least = Math.min(3, most)
+  let best = { bonus: least, columns: DESK_COLUMNS, score: Infinity }
+  for (let bonus = least; bonus <= most; bonus++) {
+    for (let columns = 5; columns <= 8; columns++) {
+      const total = students + bonus
+      const gaps = (columns - (total % columns)) % columns
+      const rows = Math.ceil(total / columns)
+      const score = gaps * 100 + Math.max(0, rows - 5) * 20 + Math.abs(columns - DESK_COLUMNS) * 5 + Math.abs(bonus - 5) * 3
+      if (score < best.score) best = { bonus, columns, score }
+    }
+  }
+  return { bonus: best.bonus, columns: best.columns }
+}
+
+function bonusKindsFor(count: number, enabled: BonusKind[]): BonusKind[] {
+  const pool = BONUS_SEQUENCE.filter((k) => enabled.includes(k))
+  if (pool.length === 0) return []
+  return Array.from({ length: count }, (_, i) => pool[i % pool.length])
+}
+
 function shuffled<T>(items: T[]): T[] {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -72,14 +127,24 @@ function shuffled<T>(items: T[]): T[] {
   return copy
 }
 
+interface FlipDeckHooks {
+  genderOf: (studentId: string) => Gender
+  /** Everyone +1 was turned over. */
+  onEveryone: () => void
+  /** A student was turned over with a jackpot waiting. */
+  onJackpot: (studentId: string, points: number) => void
+}
+
 /**
- * The deck behind the flip-card picker: seated students only, dealt in a random order,
+ * The deck behind the flip-card picker: seated students (plus any bonus cards), dealt in a random order,
  * with its own round of picks that is deliberately independent of Pick Student's history -
  * here, setting a card aside *is* the no-repeat mechanism.
  */
-export function useFlipDeck(seatedIds: string[], classId: string | null, visible: boolean) {
+export function useFlipDeck(seatedIds: string[], classId: string | null, visible: boolean, hooks: FlipDeckHooks) {
   const seatedIdsRef = useRef(seatedIds)
   seatedIdsRef.current = seatedIds
+  const hooksRef = useRef(hooks)
+  hooksRef.current = hooks
   // Read through a ref so toggling the deck open doesn't re-run the deal effect below -
   // opening it already deals explicitly.
   const visibleRef = useRef(visible)
@@ -91,6 +156,13 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   const [phase, setPhase] = useState<DeckPhase>('dealing')
   /** The card whose turn it is: the newest one flipped by hand. Points on the side panel go to them. */
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [columns, setColumns] = useState(DESK_COLUMNS)
+  /** Jackpot points waiting for the next student flipped. Two jackpots before a student add up. */
+  const [jackpot, setJackpot] = useState(0)
+  const jackpotRef = useRef(jackpot)
+  jackpotRef.current = jackpot
+  /** The last jackpot to land, for the card to show it. The tick replays it for the same student. */
+  const [jackpotHit, setJackpotHit] = useState<{ studentId: string; points: number; tick: number } | null>(null)
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
   /** When each card last turned over, for the double-tap guard. */
@@ -116,9 +188,26 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   const deal = useCallback(
     (options?: { silent?: boolean }) => {
       clearTimers()
-      const order = shuffled(seatedIdsRef.current)
-      setCards(order.map((studentId) => ({ studentId, faceUp: false, setAside: false, spent: false })))
+      const seated = seatedIdsRef.current
+      const { genderOf } = hooksRef.current
+      const { bonusCards, bonusKinds } = settingsRef.current
+      const plan = planDeck(seated.length, bonusCards)
+      const bonuses = bonusKindsFor(plan.bonus, bonusKinds)
+      const fresh = { faceUp: false, setAside: false, spent: false }
+      const order = shuffled<DeckCard>([
+        ...seated.map((studentId) => ({ studentId, back: genderOf(studentId), ...fresh })),
+        ...bonuses.map((bonus, i) => ({
+          studentId: `bonus-${i}`,
+          bonus,
+          back: genderOf(seated[Math.floor(Math.random() * seated.length)]),
+          ...fresh,
+        })),
+      ])
+      setCards(order)
+      setColumns(bonuses.length > 0 ? plan.columns : DESK_COLUMNS)
       setActiveId(null)
+      setJackpot(0)
+      setJackpotHit(null)
       setPhase('dealing')
 
       if (!options?.silent && settingsRef.current.soundEnabled) {
@@ -165,26 +254,53 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
       lastTurned.current.set(studentId, now)
 
       const { flipMode, soundEnabled } = settingsRef.current
+      const putAway = () => {
+        if (flipMode === 'discard') {
+          setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, setAside: true } : c)))
+          if (soundEnabled) playCardDeal()
+        } else {
+          setFaceUp(studentId, false)
+          if (soundEnabled) playCardFlip()
+        }
+      }
+
+      // A bonus card is never anybody's turn: it turns over, does its thing, and leaves
+      // the glow where it was. Face up, one tap puts it away - there's no turn to give back.
+      if (card.bonus) {
+        if (card.faceUp) {
+          putAway()
+          return
+        }
+        setFaceUp(studentId, true)
+        if (card.bonus === 'everyone') hooksRef.current.onEveryone()
+        if (card.bonus === 'jackpot') setJackpot((j) => j + JACKPOT_POINTS)
+        if (soundEnabled) {
+          playCardFlip()
+          later(card.bonus === 'oops' ? playOops : playBonus, 200)
+        }
+        return
+      }
+
       if (studentId !== activeIdRef.current) {
         setCards((prev) =>
           prev.map((c) => (c.studentId === studentId ? { ...c, faceUp: true, spent: false } : c.faceUp ? { ...c, spent: true } : c)),
         )
         setActiveId(studentId)
+        const waiting = card.faceUp ? 0 : jackpotRef.current
+        if (waiting > 0) {
+          hooksRef.current.onJackpot(studentId, waiting)
+          setJackpot(0)
+          setJackpotHit((prev) => ({ studentId, points: waiting, tick: (prev?.tick ?? 0) + 1 }))
+        }
         if (soundEnabled) {
           if (!card.faceUp) playCardFlip()
-          later(playCardReveal, card.faceUp ? 0 : 200)
+          later(waiting > 0 ? playBonus : playCardReveal, card.faceUp ? 0 : 200)
         }
         return
       }
 
       setActiveId(null)
-      if (flipMode === 'discard') {
-        setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, setAside: true } : c)))
-        if (soundEnabled) playCardDeal()
-      } else {
-        setFaceUp(studentId, false)
-        if (soundEnabled) playCardFlip()
-      }
+      putAway()
     },
     [later, setFaceUp],
   )
@@ -218,21 +334,40 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
     flipAll(false)
   }, [flipAll])
 
-  const updateSettings = useCallback((patch: Partial<FlipDeckSettings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...patch }
+  const roundStarted = cards.some((c) => c.faceUp || c.setAside)
+  const roundStartedRef = useRef(roundStarted)
+  roundStartedRef.current = roundStarted
+
+  const updateSettings = useCallback(
+    (patch: Partial<FlipDeckSettings>) => {
+      const next = { ...settingsRef.current, ...patch }
+      settingsRef.current = next
+      setSettings(next)
       saveSettings(next)
-      return next
-    })
-  }, [])
+      // Bonus cards change what's in the deck. Nobody has touched this deal yet, so deal
+      // again now rather than making the teacher shuffle to see them; mid-round, the
+      // change waits for the next Shuffle instead of pulling cards out from under the class.
+      const bonusChanged = 'bonusCards' in patch || 'bonusKinds' in patch
+      if (bonusChanged && !roundStartedRef.current && visibleRef.current) deal()
+    },
+    [deal],
+  )
 
   const inPlay = cards.filter((c) => !c.setAside)
   const setAsideCount = cards.length - inPlay.length
+  const studentsLeft = inPlay.filter((c) => !c.bonus).length
+  const studentsDone = cards.filter((c) => c.setAside && !c.bonus).length
 
   return {
     cards,
+    columns,
     inPlay,
     setAsideCount,
+    studentsLeft,
+    studentsDone,
+    roundStarted,
+    jackpot,
+    jackpotHit,
     phase,
     settings,
     updateSettings,

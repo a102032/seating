@@ -1,9 +1,9 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRef, useState } from 'react'
-import { ArrowDownRight, Eye, EyeOff, Layers, RotateCcw, Settings, Shuffle, X } from 'lucide-react'
+import { ArrowDownRight, Eye, Gift, EyeOff, Layers, RotateCcw, Settings, Shuffle, X } from 'lucide-react'
 import { DEAL_STAGGER_MS, type FlipMode, type useFlipDeck } from '../hooks/useFlipDeck'
-import { DESK_COLUMNS, type Student } from '../types'
+import type { Student } from '../types'
 import { FlipCard } from './FlipCard'
 import { TactileButton } from './TactileButton'
 
@@ -15,7 +15,8 @@ interface FlipDeckProps {
 }
 
 export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDeckProps) {
-  const { cards, inPlay, setAsideCount, phase, settings, updateSettings, shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
+  const { cards, columns, inPlay, studentsLeft, studentsDone, jackpot, jackpotHit, phase, settings, updateSettings } = deck
+  const { shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
   const boardRef = useRef<HTMLDivElement>(null)
   /** Where each discarded card has to travel to reach the pile, measured when it was tapped. */
   const [flyTo, setFlyTo] = useState(new Map<string, FlyTo>())
@@ -27,7 +28,9 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
     const card = cards.find((c) => c.studentId === studentId)
     const board = boardRef.current?.getBoundingClientRect()
     const el = document.querySelector(`[data-flip-card="${studentId}"]`)?.getBoundingClientRect()
-    if (card?.faceUp && studentId === activeId && settings.flipMode === 'discard' && board && el) {
+    // Only a card that this tap puts away: the glowing student, or any face-up bonus card.
+    const leaving = card?.faceUp && (card.bonus || studentId === activeId)
+    if (leaving && settings.flipMode === 'discard' && board && el) {
       // The pile's own box: bottom-2 right-2, w-20 h-24.
       const pileX = board.right - 8 - PILE_W / 2
       const pileY = board.bottom - 8 - PILE_H / 2
@@ -58,10 +61,25 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
         <FlipModeSwitch mode={settings.flipMode} onChange={(flipMode) => updateSettings({ flipMode })} />
 
         <div className="flex items-center gap-2">
+          <AnimatePresence>
+            {jackpot > 0 && (
+              // Waiting for whoever is flipped next, so the class knows what's riding on it.
+              <motion.span
+                key="jackpot"
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.4, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 18 }}
+                className="flex items-center gap-1.5 rounded-full bg-gradient-to-br from-fuchsia-400 to-violet-500 px-3 py-1.5 text-sm font-extrabold text-white shadow-md"
+              >
+                <Gift size={15} /> Next card +{jackpot}
+              </motion.span>
+            )}
+          </AnimatePresence>
           <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
             <Layers size={15} />
-            {inPlay.length} left
-            {setAsideCount > 0 && <span className="font-medium opacity-60">· {setAsideCount} done</span>}
+            {studentsLeft} left
+            {studentsDone > 0 && <span className="font-medium opacity-60">· {studentsDone} done</span>}
           </span>
           <button
             type="button"
@@ -92,11 +110,11 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
           <div
             ref={boardRef}
             className="grid h-full w-full auto-rows-fr gap-2 sm:gap-3"
-            style={{ gridTemplateColumns: `repeat(${DESK_COLUMNS}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
           >
             {cards.map((card, index) => {
-              const student = studentsById.get(card.studentId)
-              if (!student) return null
+              const student = card.bonus ? undefined : studentsById.get(card.studentId)
+              if (!card.bonus && !student) return null
               return (
                 // Raised while its card flies out, so it crosses the board over the other cards.
                 <div key={card.studentId} className={clsx('relative min-h-0', card.setAside && 'z-20')}>
@@ -119,7 +137,11 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
                         className="h-full min-h-0"
                       >
                         <FlipCard
+                          id={card.studentId}
                           student={student}
+                          bonus={card.bonus}
+                          back={card.back}
+                          jackpotHit={jackpotHit?.studentId === card.studentId ? jackpotHit : null}
                           faceUp={card.faceUp}
                           genderColors={settings.genderColors}
                           active={card.studentId === activeId}
@@ -137,7 +159,7 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
 
         {pileCount > 0 && phase !== 'shuffling' && <DiscardPile count={pileCount} />}
 
-        {inPlay.length === 0 && phase === 'ready' && (
+        {studentsLeft === 0 && phase === 'ready' && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
