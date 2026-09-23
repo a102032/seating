@@ -39,6 +39,8 @@ interface SidePanelProps {
   onAwardPoint: () => void
   onDeductPoint: () => void
   flipDeckOpen: boolean
+  /** Whose turn it is on the flip cards - the student +/- will score. */
+  flipActiveName: string | null
   onToggleFlipDeck: () => void
   groupActivityOpen: boolean
   /** The board is locked for students: the activity can't be left from here either. */
@@ -74,6 +76,7 @@ export function SidePanel({
   onAwardPoint,
   onDeductPoint,
   flipDeckOpen,
+  flipActiveName,
   onToggleFlipDeck,
   groupActivityOpen,
   groupActivityLocked,
@@ -243,7 +246,8 @@ export function SidePanel({
           <div className="mt-1.5 flex items-stretch gap-1.5">
             <TactileButton
               active={allSeatedSelected}
-              disabled={busy}
+              // On the flip cards +/- always mean "the student named below", never the room.
+              disabled={busy || flipDeckOpen}
               onClick={onToggleSelectAll}
               title={allSeatedSelected ? 'Unpick All' : 'Pick All'}
               // Wide enough for "Unpick All", so +/- don't change width when the label does.
@@ -270,10 +274,23 @@ export function SidePanel({
               <Plus size={20} strokeWidth={2.75} />
             </TactileButton>
           </div>
-          {pointsSelectedCount > 0 && (
-            <p className="mt-1 px-1 text-center text-xs font-medium text-muted-foreground">
-              {pointsSelectedCount} student{pointsSelectedCount === 1 ? '' : 's'} selected
+          {flipDeckOpen ? (
+            // Always one line, name or not, so nothing below it jumps as turns change hands.
+            <p className="mt-1 truncate px-1 text-center text-xs font-medium text-muted-foreground">
+              {flipActiveName ? (
+                <>
+                  Points go to <span className="font-bold text-foreground">{flipActiveName}</span>
+                </>
+              ) : (
+                'Flip a card to give points'
+              )}
             </p>
+          ) : (
+            pointsSelectedCount > 0 && (
+              <p className="mt-1 px-1 text-center text-xs font-medium text-muted-foreground">
+                {pointsSelectedCount} student{pointsSelectedCount === 1 ? '' : 's'} selected
+              </p>
+            )
           )}
         </div>
       </div>

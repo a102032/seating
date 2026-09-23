@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { playCardDeal, playCardFlip, playCardReveal, playShuffle } from '../lib/sound'
 
-/** What happens to a card once the class has seen who it is. */
-export type AfterFlip = 'stay' | 'flipBack' | 'setAside'
+/**
+ * What a tap on a face-up card does. Nothing about a picked card is ever timed: it stays
+ * face up until somebody taps it, and the mode only decides where that tap sends it.
+ */
+export type FlipMode = 'stay' | 'discard'
 
 export interface FlipDeckSettings {
-  afterFlip: AfterFlip
+  flipMode: FlipMode
   /** Colour card backs by gender, so the class can be told to pick only blue or only pink. */
   genderColors: boolean
   soundEnabled: boolean
@@ -15,6 +18,8 @@ export interface DeckCard {
   studentId: string
   faceUp: boolean
   setAside: boolean
+  /** Face up, but a later flip has taken the turn - shown dimmed. */
+  spent: boolean
 }
 
 type DeckPhase = 'shuffling' | 'dealing' | 'ready'
@@ -22,7 +27,7 @@ type DeckPhase = 'shuffling' | 'dealing' | 'ready'
 const SETTINGS_KEY = 'seating-chart-flip-deck-settings-v1'
 
 const DEFAULT_SETTINGS: FlipDeckSettings = {
-  afterFlip: 'stay',
+  flipMode: 'stay',
   genderColors: true,
   soundEnabled: true,
 }
@@ -30,15 +35,21 @@ const DEFAULT_SETTINGS: FlipDeckSettings = {
 export const DEAL_STAGGER_MS = 45
 const DEAL_SETTLE_MS = 420
 const SHUFFLE_MS = 950
-const FLIP_BACK_DELAY_MS = 2200
-const SET_ASIDE_DELAY_MS = 1500
 const WAVE_STEP_MS = 70
+/**
+ * A card ignores taps while it is still turning over. Smart boards often read one touch as
+ * two, and in Discard mode that second tap would throw away the card it had just revealed.
+ */
+const TAP_GUARD_MS = 700
 
 function loadSettings(): FlipDeckSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
     if (!raw) return DEFAULT_SETTINGS
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+    const { afterFlip, ...saved } = JSON.parse(raw)
+    // Older saves had a timed "after flip" choice; Set Aside is the one that became Discard.
+    const flipMode: FlipMode = saved.flipMode ?? (afterFlip === 'setAside' ? 'discard' : 'stay')
+    return { ...DEFAULT_SETTINGS, ...saved, flipMode }
   } catch {
     return DEFAULT_SETTINGS
   }
@@ -78,6 +89,10 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   const cardsRef = useRef(cards)
   cardsRef.current = cards
   const [phase, setPhase] = useState<DeckPhase>('dealing')
+  /** The card whose turn it is: the newest one flipped by hand. Points on the side panel go to them. */
+  const [activeId, setActiveId] = useState<string | null>(null)
+  /** When each card last turned over, for the double-tap guard. */
+  const lastTurned = useRef(new Map<string, number>())
   const [settings, setSettings] = useState<FlipDeckSettings>(loadSettings)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
@@ -100,7 +115,8 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
     (options?: { silent?: boolean }) => {
       clearTimers()
       const order = shuffled(seatedIdsRef.current)
-      setCards(order.map((studentId) => ({ studentId, faceUp: false, setAside: false })))
+      setCards(order.map((studentId) => ({ studentId, faceUp: false, setAside: false, spent: false })))
+      setActiveId(null)
       setPhase('dealing')
 
       if (!options?.silent && settingsRef.current.soundEnabled) {
@@ -114,7 +130,8 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   const shuffle = useCallback(() => {
     clearTimers()
     setPhase('shuffling')
-    setCards((prev) => prev.map((c) => ({ ...c, faceUp: false, setAside: false })))
+    setCards((prev) => prev.map((c) => ({ ...c, faceUp: false, setAside: false, spent: false })))
+    setActiveId(null)
     if (settingsRef.current.soundEnabled) playShuffle()
     later(() => deal(), SHUFFLE_MS)
   }, [clearTimers, deal, later])
@@ -128,24 +145,41 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   }, [classId])
 
   const setFaceUp = useCallback((studentId: string, faceUp: boolean) => {
-    setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, faceUp } : c)))
+    setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, faceUp, spent: false } : c)))
   }, [])
 
-  const flip = useCallback(
+  /**
+   * One tap, one meaning per card. Face down: reveal it and hand it the turn, dimming
+   * whoever had it. Face up: put it away - back over, or onto the discard pile.
+   */
+  const tap = useCallback(
     (studentId: string) => {
-      const { afterFlip, soundEnabled } = settingsRef.current
-      setFaceUp(studentId, true)
-      if (soundEnabled) {
-        playCardFlip()
-        later(playCardReveal, 200)
+      const card = cardsRef.current.find((c) => c.studentId === studentId)
+      if (!card || card.setAside) return
+      const now = Date.now()
+      if (now - (lastTurned.current.get(studentId) ?? 0) < TAP_GUARD_MS) return
+      lastTurned.current.set(studentId, now)
+
+      const { flipMode, soundEnabled } = settingsRef.current
+      if (!card.faceUp) {
+        setCards((prev) =>
+          prev.map((c) => (c.studentId === studentId ? { ...c, faceUp: true, spent: false } : c.faceUp ? { ...c, spent: true } : c)),
+        )
+        setActiveId(studentId)
+        if (soundEnabled) {
+          playCardFlip()
+          later(playCardReveal, 200)
+        }
+        return
       }
 
-      if (afterFlip === 'flipBack') {
-        later(() => setFaceUp(studentId, false), FLIP_BACK_DELAY_MS)
-      } else if (afterFlip === 'setAside') {
-        later(() => {
-          setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, setAside: true } : c)))
-        }, SET_ASIDE_DELAY_MS)
+      setActiveId((prev) => (prev === studentId ? null : prev))
+      if (flipMode === 'discard') {
+        setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, setAside: true } : c)))
+        if (soundEnabled) playCardDeal()
+      } else {
+        setFaceUp(studentId, false)
+        if (soundEnabled) playCardFlip()
       }
     },
     [later, setFaceUp],
@@ -168,8 +202,17 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
     [clearTimers, later, setFaceUp],
   )
 
-  const revealAll = useCallback(() => flipAll(true), [flipAll])
-  const hideAll = useCallback(() => flipAll(false), [flipAll])
+  // Neither one is anybody's turn. Reveal All shows the whole deck at full strength, and
+  // Hide All only turns cards over - nothing reaches the discard pile except by a tap.
+  const revealAll = useCallback(() => {
+    setActiveId(null)
+    setCards((prev) => prev.map((c) => ({ ...c, spent: false })))
+    flipAll(true)
+  }, [flipAll])
+  const hideAll = useCallback(() => {
+    setActiveId(null)
+    flipAll(false)
+  }, [flipAll])
 
   const updateSettings = useCallback((patch: Partial<FlipDeckSettings>) => {
     setSettings((prev) => {
@@ -191,7 +234,8 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
     updateSettings,
     deal,
     shuffle,
-    flip,
+    activeId,
+    tap,
     revealAll,
     hideAll,
     anyFaceUp: inPlay.some((c) => c.faceUp),

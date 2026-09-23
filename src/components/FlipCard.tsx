@@ -9,7 +9,10 @@ interface FlipCardProps {
   faceUp: boolean
   /** Colour the back by gender so the class can be told "pick a blue card". */
   genderColors: boolean
-  selectedForPoints: boolean
+  /** Their turn: the side panel's +/- go to this card. */
+  active: boolean
+  /** Face up, but a later card has the turn. */
+  dimmed: boolean
   onTap: () => void
 }
 
@@ -25,7 +28,7 @@ const NEUTRAL_BACK = 'from-violet-400 to-violet-600 text-violet-50'
 const BACK_PATTERN =
   'repeating-linear-gradient(45deg, rgba(255,255,255,0.14) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(0,0,0,0.08) 0 6px, transparent 6px 12px)'
 
-export function FlipCard({ student, faceUp, genderColors, selectedForPoints, onTap }: FlipCardProps) {
+export function FlipCard({ student, faceUp, genderColors, active, dimmed, onTap }: FlipCardProps) {
   const avatarSrc = resolveAvatarSrc(student)
   const points = student.points ?? 0
 
@@ -33,9 +36,13 @@ export function FlipCard({ student, faceUp, genderColors, selectedForPoints, onT
     <motion.button
       type="button"
       onClick={onTap}
+      data-flip-card={student.id}
+      data-state={active ? 'active' : dimmed ? 'dimmed' : faceUp ? 'up' : 'down'}
+      // Opacity goes through animate: framer owns this element's inline styles.
+      animate={{ opacity: dimmed ? 0.45 : 1 }}
       whileHover={{ scale: 1.04, y: -4 }}
       whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 26, opacity: { duration: 0.35 } }}
       className="relative h-full w-full cursor-pointer select-none rounded-xl outline-none"
       style={{ perspective: 800, containerType: 'inline-size' }}
     >
@@ -61,24 +68,27 @@ export function FlipCard({ student, faceUp, genderColors, selectedForPoints, onT
         <div
           className={clsx(
             'absolute inset-0 flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border-2 bg-card p-1.5 shadow-md',
-            selectedForPoints ? 'border-emerald-500' : 'border-black/10 dark:border-white/10',
+            // A class rather than a framer value: framer never clears a box-shadow it has set.
+            active ? 'flip-card-active border-amber-400' : 'border-black/10 dark:border-white/10',
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
           {points > 0 && (
-            <div className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[0.6rem] font-bold text-amber-950 shadow-sm">
+            <motion.div
+              // Keyed on the score so an award from the side panel pops the badge.
+              key={points}
+              initial={{ scale: 1.6 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+              className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[0.6rem] font-bold text-amber-950 shadow-sm"
+            >
               <Star size={9} className="shrink-0 fill-amber-950" strokeWidth={0} />
               {points}
-            </div>
+            </motion.div>
           )}
           {avatarSrc && (
             <div className="min-h-0 w-full flex-1 overflow-hidden rounded-lg border border-black/10 bg-white dark:border-white/10">
-              <img
-                src={avatarSrc}
-                alt=""
-                draggable={false}
-                className="h-full w-full object-contain select-none pointer-events-none"
-              />
+              <img src={avatarSrc} alt="" draggable={false} className="h-full w-full object-contain select-none pointer-events-none" />
             </div>
           )}
           <span

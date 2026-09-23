@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Eye, EyeOff, Layers, Settings, Shuffle, X } from 'lucide-react'
-import { DEAL_STAGGER_MS, type useFlipDeck } from '../hooks/useFlipDeck'
+import { ArrowDownRight, Eye, EyeOff, Layers, RotateCcw, Settings, Shuffle, X } from 'lucide-react'
+import { DEAL_STAGGER_MS, type FlipMode, type useFlipDeck } from '../hooks/useFlipDeck'
 import { DESK_COLUMNS, type Student } from '../types'
 import { FlipCard } from './FlipCard'
 import { TactileButton } from './TactileButton'
@@ -9,14 +9,12 @@ import { TactileButton } from './TactileButton'
 interface FlipDeckProps {
   deck: ReturnType<typeof useFlipDeck>
   studentsById: Map<string, Student>
-  pointsSelection: Set<string>
-  onToggleSelect: (studentId: string) => void
   onOpenSettings: () => void
   onExit: () => void
 }
 
-export function FlipDeck({ deck, studentsById, pointsSelection, onToggleSelect, onOpenSettings, onExit }: FlipDeckProps) {
-  const { inPlay, setAsideCount, phase, settings, shuffle, flip, revealAll, hideAll, anyFaceUp } = deck
+export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDeckProps) {
+  const { inPlay, setAsideCount, phase, settings, updateSettings, shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2">
@@ -30,6 +28,8 @@ export function FlipDeck({ deck, studentsById, pointsSelection, onToggleSelect, 
             {anyFaceUp ? 'Hide All' : 'Reveal All'}
           </TactileButton>
         </div>
+
+        <FlipModeSwitch mode={settings.flipMode} onChange={(flipMode) => updateSettings({ flipMode })} />
 
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
@@ -87,8 +87,9 @@ export function FlipDeck({ deck, studentsById, pointsSelection, onToggleSelect, 
                       student={student}
                       faceUp={card.faceUp}
                       genderColors={settings.genderColors}
-                      selectedForPoints={pointsSelection.has(card.studentId)}
-                      onTap={() => (card.faceUp ? onToggleSelect(card.studentId) : flip(card.studentId))}
+                      active={card.studentId === activeId}
+                      dimmed={card.faceUp && card.spent}
+                      onTap={() => tap(card.studentId)}
                     />
                   </motion.div>
                 )
@@ -111,6 +112,51 @@ export function FlipDeck({ deck, studentsById, pointsSelection, onToggleSelect, 
             </div>
           </motion.div>
         )}
+      </div>
+    </div>
+  )
+}
+
+const FLIP_MODES: { id: FlipMode; label: string; icon: typeof RotateCcw }[] = [
+  { id: 'stay', label: 'Flip Back', icon: RotateCcw },
+  { id: 'discard', label: 'Discard', icon: ArrowDownRight },
+]
+
+/**
+ * What tapping a face-up card does. It lives on the toolbar rather than in settings because
+ * it changes the meaning of the tap itself - the teacher should never have to remember it.
+ */
+function FlipModeSwitch({ mode, onChange }: { mode: FlipMode; onChange: (mode: FlipMode) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden text-sm font-semibold text-muted-foreground xl:inline">Tap a picked card to</span>
+      <div role="radiogroup" aria-label="Tap a picked card to" className="flex rounded-full bg-secondary p-1">
+        {FLIP_MODES.map(({ id, label, icon: Icon }) => {
+          const on = mode === id
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onChange(id)}
+              className={clsx(
+                'relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition-colors active:scale-95',
+                on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {on && (
+                <motion.span
+                  layoutId="flip-mode-pill"
+                  className="absolute inset-0 rounded-full bg-card shadow-sm"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                />
+              )}
+              <Icon size={15} className="relative" />
+              <span className="relative">{label}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

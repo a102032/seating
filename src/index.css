@@ -731,6 +731,14 @@ button {
     0 14px 34px rgba(0, 0, 0, 0.3) !important;
 }
 
+/* The flip card whose turn it is - the one the side panel's +/- will score. Amber like a
+   picker winner, since both mean "this student, right now". */
+.flip-card-active {
+  box-shadow:
+    0 0 0 3px #fbbf24,
+    0 0 22px 4px rgba(251, 191, 36, 0.55);
+}
+
 /* A group asking for help: the whole card breathes a soft red ring, so it reads from across
    the room without flashing at the class. A ring rather than a scale, so nothing reflows and
    the grid stays exactly where the layout planner put it. Help is the only status that moves:

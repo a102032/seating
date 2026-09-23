@@ -318,11 +318,12 @@ export default function App() {
    * A picker result *is* a points selection - the board is already pointing at those
    * students, so the +/- buttons should act on them without the teacher re-tapping each
    * desk. It stays derived rather than copied into state so there's nothing to keep in sync.
+   * The flip cards work the same way: whoever was flipped last has the turn, and the points.
    */
-  const activeSelection = useMemo(
-    () => (picker.hasResult ? new Set(picker.winnerStudentIds) : pointsSelection),
-    [picker.hasResult, picker.winnerStudentIds, pointsSelection],
-  )
+  const activeSelection = useMemo(() => {
+    if (flipDeckOpen) return new Set(deck.activeId ? [deck.activeId] : [])
+    return picker.hasResult ? new Set(picker.winnerStudentIds) : pointsSelection
+  }, [flipDeckOpen, deck.activeId, picker.hasResult, picker.winnerStudentIds, pointsSelection])
 
   function resetPointsSelection() {
     setPointsSelection(new Set())
@@ -424,6 +425,7 @@ export default function App() {
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
       flipDeckOpen={flipDeckOpen}
+      flipActiveName={deck.activeId ? (studentsById.get(deck.activeId)?.name ?? null) : null}
       onToggleFlipDeck={() => {
         // Deal outside the state updater - React may run an updater more than once, which
         // would deal (and sound) twice.
@@ -519,8 +521,6 @@ export default function App() {
                   <FlipDeck
                     deck={deck}
                     studentsById={studentsById}
-                    pointsSelection={pointsSelection}
-                    onToggleSelect={togglePointsSelection}
                     onOpenSettings={() => setFlipSettingsOpen(true)}
                     onExit={() => {
                       setFlipDeckOpen(false)
