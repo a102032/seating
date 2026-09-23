@@ -27,7 +27,7 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
     const card = cards.find((c) => c.studentId === studentId)
     const board = boardRef.current?.getBoundingClientRect()
     const el = document.querySelector(`[data-flip-card="${studentId}"]`)?.getBoundingClientRect()
-    if (card?.faceUp && settings.flipMode === 'discard' && board && el) {
+    if (card?.faceUp && studentId === activeId && settings.flipMode === 'discard' && board && el) {
       // The pile's own box: bottom-2 right-2, w-20 h-24.
       const pileX = board.right - 8 - PILE_W / 2
       const pileY = board.bottom - 8 - PILE_H / 2

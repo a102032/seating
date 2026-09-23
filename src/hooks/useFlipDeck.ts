@@ -91,6 +91,8 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   const [phase, setPhase] = useState<DeckPhase>('dealing')
   /** The card whose turn it is: the newest one flipped by hand. Points on the side panel go to them. */
   const [activeId, setActiveId] = useState<string | null>(null)
+  const activeIdRef = useRef(activeId)
+  activeIdRef.current = activeId
   /** When each card last turned over, for the double-tap guard. */
   const lastTurned = useRef(new Map<string, number>())
   const [settings, setSettings] = useState<FlipDeckSettings>(loadSettings)
@@ -149,8 +151,10 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   }, [])
 
   /**
-   * One tap, one meaning per card. Face down: reveal it and hand it the turn, dimming
-   * whoever had it. Face up: put it away - back over, or onto the discard pile.
+   * One tap, one meaning per card. Face down: reveal it and hand it the turn. Faded: hand
+   * it the turn back (the spelling bee's "you try again"). Either way whoever had the turn
+   * fades. Only the glowing card can be put away - back over, or onto the discard pile - so a
+   * stray touch on a faded card can never throw it away; that takes two deliberate taps.
    */
   const tap = useCallback(
     (studentId: string) => {
@@ -161,19 +165,19 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
       lastTurned.current.set(studentId, now)
 
       const { flipMode, soundEnabled } = settingsRef.current
-      if (!card.faceUp) {
+      if (studentId !== activeIdRef.current) {
         setCards((prev) =>
           prev.map((c) => (c.studentId === studentId ? { ...c, faceUp: true, spent: false } : c.faceUp ? { ...c, spent: true } : c)),
         )
         setActiveId(studentId)
         if (soundEnabled) {
-          playCardFlip()
-          later(playCardReveal, 200)
+          if (!card.faceUp) playCardFlip()
+          later(playCardReveal, card.faceUp ? 0 : 200)
         }
         return
       }
 
-      setActiveId((prev) => (prev === studentId ? null : prev))
+      setActiveId(null)
       if (flipMode === 'discard') {
         setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, setAside: true } : c)))
         if (soundEnabled) playCardDeal()
