@@ -14,6 +14,8 @@
   --foreground: #18181b;
   --card: #ffffff;
   --card-foreground: #18181b;
+  /* Names on the desks. Softer than --card-foreground on purpose: big, bold and near-black was the loudest thing on the board and read as glaring on a smartboard. Each light theme tints its own, all at about 9:1 - well clear of the 7:1 readability bar, so they still carry to the back of the room. Themes that don't set one (dark, comic) keep --card-foreground. */
+  --desk-name: #434a5a;
   --popover: #ffffff;
   --popover-foreground: #18181b;
   --primary: #2563eb;
@@ -42,6 +44,7 @@
   --foreground: #f5f5f7;
   --card: #29292d;
   --card-foreground: #f5f5f7;
+  --desk-name: var(--card-foreground);
   --popover: #29292d;
   --popover-foreground: #f5f5f7;
   --primary: #3b82f6;
@@ -71,6 +74,7 @@
   --foreground: #1e3a5f;
   --card: #ffffff;
   --card-foreground: #1e3a5f;
+  --desk-name: #2f4b6a;
   --popover: #ffffff;
   --popover-foreground: #1e3a5f;
   --primary: #3aa9e0;
@@ -100,6 +104,7 @@
   --foreground: #1e2a44;
   --card: #ffffff;
   --card-foreground: #1e2a44;
+  --desk-name: #4a4468;
   --popover: #ffffff;
   --popover-foreground: #1e2a44;
   --primary: #8b5cf6;
@@ -147,6 +152,7 @@
   --foreground: var(--comic-ink);
   --card: var(--comic-paper);
   --card-foreground: var(--comic-ink);
+  --desk-name: var(--card-foreground);
   --popover: var(--comic-paper);
   --popover-foreground: var(--comic-ink);
   --primary: var(--comic-red);

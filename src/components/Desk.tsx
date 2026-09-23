@@ -101,7 +101,9 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
 
           <span
             className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-tight"
-            style={{ fontSize: `${nameSize}cqi` }}
+            // Its own colour token rather than the card's text colour - see --desk-name in
+            // index.css. Dark and Comic Book point it back at the card colour.
+            style={{ fontSize: `${nameSize}cqi`, color: 'var(--desk-name, var(--card-foreground))' }}
           >
             {student.name}
           </span>
