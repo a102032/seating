@@ -28,16 +28,8 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
   const ss = String(seconds).padStart(2, '0')
 
   return (
-    <div className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-border bg-clock p-2.5 shadow-lg">
-      {/* The clock is the button. A "Timer controls" row spelled out what a chevron on the
-          digits says for free, and the panel has no height to spend on a label. */}
-      <button
-        type="button"
-        onClick={() => setMenuOpen((v) => !v)}
-        disabled={disabled}
-        title={menuOpen ? 'Hide the minute and second controls' : 'Set the minutes and seconds'}
-        className="flex w-full items-center gap-1 rounded-xl hover:bg-black/5 disabled:pointer-events-none"
-      >
+    <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-border bg-clock p-3 shadow-lg">
+      <div className="flex w-full items-center gap-1">
         <FlipDigit value={mm[0]} warningLevel={activeWarningLevel} />
         <FlipDigit value={mm[1]} warningLevel={activeWarningLevel} />
         <span className="shrink-0 px-0.5 font-black text-clock-foreground" style={{ fontSize: 'clamp(1rem, 4.5vmin, 2.4rem)' }}>
@@ -45,28 +37,19 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
         </span>
         <FlipDigit value={ss[0]} warningLevel={activeWarningLevel} />
         <FlipDigit value={ss[1]} warningLevel={activeWarningLevel} />
-        <motion.span
-          animate={{ rotate: menuOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="block shrink-0 pl-0.5 text-clock-foreground opacity-70"
-        >
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setMenuOpen((v) => !v)}
+        disabled={disabled}
+        className="flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-semibold text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30"
+      >
+        {menuOpen ? 'Hide controls' : 'Timer controls'}
+        <motion.span animate={{ rotate: menuOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
           <ChevronDown size={14} />
         </motion.span>
       </button>
-
-      {/* Start, pause and stop are what a teacher reaches for every lesson, so they are never
-          behind a tap. Only the minutes and seconds, which get set once, are. */}
-      <div className="flex items-center gap-3">
-        <SymbolButton disabled={disabled || running || remainingTotal <= 0} onClick={start} title="Start">
-          <Play size={20} />
-        </SymbolButton>
-        <SymbolButton disabled={disabled || !running} onClick={pause} title="Pause">
-          <Pause size={20} />
-        </SymbolButton>
-        <SymbolButton disabled={disabled || (!running && remainingTotal <= 0)} onClick={stop} title="Stop">
-          <Square size={20} />
-        </SymbolButton>
-      </div>
 
       <AnimatePresence initial={false}>
         {menuOpen && (
@@ -75,11 +58,11 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="flex w-full flex-col items-center overflow-hidden"
+            className="flex w-full flex-col items-center gap-2 overflow-hidden"
           >
             <div className="flex items-center gap-4 pt-1">
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[0.65rem] font-bold leading-none text-clock-foreground">MIN</span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-xs font-bold text-clock-foreground">MIN</span>
                 <div className="flex items-center gap-1">
                   <SpinButton disabled={disabled || running} onClick={() => adjustMinutes(-1)}>
                     <Minus size={14} />
@@ -89,8 +72,8 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
                   </SpinButton>
                 </div>
               </div>
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[0.65rem] font-bold leading-none text-clock-foreground">SEC</span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-xs font-bold text-clock-foreground">SEC</span>
                 <div className="flex items-center gap-1">
                   <SpinButton disabled={disabled || running} onClick={() => adjustSeconds(-1)}>
                     <Minus size={14} />
@@ -103,11 +86,22 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
               <button
                 onClick={onOpenSettings}
                 disabled={disabled}
-                className="mt-3 rounded-full p-1.5 text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30"
+                className="mt-3.5 rounded-full p-1.5 text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30"
                 title="Timer settings"
               >
                 <Settings size={18} />
               </button>
+            </div>
+            <div className="flex items-center gap-3 pb-0.5 pt-1">
+              <SymbolButton disabled={disabled || running || remainingTotal <= 0} onClick={start} title="Start">
+                <Play size={20} />
+              </SymbolButton>
+              <SymbolButton disabled={disabled || !running} onClick={pause} title="Pause">
+                <Pause size={20} />
+              </SymbolButton>
+              <SymbolButton disabled={disabled || (!running && remainingTotal <= 0)} onClick={stop} title="Stop">
+                <Square size={20} />
+              </SymbolButton>
             </div>
           </motion.div>
         )}
@@ -158,7 +152,7 @@ function SpinButton({ children, disabled, onClick }: { children: ReactNode; disa
       onPointerUp={handlePointerUp}
       onPointerLeave={clearHold}
       onPointerCancel={clearHold}
-      className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-border bg-card text-foreground disabled:opacity-30"
+      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border bg-card text-foreground disabled:opacity-30"
     >
       {children}
     </motion.button>
@@ -185,7 +179,7 @@ function SymbolButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="flex h-9 w-9 items-center justify-center rounded-full text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30"
+      className="flex h-10 w-10 items-center justify-center rounded-full text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
     </motion.button>
