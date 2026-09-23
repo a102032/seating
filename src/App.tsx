@@ -425,11 +425,15 @@ export default function App() {
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
       flipDeckOpen={flipDeckOpen}
+      pickFlashing={picker.isPicking}
       flipActiveName={deck.activeId ? (studentsById.get(deck.activeId)?.name ?? null) : null}
       onToggleFlipDeck={() => {
         // Deal outside the state updater - React may run an updater more than once, which
         // would deal (and sound) twice.
         const opening = !flipDeckOpen
+        // A finished pick would otherwise still be lit up behind the deck, and waiting there
+        // for the teacher when the cards go away.
+        if (opening) picker.dismiss()
         setFlipDeckOpen(opening)
         if (opening) deck.deal()
         resetPointsSelection()

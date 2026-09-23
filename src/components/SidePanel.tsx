@@ -39,6 +39,8 @@ interface SidePanelProps {
   onAwardPoint: () => void
   onDeductPoint: () => void
   flipDeckOpen: boolean
+  /** A pick is mid-flash; opening the flip cards now would leave it landing on hidden desks. */
+  pickFlashing: boolean
   /** Whose turn it is on the flip cards - the student +/- will score. */
   flipActiveName: string | null
   onToggleFlipDeck: () => void
@@ -76,6 +78,7 @@ export function SidePanel({
   onAwardPoint,
   onDeductPoint,
   flipDeckOpen,
+  pickFlashing,
   flipActiveName,
   onToggleFlipDeck,
   groupActivityOpen,
@@ -208,7 +211,14 @@ export function SidePanel({
               about which end of the grid is the front of the room, so "this row" is the only
               honest way to name it. It reverts the moment the lock stops binding.
             */}
-            <TactileButton active={studentPickActive} onClick={onPickStudent} disabled={swapMode} className="w-full justify-start">
+            {/* The flip cards are their own picker - the class chooses by tapping a card - so
+                the other two stand down rather than lighting up desks behind the deck. */}
+            <TactileButton
+              active={studentPickActive}
+              onClick={onPickStudent}
+              disabled={swapMode || flipDeckOpen}
+              className="w-full justify-start"
+            >
               <User size={18} /> {!groupMode && rowLockBinds ? 'Pick from This Row' : 'Pick Student'}
             </TactileButton>
             {/* A row and a group are both "a set of students", so the button keeps its
@@ -216,13 +226,18 @@ export function SidePanel({
             <TactileButton
               active={groupMode ? rowPickActive : rowLocked || rowPickActive}
               onClick={onPickRow}
-              disabled={swapMode}
+              disabled={swapMode || flipDeckOpen}
               className="w-full justify-start"
               title={!groupMode && rowLockBinds ? 'Picks are staying in this row. Tap any desk to go back to the whole class.' : undefined}
             >
               {groupMode ? <UsersRound size={18} /> : <Users size={18} />} {groupMode ? 'Pick Group' : 'Pick Row'}
             </TactileButton>
-            <TactileButton active={flipDeckOpen} onClick={onToggleFlipDeck} disabled={busy} className="w-full justify-start">
+            <TactileButton
+              active={flipDeckOpen}
+              onClick={onToggleFlipDeck}
+              disabled={busy || pickFlashing}
+              className="w-full justify-start"
+            >
               <Layers size={18} /> Flip Cards
             </TactileButton>
             <TactileButton
