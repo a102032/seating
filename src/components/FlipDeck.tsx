@@ -113,11 +113,17 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
           >
             {cards.map((card, index) => {
+              // The short row goes on top, not the bottom: the bottom rows are the ones a
+              // small child can reach, so those are the ones that stay full. The short row
+              // sits in the middle of the top, and the card after it starts the next row.
+              const gaps = (columns - (cards.length % columns)) % columns
+              const gridColumnStart =
+                gaps === 0 ? undefined : index === 0 ? Math.floor(gaps / 2) + 1 : index === columns - gaps ? 1 : undefined
               const student = card.bonus ? undefined : studentsById.get(card.studentId)
               if (!card.bonus && !student) return null
               return (
                 // Raised while its card flies out, so it crosses the board over the other cards.
-                <div key={card.studentId} className={clsx('relative min-h-0', card.setAside && 'z-20')}>
+                <div key={card.studentId} className={clsx('relative min-h-0', card.setAside && 'z-20')} style={{ gridColumnStart }}>
                   <AnimatePresence
                     custom={flyTo.get(card.studentId)}
                     onExitComplete={() => setLanded((prev) => new Set(prev).add(card.studentId))}
