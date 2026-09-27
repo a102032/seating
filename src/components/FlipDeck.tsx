@@ -114,11 +114,18 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
           >
             {cards.map((card, index) => {
               // The short row goes on top, not the bottom: the bottom rows are the ones a
-              // small child can reach, so those are the ones that stay full. The short row
-              // sits in the middle of the top, and the card after it starts the next row.
+              // small child can reach, so those are the ones that stay full. It starts at the
+              // left like a line of writing, so the empty spaces sit together at the top right,
+              // and the card after it starts the next row.
               const gaps = (columns - (cards.length % columns)) % columns
-              const gridColumnStart =
-                gaps === 0 ? undefined : index === 0 ? Math.floor(gaps / 2) + 1 : index === columns - gaps ? 1 : undefined
+              const topRow = columns - gaps
+              const gridColumnStart = gaps !== 0 && index === topRow ? 1 : undefined
+              // Dealt bottom row first, left to right, and up: the board fills the way the
+              // layout reads, and the short row is the last one to land.
+              const rows = Math.ceil(cards.length / columns)
+              const row = index < topRow ? 0 : 1 + Math.floor((index - topRow) / columns)
+              const column = index < topRow ? index : (index - topRow) % columns
+              const dealOrder = (rows - 1 - row) * columns + column
               const student = card.bonus ? undefined : studentsById.get(card.studentId)
               if (!card.bonus && !student) return null
               return (
@@ -138,7 +145,7 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
                           type: 'spring',
                           stiffness: 260,
                           damping: 24,
-                          delay: phase === 'dealing' ? (index * DEAL_STAGGER_MS) / 1000 : 0,
+                          delay: phase === 'dealing' ? (dealOrder * DEAL_STAGGER_MS) / 1000 : 0,
                         }}
                         className="h-full min-h-0"
                       >
