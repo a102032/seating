@@ -1,7 +1,7 @@
 # Decisions
 
 Running record of what we've settled and why, so the reasoning survives between sessions.
-Newest thinking at the top of each section. Last updated 2026-09-20.
+Newest thinking at the top of each section. Last updated 2026-09-27. Loaded into every new Claude Code session through CLAUDE.md.
 
 ## What this app is
 
