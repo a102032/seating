@@ -4,9 +4,10 @@ import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
 import {
-  DESK_COLUMNS,
-  DESK_COUNT,
   DESK_ROWS,
+  MAX_DESKS,
+  deskAt,
+  deskColumnsFor,
   type ClassData,
   type Gender,
   type GroupPointsMode,
@@ -25,7 +26,14 @@ function genId(): string {
 }
 
 function emptySeating(): (string | null)[] {
-  return Array.from({ length: DESK_COUNT }, () => null)
+  return Array.from({ length: MAX_DESKS }, () => null)
+}
+
+/** Saves from before the seventh column hold thirty desks; the five new ones start empty. */
+function withAllDesks(seating: (string | null)[] | undefined): (string | null)[] {
+  if (!seating) return emptySeating()
+  if (seating.length >= MAX_DESKS) return seating
+  return [...seating, ...Array.from({ length: MAX_DESKS - seating.length }, () => null)]
 }
 
 function makeClass(name: string): ClassData {
@@ -51,7 +59,7 @@ function rowToClass(row: SupabaseRow): ClassData {
     id: row.id,
     name: row.name,
     students: row.students ?? [],
-    seating: row.seating ?? emptySeating(),
+    seating: withAllDesks(row.seating),
     updatedAt: row.updated_at,
   }
 }
@@ -99,7 +107,9 @@ export function effectiveGroupPointsMode(c: ClassData): GroupPointsMode {
 
 export function useClasses() {
   const initial = useMemo(() => loadLocalState(), [])
-  const [classes, setClasses] = useState<ClassData[]>(initial?.classes ?? [makeClass('Class 1')])
+  const [classes, setClasses] = useState<ClassData[]>(
+    () => initial?.classes.map((c) => ({ ...c, seating: withAllDesks(c.seating) })) ?? [makeClass('Class 1')],
+  )
   const [activeClassId, setActiveClassId] = useState<string | null>(initial?.activeClassId ?? initial?.classes?.[0]?.id ?? null)
   const [loadedFromCloud, setLoadedFromCloud] = useState(!isSupabaseConfigured)
   const [saveError, setSaveError] = useState(false)
@@ -295,11 +305,13 @@ export function useClasses() {
           .filter((s) => !seatedIds.has(s.id))
           .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 
-        // Bottom row first, left to right, then moving up row by row.
+        // Bottom row first, left to right, then moving up row by row. The seventh column is
+        // only there for a class of more than thirty, so a smaller class fills as it always did.
+        const columns = deskColumnsFor(c)
         const fillOrder: number[] = []
         for (let row = DESK_ROWS - 1; row >= 0; row--) {
-          for (let col = 0; col < DESK_COLUMNS; col++) {
-            fillOrder.push(row * DESK_COLUMNS + col)
+          for (let col = 0; col < columns; col++) {
+            fillOrder.push(deskAt(row, col))
           }
         }
         const emptyDesks = fillOrder.filter((i) => c.seating[i] === null)

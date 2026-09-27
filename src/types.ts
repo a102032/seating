@@ -11,15 +11,52 @@ export interface Student {
   points?: number
 }
 
+/**
+ * The chart is six desks across and five deep - thirty desks, which is most classes. A class
+ * with more than thirty students gets a seventh column on the right, for thirty-five. Classes
+ * of thirty or fewer never see it, so their board stays exactly as it was.
+ *
+ * Desks 0-29 are the six-wide chart, row by row, as they always were; the seventh column is
+ * desks 30-34, top to bottom. Numbering the new desks on the end, rather than re-numbering
+ * the grid seven wide, is what keeps every seating chart saved before this in its place.
+ */
 export const DESK_COUNT = 30
 export const DESK_COLUMNS = 6
 export const DESK_ROWS = 5
+export const MAX_DESK_COLUMNS = 7
+export const MAX_DESKS = MAX_DESK_COLUMNS * DESK_ROWS
+
+/** Which column (the app's "row" of desks, as Pick Row means it) a desk is in, counting from the left. */
+export function deskColumn(deskIndex: number): number {
+  return deskIndex < DESK_COUNT ? deskIndex % DESK_COLUMNS : DESK_COLUMNS
+}
+
+/** Which row a desk is in, counting from the top. */
+export function deskRow(deskIndex: number): number {
+  return deskIndex < DESK_COUNT ? Math.floor(deskIndex / DESK_COLUMNS) : deskIndex - DESK_COUNT
+}
+
+export function deskAt(row: number, column: number): number {
+  return column < DESK_COLUMNS ? row * DESK_COLUMNS + column : DESK_COUNT + row
+}
+
+/** Six columns, or seven when the class needs them: more than thirty students, or anyone still sitting in the seventh. */
+export function deskColumnsFor(cls: Pick<ClassData, 'students' | 'seating'> | undefined): number {
+  if (!cls) return DESK_COLUMNS
+  const needed = cls.students.length > DESK_COUNT || cls.seating.slice(DESK_COUNT).some(Boolean)
+  return needed ? MAX_DESK_COLUMNS : DESK_COLUMNS
+}
+
+/** Every desk on the board, in reading order (row by row, left to right). */
+export function desksInOrder(columns: number): number[] {
+  return Array.from({ length: columns * DESK_ROWS }, (_, i) => deskAt(Math.floor(i / columns), i % columns))
+}
 
 export interface ClassData {
   id: string
   name: string
   students: Student[]
-  /** length DESK_COUNT, each slot holds a student id or null for an empty desk */
+  /** length MAX_DESKS (older saves have DESK_COUNT and are padded on load); each slot holds a student id or null for an empty desk */
   seating: (string | null)[]
   updatedAt: string
   /** Class points earned toward pointsGoal - wraps back down each time the class hits it. Unset is treated as 0. */

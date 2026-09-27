@@ -1,4 +1,4 @@
-import { DESK_COLUMNS, type Gender, type Student, type StudentGroup } from '../types'
+import { deskColumn, type Gender, type Student, type StudentGroup } from '../types'
 
 /**
  * How the class gets split. The teacher picks one with a single tap - nothing here is typed.
@@ -115,7 +115,7 @@ export function describeScheme(
       return { groups: 2, caption: `${boys} · ${girls}` }
     }
     case 'rows': {
-      const rows = new Set(seated.map((s) => s.deskIndex % DESK_COLUMNS))
+      const rows = new Set(seated.map((s) => deskColumn(s.deskIndex)))
       if (rows.size < 2) return null
       return { groups: rows.size, caption: `${rows.size} groups` }
     }
@@ -174,7 +174,7 @@ export function buildGroups(
     case 'rows': {
       const rows = new Map<number, string[]>()
       seated.forEach((s) => {
-        const row = s.deskIndex % DESK_COLUMNS
+        const row = deskColumn(s.deskIndex)
         rows.set(row, [...(rows.get(row) ?? []), s.student.id])
       })
       return Array.from(rows.keys())

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { playBonus, playCardDeal, playCardFlip, playCardReveal, playOops, playShuffle } from '../lib/sound'
-import { DESK_COLUMNS, type Gender } from '../types'
+import { DESK_COLUMNS, DESK_COUNT, MAX_DESK_COLUMNS, type Gender } from '../types'
 
 /**
  * What a tap on a face-up card does. Nothing about a picked card is ever timed: it stays
@@ -90,22 +90,31 @@ function saveSettings(settings: FlipDeckSettings) {
 }
 
 /**
+ * The column count the cards start from: the seating chart's own, six, or seven once there are
+ * more than thirty students - thirty-five on six columns would be six rows, on seven it is five.
+ */
+function baseColumns(students: number): number {
+  return students > DESK_COUNT ? MAX_DESK_COLUMNS : DESK_COLUMNS
+}
+
+/**
  * How many bonus cards, and how many columns, so the board comes out as full rows. A few
- * bonus cards (3-6, fewer for a small class), with columns kept near the seating chart's six
+ * bonus cards (3-6, fewer for a small class), with columns kept near the seating chart's own
  * and rows kept to five where it can, since the board is wider than it is tall. A class
  * size no mix makes even gets the closest one.
  */
 export function planDeck(students: number, withBonus: boolean): { bonus: number; columns: number } {
-  if (!withBonus || students === 0) return { bonus: 0, columns: DESK_COLUMNS }
+  const base = baseColumns(students)
+  if (!withBonus || students === 0) return { bonus: 0, columns: base }
   const most = Math.min(6, Math.max(1, Math.ceil(students / 4)))
   const least = Math.min(3, most)
-  let best = { bonus: least, columns: DESK_COLUMNS, score: Infinity }
+  let best = { bonus: least, columns: base, score: Infinity }
   for (let bonus = least; bonus <= most; bonus++) {
     for (let columns = 5; columns <= 8; columns++) {
       const total = students + bonus
       const gaps = (columns - (total % columns)) % columns
       const rows = Math.ceil(total / columns)
-      const score = gaps * 100 + Math.max(0, rows - 5) * 20 + Math.abs(columns - DESK_COLUMNS) * 5 + Math.abs(bonus - 5) * 3
+      const score = gaps * 100 + Math.max(0, rows - 5) * 20 + Math.abs(columns - base) * 5 + Math.abs(bonus - 5) * 3
       if (score < best.score) best = { bonus, columns, score }
     }
   }
@@ -204,7 +213,7 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
         })),
       ])
       setCards(order)
-      setColumns(bonuses.length > 0 ? plan.columns : DESK_COLUMNS)
+      setColumns(bonuses.length > 0 ? plan.columns : baseColumns(seated.length))
       setActiveId(null)
       setJackpot(0)
       setJackpotHit(null)

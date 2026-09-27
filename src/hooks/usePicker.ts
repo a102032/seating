@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { DESK_COLUMNS, DESK_COUNT } from '../types'
+import { MAX_DESKS, deskColumn } from '../types'
 import type { DeskHighlight } from '../components/Desk'
 import { playPickerLand, playPickerTick } from '../lib/sound'
 
@@ -46,10 +46,11 @@ function saveSettings(settings: PickerSettings) {
 }
 
 function columnOf(deskIndex: number): number {
-  return deskIndex % DESK_COLUMNS
+  return deskColumn(deskIndex)
 }
 
-export function usePicker(seating: (string | null)[], classId: string | null) {
+/** `columns` is how many rows of desks Pick Row chooses between: six, or seven for a class of more than thirty. */
+export function usePicker(seating: (string | null)[], classId: string | null, columns: number) {
   const seatingRef = useRef(seating)
   seatingRef.current = seating
 
@@ -173,15 +174,15 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
     const { allowRepeats, soundEnabled } = settingsRef.current
-    let eligible = Array.from({ length: DESK_COLUMNS }, (_, i) => i).filter((c) => allowRepeats || !pickedColumns.has(c))
+    let eligible = Array.from({ length: columns }, (_, i) => i).filter((c) => allowRepeats || !pickedColumns.has(c))
     let usedPicked = pickedColumns
     if (eligible.length === 0) {
       usedPicked = new Set()
-      eligible = Array.from({ length: DESK_COLUMNS }, (_, i) => i)
+      eligible = Array.from({ length: columns }, (_, i) => i)
     }
     // Same idea as pickStudent: flash across every row for a lively sequence,
     // but only ever land the winner on one that's still eligible.
-    const flashPool = Array.from({ length: DESK_COLUMNS }, (_, i) => i)
+    const flashPool = Array.from({ length: columns }, (_, i) => i)
 
     clearTimers()
     setMode('row-flashing')
@@ -209,7 +210,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
       setFlashColumn(pick)
       if (soundEnabled) playPickerTick()
     }, FLASH_TICK_MS)
-  }, [mode, pickedColumns, clearTimers])
+  }, [mode, pickedColumns, columns, clearTimers])
 
   const dismiss = useCallback(() => {
     setMode('idle')
@@ -256,7 +257,7 @@ export function usePicker(seating: (string | null)[], classId: string | null) {
         (settings.allowRepeats || !pickedStudentIds.has(studentId as string)),
     )
 
-  const deskHighlights: DeskHighlight[] = Array.from({ length: DESK_COUNT }, (_, index) => {
+  const deskHighlights: DeskHighlight[] = Array.from({ length: MAX_DESKS }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
     if (mode === 'row-flashing') return columnOf(index) === flashColumn ? 'flashing' : 'dimmed'
