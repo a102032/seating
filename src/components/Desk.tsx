@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { Star } from 'lucide-react'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Student } from '../types'
+import { AbsentIcon } from './AbsentIcon'
 import { AvatarSparkles } from './AvatarSparkles'
 
 export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
@@ -24,12 +25,14 @@ interface DeskProps {
   /** Keep shivering: every student is selected, so no dimming can show it. */
   wiggleLoop: boolean
   highlight: DeskHighlight
+  /** Marked absent today: the zzz stands in for the avatar, and the desk steps back a little. */
+  absent: boolean
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
   onTap: (index: number) => void
 }
 
-export function Desk({ index, student, selected, pointsState, wiggleDelayMs, landedTick, wiggleLoop, highlight, nameSize, onTap }: DeskProps) {
+export function Desk({ index, student, selected, pointsState, wiggleDelayMs, landedTick, wiggleLoop, highlight, absent, nameSize, onTap }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
 
@@ -53,6 +56,8 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
         !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
         (pointsState === 'muted' || highlight === 'dimmed') && 'desk-muted',
+        // Faded, not hidden: the name still has to be read from the back of the room.
+        absent && !empty && 'opacity-70',
         pointsState === 'selected' && (wiggleLoop ? 'desk-wiggle-loop' : 'desk-wiggle'),
         pointsState === 'landed' && (landedTick % 2 === 0 ? 'desk-landed-a' : 'desk-landed-b'),
         pointsState === 'landed' && wiggleLoop && 'desk-wiggle-loop',
@@ -91,12 +96,17 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
 
           <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
             {highlight === 'winner' && <AvatarSparkles />}
-            <img
-              src={resolveAvatarSrc(student)}
-              alt=""
-              draggable={false}
-              className="h-full w-full object-contain select-none pointer-events-none"
-            />
+            {absent ? (
+              // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
+              <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
+            ) : (
+              <img
+                src={resolveAvatarSrc(student)}
+                alt=""
+                draggable={false}
+                className="h-full w-full object-contain select-none pointer-events-none"
+              />
+            )}
           </div>
 
           <span

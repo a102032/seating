@@ -17,12 +17,18 @@ import {
 import type { GroupPick } from '../hooks/useGroupPicker'
 import type { GroupStatus, Student, StudentGroup } from '../types'
 import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
+import { AbsentIcon } from './AbsentIcon'
 import { ConfirmModal } from './ConfirmModal'
 import { TactileButton } from './TactileButton'
 
 interface GroupActivityProps {
   groups: StudentGroup[]
   studentsById: Map<string, Student>
+  /**
+   * Away today. They stay on their team's card - the team is whole again tomorrow - but
+   * faded, and the pickers pass them by.
+   */
+  absentIds: Set<string>
   /**
    * Non-zero asks for a deal: the chips gather into a stack and are dealt out. Bumped for
    * every new deal, and 0 when saved groups are being picked up - those just appear.
@@ -231,6 +237,7 @@ interface ChipSlot {
 export function GroupActivity({
   groups,
   studentsById,
+  absentIds,
   dealTick,
   canShuffle,
   dealWasShuffle,
@@ -556,6 +563,7 @@ export function GroupActivity({
                             tint={group.color}
                             plain={status.wash !== null}
                             lifted={isLifted}
+                            absent={absentIds.has(studentId)}
                             dimmed={studentPick && pick.flashId !== studentId && pick.winnerId !== studentId}
                             won={studentPick && pick.winnerId === studentId}
                             // A tap anywhere on another card means "move here", chips
@@ -701,6 +709,8 @@ interface ChipProps {
    */
   plain?: boolean
   lifted?: boolean
+  /** Away today: faded, with the zzz in place of the homeroom number. */
+  absent?: boolean
   /** Someone else is being picked right now, so this name stands back. */
   dimmed?: boolean
   /** This name is the one the picker landed on. */
@@ -713,7 +723,7 @@ interface ChipProps {
 }
 
 /** A student's name tag: homeroom number and name, one size for the whole class. */
-function Chip({ student, widthEm, tint, plain, lifted, dimmed, won, placeholder, stacked, onClick, title }: ChipProps) {
+function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, placeholder, stacked, onClick, title }: ChipProps) {
   // A name too long for the chip shrinks to fit rather than being cut off - it's the one
   // student whose name is long, and "Alexandr…" on a scoreboard is worse than small type.
   const needed = textWidthEm(student.name) + textWidthEm(student.homeroom) * 0.72 + CHIP_CHROME_EM
@@ -732,7 +742,11 @@ function Chip({ student, widthEm, tint, plain, lifted, dimmed, won, placeholder,
   const style = { width: `${widthEm}em`, background: plain || !tint ? undefined : `${tint}22` }
   const inner = (
     <>
-      <span className="shrink-0 text-[0.72em] font-semibold opacity-50">{student.homeroom}</span>
+      {absent ? (
+        <AbsentIcon className="h-[1.1em] w-[1.1em] shrink-0 text-muted-foreground" />
+      ) : (
+        <span className="shrink-0 text-[0.72em] font-semibold opacity-50">{student.homeroom}</span>
+      )}
       <span className="whitespace-nowrap" style={{ fontSize: `${nameScale}em` }}>
         {student.name}
       </span>
@@ -761,7 +775,7 @@ function Chip({ student, widthEm, tint, plain, lifted, dimmed, won, placeholder,
       initial={stacked ? { scale: 0.6 } : false}
       // Opacity goes through framer rather than a class: these chips carry a layoutId, and
       // the shared-layout pass writes an inline opacity that a class can never win against.
-      animate={{ scale: lifted || won ? 1.06 : 1, opacity: dimmed ? 0.3 : 1 }}
+      animate={{ scale: lifted || won ? 1.06 : 1, opacity: dimmed ? 0.3 : absent ? 0.55 : 1 }}
       transition={{ type: 'spring', stiffness: 280, damping: 26 }}
       onClick={(e) => {
         e.stopPropagation()

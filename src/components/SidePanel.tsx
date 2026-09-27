@@ -1,6 +1,20 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeftRight, ChevronDown, Layers, Minus, Plus, Settings, Shuffle, TriangleAlert, User, Users, UsersRound } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Check,
+  ChevronDown,
+  ClipboardCheck,
+  Layers,
+  Minus,
+  Plus,
+  Settings,
+  Shuffle,
+  TriangleAlert,
+  User,
+  Users,
+  UsersRound,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +29,11 @@ interface SidePanelProps {
   onSelectClass: (id: string) => void
   swapMode: boolean
   onToggleSwap: () => void
+  /** Attendance is on: a desk tap marks a student absent or back, and nothing else answers. */
+  attendanceMode: boolean
+  /** Attendance has been taken for this class today, so the button carries a check. */
+  attendanceTaken: boolean
+  onToggleAttendance: () => void
   onPickStudent: () => void
   onPickRow: () => void
   /** The group cards are up, so the two pickers work on them instead of the desks. */
@@ -58,6 +77,9 @@ export function SidePanel({
   onSelectClass,
   swapMode,
   onToggleSwap,
+  attendanceMode,
+  attendanceTaken,
+  onToggleAttendance,
   onPickStudent,
   onPickRow,
   groupMode,
@@ -88,15 +110,18 @@ export function SidePanel({
 }: SidePanelProps) {
   // The group cards carry their own scores, so the board's pickers and +/- stand down
   // while the activity is up - the same way Swap Seats quiets everything else.
-  const busy = swapMode || groupActivityOpen
+  const busy = swapMode || attendanceMode || groupActivityOpen
+  // Swap Seats and Attendance both turn a desk tap into something else, so while either is
+  // on it is the only thing on the panel that answers.
+  const deskMode = swapMode || attendanceMode
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
 
   const activeClass = classes.find((c) => c.id === activeClassId)
 
   useEffect(() => {
-    if (swapMode) setListOpen(false)
-  }, [swapMode])
+    if (deskMode) setListOpen(false)
+  }, [deskMode])
 
   function requestSwitch(cls: ClassData) {
     if (cls.id === activeClassId) {
@@ -123,11 +148,31 @@ export function SidePanel({
           >
             {activeClass?.name}
           </span>
+          {/*
+            One button, one meaning: on, and a desk tap marks a student absent (or back); off,
+            and the day is recorded. The check says today's is done. It lives on the class's
+            own row because attendance belongs to the class, and the row had the room. It
+            stands down while cards cover the desks, since the desks are what it acts on.
+          */}
+          <TactileButton
+            active={attendanceMode}
+            onClick={onToggleAttendance}
+            disabled={swapMode || flipDeckOpen || groupActivityOpen || pickFlashing}
+            className="ml-auto shrink-0 !gap-1.5 !px-2.5 !py-1.5"
+            title={attendanceTaken ? 'Attendance is done for today' : 'Take attendance'}
+          >
+            {attendanceTaken && !attendanceMode ? (
+              <Check size={16} strokeWidth={3} className="text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <ClipboardCheck size={16} />
+            )}
+            Attendance
+          </TactileButton>
           {classes.length > 1 && (
             <button
               type="button"
               onClick={() => setListOpen((v) => !v)}
-              disabled={swapMode}
+              disabled={deskMode}
               title="Switch class"
               className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
             >
@@ -170,19 +215,19 @@ export function SidePanel({
         </AnimatePresence>
       </div>
 
-      <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={swapMode} />
+      <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={deskMode} />
 
       <div className="flex shrink-0 flex-col gap-1.5">
         <div className="flex gap-1.5">
           {/* Both of these rearrange the class underneath a running activity, and a locked
               board means students are the ones standing at it. */}
-          <TactileButton onClick={onOpenSettings} disabled={swapMode || groupsLocked} className="grow shrink basis-0 !px-2 justify-center">
+          <TactileButton onClick={onOpenSettings} disabled={deskMode || groupsLocked} className="grow shrink basis-0 !px-2 justify-center">
             <Settings size={18} /> Settings
           </TactileButton>
           <TactileButton
             active={swapMode}
             onClick={onToggleSwap}
-            disabled={groupActivityOpen}
+            disabled={groupActivityOpen || attendanceMode}
             className="grow shrink basis-0 !px-2 justify-center"
             title={groupActivityOpen ? 'Seats can\u2019t be swapped while the group cards are up' : undefined}
           >
@@ -195,7 +240,7 @@ export function SidePanel({
             <button
               type="button"
               onClick={onOpenPickerSettings}
-              disabled={swapMode}
+              disabled={deskMode}
               title="Random picker settings"
               className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
             >
@@ -216,7 +261,7 @@ export function SidePanel({
             <TactileButton
               active={studentPickActive}
               onClick={onPickStudent}
-              disabled={swapMode || flipDeckOpen}
+              disabled={deskMode || flipDeckOpen}
               className="w-full justify-start"
             >
               <User size={18} /> {!groupMode && rowLockBinds ? 'Pick from This Row' : 'Pick Student'}
@@ -226,7 +271,7 @@ export function SidePanel({
             <TactileButton
               active={groupMode ? rowPickActive : rowLocked || rowPickActive}
               onClick={onPickRow}
-              disabled={swapMode || flipDeckOpen}
+              disabled={deskMode || flipDeckOpen}
               className="w-full justify-start"
               title={!groupMode && rowLockBinds ? 'Picks are staying in this row. Tap any desk to go back to the whole class.' : undefined}
             >
@@ -243,7 +288,7 @@ export function SidePanel({
             <TactileButton
               active={groupActivityOpen}
               onClick={onToggleGroupActivity}
-              disabled={swapMode || groupActivityLocked}
+              disabled={deskMode || groupActivityLocked}
               className="w-full justify-start"
             >
               <UsersRound size={18} /> Group Activity
@@ -333,7 +378,7 @@ export function SidePanel({
           <button
             type="button"
             onClick={onToggleSide}
-            disabled={swapMode}
+            disabled={deskMode}
             title={`Move panel to the ${side === 'left' ? 'right' : 'left'}`}
             className="rounded-lg p-1 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           >

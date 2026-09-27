@@ -15,10 +15,12 @@ interface DeskGridProps {
   /** Whether this selection arrived all at once (Select All), which ripples rather than twitches. */
   staggerWiggle: boolean
   deskHighlights: DeskHighlight[]
+  /** Students marked absent today. */
+  absentIds: Set<string>
   onTapDesk: (index: number) => void
 }
 
-export function DeskGrid({ seating, columns, studentsById, selectedDesk, pointsSelection, landedTick, staggerWiggle, deskHighlights, onTapDesk }: DeskGridProps) {
+export function DeskGrid({ seating, columns, studentsById, selectedDesk, pointsSelection, landedTick, staggerWiggle, deskHighlights, absentIds, onTapDesk }: DeskGridProps) {
   const seated = seating.map((id) => (id ? studentsById.get(id) : undefined))
 
   // While a picker is flashing or showing its winner it owns the board's attention, so the
@@ -66,6 +68,7 @@ export function DeskGrid({ seating, columns, studentsById, selectedDesk, pointsS
             landedTick={landedTick}
             wiggleLoop={everyoneSelected && inSelection}
             highlight={deskHighlights[index] ?? 'none'}
+            absent={student !== undefined && absentIds.has(student.id)}
             nameSize={nameSize}
             onTap={onTapDesk}
           />
