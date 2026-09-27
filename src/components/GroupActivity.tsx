@@ -42,7 +42,7 @@ interface GroupActivityProps {
   chimes: boolean
   /**
    * Students are at the board. Everything that would destroy work is frozen: moving a name,
-   * rename, New Groups, Shuffle and Exit. Status and points stay live, because awarding a
+   * New Groups, Shuffle and Exit. Status and points stay live, because awarding a
    * point for being on task is a normal thing to do in the middle of an activity and
    * unlocking to do it would be backwards.
    */
