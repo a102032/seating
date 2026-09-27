@@ -52,7 +52,7 @@ checks the live URL. Confirm it went green before saying something is live.
 - `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`; a 6x5 desk grid (`DESK_COUNT` 30), plus a
   seventh column (desks 30-34, `MAX_DESKS` 35) only for classes of more than 30. Use `deskColumn`/`deskRow`/`deskAt`,
   never `index % 6`, and `deskColumnsFor(cls)` for how many columns a class shows.
-- `src/hooks/useClasses.ts`: all class data changes (seating, points, class goal, groups) and saving.
+- `src/hooks/useClasses.ts`: all class data changes (seating, points, class goal, groups, attendance) and saving.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks. `useGroupPicker.ts`: the same during Group Activity.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
   cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
@@ -62,9 +62,12 @@ checks the live URL. Confirm it went green before saying something is live.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity.
   - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal.
+  - `AttendanceHistoryModal.tsx` (the record, opened from Class Settings) and `AbsentIcon.tsx` (the zzz).
   - `ui/`: shadcn primitives.
 - `src/lib/`: `sound.ts` (every sound, synthesised with Web Audio), `groups.ts` (building and pruning groups),
-  `bonusCards.ts`, `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`.
+  `bonusCards.ts`, `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV).
+- Absent students: `App.tsx` builds `presentSeating` (absent desks as empty) for everything that chooses students.
+  Anything new that picks, deals or awards should use it, not the raw `seating`.
 - `src/index.css`: the five themes as CSS custom properties, plus the keyframe classes.
 - localStorage keys all start with `seating-chart-` and end in `-v1` (the main state is `seating-chart-state-v1`).
 

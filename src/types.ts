@@ -56,6 +56,12 @@ export interface ClassData {
   id: string
   name: string
   students: Student[]
+  /**
+   * Who was absent, by local date ("2026-09-27"). A date being here at all means attendance
+   * was taken that day - an empty list is "everyone was here", which is different from a day
+   * nobody took it. Absence only ever lasts the day it was marked: tomorrow is a new key.
+   */
+  attendance?: Record<string, string[]>
   /** length MAX_DESKS (older saves have DESK_COUNT and are padded on load); each slot holds a student id or null for an empty desk */
   seating: (string | null)[]
   updatedAt: string

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import { absentOn, dateKey } from '../lib/attendance'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
@@ -326,6 +327,24 @@ export function useClasses() {
     [updateClass],
   )
 
+  /** Attendance mode: a tap marks a student absent for the day, and a second tap brings them back. */
+  const toggleAbsent = useCallback(
+    (classId: string, studentId: string, day: string) =>
+      updateClass(classId, (c) => {
+        const absent = c.attendance?.[day] ?? []
+        const next = absent.includes(studentId) ? absent.filter((id) => id !== studentId) : [...absent, studentId]
+        return { ...c, attendance: { ...c.attendance, [day]: next } }
+      }),
+    [updateClass],
+  )
+
+  /** Attendance mode was switched off: the day counts as taken, even with nobody away. */
+  const markAttendanceTaken = useCallback(
+    (classId: string, day: string) =>
+      updateClass(classId, (c) => (c.attendance?.[day] ? c : { ...c, attendance: { ...c.attendance, [day]: [] } })),
+    [updateClass],
+  )
+
   const unseatStudent = useCallback(
     (classId: string, studentId: string) =>
       updateClass(classId, (c) => ({
@@ -436,8 +455,11 @@ export function useClasses() {
         const groups = c.groups ?? []
         let next = c
         if (effectiveGroupPointsMode(c) === 'students') {
+          // Nobody earns stars on a day they weren't here, even on a team that did well.
+          const absent = absentOn(c, dateKey())
           groups.forEach((g) => {
-            if (g.points > 0) next = awardStars(next, g.studentIds, g.points)
+            const present = g.studentIds.filter((id) => !absent.has(id))
+            if (g.points > 0) next = awardStars(next, present, g.points)
           })
         } else {
           next = addClassPoints(
@@ -480,6 +502,8 @@ export function useClasses() {
     seatClass,
     unseatAll,
     unseatStudent,
+    toggleAbsent,
+    markAttendanceTaken,
     unseatedStudents,
     setGroups,
     adjustGroupPoints,

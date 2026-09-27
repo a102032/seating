@@ -20,6 +20,7 @@ import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
 import { playGroupsDone, playPointDeduct, primeAudio } from './lib/sound'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
+import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
@@ -79,6 +80,8 @@ export default function App() {
     seatClass,
     unseatAll,
     unseatStudent,
+    toggleAbsent,
+    markAttendanceTaken,
     unseatedStudents,
     setGroups,
     adjustGroupPoints,
@@ -91,6 +94,13 @@ export default function App() {
   } = useClasses()
 
   const [swapMode, setSwapMode] = useState(false)
+  const [attendanceMode, setAttendanceMode] = useState(false)
+  /**
+   * Today, for the attendance record. Re-read every minute and whenever the app comes back
+   * into view, so a board left open overnight starts the morning with everyone present
+   * rather than showing yesterday's absences until something happens to redraw it.
+   */
+  const [today, setToday] = useState(dateKey)
   const [selectedDesk, setSelectedDesk] = useState<number | null>(null)
   // Keyed by student id, not desk index, so a desk and a revealed flip card select the same way.
   const [pointsSelection, setPointsSelection] = useState<Set<string>>(new Set())
@@ -148,6 +158,16 @@ export default function App() {
   }, [activeClassId])
 
   useEffect(() => {
+    const refresh = () => setToday(dateKey())
+    const interval = setInterval(refresh, 60_000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!toast) return
     const timer = setTimeout(() => setToast(null), 5000)
     return () => clearTimeout(timer)
@@ -155,8 +175,18 @@ export default function App() {
 
   const seating = activeClass?.seating ?? []
   const deskColumns = deskColumnsFor(activeClass)
-  const picker = usePicker(seating, activeClassId, deskColumns)
-  const seatedIds = useMemo(() => (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)), [activeClass])
+  const absentIds = useMemo(() => absentOn(activeClass, today), [activeClass, today])
+  /**
+   * The seating chart as the lesson sees it today: an absent student's desk counts as empty
+   * for everything that chooses students - the pickers, the flip cards, Pick All, new groups.
+   * The real seating is untouched; they're back in their seat tomorrow.
+   */
+  const presentSeating = useMemo(
+    () => (activeClass?.seating ?? []).map((id) => (id && absentIds.has(id) ? null : id)),
+    [activeClass, absentIds],
+  )
+  const picker = usePicker(presentSeating, activeClassId, deskColumns)
+  const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
@@ -182,7 +212,11 @@ export default function App() {
    * which are behind the cards and so invisible here, which is why the panel's two picker
    * buttons hand over to this one instead of being greyed out.
    */
-  const groupPicker = useGroupPicker(groups, {
+  const pickableGroups = useMemo(
+    () => groups.map((g) => ({ ...g, studentIds: g.studentIds.filter((id) => !absentIds.has(id)) })),
+    [groups, absentIds],
+  )
+  const groupPicker = useGroupPicker(pickableGroups, {
     allowRepeats: picker.settings.allowRepeats,
     soundEnabled: picker.settings.soundEnabled,
     resetKey: dealTick,
@@ -196,7 +230,7 @@ export default function App() {
 
   function startGroups(scheme: GroupScheme) {
     if (!activeClassId) return
-    setGroups(activeClassId, buildGroups(scheme, seating, studentsById, groups))
+    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups))
     setGroupScheme(scheme)
     setDealWasShuffle(false)
     setDealTick((t) => t + 1)
@@ -223,7 +257,7 @@ export default function App() {
 
   function shuffleGroups() {
     if (!activeClassId || !groupScheme) return
-    setGroups(activeClassId, buildGroups(groupScheme, seating, studentsById, groups))
+    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups))
     setDealWasShuffle(true)
     setDealTick((t) => t + 1)
   }
@@ -242,7 +276,7 @@ export default function App() {
   /** The points go out the way the teacher chose, and the board comes back. */
   function giveOutGroupPoints() {
     if (!activeClass) return
-    const { totalPoints, studentsAwarded } = summarizeGroupPoints(groups)
+    const { totalPoints, studentsAwarded } = summarizeGroupPoints(pickableGroups)
     const mode = effectiveGroupPointsMode(activeClass)
     finishGroupActivity(activeClass.id)
     setExitPromptOpen(false)
@@ -302,13 +336,19 @@ export default function App() {
 
   function handleTapDesk(index: number) {
     if (!activeClassId) return
+    if (attendanceMode) {
+      const studentId = seating[index]
+      if (studentId) toggleAbsent(activeClassId, studentId, today)
+      return
+    }
     if (picker.hasResult) {
       picker.dismiss()
       return
     }
     if (!swapMode) {
       const studentId = seating[index]
-      if (!studentId) return
+      // Nobody earns a star on a day they aren't here, so an absent desk doesn't select.
+      if (!studentId || absentIds.has(studentId)) return
       togglePointsSelection(studentId)
       return
     }
@@ -411,6 +451,18 @@ export default function App() {
         setSwapMode((v) => !v)
         setSelectedDesk(null)
         resetPointsSelection()
+      }}
+      attendanceMode={attendanceMode}
+      attendanceTaken={attendanceTakenOn(activeClass, today)}
+      onToggleAttendance={() => {
+        // Switching it off is what records the day, so a class with nobody away gets its
+        // check from on-then-off, with no separate button to find.
+        if (attendanceMode) markAttendanceTaken(activeClass.id, today)
+        else {
+          picker.dismiss()
+          resetPointsSelection()
+        }
+        setAttendanceMode(!attendanceMode)
       }}
       onPickStudent={() => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent))}
       onPickRow={() => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow))}
@@ -520,6 +572,7 @@ export default function App() {
               landedTick={spentDelta === null ? 0 : landedTick}
               staggerWiggle={staggerWiggle}
               deskHighlights={picker.deskHighlights}
+              absentIds={absentIds}
               onTapDesk={handleTapDesk}
             />
 
@@ -561,6 +614,7 @@ export default function App() {
                   <GroupActivity
                     groups={groups}
                     studentsById={studentsById}
+                    absentIds={absentIds}
                     dealTick={dealTick}
                     dealWasShuffle={dealWasShuffle}
                     canShuffle={groupScheme !== null}
@@ -604,6 +658,7 @@ export default function App() {
         open={groupModalOpen}
         onClose={() => setGroupModalOpen(false)}
         activeClass={activeClass}
+        seating={presentSeating}
         studentsById={studentsById}
         lastGroups={groups}
         onStart={startGroups}

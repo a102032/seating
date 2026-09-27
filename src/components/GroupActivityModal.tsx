@@ -11,6 +11,8 @@ interface GroupActivityModalProps {
   open: boolean
   onClose: () => void
   activeClass: ClassData
+  /** The seating as today's lesson sees it: absent students' desks count as empty. */
+  seating: (string | null)[]
   studentsById: Map<string, Student>
   /** The saved groups as they stand now - already pruned to who is seated. */
   lastGroups: StudentGroup[]
@@ -40,6 +42,7 @@ export function GroupActivityModal({
   open,
   onClose,
   activeClass,
+  seating,
   studentsById,
   lastGroups,
   onStart,
@@ -48,7 +51,6 @@ export function GroupActivityModal({
   chimes,
   onSetChimes,
 }: GroupActivityModalProps) {
-  const seating = activeClass.seating
   const seatedCount = seating.filter(Boolean).length
   const goalLive = goalIsLive(activeClass)
   // Shown as it will behave: "goal" with the goal switched off would fall back to students.

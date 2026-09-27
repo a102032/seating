@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, Download, GraduationCap, Pencil, Plus, Smile, Star, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
+import { Armchair, ClipboardCheck, Download, GraduationCap, Pencil, Plus, Smile, Star, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
 import clsx from 'clsx'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { AvatarPickerModal } from './AvatarPickerModal'
+import { AttendanceHistoryModal } from './AttendanceHistoryModal'
 import { ClassAvatarsModal } from './ClassAvatarsModal'
 import { ConfirmModal } from './ConfirmModal'
 import { DangerCover } from './DangerCover'
@@ -96,6 +97,7 @@ export function ClassSettingsModal({
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
+  const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [guardOpen, setGuardOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -256,6 +258,12 @@ export function ClassSettingsModal({
             >
               <Download size={16} /> Export
             </TactileButton>
+            {/* The record the Attendance button keeps - here with the roster, since it is a
+                record about the roster, and a teacher looks for it far less often than they
+                take it. */}
+            <TactileButton onClick={() => setAttendanceOpen(true)} className="shrink-0" title="Who was away, day by day">
+              <ClipboardCheck size={16} /> Attendance
+            </TactileButton>
           </section>
 
           {/* Manual add - always one row, side by side */}
@@ -368,6 +376,8 @@ export function ClassSettingsModal({
           onClose()
         }}
       />
+
+      <AttendanceHistoryModal open={attendanceOpen} onClose={() => setAttendanceOpen(false)} activeClass={activeClass} />
 
       <ClassAvatarsModal
         open={assigningAvatars}
