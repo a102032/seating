@@ -100,7 +100,10 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
         </div>
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      {/* A little room on the sides and bottom: the glowing card's outline is drawn outside the
+          card, and the board sits in a clipped frame (so it can slide over the desks), which cut
+          the outline off on any card touching an edge. */}
+      <div className="relative min-h-0 flex-1 px-1 pb-1">
         {phase === 'shuffling' ? (
           <ShuffleStack count={Math.max(inPlay.length, 1)} />
         ) : (
