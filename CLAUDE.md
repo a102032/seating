@@ -26,7 +26,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
   inside a modal may scroll; a modal itself must fit. Check new UI at 1024x640, 1280x800 and 1920x1080.
   (Known exception: 1024x640 with the timer controls open is about 39px short in the side panel. Accepted.)
 - Fixed-size boards: once a board (flip cards, group cards) is laid out, cards don't resize or move as others
-  leave. Empty space goes where a child won't miss it: the flip deck's short row goes on top, starting at the left, so
+  leave. A class of 30 or fewer must look exactly as it did before the seventh column existed.
+  Empty space goes where a child won't miss it: the flip deck's short row goes on top, starting at the left, so
   the empty slots are at the top right. Cards are dealt bottom row first, left to right, working up.
 
 ## Stack and commands
@@ -48,7 +49,9 @@ checks the live URL. Confirm it went green before saying something is live.
 ## Where things are
 
 - `src/App.tsx`: top-level state and wiring (points selection, which screen is open, modals).
-- `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`; a 6x5 desk grid (`DESK_COUNT` 30).
+- `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`; a 6x5 desk grid (`DESK_COUNT` 30), plus a
+  seventh column (desks 30-34, `MAX_DESKS` 35) only for classes of more than 30. Use `deskColumn`/`deskRow`/`deskAt`,
+  never `index % 6`, and `deskColumnsFor(cls)` for how many columns a class shows.
 - `src/hooks/useClasses.ts`: all class data changes (seating, points, class goal, groups) and saving.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks. `useGroupPicker.ts`: the same during Group Activity.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus

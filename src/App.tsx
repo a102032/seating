@@ -20,7 +20,7 @@ import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
 import { playGroupsDone, playPointDeduct, primeAudio } from './lib/sound'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
-import type { GroupPointsMode, Student, TimerSettings } from './types'
+import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
@@ -154,7 +154,8 @@ export default function App() {
   }, [toast])
 
   const seating = activeClass?.seating ?? []
-  const picker = usePicker(seating, activeClassId)
+  const deskColumns = deskColumnsFor(activeClass)
+  const picker = usePicker(seating, activeClassId, deskColumns)
   const seatedIds = useMemo(() => (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)), [activeClass])
 
   const studentsById = useMemo(() => {
@@ -512,6 +513,7 @@ export default function App() {
           <main className="relative min-h-0 flex-1 overflow-hidden">
             <DeskGrid
               seating={seating}
+              columns={deskColumns}
               studentsById={studentsById}
               selectedDesk={selectedDesk}
               pointsSelection={activeSelection}

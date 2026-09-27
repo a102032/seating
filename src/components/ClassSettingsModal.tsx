@@ -5,7 +5,7 @@ import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Theme } from '../lib/theme'
-import { DESK_COUNT, type ClassData, type Gender, type Student } from '../types'
+import { MAX_DESKS, type ClassData, type Gender, type Student } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -275,10 +275,10 @@ export function ClassSettingsModal({
           <section className="flex min-h-[6rem] flex-1 flex-col">
             <div className="mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
-              {activeClass.students.length > DESK_COUNT && (
+              {activeClass.students.length > MAX_DESKS && (
                 <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
                   <TriangleAlert size={13} />
-                  {activeClass.students.length - DESK_COUNT} more than the {DESK_COUNT} available desks
+                  {activeClass.students.length - MAX_DESKS} more than the {MAX_DESKS} available desks
                 </span>
               )}
             </div>
