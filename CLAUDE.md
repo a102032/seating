@@ -26,7 +26,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
   inside a modal may scroll; a modal itself must fit. Check new UI at 1024x640, 1280x800 and 1920x1080.
   (Known exception: 1024x640 with the timer controls open is about 39px short in the side panel. Accepted.)
 - Fixed-size boards: once a board (flip cards, group cards) is laid out, cards don't resize or move as others
-  leave. Empty space goes where a child won't miss it (for example, the flip deck's short row goes on top).
+  leave. Empty space goes where a child won't miss it: the flip deck's short row goes on top, starting at the left, so
+  the empty slots are at the top right. Cards are dealt bottom row first, left to right, working up.
 
 ## Stack and commands
 
