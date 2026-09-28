@@ -82,6 +82,7 @@ export default function App() {
     unseatStudent,
     toggleAbsent,
     markAttendanceTaken,
+    toggleAbsentInRecord,
     unseatedStudents,
     setGroups,
     adjustGroupPoints,
@@ -732,6 +733,7 @@ export default function App() {
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
+        onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         theme={theme}
         onSetTheme={(next) => {
           // A pick from the picker is the only thing that gets remembered - see chooseTheme.

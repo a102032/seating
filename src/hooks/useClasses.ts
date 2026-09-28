@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import { absentOn, dateKey } from '../lib/attendance'
+import { absentOn, dateKey, takenDays } from '../lib/attendance'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
@@ -94,6 +94,13 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
     classPoints %= goal
   }
   return { ...c, classPoints, goalsReached }
+}
+
+/** The day counts as taken. Writes the taken list out in full, so an old save gets one. */
+function withDayTaken(c: ClassData, day: string): ClassData {
+  if (c.attendanceTaken?.includes(day)) return c
+  const taken = takenDays(c)
+  return { ...c, attendanceTaken: taken.includes(day) ? taken : [...taken, day].sort() }
 }
 
 /** The class goal has to exist and be switched on for group points to have anywhere to go. */
@@ -327,21 +334,44 @@ export function useClasses() {
     [updateClass],
   )
 
-  /** Attendance mode: a tap marks a student absent for the day, and a second tap brings them back. */
+  /**
+   * Attendance mode: a tap marks a student absent for the day, and a second tap brings them
+   * back. Anything done in the mode is taking attendance, so the day counts as taken from the
+   * first tap - a class left mid-mode keeps its record, as it always did.
+   */
   const toggleAbsent = useCallback(
     (classId: string, studentId: string, day: string) =>
       updateClass(classId, (c) => {
         const absent = c.attendance?.[day] ?? []
         const next = absent.includes(studentId) ? absent.filter((id) => id !== studentId) : [...absent, studentId]
-        return { ...c, attendance: { ...c.attendance, [day]: next } }
+        return { ...withDayTaken(c, day), attendance: { ...c.attendance, [day]: next } }
       }),
     [updateClass],
   )
 
   /** Attendance mode was switched off: the day counts as taken, even with nobody away. */
   const markAttendanceTaken = useCallback(
-    (classId: string, day: string) =>
-      updateClass(classId, (c) => (c.attendance?.[day] ? c : { ...c, attendance: { ...c.attendance, [day]: [] } })),
+    (classId: string, day: string) => updateClass(classId, (c) => withDayTaken(c, day)),
+    [updateClass],
+  )
+
+  /**
+   * A tap in the attendance record: fixing a past day, or marking one ahead. Unlike the mode,
+   * this is not taking attendance - a student marked away for Friday must not give Friday its
+   * check. A day left with nobody away and never taken drops out of the record entirely.
+   */
+  const toggleAbsentInRecord = useCallback(
+    (classId: string, studentId: string, day: string) =>
+      updateClass(classId, (c) => {
+        const absent = c.attendance?.[day] ?? []
+        const next = absent.includes(studentId) ? absent.filter((id) => id !== studentId) : [...absent, studentId]
+        const taken = takenDays(c)
+        const attendance = { ...c.attendance, [day]: next }
+        if (next.length === 0 && !taken.includes(day)) delete attendance[day]
+        // The taken list is written out before the record changes: an old save has none, and
+        // without it a day marked ahead would read as taken.
+        return { ...c, attendanceTaken: taken, attendance }
+      }),
     [updateClass],
   )
 
@@ -504,6 +534,7 @@ export function useClasses() {
     unseatStudent,
     toggleAbsent,
     markAttendanceTaken,
+    toggleAbsentInRecord,
     unseatedStudents,
     setGroups,
     adjustGroupPoints,
