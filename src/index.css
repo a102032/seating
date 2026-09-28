@@ -5,7 +5,10 @@
    emerald) applies to it as well. */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *, [data-theme='chalk'], [data-theme='chalk'] *));
 
-:root {
+/* Each theme's tokens also apply under [data-theme-preview], so the theme picker can draw a
+   small board in every theme's real colours whatever theme the page itself is in. */
+:root,
+[data-theme-preview='light'] {
   color-scheme: light;
   --app-bg-from: #f5f5f7;
   --app-bg-to: #eef1f6;
@@ -37,7 +40,8 @@
   --clock-fg: var(--muted-foreground);
 }
 
-:root[data-theme='dark'] {
+:root[data-theme='dark'],
+[data-theme-preview='dark'] {
   color-scheme: dark;
   --app-bg-from: #1c1c1e;
   --app-bg-to: #232326;
@@ -67,7 +71,8 @@
 }
 
 /* Vibrant Elementary - ABCYA-style bold chrome on a bright sky-blue ground */
-:root[data-theme='vibrant'] {
+:root[data-theme='vibrant'],
+[data-theme-preview='vibrant'] {
   color-scheme: light;
   --app-bg-from: #6bd9f7;
   --app-bg-to: #38bdf8;
@@ -108,7 +113,8 @@
  * had none - and it changes nothing that affects layout: every outline here is a box-shadow
  * ring rather than a border, so switching themes never reflows the board.
  */
-:root[data-theme='comic'] {
+:root[data-theme='comic'],
+[data-theme-preview='comic'] {
   color-scheme: light;
   --app-bg-from: #ffc82e;
   --app-bg-to: #f79a0d;
@@ -152,18 +158,15 @@
  * block of its own at the bottom of this file, under the same two rules as Comic Book: it only
  * uses hooks that already exist, and nothing it adds changes an element's size.
  */
-:root[data-theme='chalk'] {
+:root[data-theme='chalk'],
+[data-theme-preview='chalk'] {
   color-scheme: dark;
   --app-bg-from: #3b6a51;
   --app-bg-to: #2c5541;
 
   /* Chalk is never pure white: it is a little warm, and a little dusty. */
   --chalk: #f4f1e6;
-  --chalk-teal: #8fd8cf;
-  --chalk-orange: #f5a86e;
-  --chalk-pink: #f4a3c6;
   --chalk-yellow: #f6d97a;
-  --chalk-green: #a9dd9c;
   --chalk-wood: #9a6437;
 
   --background: #284d3b;
@@ -981,39 +984,25 @@ button {
   letter-spacing: 0.08em;
 }
 
-/* Desks: slate tiles with a line of coloured chalk round the edge. The colour
-   comes from a rotating five, which on a six-column grid runs on a diagonal,
-   the way a teacher reaches for whatever stick is nearest. The glow is what
-   makes a line look laid on the board rather than printed. */
+/* Desks: slate tiles with one line of white chalk round the edge. A different
+   chalk colour per desk was tried first and taken out: thirty coloured outlines
+   pulled the eye away from the names. This is the side panel buttons' chalk,
+   drawn a little heavier, so the desks and the controls read as one board. The
+   glow is what makes a line look laid on the board rather than printed. */
 :root[data-theme='chalk'] [data-ink='desk'] {
+  --desk-chalk: rgba(244, 241, 230, 0.55);
   border-color: var(--desk-chalk) !important;
   box-shadow:
     0 0 0 1px var(--desk-chalk),
-    0 0 7px 0 color-mix(in srgb, var(--desk-chalk) 45%, transparent),
+    0 0 7px 0 rgba(244, 241, 230, 0.2),
     0 3px 6px rgba(0, 0, 0, 0.25);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 1) {
-  --desk-chalk: var(--chalk-teal);
-}
-:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 2) {
-  --desk-chalk: var(--chalk-orange);
-}
-:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 3) {
-  --desk-chalk: var(--chalk-pink);
-}
-:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 4) {
-  --desk-chalk: var(--chalk-yellow);
-}
-:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 5) {
-  --desk-chalk: var(--chalk-green);
-}
-
-/* The homeroom number is written in the desk's own chalk. */
+/* The homeroom number in the same chalk, a step quieter than the name. */
 :root[data-theme='chalk'] [data-ink='homeroom'] {
-  opacity: 0.95;
-  color: var(--desk-chalk);
+  opacity: 0.7;
+  color: var(--chalk);
 }
 
 /* An empty desk is a dashed outline nobody has filled in yet. */
@@ -1061,4 +1050,57 @@ button {
 
 :root[data-theme='chalk'] ::-webkit-scrollbar-thumb {
   background: rgba(244, 241, 230, 0.35);
+}
+
+/* ===========================================================================
+ * Theme picker thumbnails: a small board in each theme's own colours.
+ *
+ * The colours come from the theme's tokens (see [data-theme-preview] above);
+ * these rules add the one or two marks that make each theme recognisable at
+ * this size, which for Comic Book and Chalkboard is not a colour.
+ * =========================================================================== */
+/* The outline is for Light shown on a light window, where its edge otherwise disappears.
+   An outline rather than a border or ring: it takes no room, and Chalkboard's frame is
+   already a box-shadow. */
+[data-theme-preview] {
+  background-image: linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
+  outline: 1px solid rgba(0, 0, 0, 0.12);
+  outline-offset: -1px;
+}
+
+[data-theme-preview] [data-preview='desk'] {
+  border: 1px solid var(--border);
+}
+
+[data-theme-preview='light'] [data-preview='desk'],
+[data-theme-preview='vibrant'] [data-preview='desk'] {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme-preview='comic'] [data-preview='desk'],
+[data-theme-preview='comic'] [data-preview='panel'] {
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 0 var(--comic-ink);
+}
+
+[data-theme-preview='comic'] {
+  background-image:
+    radial-gradient(circle, rgba(232, 39, 44, 0.34) 1px, transparent 1.2px),
+    linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
+  background-size:
+    6px 6px,
+    100% 100%;
+}
+
+[data-theme-preview='chalk'] {
+  box-shadow: inset 0 0 0 3px var(--chalk-wood);
+}
+
+[data-theme-preview='chalk'] [data-preview='desk'] {
+  border-color: rgba(244, 241, 230, 0.55);
+}
+
+[data-theme-preview='chalk'] [data-preview='panel'] {
+  background-color: rgba(24, 48, 36, 0.72);
+  border: 1px solid rgba(244, 241, 230, 0.4);
 }

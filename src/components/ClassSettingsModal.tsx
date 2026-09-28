@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Armchair, ClipboardCheck, Download, GraduationCap, Pencil, Plus, Smile, Star, Trash2, TriangleAlert, Upload, UserX } from 'lucide-react'
+import {
+  Armchair,
+  ClipboardCheck,
+  Download,
+  GraduationCap,
+  Pencil,
+  Plus,
+  School,
+  Smile,
+  Star,
+  Trash2,
+  TriangleAlert,
+  Upload,
+  Users,
+  UserX,
+} from 'lucide-react'
 import clsx from 'clsx'
+import { motion } from 'framer-motion'
 import { parseRosterCsv, studentsToCsv } from '../lib/csv'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
 import { resolveAvatarSrc } from '../lib/stickers'
@@ -38,6 +54,7 @@ interface ClassSettingsModalProps {
   onDeleteClass: () => void
   onUnseatAll: () => void
   onSeatClass: () => void
+  onToggleAbsentInRecord: (studentId: string, day: string) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
 }
@@ -65,6 +82,54 @@ function GenderSelect({ value, onChange, className }: { value: Gender; onChange:
   )
 }
 
+type SettingsTab = 'students' | 'class'
+
+/** How many of the class's avatars the Class tab shows before "+12". */
+const AVATAR_STRIP_MAX = 10
+
+const SETTINGS_TABS: { id: SettingsTab; label: string; icon: typeof Users }[] = [
+  { id: 'students', label: 'Students', icon: Users },
+  { id: 'class', label: 'Class', icon: School },
+]
+
+/**
+ * Two tabs, so each half of this window is about one thing: the students (the roster, their
+ * seats, today's attendance) or the class as a whole (its look, and making or deleting it).
+ * It was one page, and the roster - the part used most - got a row and a half of it.
+ */
+function SettingsTabs({ tab, onChange }: { tab: SettingsTab; onChange: (tab: SettingsTab) => void }) {
+  return (
+    <div role="tablist" className="flex shrink-0 rounded-2xl bg-secondary p-1">
+      {SETTINGS_TABS.map(({ id, label, icon: Icon }) => {
+        const on = tab === id
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(id)}
+            className={clsx(
+              'relative flex flex-1 items-center justify-center gap-2 rounded-xl py-2 font-bold transition-colors active:scale-[0.98]',
+              on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {on && (
+              <motion.span
+                layoutId="settings-tab-pill"
+                className="absolute inset-0 rounded-xl bg-card shadow-sm"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+            <Icon size={18} className="relative" />
+            <span className="relative">{label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function ClassSettingsModal({
   open,
   onClose,
@@ -82,6 +147,7 @@ export function ClassSettingsModal({
   onDeleteClass,
   onUnseatAll,
   onSeatClass,
+  onToggleAbsentInRecord,
   theme,
   onSetTheme,
 }: ClassSettingsModalProps) {
@@ -99,6 +165,7 @@ export function ClassSettingsModal({
   const [assigningAvatars, setAssigningAvatars] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [guardOpen, setGuardOpen] = useState(false)
+  const [tab, setTab] = useState<SettingsTab>('students')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
@@ -150,6 +217,14 @@ export function ClassSettingsModal({
     setManualGender('unspecified')
   }
 
+  // Settings always opens on the roster, the part a teacher comes here for most. Reset as it
+  // opens, during render, so the Class tab never shows for a frame first.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) setTab('students')
+  }
+
   function closeAndReset() {
     setConfirmingDelete(false)
     setConfirmingUnseatAll(false)
@@ -163,175 +238,236 @@ export function ClassSettingsModal({
   return (
     <>
       <Modal
-        open={open && !confirmingDelete && !confirmingUnseatAll && !confirmingDeleteStudent && !pickingAvatarFor && !assigningAvatars}
+        open={
+          open &&
+          !confirmingDelete &&
+          !confirmingUnseatAll &&
+          !confirmingDeleteStudent &&
+          !pickingAvatarFor &&
+          !assigningAvatars &&
+          !attendanceOpen
+        }
         onClose={closeAndReset}
         title="Class Settings"
         wide
+        fixedHeight
       >
         <div className="flex min-h-full flex-col gap-3.5">
-          {/* Class-level actions - up top, away from the roster, so they can't be hit by accident */}
-          <section className="flex shrink-0 flex-wrap items-center gap-2">
-            <TactileButton onClick={() => setConfirmingUnseatAll(true)}>
-              <UserX size={16} /> Unseat All
-            </TactileButton>
-            <TactileButton onClick={() => setAssigningAvatars(true)} disabled={activeClass.students.length === 0}>
-              <Smile size={16} /> Class Avatars
-            </TactileButton>
-            <TactileButton
-              onClick={onCreateClass}
-              disabled={classesCount >= MAX_CLASSES}
-              className={classesCount >= MAX_CLASSES ? 'opacity-40' : ''}
-              title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
-            >
-              <Plus size={16} /> New Class
-            </TactileButton>
-            <DangerCover
-              open={guardOpen}
-              onOpen={() => setGuardOpen(true)}
-              onAutoClose={() => setGuardOpen(false)}
-              className="ml-auto"
-              note={['Delete Class…', 'Be careful!']}
-            >
-              <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
-                <Trash2 size={16} /> Delete Class
-              </TactileButton>
-            </DangerCover>
-          </section>
+          <SettingsTabs tab={tab} onChange={setTab} />
 
-          <Separator />
-
-          {/* Class Name + Appearance */}
-          <section className="flex shrink-0 flex-wrap items-start gap-3">
-            <div className="min-w-[10rem] flex-1 sm:flex-none sm:basis-[14rem]">
-              <Label htmlFor="class-name" className="mb-1.5">
-                Class Name
-              </Label>
-              <Input
-                id="class-name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  setNameError(null)
-                }}
-                onBlur={commitRename}
-                className={clsx('font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
-              />
-              {nameError && <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
-            </div>
-            <div className="w-full min-w-[18rem] sm:w-auto sm:min-w-0 sm:flex-1">
-              <Label className="mb-1.5">Appearance</Label>
-              <ThemePicker theme={theme} onSetTheme={onSetTheme} />
-            </div>
-          </section>
-
-          {/* CSV Upload + Export */}
-          <section className="flex shrink-0 items-center gap-2">
-            <div
-              onDragOver={(e) => {
-                e.preventDefault()
-                setDragOver(true)
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault()
-                setDragOver(false)
-                void handleFiles(e.dataTransfer.files)
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className={clsx(
-                'flex flex-1 cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-2.5 text-left transition-colors',
-                dragOver ? 'border-primary bg-primary/10' : 'border-black/15 bg-black/[0.02] hover:bg-black/[0.04] dark:border-white/15 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]',
-              )}
-            >
-              <Upload className="shrink-0 text-muted-foreground" size={20} />
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">Import a CSV roster</span> - drag a file here or
-                click to choose one (Name, Homeroom Number, Gender)
-              </p>
-              <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
-            </div>
-            <TactileButton
-              onClick={downloadRosterCsv}
-              disabled={activeClass.students.length === 0}
-              className={clsx('shrink-0', activeClass.students.length === 0 && 'opacity-40')}
-              title="Download this class's roster as a CSV file - keep a backup, since this app only saves on this device"
-            >
-              <Download size={16} /> Export
-            </TactileButton>
-            {/* The record the Attendance button keeps - here with the roster, since it is a
-                record about the roster, and a teacher looks for it far less often than they
-                take it. */}
-            <TactileButton onClick={() => setAttendanceOpen(true)} className="shrink-0" title="Who was away, day by day">
-              <ClipboardCheck size={16} /> Attendance
-            </TactileButton>
-          </section>
-
-          {/* Manual add - always one row, side by side */}
-          <section className="shrink-0">
-            <Label className="mb-1.5">Add a Student</Label>
-            <div className="grid grid-cols-[2fr_1fr_1fr_auto] items-center gap-2">
-              <Input value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Name" className="min-w-0" />
-              <Input value={manualHomeroom} onChange={(e) => setManualHomeroom(e.target.value)} placeholder="Homeroom #" className="min-w-0" />
-              <GenderSelect value={manualGender} onChange={setManualGender} className="min-w-0" />
-              <TactileButton variant="primary" onClick={submitManualAdd} className="whitespace-nowrap">
-                <Plus size={18} /> Add
-              </TactileButton>
-            </div>
-          </section>
-
-          {/* Roster list - the only part of this modal that scrolls in normal cases */}
-          <section className="flex min-h-[6rem] flex-1 flex-col">
-            <div className="mb-1.5 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
-              {activeClass.students.length > MAX_DESKS && (
-                <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  <TriangleAlert size={13} />
-                  {activeClass.students.length - MAX_DESKS} more than the {MAX_DESKS} available desks
-                </span>
-              )}
-            </div>
-            <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
-              {activeClass.students.length === 0 ? (
-                <p className="p-4 text-center text-muted-foreground">No students yet. Add some above!</p>
-              ) : (
-                activeClass.students.map((s) => (
-                  <RosterRow
-                    key={s.id}
-                    student={s}
-                    seated={seatedIds.has(s.id)}
-                    editing={editingId === s.id}
-                    onEdit={() => setEditingId(s.id)}
-                    onCancelEdit={() => setEditingId(null)}
-                    onSave={(patch) => {
-                      onUpdateStudent(s.id, patch)
-                      setEditingId(null)
-                    }}
-                    onDelete={() => setConfirmingDeleteStudent(s)}
-                    onUnseat={() => onUnseatStudent(s.id)}
-                    onPickAvatar={() => setPickingAvatarFor(s)}
+          {tab === 'students' ? (
+            <>
+              {/* Manual add - always one row, side by side */}
+              <section className="shrink-0">
+                <Label className="mb-1.5">Add a Student</Label>
+                <div className="grid grid-cols-[2fr_1fr_1fr_auto] items-center gap-2">
+                  <Input value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Name" className="min-w-0" />
+                  <Input
+                    value={manualHomeroom}
+                    onChange={(e) => setManualHomeroom(e.target.value)}
+                    placeholder="Homeroom #"
+                    className="min-w-0"
                   />
-                ))
-              )}
-            </ScrollArea>
-          </section>
+                  <GenderSelect value={manualGender} onChange={setManualGender} className="min-w-0" />
+                  <TactileButton variant="primary" onClick={submitManualAdd} className="whitespace-nowrap">
+                    <Plus size={18} /> Add
+                  </TactileButton>
+                </div>
+              </section>
 
-          <Separator />
+              {/* The roster is what this tab is for, so it takes all the height that's left. A CSV
+                  can still be dropped anywhere on it; the Import button is the way on a board. */}
+              <section
+                className={clsx('flex min-h-[6rem] flex-1 flex-col rounded-2xl transition-shadow', dragOver && 'ring-2 ring-primary')}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragOver(false)
+                  void handleFiles(e.dataTransfer.files)
+                }}
+              >
+                <div className="mb-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+                  <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
+                  {activeClass.students.length > MAX_DESKS && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                      <TriangleAlert size={13} />
+                      {activeClass.students.length - MAX_DESKS} more than the {MAX_DESKS} available desks
+                    </span>
+                  )}
+                  <div className="ml-auto flex gap-1.5">
+                    {/* The record, not the register: attendance is taken on the seating chart,
+                        with the side panel's button. This is for looking back, fixing a day, or
+                        marking someone away ahead of time. */}
+                    <TactileButton onClick={() => setAttendanceOpen(true)} className="!py-1.5" title="Who was away, day by day">
+                      <ClipboardCheck size={16} /> View / Edit Attendance
+                    </TactileButton>
+                    <TactileButton
+                      onClick={() => fileInputRef.current?.click()}
+                      className="!py-1.5"
+                      title="Add students from a CSV file with Name, Homeroom Number and Gender columns"
+                    >
+                      <Upload size={16} /> Import CSV
+                    </TactileButton>
+                    <TactileButton
+                      onClick={downloadRosterCsv}
+                      disabled={activeClass.students.length === 0}
+                      className={clsx('!py-1.5', activeClass.students.length === 0 && 'opacity-40')}
+                      title="Download this class's roster as a CSV file - keep a backup, since this app only saves on this device"
+                    >
+                      <Download size={16} /> Export CSV
+                    </TactileButton>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => void handleFiles(e.target.files)}
+                  />
+                </div>
+                <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
+                  {activeClass.students.length === 0 ? (
+                    <p className="p-4 text-center text-muted-foreground">
+                      No students yet. Add them above, or tap Import CSV
+                      <br />
+                      (a file with Name, Homeroom Number and Gender columns).
+                    </p>
+                  ) : (
+                    activeClass.students.map((s) => (
+                      <RosterRow
+                        key={s.id}
+                        student={s}
+                        seated={seatedIds.has(s.id)}
+                        editing={editingId === s.id}
+                        onEdit={() => setEditingId(s.id)}
+                        onCancelEdit={() => setEditingId(null)}
+                        onSave={(patch) => {
+                          onUpdateStudent(s.id, patch)
+                          setEditingId(null)
+                        }}
+                        onDelete={() => setConfirmingDeleteStudent(s)}
+                        onUnseat={() => onUnseatStudent(s.id)}
+                        onPickAvatar={() => setPickingAvatarFor(s)}
+                      />
+                    ))
+                  )}
+                </ScrollArea>
+              </section>
 
-          {/* Primary action - seats everyone still unseated, then closes */}
-          <section className="shrink-0">
-            <TactileButton
-              variant="primary"
-              disabled={unseatedCount === 0}
-              className={clsx('w-full', unseatedCount === 0 && 'opacity-40')}
-              onClick={() => {
-                onSeatClass()
-                closeAndReset()
-              }}
-            >
-              <GraduationCap size={18} />
-              {unseatedCount === 0 ? 'Seat Students' : `Seat Students (${unseatedCount})`}
-            </TactileButton>
-          </section>
+              {/* Seating, both ways, side by side: they are opposites, and used to sit at opposite
+                  ends of this window. Seat Students seats everyone still unseated, then closes. */}
+              <section className="flex shrink-0 gap-2">
+                <TactileButton
+                  onClick={() => setConfirmingUnseatAll(true)}
+                  disabled={seatedIds.size === 0}
+                  className={clsx('shrink-0', seatedIds.size === 0 && 'opacity-40')}
+                >
+                  <UserX size={16} /> Unseat All
+                </TactileButton>
+                <TactileButton
+                  variant="primary"
+                  disabled={unseatedCount === 0}
+                  className={clsx('flex-1', unseatedCount === 0 && 'opacity-40')}
+                  onClick={() => {
+                    onSeatClass()
+                    closeAndReset()
+                  }}
+                >
+                  <GraduationCap size={18} />
+                  {unseatedCount === 0 ? 'Seat Students' : `Seat Students (${unseatedCount})`}
+                </TactileButton>
+              </section>
+            </>
+          ) : (
+            <>
+              {/* Making and removing classes, together at the top. Delete stays behind its cover,
+                  and the row leaves room for the cover's note. */}
+              <section className="flex shrink-0 items-center gap-2">
+                <TactileButton
+                  onClick={onCreateClass}
+                  disabled={classesCount >= MAX_CLASSES}
+                  className={classesCount >= MAX_CLASSES ? 'opacity-40' : ''}
+                  title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
+                >
+                  <Plus size={16} /> New Class
+                </TactileButton>
+                <DangerCover
+                  open={guardOpen}
+                  onOpen={() => setGuardOpen(true)}
+                  onAutoClose={() => setGuardOpen(false)}
+                  className="ml-auto"
+                  note={['Delete Class…', 'Be careful!']}
+                >
+                  <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
+                    <Trash2 size={16} /> Delete Class
+                  </TactileButton>
+                </DangerCover>
+              </section>
+
+              <Separator className="shrink-0" />
+
+              <section className="shrink-0">
+                <Label htmlFor="class-name" className="mb-1.5">
+                  Class Name
+                </Label>
+                <Input
+                  id="class-name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setNameError(null)
+                  }}
+                  onBlur={commitRename}
+                  className={clsx('max-w-sm font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
+                />
+                {nameError && <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
+              </section>
+
+              <section className="shrink-0">
+                <Label className="mb-1.5">
+                  Theme <span className="font-normal">(changes every class)</span>
+                </Label>
+                <ThemePicker theme={theme} onSetTheme={onSetTheme} />
+              </section>
+
+              {/* The class's avatars as they are now, so the button's effect is visible before
+                  it's tapped. It sets every student's avatar at once, hence Student Avatars. */}
+              <section className="shrink-0">
+                <Label className="mb-1.5">Avatars</Label>
+                <div className="flex items-center gap-3">
+                  {activeClass.students.length > 0 && (
+                    <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+                      {activeClass.students.slice(0, AVATAR_STRIP_MAX).map((st) => (
+                        <img
+                          key={st.id}
+                          src={resolveAvatarSrc(st)}
+                          alt=""
+                          draggable={false}
+                          className="h-9 w-9 shrink-0 rounded-full bg-white object-contain p-0.5 shadow-sm"
+                        />
+                      ))}
+                      {activeClass.students.length > AVATAR_STRIP_MAX && (
+                        <span className="shrink-0 px-1 text-sm font-semibold text-muted-foreground">
+                          +{activeClass.students.length - AVATAR_STRIP_MAX}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <TactileButton
+                    onClick={() => setAssigningAvatars(true)}
+                    disabled={activeClass.students.length === 0}
+                    className="shrink-0"
+                  >
+                    <Smile size={16} /> Student Avatars
+                  </TactileButton>
+                </div>
+              </section>
+            </>
+          )}
         </div>
       </Modal>
 
@@ -377,7 +513,12 @@ export function ClassSettingsModal({
         }}
       />
 
-      <AttendanceHistoryModal open={attendanceOpen} onClose={() => setAttendanceOpen(false)} activeClass={activeClass} />
+      <AttendanceHistoryModal
+        open={attendanceOpen}
+        onClose={() => setAttendanceOpen(false)}
+        activeClass={activeClass}
+        onToggleAbsent={onToggleAbsentInRecord}
+      />
 
       <ClassAvatarsModal
         open={assigningAvatars}
@@ -435,10 +576,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
             className="h-8 w-16"
           />
         </div>
-        <TactileButton
-          variant="primary"
-          onClick={() => onSave({ name, homeroom, gender, points: Math.max(0, Number(points) || 0) })}
-        >
+        <TactileButton variant="primary" onClick={() => onSave({ name, homeroom, gender, points: Math.max(0, Number(points) || 0) })}>
           Save
         </TactileButton>
         <TactileButton onClick={onCancelEdit}>Cancel</TactileButton>
@@ -476,7 +614,10 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
       <button onClick={onEdit} className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
         <Pencil size={16} />
       </button>
-      <button onClick={onDelete} className="rounded-full p-1.5 text-neutral-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/15">
+      <button
+        onClick={onDelete}
+        className="rounded-full p-1.5 text-neutral-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/15"
+      >
         <Trash2 size={16} />
       </button>
     </div>

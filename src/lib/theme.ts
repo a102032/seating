@@ -13,16 +13,14 @@ const THEMES: Theme[] = ['light', 'dark', 'chalk', 'vibrant', 'comic']
 export interface ThemeOption {
   id: Theme
   label: string
-  /** Small preview swatch colors, shown on the picker itself - not necessarily identical to the CSS tokens. */
-  preview: { from: string; to: string; accent: string }
 }
 
 export const THEME_OPTIONS: ThemeOption[] = [
-  { id: 'light', label: 'Light', preview: { from: '#f5f5f7', to: '#eef1f6', accent: '#2563eb' } },
-  { id: 'dark', label: 'Dark', preview: { from: '#1c1c1e', to: '#232326', accent: '#3b82f6' } },
-  { id: 'chalk', label: 'Chalkboard', preview: { from: '#3b6a51', to: '#2a4f3c', accent: '#f6d97a' } },
-  { id: 'vibrant', label: 'Elementary', preview: { from: '#6bd9f7', to: '#38bdf8', accent: '#8b5cf6' } },
-  { id: 'comic', label: 'Comic Book', preview: { from: '#ffd94a', to: '#ffc21c', accent: '#e8272c' } },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+  { id: 'chalk', label: 'Chalkboard' },
+  { id: 'vibrant', label: 'Elementary' },
+  { id: 'comic', label: 'Comic Book' },
 ]
 
 /** Vibrant Elementary until a teacher actually picks something else - not the OS's light/dark

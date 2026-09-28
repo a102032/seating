@@ -19,7 +19,6 @@ import { useEffect, useState } from 'react'
 import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { ConfirmModal } from './ConfirmModal'
 import { FlipTimer } from './FlipTimer'
 import { TactileButton } from './TactileButton'
@@ -368,12 +367,9 @@ export function SidePanel({
       {/* The bottom strip. mt-auto keeps it at the foot of the panel on tall screens. It used
           to be an empty flex-1 spacer, which shrank to nothing when the timer controls were
           open but still carried the panel's 12px gap on both sides - 12px of pure dead space
-          at exactly the moment the panel was out of room. The gaps around the divider are
-          6px rather than the panel's 12px; the negative margin pulls the divider up into
-          the gap above it. */}
-      <div className="mt-auto flex shrink-0 flex-col gap-1.5">
-        <Separator className="-mt-1.5" />
-
+          at exactly the moment the panel was out of room. No divider above it: a rule across
+          the panel for one small button read as the start of a section with nothing in it. */}
+      <div className="mt-auto flex shrink-0 flex-col">
         <div className="flex shrink-0 flex-col items-center gap-1.5">
           {saveError && (
             <Badge

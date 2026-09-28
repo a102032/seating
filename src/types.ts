@@ -57,11 +57,18 @@ export interface ClassData {
   name: string
   students: Student[]
   /**
-   * Who was absent, by local date ("2026-09-27"). A date being here at all means attendance
-   * was taken that day - an empty list is "everyone was here", which is different from a day
-   * nobody took it. Absence only ever lasts the day it was marked: tomorrow is a new key.
+   * Who is away, by local date ("2026-09-27"). Absence only ever lasts the day it is filed
+   * under: tomorrow is a new key. A day can be here without attendance having been taken - the
+   * record can be edited, including days ahead, when a teacher knows someone will be away.
    */
   attendance?: Record<string, string[]>
+  /**
+   * The days attendance was actually taken (the mode switched on at the board), so a day with
+   * nobody away still counts, and a day with only an absence marked ahead doesn't. Saves from
+   * before this have no list: every day in `attendance` was a taken day then, and
+   * lib/attendance's takenDays reads them that way until the next change writes the list.
+   */
+  attendanceTaken?: string[]
   /** length MAX_DESKS (older saves have DESK_COUNT and are padded on load); each slot holds a student id or null for an empty desk */
   seating: (string | null)[]
   updatedAt: string

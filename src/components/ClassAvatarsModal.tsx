@@ -81,7 +81,7 @@ export function ClassAvatarsModal({ open, students, onClose, onAssign }: ClassAv
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Avatars for the Whole Class" size="xl">
+    <Modal open={open} onClose={onClose} title="Student Avatars" size="xl">
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2">
           <Segmented

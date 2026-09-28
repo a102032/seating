@@ -15,13 +15,38 @@ export function absentOn(cls: Pick<ClassData, 'attendance'> | undefined, key: st
   return new Set(cls?.attendance?.[key] ?? [])
 }
 
-export function attendanceTakenOn(cls: Pick<ClassData, 'attendance'> | undefined, key: string): boolean {
-  return cls?.attendance?.[key] !== undefined
+type AttendanceRecord = Pick<ClassData, 'attendance' | 'attendanceTaken'>
+
+/**
+ * The days attendance was taken. A save from before the list existed has none, and back then
+ * every day in the record was a taken day, so that is how it reads. Anything that changes the
+ * record writes the list out first, so a day marked ahead is never mistaken for a taken one.
+ */
+export function takenDays(cls: AttendanceRecord | undefined): string[] {
+  return cls?.attendanceTaken ?? Object.keys(cls?.attendance ?? {}).sort()
 }
 
-/** Every date attendance was taken, oldest first. */
-export function attendanceDates(cls: Pick<ClassData, 'attendance'>): string[] {
-  return Object.keys(cls.attendance ?? {}).sort()
+export function attendanceTakenOn(cls: AttendanceRecord | undefined, key: string): boolean {
+  return takenDays(cls).includes(key)
+}
+
+/** Every day with something on record - taken, or someone marked away - oldest first. */
+export function attendanceDates(cls: AttendanceRecord): string[] {
+  const marked = Object.entries(cls.attendance ?? {})
+    .filter(([, away]) => away.length > 0)
+    .map(([day]) => day)
+  return [...new Set([...takenDays(cls), ...marked])].sort()
+}
+
+/** Monday to Friday of a month ("2026-09"), as date keys: the school days a record can show. */
+export function schoolDaysIn(month: string): string[] {
+  const [y, m] = month.split('-').map(Number)
+  const days: string[] = []
+  for (let d = new Date(y, m - 1, 1); d.getMonth() === m - 1; d.setDate(d.getDate() + 1)) {
+    const weekday = d.getDay()
+    if (weekday !== 0 && weekday !== 6) days.push(dateKey(d))
+  }
+  return days
 }
 
 function csvCell(value: string): string {
@@ -29,8 +54,8 @@ function csvCell(value: string): string {
 }
 
 /**
- * The whole record as a spreadsheet: one row per student, one column per day attendance was
- * taken, an A where they were away, and their total at the end.
+ * The whole record as a spreadsheet: one row per student, one column per day with something on
+ * record, an A where they were away, and their total at the end.
  */
 export function attendanceToCsv(cls: ClassData): string {
   const dates = attendanceDates(cls)
