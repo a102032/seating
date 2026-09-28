@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+/* Chalkboard is a dark ground too, so every dark: fix-up (lighter hairlines, brighter amber and
+   emerald) applies to it as well. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *, [data-theme='chalk'], [data-theme='chalk'] *));
 
 :root {
   color-scheme: light;
@@ -14,7 +16,7 @@
   --foreground: #18181b;
   --card: #ffffff;
   --card-foreground: #18181b;
-  /* Names on the desks. Softer than --card-foreground on purpose: big, bold and near-black was the loudest thing on the board and read as glaring on a smartboard. Each light theme tints its own, all at about 9:1 - well clear of the 7:1 readability bar, so they still carry to the back of the room. Themes that don't set one (dark, comic) keep --card-foreground. */
+  /* Names on the desks. Softer than --card-foreground on purpose: big, bold and near-black was the loudest thing on the board and read as glaring on a smartboard. Each light theme tints its own, all at about 9:1 - well clear of the 7:1 readability bar, so they still carry to the back of the room. Dark and Comic Book point it back at --card-foreground, and Chalkboard at its chalk white. */
   --desk-name: #434a5a;
   --popover: #ffffff;
   --popover-foreground: #18181b;
@@ -64,36 +66,6 @@
   --clock-fg: var(--muted-foreground);
 }
 
-/* Calm Sky Blue - soft powder blue, easy on the eyes all day */
-:root[data-theme='sky'] {
-  color-scheme: light;
-  --app-bg-from: #eff8ff;
-  --app-bg-to: #def0fe;
-
-  --background: #f7fbff;
-  --foreground: #1e3a5f;
-  --card: #ffffff;
-  --card-foreground: #1e3a5f;
-  --desk-name: #2f4b6a;
-  --popover: #ffffff;
-  --popover-foreground: #1e3a5f;
-  --primary: #3aa9e0;
-  --primary-foreground: #ffffff;
-  --secondary: #dceffb;
-  --secondary-foreground: #1d5c86;
-  --muted: #e7f4fc;
-  --muted-foreground: #5c88a8;
-  --accent: #eaf6ff;
-  --accent-foreground: #1d5c86;
-  --destructive: #e11d48;
-  --destructive-foreground: #ffffff;
-  --border: rgba(30, 120, 180, 0.16);
-  --input: rgba(30, 120, 180, 0.2);
-  --ring: #3aa9e0;
-  --clock-bg: var(--muted);
-  --clock-fg: var(--muted-foreground);
-}
-
 /* Vibrant Elementary - ABCYA-style bold chrome on a bright sky-blue ground */
 :root[data-theme='vibrant'] {
   color-scheme: light;
@@ -127,7 +99,7 @@
 /*
  * Comic Book - printed newsprint, not a colour scheme.
  *
- * The other five themes are pure token swaps. This one cannot be: what makes a page look
+ * Most of the other themes are pure token swaps (Chalkboard is the other exception). This one cannot be: what makes a page look
  * printed is ink weight, a halftone lattice and hard shadows, none of which live in a colour
  * token. So it is the one theme that also carries structure, in the block below the tokens.
  *
@@ -171,6 +143,52 @@
   --ring: var(--comic-ink);
   --clock-bg: var(--comic-ink);
   --clock-fg: #ffd94a;
+}
+
+/*
+ * Chalkboard - a green board with coloured chalk, the one every classroom already has.
+ *
+ * A dark theme underneath (see the dark variant at the top), with the chalk look added in a
+ * block of its own at the bottom of this file, under the same two rules as Comic Book: it only
+ * uses hooks that already exist, and nothing it adds changes an element's size.
+ */
+:root[data-theme='chalk'] {
+  color-scheme: dark;
+  --app-bg-from: #3b6a51;
+  --app-bg-to: #2c5541;
+
+  /* Chalk is never pure white: it is a little warm, and a little dusty. */
+  --chalk: #f4f1e6;
+  --chalk-teal: #8fd8cf;
+  --chalk-orange: #f5a86e;
+  --chalk-pink: #f4a3c6;
+  --chalk-yellow: #f6d97a;
+  --chalk-green: #a9dd9c;
+  --chalk-wood: #9a6437;
+
+  --background: #284d3b;
+  --foreground: var(--chalk);
+  /* Desks are a shade deeper than the board, so a chalk name on one sits at about 9:1. */
+  --card: #254837;
+  --card-foreground: var(--chalk);
+  --desk-name: var(--chalk);
+  --popover: #284d3b;
+  --popover-foreground: var(--chalk);
+  --primary: var(--chalk-yellow);
+  --primary-foreground: #1d3a2b;
+  --secondary: #355f4a;
+  --secondary-foreground: var(--chalk);
+  --muted: #325a46;
+  --muted-foreground: #b8cfc1;
+  --accent: #36644e;
+  --accent-foreground: var(--chalk);
+  --destructive: #f28b82;
+  --destructive-foreground: #2a1715;
+  --border: rgba(244, 241, 230, 0.26);
+  --input: rgba(244, 241, 230, 0.3);
+  --ring: var(--chalk-yellow);
+  --clock-bg: #1f3d2f;
+  --clock-fg: var(--chalk);
 }
 
 @theme inline {
@@ -447,7 +465,7 @@ button {
  * Comic Book: the printed part.
  *
  * Everything below is scoped to [data-theme='comic'] and does nothing in the
- * other five themes. Outlines are box-shadow rings, never borders, so nothing
+ * other themes. Outlines are box-shadow rings, never borders, so nothing
  * here changes an element's size and switching themes cannot reflow the board.
  * =========================================================================== */
 
@@ -624,7 +642,7 @@ button {
   font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.05em;
   font-weight: 400;
-  font-size: clamp(1.3rem, 2.6vmin, 1.8rem) !important;
+  font-size: calc(clamp(1.3rem, 2.6vmin, 1.8rem) * var(--fit, 1)) !important;
 }
 
 /* Section headings in the panel ("PICKERS & POINTS") are already uppercase, so
@@ -914,4 +932,133 @@ button {
 .danger-note-head {
   animation-delay: 0.85s;
   animation-duration: 0.2s;
+}
+
+/* ===========================================================================
+ * Chalkboard: the chalk part.
+ *
+ * Everything below is scoped to [data-theme='chalk'] and does nothing in the
+ * other themes. Like Comic Book, it only colours and textures: no border gets
+ * wider and no box changes size, so switching themes cannot reflow the board.
+ * =========================================================================== */
+
+/* The board: chalk dust (the same grain as the splash screen), two soft eraser
+   smudges, and a wooden frame drawn inside the canvas's own padding. */
+:root[data-theme='chalk'] [data-ink='canvas'] {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 38% 22% at 72% 30%, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 100%),
+    radial-gradient(ellipse 30% 18% at 30% 78%, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
+  box-shadow:
+    inset 0 0 0 7px var(--chalk-wood),
+    inset 0 0 0 8px rgba(0, 0, 0, 0.35),
+    inset 0 0 26px 8px rgba(0, 0, 0, 0.28);
+}
+
+/* The flip cards and group cards slide over the board, so they get the same dust. */
+:root[data-theme='chalk'] [data-ink='board'] {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
+}
+
+/* Chalk lettering for the chrome - the class name, section headings and dialog
+   titles - in the splash screen's own face. Student names stay in Andika. */
+:root[data-theme='chalk'] [data-ink='class-name'],
+:root[data-theme='chalk'] [data-slot='dialog-title'],
+:root[data-theme='chalk'] [data-slot='alert-dialog-title'],
+:root[data-theme='chalk'] [data-ink='group'] .uppercase {
+  font-family: 'Cabin Sketch', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.18);
+}
+
+:root[data-theme='chalk'] [data-ink='group'] .uppercase {
+  color: var(--chalk-yellow);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+/* Desks: slate tiles with a line of coloured chalk round the edge. The colour
+   comes from a rotating five, which on a six-column grid runs on a diagonal,
+   the way a teacher reaches for whatever stick is nearest. The glow is what
+   makes a line look laid on the board rather than printed. */
+:root[data-theme='chalk'] [data-ink='desk'] {
+  border-color: var(--desk-chalk) !important;
+  box-shadow:
+    0 0 0 1px var(--desk-chalk),
+    0 0 7px 0 color-mix(in srgb, var(--desk-chalk) 45%, transparent),
+    0 3px 6px rgba(0, 0, 0, 0.25);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 1) {
+  --desk-chalk: var(--chalk-teal);
+}
+:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 2) {
+  --desk-chalk: var(--chalk-orange);
+}
+:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 3) {
+  --desk-chalk: var(--chalk-pink);
+}
+:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 4) {
+  --desk-chalk: var(--chalk-yellow);
+}
+:root[data-theme='chalk'] [data-ink='desk']:nth-child(5n + 5) {
+  --desk-chalk: var(--chalk-green);
+}
+
+/* The homeroom number is written in the desk's own chalk. */
+:root[data-theme='chalk'] [data-ink='homeroom'] {
+  opacity: 0.95;
+  color: var(--desk-chalk);
+}
+
+/* An empty desk is a dashed outline nobody has filled in yet. */
+:root[data-theme='chalk'] [data-ink='desk-empty'] {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(244, 241, 230, 0.32) !important;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+/* The side panel and the goal meter: a darker patch of board with a chalk line
+   round it. Solid rather than frosted - a blur over chalk dust just looks dirty. */
+:root[data-theme='chalk'] [data-ink='panel'] {
+  background-color: rgba(24, 48, 36, 0.72) !important;
+  backdrop-filter: none !important;
+  border-color: rgba(244, 241, 230, 0.4) !important;
+  box-shadow:
+    0 0 6px rgba(255, 255, 255, 0.12),
+    0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='chalk'] [data-ink='group'] {
+  border-color: rgba(244, 241, 230, 0.28) !important;
+  border-style: dashed;
+}
+
+/* Buttons: a chalk outline on the board. The pressed / on state is yellow chalk. */
+:root[data-theme='chalk'] [data-slot='button'] {
+  box-shadow: 0 0 0 1px rgba(244, 241, 230, 0.35);
+}
+
+:root[data-theme='chalk'] [data-slot='button']:disabled {
+  box-shadow: 0 0 0 1px rgba(244, 241, 230, 0.15);
+}
+
+/* Dialogs are a board of their own: the same dust, framed in wood. */
+:root[data-theme='chalk'] [data-slot='dialog-content'],
+:root[data-theme='chalk'] [data-slot='alert-dialog-content'] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  box-shadow:
+    0 0 0 6px var(--chalk-wood),
+    0 0 0 7px rgba(0, 0, 0, 0.4),
+    0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='chalk'] ::-webkit-scrollbar-thumb {
+  background: rgba(244, 241, 230, 0.35);
 }
