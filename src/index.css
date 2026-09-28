@@ -16,7 +16,7 @@
   --foreground: #18181b;
   --card: #ffffff;
   --card-foreground: #18181b;
-  /* Names on the desks. Softer than --card-foreground on purpose: big, bold and near-black was the loudest thing on the board and read as glaring on a smartboard. Each light theme tints its own, all at about 9:1 - well clear of the 7:1 readability bar, so they still carry to the back of the room. Themes that don't set one (dark, comic) keep --card-foreground. */
+  /* Names on the desks. Softer than --card-foreground on purpose: big, bold and near-black was the loudest thing on the board and read as glaring on a smartboard. Each light theme tints its own, all at about 9:1 - well clear of the 7:1 readability bar, so they still carry to the back of the room. Dark and Comic Book point it back at --card-foreground, and Chalkboard at its chalk white. */
   --desk-name: #434a5a;
   --popover: #ffffff;
   --popover-foreground: #18181b;
@@ -66,36 +66,6 @@
   --clock-fg: var(--muted-foreground);
 }
 
-/* Calm Sky Blue - soft powder blue, easy on the eyes all day */
-:root[data-theme='sky'] {
-  color-scheme: light;
-  --app-bg-from: #eff8ff;
-  --app-bg-to: #def0fe;
-
-  --background: #f7fbff;
-  --foreground: #1e3a5f;
-  --card: #ffffff;
-  --card-foreground: #1e3a5f;
-  --desk-name: #2f4b6a;
-  --popover: #ffffff;
-  --popover-foreground: #1e3a5f;
-  --primary: #3aa9e0;
-  --primary-foreground: #ffffff;
-  --secondary: #dceffb;
-  --secondary-foreground: #1d5c86;
-  --muted: #e7f4fc;
-  --muted-foreground: #5c88a8;
-  --accent: #eaf6ff;
-  --accent-foreground: #1d5c86;
-  --destructive: #e11d48;
-  --destructive-foreground: #ffffff;
-  --border: rgba(30, 120, 180, 0.16);
-  --input: rgba(30, 120, 180, 0.2);
-  --ring: #3aa9e0;
-  --clock-bg: var(--muted);
-  --clock-fg: var(--muted-foreground);
-}
-
 /* Vibrant Elementary - ABCYA-style bold chrome on a bright sky-blue ground */
 :root[data-theme='vibrant'] {
   color-scheme: light;
@@ -129,7 +99,7 @@
 /*
  * Comic Book - printed newsprint, not a colour scheme.
  *
- * The other five themes are pure token swaps. This one cannot be: what makes a page look
+ * Most of the other themes are pure token swaps (Chalkboard is the other exception). This one cannot be: what makes a page look
  * printed is ink weight, a halftone lattice and hard shadows, none of which live in a colour
  * token. So it is the one theme that also carries structure, in the block below the tokens.
  *
@@ -495,7 +465,7 @@ button {
  * Comic Book: the printed part.
  *
  * Everything below is scoped to [data-theme='comic'] and does nothing in the
- * other five themes. Outlines are box-shadow rings, never borders, so nothing
+ * other themes. Outlines are box-shadow rings, never borders, so nothing
  * here changes an element's size and switching themes cannot reflow the board.
  * =========================================================================== */
 
@@ -672,7 +642,7 @@ button {
   font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.05em;
   font-weight: 400;
-  font-size: clamp(1.3rem, 2.6vmin, 1.8rem) !important;
+  font-size: calc(clamp(1.3rem, 2.6vmin, 1.8rem) * var(--fit, 1)) !important;
 }
 
 /* Section headings in the panel ("PICKERS & POINTS") are already uppercase, so

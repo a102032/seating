@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData, TimerSettings } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -118,6 +119,9 @@ export function SidePanel({
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
 
   const activeClass = classes.find((c) => c.id === activeClassId)
+  // The class name shares its row with Attendance and the class switcher, so a name that
+  // doesn't fit gives up a little size before it gives up letters.
+  const classNameRef = useShrinkToFit<HTMLSpanElement>(activeClass?.name, 0.75)
 
   useEffect(() => {
     if (deskMode) setListOpen(false)
@@ -135,16 +139,22 @@ export function SidePanel({
     <aside
       data-ink="panel"
       className={clsx(
-        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 backdrop-blur-xl backdrop-saturate-150 sm:w-64',
+        // The panel grows with the screen once its text does. Its buttons and labels are sized
+        // in vmin, so on a tall screen they grew while the panel stayed 16rem - at 1920x1080 the
+        // class name was cut and Swap Seats ran out past the edge. 30vmin keeps the two in
+        // step: 16rem until about 850px tall, which is where the text starts growing, and
+        // 21rem where the text stops. A board 800px tall or less is exactly as it was.
+        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 backdrop-blur-xl backdrop-saturate-150 sm:w-[clamp(16rem,30vmin,21rem)]',
         'dark:border-white/10 dark:shadow-black/20',
       )}
     >
       <div className="shrink-0">
         <div className="flex items-center justify-between gap-1">
           <span
+            ref={classNameRef}
             data-ink="class-name"
             className="truncate px-1 font-bold text-foreground"
-            style={{ fontSize: 'clamp(1rem, 1.9vmin, 1.3rem)' }}
+            style={{ fontSize: 'calc(clamp(1rem, 1.9vmin, 1.3rem) * var(--fit, 1))' }}
           >
             {activeClass?.name}
           </span>

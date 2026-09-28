@@ -1,4 +1,4 @@
-export type Theme = 'light' | 'dark' | 'sky' | 'vibrant' | 'comic' | 'chalk'
+export type Theme = 'light' | 'dark' | 'chalk' | 'vibrant' | 'comic'
 
 const THEME_KEY = 'seating-chart-theme-v1'
 /**
@@ -8,7 +8,7 @@ const THEME_KEY = 'seating-chart-theme-v1'
  * never touched the picker would open the board to Dark.
  */
 const CHOSEN_KEY = 'seating-chart-theme-chosen-v1'
-const THEMES: Theme[] = ['light', 'dark', 'sky', 'vibrant', 'comic', 'chalk']
+const THEMES: Theme[] = ['light', 'dark', 'chalk', 'vibrant', 'comic']
 
 export interface ThemeOption {
   id: Theme
@@ -20,10 +20,9 @@ export interface ThemeOption {
 export const THEME_OPTIONS: ThemeOption[] = [
   { id: 'light', label: 'Light', preview: { from: '#f5f5f7', to: '#eef1f6', accent: '#2563eb' } },
   { id: 'dark', label: 'Dark', preview: { from: '#1c1c1e', to: '#232326', accent: '#3b82f6' } },
-  { id: 'sky', label: 'Sky Blue', preview: { from: '#eff8ff', to: '#def0fe', accent: '#3aa9e0' } },
+  { id: 'chalk', label: 'Chalkboard', preview: { from: '#3b6a51', to: '#2a4f3c', accent: '#f6d97a' } },
   { id: 'vibrant', label: 'Elementary', preview: { from: '#6bd9f7', to: '#38bdf8', accent: '#8b5cf6' } },
   { id: 'comic', label: 'Comic Book', preview: { from: '#ffd94a', to: '#ffc21c', accent: '#e8272c' } },
-  { id: 'chalk', label: 'Chalkboard', preview: { from: '#3b6a51', to: '#2a4f3c', accent: '#f6d97a' } },
 ]
 
 /** Vibrant Elementary until a teacher actually picks something else - not the OS's light/dark
