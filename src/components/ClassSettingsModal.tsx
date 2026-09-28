@@ -84,6 +84,9 @@ function GenderSelect({ value, onChange, className }: { value: Gender; onChange:
 
 type SettingsTab = 'students' | 'class'
 
+/** How many of the class's avatars the Class tab shows before "+12". */
+const AVATAR_STRIP_MAX = 10
+
 const SETTINGS_TABS: { id: SettingsTab; label: string; icon: typeof Users }[] = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'class', label: 'Class', icon: School },
@@ -254,30 +257,6 @@ export function ClassSettingsModal({
 
           {tab === 'students' ? (
             <>
-              {/* The class's name and its attendance sit together, the way they do at the top
-                  of the side panel: both are about this class, today. */}
-              <section className="flex shrink-0 items-end gap-2">
-                <div className="min-w-0 max-w-sm flex-1">
-                  <Label htmlFor="class-name" className="mb-1.5">
-                    Class Name
-                  </Label>
-                  <Input
-                    id="class-name"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value)
-                      setNameError(null)
-                    }}
-                    onBlur={commitRename}
-                    className={clsx('font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
-                  />
-                </div>
-                <TactileButton onClick={() => setAttendanceOpen(true)} className="shrink-0" title="Who was away, day by day">
-                  <ClipboardCheck size={16} /> Attendance
-                </TactileButton>
-              </section>
-              {nameError && <p className="-mt-2 shrink-0 text-xs font-semibold text-destructive">{nameError}</p>}
-
               {/* Manual add - always one row, side by side */}
               <section className="shrink-0">
                 <Label className="mb-1.5">Add a Student</Label>
@@ -320,6 +299,12 @@ export function ClassSettingsModal({
                     </span>
                   )}
                   <div className="ml-auto flex gap-1.5">
+                    {/* The record, not the register: attendance is taken on the seating chart,
+                        with the side panel's button. This is for looking back, fixing a day, or
+                        marking someone away ahead of time. */}
+                    <TactileButton onClick={() => setAttendanceOpen(true)} className="!py-1.5" title="Who was away, day by day">
+                      <ClipboardCheck size={16} /> View / Edit Attendance
+                    </TactileButton>
                     <TactileButton
                       onClick={() => fileInputRef.current?.click()}
                       className="!py-1.5"
@@ -399,46 +384,86 @@ export function ClassSettingsModal({
             </>
           ) : (
             <>
+              {/* Making and removing classes, together at the top. Delete stays behind its cover,
+                  and the row leaves room for the cover's note. */}
+              <section className="flex shrink-0 items-center gap-2">
+                <TactileButton
+                  onClick={onCreateClass}
+                  disabled={classesCount >= MAX_CLASSES}
+                  className={classesCount >= MAX_CLASSES ? 'opacity-40' : ''}
+                  title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
+                >
+                  <Plus size={16} /> New Class
+                </TactileButton>
+                <DangerCover
+                  open={guardOpen}
+                  onOpen={() => setGuardOpen(true)}
+                  onAutoClose={() => setGuardOpen(false)}
+                  className="ml-auto"
+                  note={['Delete Class…', 'Be careful!']}
+                >
+                  <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
+                    <Trash2 size={16} /> Delete Class
+                  </TactileButton>
+                </DangerCover>
+              </section>
+
+              <Separator className="shrink-0" />
+
+              <section className="shrink-0">
+                <Label htmlFor="class-name" className="mb-1.5">
+                  Class Name
+                </Label>
+                <Input
+                  id="class-name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setNameError(null)
+                  }}
+                  onBlur={commitRename}
+                  className={clsx('max-w-sm font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
+                />
+                {nameError && <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
+              </section>
+
               <section className="shrink-0">
                 <Label className="mb-1.5">
                   Theme <span className="font-normal">(changes every class)</span>
                 </Label>
-                <div className="max-w-xl">
-                  <ThemePicker theme={theme} onSetTheme={onSetTheme} />
-                </div>
+                <ThemePicker theme={theme} onSetTheme={onSetTheme} />
               </section>
 
+              {/* The class's avatars as they are now, so the button's effect is visible before
+                  it's tapped. It sets every student's avatar at once, hence Student Avatars. */}
               <section className="shrink-0">
                 <Label className="mb-1.5">Avatars</Label>
-                <TactileButton onClick={() => setAssigningAvatars(true)} disabled={activeClass.students.length === 0}>
-                  <Smile size={16} /> Class Avatars
-                </TactileButton>
-              </section>
-
-              {/* Making and deleting classes, at the foot of the tab and apart from everything
-                  else, so the delete cover has room for its note. */}
-              <section className="mt-auto flex shrink-0 flex-col gap-3.5">
-                <Separator />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  {activeClass.students.length > 0 && (
+                    <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+                      {activeClass.students.slice(0, AVATAR_STRIP_MAX).map((st) => (
+                        <img
+                          key={st.id}
+                          src={resolveAvatarSrc(st)}
+                          alt=""
+                          draggable={false}
+                          className="h-9 w-9 shrink-0 rounded-full bg-white object-contain p-0.5 shadow-sm"
+                        />
+                      ))}
+                      {activeClass.students.length > AVATAR_STRIP_MAX && (
+                        <span className="shrink-0 px-1 text-sm font-semibold text-muted-foreground">
+                          +{activeClass.students.length - AVATAR_STRIP_MAX}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <TactileButton
-                    onClick={onCreateClass}
-                    disabled={classesCount >= MAX_CLASSES}
-                    className={classesCount >= MAX_CLASSES ? 'opacity-40' : ''}
-                    title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
+                    onClick={() => setAssigningAvatars(true)}
+                    disabled={activeClass.students.length === 0}
+                    className="shrink-0"
                   >
-                    <Plus size={16} /> New Class
+                    <Smile size={16} /> Student Avatars
                   </TactileButton>
-                  <DangerCover
-                    open={guardOpen}
-                    onOpen={() => setGuardOpen(true)}
-                    onAutoClose={() => setGuardOpen(false)}
-                    className="ml-auto"
-                    note={['Delete Class…', 'Be careful!']}
-                  >
-                    <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
-                      <Trash2 size={16} /> Delete Class
-                    </TactileButton>
-                  </DangerCover>
                 </div>
               </section>
             </>
