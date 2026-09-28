@@ -585,6 +585,7 @@ export default function App() {
                   animate={{ y: 0 }}
                   exit={{ y: '100%' }}
                   transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+                  data-ink="board"
                   className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
                 >
                   <FlipDeck
@@ -609,6 +610,7 @@ export default function App() {
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: '100%', opacity: 0.6 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+                  data-ink="board"
                   className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
                 >
                   <GroupActivity
