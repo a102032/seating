@@ -59,9 +59,3 @@ export function parseRosterCsv(text: string): Omit<Student, 'id'>[] {
     }))
     .filter((student) => student.name.length > 0)
 }
-
-export function studentsToCsv(students: Student[]): string {
-  const header = 'Student Name,Homeroom Number,Gender'
-  const rows = students.map((s) => `${s.name},${s.homeroom},${s.gender}`)
-  return [header, ...rows].join('\n')
-}

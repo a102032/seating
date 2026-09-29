@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
-import { ClassSettingsModal } from './components/ClassSettingsModal'
+import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
@@ -117,6 +117,7 @@ export default function App() {
   /** Counts awards so a repeat award on the same desks replays their pop. */
   const [landedTick, setLandedTick] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('students')
   const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
   const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
@@ -306,11 +307,20 @@ export default function App() {
     setGroupPointsMode(activeClass.id, mode)
   }
 
-  /** New Class from the splash: make it, then drop the teacher straight into its roster. */
+  /**
+   * Settings opens on the roster, except for a class just made from the splash: that one needs
+   * its name first, and the name is on the Class tab.
+   */
+  function openSettings(tab: SettingsTab = 'students') {
+    setSettingsTab(tab)
+    setSettingsOpen(true)
+  }
+
+  /** New Class from the splash: make it, then drop the teacher straight into naming it. */
   function startNewClassFromSplash() {
     createClass()
     setSplashOpen(false)
-    setSettingsOpen(true)
+    openSettings('class')
   }
 
   /**
@@ -319,7 +329,7 @@ export default function App() {
    */
   function setUpFirstClass() {
     setSplashOpen(false)
-    setSettingsOpen(true)
+    openSettings('class')
   }
 
   function updateTimerSettings(next: TimerSettings) {
@@ -476,7 +486,7 @@ export default function App() {
       rowPickActive={
         groupActivityOpen ? groupPicker.pick?.kind === 'group' : picker.mode === 'row-flashing' || picker.mode === 'row-result'
       }
-      onOpenSettings={() => setSettingsOpen(true)}
+      onOpenSettings={() => openSettings()}
       onOpenPickerSettings={() => setPickerSettingsOpen(true)}
       timerSettings={timerSettings}
       onOpenTimerSettings={() => setTimerSettingsOpen(true)}
@@ -718,6 +728,7 @@ export default function App() {
 
       <ClassSettingsModal
         open={settingsOpen}
+        initialTab={settingsTab}
         onClose={() => setSettingsOpen(false)}
         activeClass={activeClass}
         classes={classes}
