@@ -118,8 +118,8 @@ export function SidePanel({
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
 
   const activeClass = classes.find((c) => c.id === activeClassId)
-  // The class name shares its row with Attendance and the class switcher, so a name that
-  // doesn't fit gives up a little size before it gives up letters.
+  // The class name shares its row with the class switcher and the settings gear, so a name
+  // that still doesn't fit gives up a little size before it gives up letters.
   const classNameRef = useShrinkToFit<HTMLSpanElement>(activeClass?.name, 0.75)
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export function SidePanel({
       )}
     >
       <div className="shrink-0">
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1">
           <span
             ref={classNameRef}
             data-ink="class-name"
@@ -157,26 +157,6 @@ export function SidePanel({
           >
             {activeClass?.name}
           </span>
-          {/*
-            One button, one meaning: on, and a desk tap marks a student absent (or back); off,
-            and the day is recorded. The check says today's is done. It lives on the class's
-            own row because attendance belongs to the class, and the row had the room. It
-            stands down while cards cover the desks, since the desks are what it acts on.
-          */}
-          <TactileButton
-            active={attendanceMode}
-            onClick={onToggleAttendance}
-            disabled={swapMode || flipDeckOpen || groupActivityOpen || pickFlashing}
-            className="ml-auto shrink-0 !gap-1.5 !px-2.5 !py-1.5"
-            title={attendanceTaken ? 'Attendance is done for today' : 'Take attendance'}
-          >
-            {attendanceTaken && !attendanceMode ? (
-              <Check size={16} strokeWidth={3} className="text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <ClipboardCheck size={16} />
-            )}
-            Attendance
-          </TactileButton>
           {classes.length > 1 && (
             <button
               type="button"
@@ -190,6 +170,23 @@ export function SidePanel({
               </motion.span>
             </button>
           )}
+          {/*
+            Class Settings is a gear beside the class's name, the way the pickers' settings are
+            a gear beside theirs. It was a button with a word on the row below, and Attendance
+            sat here instead, which left a long class name 67px and cut "Grade 4 English" to
+            "Grade ...". It stands down when a running activity is underneath, since settings
+            rearrange the class, and when the board is locked for students.
+          */}
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            disabled={deskMode || groupsLocked}
+            title="Class Settings"
+            aria-label="Class Settings"
+            className="ml-auto shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+          >
+            <Settings size={18} />
+          </button>
         </div>
 
         <AnimatePresence initial={false}>
@@ -228,10 +225,26 @@ export function SidePanel({
 
       <div className="flex shrink-0 flex-col gap-1.5">
         <div className="flex gap-1.5">
-          {/* Both of these rearrange the class underneath a running activity, and a locked
-              board means students are the ones standing at it. */}
-          <TactileButton onClick={onOpenSettings} disabled={deskMode || groupsLocked} className="grow shrink basis-0 !px-2 justify-center">
-            <Settings size={18} /> Settings
+          {/*
+            The two desk modes, side by side: each turns a desk tap into something else, and
+            only one can be on, so the one that's on lights up and the other greys out.
+            Attendance is one button, one meaning: on, and a desk tap marks a student absent
+            (or back); off, and the day is recorded. The check says today's is done. It stands
+            down while cards cover the desks, since the desks are what it acts on.
+          */}
+          <TactileButton
+            active={attendanceMode}
+            onClick={onToggleAttendance}
+            disabled={swapMode || flipDeckOpen || groupActivityOpen || pickFlashing}
+            className="grow shrink basis-0 !px-2 justify-center"
+            title={attendanceTaken ? 'Attendance is done for today' : 'Take attendance'}
+          >
+            {attendanceTaken && !attendanceMode ? (
+              <Check size={18} strokeWidth={3} className="text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <ClipboardCheck size={18} />
+            )}
+            Attendance
           </TactileButton>
           <TactileButton
             active={swapMode}
