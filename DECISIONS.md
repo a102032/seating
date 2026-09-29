@@ -15,14 +15,14 @@ Newest thinking at the top of each section. Last updated 2026-09-29. Loaded into
 
 ## Next up
 
-- **Try the floating class goal on the real smartboard** (below, under Settled mechanics) before adding anything to it. Three things only the board can answer: does the window stay on top of Seewo Note, a PowerPoint slideshow and Gynzy when each is full screen; is its title bar comfortable to drag by touch; and do the school's Chrome and Edge allow it (version 116 or later, and not switched off by policy). Also: does tapping Celebrate bring the app forward by itself, and does +1 still answer after a whole lesson floating. If the window doesn't stay on top of the lesson, the idea needs the desktop program, not more features.
+- **The floating class goal works on the real board** (2026-09-29, Derek: "absolutely perfect"). It stays on top of everything he tried it with, a full-screen PowerPoint slideshow and full-screen video included, it moves freely, and the school's browser allows it. That was the question that decided whether a browser could do this at all, so the idea is proven without the desktop program. Still to hear: whether tapping Celebrate brings the app forward by itself, and whether +1 still answers after a whole lesson floating. Next for it, as planned: Pick Student in the float (see the floating class goal, below) - discuss the design before building.
 - **Use it in a real class before building anything else.** It's live and working. Three lessons will replace a speculative bug list with a real one.
 ## Parked — revisit, don't rebuild
 
 - **Marble sounds** (`design/marble-sounds.html`, published as its own artifact). Four candidates mapped to classroom moments. Derek: "gets so close to the actual sound." Undecided whether they go in the app; the synthesis ports straight into `lib/sound.ts` if so.
   - The insight behind it: his marble swirl is a *command* (it changes the room's behaviour), where all our current sounds are *feedback* (they confirm something happened). The award sound should carry across a room, not confirm a click.
   - Attention-getter sound boards already exist (Classroom Screen, Class123), so a sound *library* is commodity. What isn't commodity is the reward system's own sound being the cue.
-- **Electron port** — deferred. Only it can give a true borderless floating icon pinned to the corner, like the Seewo toolbar. The floating class goal (built, below) is the test: if it proves the idea useful, this becomes a polish exercise worth doing; if not, it's saved entirely. Electron over Tauri when we do: predictability and prior art matter more than footprint, since none of it can be tested from here.
+- **Electron port** — deferred, and now only polish. The floating class goal (below) stays on top of full-screen PowerPoint and video on the real board, so the browser already does the part that mattered. What only Electron could add is looks: a borderless floating icon pinned to the corner like the Seewo toolbar, with no browser title bar. Electron over Tauri when we do: predictability and prior art matter more than footprint, since none of it can be tested from here.
 
 ## Deliberately not building
 
