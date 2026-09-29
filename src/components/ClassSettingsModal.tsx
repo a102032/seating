@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Armchair,
   ClipboardCheck,
-  Download,
   GraduationCap,
   Pencil,
   Plus,
@@ -17,7 +16,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { parseRosterCsv, studentsToCsv } from '../lib/csv'
+import { parseRosterCsv } from '../lib/csv'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Theme } from '../lib/theme'
@@ -57,19 +56,25 @@ interface ClassSettingsModalProps {
   onToggleAbsentInRecord: (studentId: string, day: string) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
+  /** Which tab it opens on. A class just made from the splash needs its name first, so the Class tab. */
+  initialTab?: SettingsTab
 }
 
 const genderOptions: { value: Gender; label: string }[] = [
   { value: 'boy', label: 'Boy' },
   { value: 'girl', label: 'Girl' },
-  { value: 'unspecified', label: 'Unspecified' },
 ]
 
+/**
+ * Not chosen yet reads "Boy or Girl", in the placeholder's grey, rather than "Unspecified":
+ * the box has no label of its own, so it has to say what it is for. There is no way back to
+ * not chosen - a teacher always knows, and a CSV without a gender column still arrives unset.
+ */
 function GenderSelect({ value, onChange, className }: { value: Gender; onChange: (g: Gender) => void; className?: string }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as Gender)}>
+    <Select value={value === 'unspecified' ? '' : value} onValueChange={(v) => onChange(v as Gender)}>
       <SelectTrigger className={clsx('w-full', className)}>
-        <SelectValue />
+        <SelectValue placeholder="Boy or Girl" />
       </SelectTrigger>
       <SelectContent>
         {genderOptions.map((g) => (
@@ -82,10 +87,7 @@ function GenderSelect({ value, onChange, className }: { value: Gender; onChange:
   )
 }
 
-type SettingsTab = 'students' | 'class'
-
-/** How many of the class's avatars the Class tab shows before "+12". */
-const AVATAR_STRIP_MAX = 10
+export type SettingsTab = 'students' | 'class'
 
 const SETTINGS_TABS: { id: SettingsTab; label: string; icon: typeof Users }[] = [
   { id: 'students', label: 'Students', icon: Users },
@@ -150,6 +152,7 @@ export function ClassSettingsModal({
   onToggleAbsentInRecord,
   theme,
   onSetTheme,
+  initialTab = 'students',
 }: ClassSettingsModalProps) {
   const [name, setName] = useState(activeClass.name)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -165,7 +168,7 @@ export function ClassSettingsModal({
   const [assigningAvatars, setAssigningAvatars] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [guardOpen, setGuardOpen] = useState(false)
-  const [tab, setTab] = useState<SettingsTab>('students')
+  const [tab, setTab] = useState<SettingsTab>(initialTab)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
@@ -198,17 +201,6 @@ export function ClassSettingsModal({
     if (parsed.length > 0) onAddStudents(parsed)
   }
 
-  function downloadRosterCsv() {
-    const csv = studentsToCsv(activeClass.students)
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${activeClass.name.trim() || 'roster'}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
   function submitManualAdd() {
     if (!manualName.trim()) return
     onAddStudents([{ name: manualName.trim(), homeroom: manualHomeroom.trim(), gender: manualGender }])
@@ -217,12 +209,13 @@ export function ClassSettingsModal({
     setManualGender('unspecified')
   }
 
-  // Settings always opens on the roster, the part a teacher comes here for most. Reset as it
-  // opens, during render, so the Class tab never shows for a frame first.
+  // Settings opens on the roster, the part a teacher comes here for most, unless it was opened
+  // for a class that was just made. Reset as it opens, during render, so the wrong tab never
+  // shows for a frame first.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
-    if (open) setTab('students')
+    if (open) setTab(initialTab)
   }
 
   function closeAndReset() {
@@ -291,7 +284,9 @@ export function ClassSettingsModal({
                 }}
               >
                 <div className="mb-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
+                  <Label className="mb-0">
+                    Roster ({activeClass.students.length} {activeClass.students.length === 1 ? 'student' : 'students'})
+                  </Label>
                   {activeClass.students.length > MAX_DESKS && (
                     <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
                       <TriangleAlert size={13} />
@@ -299,12 +294,6 @@ export function ClassSettingsModal({
                     </span>
                   )}
                   <div className="ml-auto flex gap-1.5">
-                    {/* The record, not the register: attendance is taken on the seating chart,
-                        with the side panel's button. This is for looking back, fixing a day, or
-                        marking someone away ahead of time. */}
-                    <TactileButton onClick={() => setAttendanceOpen(true)} className="!py-1.5" title="Who was away, day by day">
-                      <ClipboardCheck size={16} /> View / Edit Attendance
-                    </TactileButton>
                     <TactileButton
                       onClick={() => fileInputRef.current?.click()}
                       className="!py-1.5"
@@ -312,13 +301,11 @@ export function ClassSettingsModal({
                     >
                       <Upload size={16} /> Import CSV
                     </TactileButton>
-                    <TactileButton
-                      onClick={downloadRosterCsv}
-                      disabled={activeClass.students.length === 0}
-                      className={clsx('!py-1.5', activeClass.students.length === 0 && 'opacity-40')}
-                      title="Download this class's roster as a CSV file - keep a backup, since this app only saves on this device"
-                    >
-                      <Download size={16} /> Export CSV
+                    {/* The record, not the register: attendance is taken on the seating chart,
+                        with the side panel's button. This is for looking back, fixing a day, or
+                        marking someone away ahead of time. */}
+                    <TactileButton onClick={() => setAttendanceOpen(true)} className="!py-1.5" title="Who was away, day by day">
+                      <ClipboardCheck size={16} /> View / Edit Attendance
                     </TactileButton>
                   </div>
                   <input
@@ -358,20 +345,33 @@ export function ClassSettingsModal({
                 </ScrollArea>
               </section>
 
-              {/* Seating, both ways, side by side: they are opposites, and used to sit at opposite
-                  ends of this window. Seat Students seats everyone still unseated, then closes. */}
-              <section className="flex shrink-0 gap-2">
+              {/* The foot, in the order a new class is set up: the roster above, then everyone's
+                  avatars, then seats. Seating, both ways, side by side: they are opposites, and
+                  used to sit at opposite ends of this window. Seat Students seats everyone still
+                  unseated, then closes. */}
+              <section className="flex shrink-0 items-center gap-2">
+                <TactileButton
+                  onClick={() => setAssigningAvatars(true)}
+                  disabled={activeClass.students.length === 0}
+                  className={clsx('shrink-0', activeClass.students.length === 0 && 'opacity-40')}
+                  title="Choose avatars for the whole class at once"
+                >
+                  <Smile size={16} /> Student Avatars
+                </TactileButton>
+                <p className="min-w-0 flex-1 text-sm leading-tight text-muted-foreground">Change every avatar at once</p>
                 <TactileButton
                   onClick={() => setConfirmingUnseatAll(true)}
                   disabled={seatedIds.size === 0}
                   className={clsx('shrink-0', seatedIds.size === 0 && 'opacity-40')}
+                  title="Take every student out of their seat"
                 >
                   <UserX size={16} /> Unseat All
                 </TactileButton>
                 <TactileButton
                   variant="primary"
                   disabled={unseatedCount === 0}
-                  className={clsx('flex-1', unseatedCount === 0 && 'opacity-40')}
+                  className={clsx('shrink-0', unseatedCount === 0 && 'opacity-40')}
+                  title="Put every student without a desk into an empty one"
                   onClick={() => {
                     onSeatClass()
                     closeAndReset()
@@ -432,39 +432,6 @@ export function ClassSettingsModal({
                   Theme <span className="font-normal">(changes every class)</span>
                 </Label>
                 <ThemePicker theme={theme} onSetTheme={onSetTheme} />
-              </section>
-
-              {/* The class's avatars as they are now, so the button's effect is visible before
-                  it's tapped. It sets every student's avatar at once, hence Student Avatars. */}
-              <section className="shrink-0">
-                <Label className="mb-1.5">Avatars</Label>
-                <div className="flex items-center gap-3">
-                  {activeClass.students.length > 0 && (
-                    <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-                      {activeClass.students.slice(0, AVATAR_STRIP_MAX).map((st) => (
-                        <img
-                          key={st.id}
-                          src={resolveAvatarSrc(st)}
-                          alt=""
-                          draggable={false}
-                          className="h-9 w-9 shrink-0 rounded-full bg-white object-contain p-0.5 shadow-sm"
-                        />
-                      ))}
-                      {activeClass.students.length > AVATAR_STRIP_MAX && (
-                        <span className="shrink-0 px-1 text-sm font-semibold text-muted-foreground">
-                          +{activeClass.students.length - AVATAR_STRIP_MAX}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <TactileButton
-                    onClick={() => setAssigningAvatars(true)}
-                    disabled={activeClass.students.length === 0}
-                    className="shrink-0"
-                  >
-                    <Smile size={16} /> Student Avatars
-                  </TactileButton>
-                </div>
               </section>
             </>
           )}
