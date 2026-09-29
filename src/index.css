@@ -849,25 +849,6 @@ button {
   will-change: bottom, transform, opacity;
 }
 
-/* Chalk accent marks - the little "!" strokes beside a chalk headline. */
-@keyframes splash-twinkle {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.9);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
-
-.splash-twinkle {
-  animation: splash-twinkle 2.2s ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
-  transform-origin: center;
-}
-
 /*
  * The board: slate, with its dust. The feTurbulence grain is what makes anything
  * on it read as chalk - without it the board is a flat grey rectangle.

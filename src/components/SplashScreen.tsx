@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ClassData } from '../types'
+import { ClassYesLogo } from './ClassYesLogo'
 
 interface SplashScreenProps {
   classes: ClassData[]
@@ -174,11 +175,11 @@ const DOODLES: {
   { Shape: House, style: { right: '6%', bottom: '9%', '--w': '9cqw' } as React.CSSProperties, rotate: -7, color: CHALK.peach, opacity: 0.55 },
   { Shape: Cat, style: { left: '4%', top: '44%', '--w': '7.5cqw' } as React.CSSProperties, rotate: 14, color: CHALK.pink, opacity: 0.55, small: true },
   { Shape: Dog, style: { right: '4%', top: '42%', '--w': '8cqw' } as React.CSSProperties, rotate: -10, color: CHALK.sky, opacity: 0.55, small: true },
-  { Shape: AppleDoodle, style: { left: '20%', bottom: '7%', '--w': '5.5cqw' } as React.CSSProperties, rotate: 18, color: CHALK.pink, opacity: 0.55, small: true },
+  { Shape: AppleDoodle, style: { left: '15%', bottom: '8%', '--w': '5.5cqw' } as React.CSSProperties, rotate: 18, color: CHALK.pink, opacity: 0.55, small: true },
   { Shape: Flower, style: { right: '22%', bottom: '6%', '--w': '6cqw' } as React.CSSProperties, rotate: -15, color: CHALK.lavender, opacity: 0.55, small: true },
   { Shape: Heart, style: { left: '16%', top: '22%', '--w': '4.5cqw' } as React.CSSProperties, rotate: -22, color: CHALK.pink, opacity: 0.5, small: true },
   { Shape: Smiley, style: { right: '14%', top: '31%', '--w': '5cqw' } as React.CSSProperties, rotate: 12, color: CHALK.yellow, opacity: 0.5, small: true },
-  { Shape: Sum, style: { left: '38%', bottom: '5%', '--w': '13cqw' } as React.CSSProperties, rotate: -4, color: CHALK.white, opacity: 0.5 },
+  { Shape: Sum, style: { left: '23%', bottom: '6%', '--w': '11cqw' } as React.CSSProperties, rotate: -4, color: CHALK.white, opacity: 0.5 },
   { Shape: StarShape, style: { left: '27%', bottom: '24%', '--w': '4.5cqw' } as React.CSSProperties, rotate: 20, color: CHALK.yellow, opacity: 0.5, small: true },
 ]
 
@@ -306,24 +307,6 @@ function Sum({ color }: { color: string }) {
   )
 }
 
-/** The chalk "!" strokes that sit beside a chalk headline. */
-function ChalkMarks({ className, delay, flip }: { className: string; delay: number; flip?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 60 60"
-      className={`splash-twinkle pointer-events-none absolute h-10 w-10 sm:h-14 sm:w-14 ${className}`}
-      style={{ '--delay': `${delay}s`, transform: flip ? 'scaleX(-1)' : undefined } as CSSProperties}
-      aria-hidden
-    >
-      <g stroke={CHALK.white} strokeWidth="4" strokeLinecap="round" fill="none">
-        <path d="M10 44 L22 30" />
-        <path d="M26 50 L30 32" />
-        <path d="M6 30 L18 24" />
-      </g>
-    </svg>
-  )
-}
-
 /** The ledge under the board, with an eraser and three sticks of chalk sitting on it. */
 function ChalkTray() {
   return (
@@ -430,22 +413,28 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
 
             {/* What the teacher reads and taps. */}
             <div className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
-              <div className="relative">
-                <ChalkMarks className="-left-12 top-0 sm:-left-16" delay={0} />
-                <ChalkMarks className="-right-12 top-1 sm:-right-16" delay={0.9} flip />
-                <motion.h1
-                  className="splash-chalk"
-                  style={{ color: CHALK.yellow, fontSize: 'clamp(2.4rem, 8vmin, 4.6rem)', lineHeight: 1 }}
-                  initial={{ scale: 0.6, rotate: -5, opacity: 0 }}
-                  animate={{ scale: 1, rotate: -1.5, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.15 }}
-                >
-                  Welcome, Teacher!
-                </motion.h1>
-              </div>
+              {/* The name is the headline; the welcome is the line under it. */}
+              <motion.h1
+                className="relative"
+                initial={{ scale: 0.6, rotate: -5, opacity: 0 }}
+                animate={{ scale: 1, rotate: -1.5, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.15 }}
+              >
+                <ClassYesLogo className="h-auto" style={{ width: 'clamp(15rem, 54vmin, 36rem)' }} />
+              </motion.h1>
 
               <motion.p
-                className="splash-chalk relative mt-3 max-w-xl"
+                className="splash-chalk relative mt-3"
+                style={{ color: CHALK.yellow, fontSize: 'clamp(1.6rem, 4.6vmin, 2.6rem)', lineHeight: 1.1 }}
+                initial={{ y: 12, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Welcome, Teacher!
+              </motion.p>
+
+              <motion.p
+                className="splash-chalk relative mt-2 max-w-xl"
                 style={{ color: CHALK.sky, fontSize: 'clamp(1.05rem, 2.8vmin, 1.5rem)' }}
                 initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
