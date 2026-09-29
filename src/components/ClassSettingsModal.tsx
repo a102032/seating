@@ -284,7 +284,9 @@ export function ClassSettingsModal({
                 }}
               >
                 <div className="mb-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <Label className="mb-0">Roster ({activeClass.students.length} students)</Label>
+                  <Label className="mb-0">
+                    Roster ({activeClass.students.length} {activeClass.students.length === 1 ? 'student' : 'students'})
+                  </Label>
                   {activeClass.students.length > MAX_DESKS && (
                     <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
                       <TriangleAlert size={13} />
