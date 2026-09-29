@@ -1,10 +1,12 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
+import { PictureInPicture2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
 import { GoalCelebration } from './GoalCelebration'
+import { TactileButton } from './TactileButton'
 
 interface PointsMeterProps {
   classId: string
@@ -15,6 +17,18 @@ interface PointsMeterProps {
   /** GIPHY id for the celebration, or empty for the treasure chest. */
   celebrationGifId?: string
   onOpenGoalSettings: () => void
+  /**
+   * The app isn't in front of the class - the goal was filled from the floating window, over a
+   * lesson. The chest waits, full, until the app is showing again: the fanfare shouldn't play
+   * from behind the lesson with nothing for the class to see.
+   */
+  holdCelebration: boolean
+  /** Whether a filled goal is waiting for the app to come back, so the floating window can say so. */
+  onWaitingChange: (waiting: boolean) => void
+  /** Whether the class goal is floating over the lesson right now. */
+  floating: boolean
+  /** Float the goal, or bring it back. Absent where the browser has no floating window. */
+  onToggleFloat?: () => void
 }
 
 interface Sparkle {
@@ -49,10 +63,28 @@ const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
  * nowhere. Nothing here changes the row's height - the icons sit in space the 56px row
  * already had.
  */
-export function PointsMeter({ classId, classPoints, goal, goalsReached, celebrationGifId, onOpenGoalSettings }: PointsMeterProps) {
+export function PointsMeter({
+  classId,
+  classPoints,
+  goal,
+  goalsReached,
+  celebrationGifId,
+  onOpenGoalSettings,
+  holdCelebration,
+  onWaitingChange,
+  floating,
+  onToggleFloat,
+}: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
-  const [phase, setPhase] = useState<'idle' | 'opening' | 'closing'>('idle')
+  // 'waiting' is a filled goal whose chest hasn't opened yet, because the app wasn't in front.
+  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing'>('idle')
+  const holdRef = useRef(holdCelebration)
+  const waitingChangeRef = useRef(onWaitingChange)
+  useEffect(() => {
+    holdRef.current = holdCelebration
+    waitingChangeRef.current = onWaitingChange
+  })
   const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
   const [sparkles, setSparkles] = useState<Sparkle[]>([])
   const [pop, setPop] = useState<{ id: number; amount: number } | null>(null)
@@ -81,6 +113,12 @@ export function PointsMeter({ classId, classPoints, goal, goalsReached, celebrat
     // also what a reset or a correction looks like - so Reset Class Goal threw the party.
     if (goalsReached > prev.reached) {
       setDisplayPoints(goal)
+      if (holdRef.current) {
+        // The last marble still lands with its tick; the party waits for the app.
+        playCoinTick()
+        setPhase('waiting')
+        return
+      }
       setPhase('opening')
       stopFanfare.current = playGoalCelebration()
       const box = chestRef.current?.getBoundingClientRect()
@@ -126,6 +164,22 @@ export function PointsMeter({ classId, classPoints, goal, goalsReached, celebrat
       }
     }
   }, [classId, classPoints, goal, goalsReached])
+
+  // A goal filled from the floating window opens the moment the app is in front again - when
+  // the teacher taps Celebrate there, or comes back to the app some other way.
+  useEffect(() => {
+    if (phase === 'waiting' && !holdCelebration) {
+      setPhase('opening')
+      stopFanfare.current = playGoalCelebration()
+      const box = chestRef.current?.getBoundingClientRect()
+      setBurstOrigin(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null)
+    }
+  }, [phase, holdCelebration])
+
+  useEffect(() => {
+    waitingChangeRef.current(phase === 'waiting')
+  }, [phase])
+  useEffect(() => () => waitingChangeRef.current(false), [])
 
   // Decode the fanfare as soon as this class has a goal, so it's in memory long before the
   // chest opens rather than starting a download at the moment it's needed.
@@ -308,6 +362,22 @@ export function PointsMeter({ classId, classPoints, goal, goalsReached, celebrat
       >
         {displayPoints} / {goal}
       </motion.span>
+
+      {/*
+        The meter is what floats, so the button to float it is on the meter - and it costs the
+        side panel nothing. It stays lit while the goal is floating, and tapping it again
+        brings it back.
+      */}
+      {onToggleFloat && (
+        <TactileButton
+          active={floating}
+          onClick={onToggleFloat}
+          className="shrink-0 !gap-1.5 !px-2.5 !py-1.5"
+          title={floating ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
+        >
+          <PictureInPicture2 size={16} /> Float
+        </TactileButton>
+      )}
 
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}

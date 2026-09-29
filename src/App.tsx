@@ -4,6 +4,7 @@ import { ClassSettingsModal, type SettingsTab } from './components/ClassSettings
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
+import { FloatingGoal } from './components/FloatingGoal'
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
 import { GroupExitModal } from './components/GroupExitModal'
@@ -15,6 +16,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
+import { canFloat, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
@@ -24,6 +26,8 @@ import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
+/** The floating class goal's first size: the meter and a +1 big enough to hit on a board. It can be resized. */
+const FLOAT_WINDOW_SIZE = { width: 340, height: 180 }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
@@ -74,6 +78,7 @@ export default function App() {
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
+    addToClassGoal,
     resetPoints,
     deleteStudent,
     swapSeats,
@@ -145,10 +150,21 @@ export default function App() {
    * "start" is the moment they're already having - and it costs one tap to get past.
    */
   const [splashOpen, setSplashOpen] = useState(true)
+  /** The class goal in its own small window over the lesson, so a point doesn't mean switching apps. */
+  const { win: floatWin, open: openFloat, close: closeFloat } = useFloatingWindow(theme)
+  const appInFront = useAppInFront()
+  /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
+  const [goalWaiting, setGoalWaiting] = useState(false)
+  const goalLive = activeClass ? goalIsLive(activeClass) : false
 
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
+
+  // No goal, nothing to float: switching the goal off in Pickers & Points takes the window with it.
+  useEffect(() => {
+    if (!goalLive) closeFloat()
+  }, [goalLive, closeFloat])
 
   useEffect(() => {
     resetPointsSelection()
@@ -568,6 +584,10 @@ export default function App() {
               goal={activeClass.pointsGoal ?? 0}
               celebrationGifId={activeClass.celebrationGifId}
               onOpenGoalSettings={() => setPickerSettingsOpen(true)}
+              holdCelebration={!appInFront}
+              onWaitingChange={setGoalWaiting}
+              floating={floatWin !== null}
+              onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_WINDOW_SIZE)) : undefined}
             />
           )}
 
@@ -752,6 +772,20 @@ export default function App() {
           chooseTheme(next)
         }}
       />
+
+      {floatWin && goalLive && (
+        <FloatingGoal
+          win={floatWin}
+          className={activeClass.name}
+          classPoints={activeClass.classPoints ?? 0}
+          goal={activeClass.pointsGoal ?? 0}
+          waiting={goalWaiting}
+          onAdd={() => addToClassGoal(activeClass.id, 1)}
+          // The browser may or may not bring the app forward for this. Either way the chest
+          // opens only once the app is in front, so the fanfare never plays behind the lesson.
+          onCelebrate={() => window.focus()}
+        />
+      )}
     </>
   )
 }

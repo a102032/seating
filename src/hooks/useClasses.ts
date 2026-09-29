@@ -433,6 +433,16 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * A class point straight onto the meter, with no student behind it: a marble dropped in the
+   * jar. It is what the floating class goal's +1 does, and it fills the goal like any other
+   * point would.
+   */
+  const addToClassGoal = useCallback(
+    (classId: string, amount: number) => updateClass(classId, (c) => addClassPoints(c, amount)),
+    [updateClass],
+  )
+
   /** Clears the shared meter without touching anyone's stars. */
   const resetClassGoal = useCallback(
     (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
@@ -526,6 +536,7 @@ export function useClasses() {
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
+    addToClassGoal,
     resetPoints,
     deleteStudent,
     swapSeats,
