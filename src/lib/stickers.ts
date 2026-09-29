@@ -42,6 +42,10 @@ export function stickerSrc(theme: string, pose: string): string {
 export function resolveAvatarSrc(student: Pick<Student, 'id' | 'avatarId'>): string {
   const picked = parse(student.avatarId)
   if (picked) return stickerSrc(picked.theme.id, picked.pose)
+  // A pose taken out of the library (stickers/removed.txt) keeps the student's character,
+  // just on its resting face, rather than swapping them to someone else's animal.
+  const worn = getTheme(student.avatarId?.split('/')[0])
+  if (worn) return stickerSrc(worn.id, worn.idle)
   const theme = fallbackTheme(student.id)
   return stickerSrc(theme.id, theme.idle)
 }

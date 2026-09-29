@@ -13,6 +13,9 @@ ROOT = pathlib.Path(__file__).parent
 SRC = ROOT / "stickers"
 OUT = ROOT / "public" / "avatars" / "stickers"
 MANIFEST = ROOT / "src" / "lib" / "stickerLibrary.ts"
+# Poses kept out of the library because they don't suit a positive classroom (crying,
+# angry, sick...). Listed rather than deleted, so the paid packs stay whole.
+REMOVED = ROOT / "stickers" / "removed.txt"
 
 # Flaticon prefixes every pack folder with its numeric asset id, and every file with
 # an index - neither means anything to us.
@@ -24,6 +27,8 @@ POSE_ID = re.compile(r"^(\d+)-")
 SLEEPY = ["sleep", "tired", "yawn", "sick", "meditation"]
 # ...and these make the best resting pose on a desk.
 IDLE = ["happy", "hi", "hello", "good", "ok", "peace", "optimist", "celebration"]
+# Packs whose automatic resting pose was taken out: the face to use instead.
+IDLE_OVERRIDES = {"lion": "award", "little-ghost": "ghost-003", "wolf": "wolf-009"}
 
 
 def slug(text: str) -> str:
@@ -42,6 +47,11 @@ def main() -> None:
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
+    removed = {
+        line.strip()
+        for line in REMOVED.read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    }
 
     themes = []
     for pack in sorted(d for d in SRC.iterdir() if d.is_dir()):
@@ -54,14 +64,20 @@ def main() -> None:
         dest.mkdir()
 
         poses: list[str] = []
+        # Every name seen, removed or not, so a removed pose can't shift the
+        # duplicate suffixes of the ones after it (which would re-map saved avatars).
+        seen: list[str] = []
         for f in svgs:
             stem = f.stem
             index = POSE_ID.match(stem)
             name = slug(POSE_ID.sub("", stem)) or "pose"
             # Several packs reuse a description across poses ("happy" twice); keep the
             # original index on the duplicate so both survive.
-            if name in poses:
-                name = f"{name}-{index.group(1) if index else len(poses)}"
+            if name in seen:
+                name = f"{name}-{index.group(1) if index else len(seen)}"
+            seen.append(name)
+            if f"{theme}/{name}" in removed:
+                continue
             poses.append(name)
             shutil.copyfile(f, dest / f"{name}.svg")
 
@@ -69,7 +85,7 @@ def main() -> None:
             {
                 "id": theme,
                 "label": theme.replace("-", " ").title(),
-                "idle": first_match(poses, IDLE) or poses[0],
+                "idle": IDLE_OVERRIDES.get(theme) or first_match(poses, IDLE) or poses[0],
                 "absent": first_match(poses, SLEEPY),
                 "poses": poses,
             }
