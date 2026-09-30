@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { TimerDial } from './TimerDial'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface TimerSettingsModalProps {
   open: boolean
@@ -24,6 +25,10 @@ const faces: { face: TimerFace; label: string }[] = [
 
 export function TimerSettingsModal({ open, onClose, settings, onChange }: TimerSettingsModalProps) {
   const dial = settings.face === 'dial'
+  // Nothing to build while closed - see useLingerWhileClosing.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
+
   return (
     <Modal open={open} onClose={onClose} title="Timer Settings">
       <div className="flex flex-col gap-6">

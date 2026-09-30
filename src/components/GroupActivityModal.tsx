@@ -6,6 +6,7 @@ import type { ClassData, GroupPointsMode, Student, StudentGroup } from '../types
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface GroupActivityModalProps {
   open: boolean
@@ -61,6 +62,10 @@ export function GroupActivityModal({
     onStart(scheme)
     onClose()
   }
+
+  // Nothing to build while closed - see useLingerWhileClosing.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
 
   return (
     <Modal open={open} onClose={onClose} title="Group Activity">

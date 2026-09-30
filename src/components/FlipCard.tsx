@@ -39,25 +39,25 @@ const BACK_PATTERN =
 
 export function FlipCard({ id, student, bonus, back, faceUp, genderColors, active, dimmed, jackpotHit, onTap }: FlipCardProps) {
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onTap}
       data-flip-card={id}
       data-bonus={bonus}
       data-state={active ? 'active' : dimmed ? 'dimmed' : faceUp ? 'up' : 'down'}
-      // Opacity goes through animate: framer owns this element's inline styles.
-      animate={{ opacity: dimmed ? 0.45 : 1 }}
-      whileHover={{ scale: 1.04, y: -4 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 26, opacity: { duration: 0.35 } }}
-      className="relative h-full w-full cursor-pointer select-none rounded-xl outline-none"
+      // Lifts under a mouse, presses under a finger, fades once its turn is over - all CSS, so
+      // the graphics chip runs it. These were framer props on every card, and every card turned
+      // re-ran framer's machinery on all thirty.
+      className={clsx(
+        'relative h-full w-full cursor-pointer select-none rounded-xl outline-none [transition:scale_0.2s,translate_0.2s,opacity_0.35s] hover:-translate-y-1 hover:scale-[1.04] active:scale-[0.97]',
+        dimmed && 'opacity-45',
+      )}
       style={{ perspective: 800, containerType: 'inline-size' }}
     >
-      <motion.div
-        className="relative h-full w-full"
-        style={{ transformStyle: 'preserve-3d' }}
-        animate={{ rotateY: faceUp ? 180 : 0 }}
-        transition={{ type: 'spring', stiffness: 180, damping: 20 }}
+      {/* The turn is a CSS transition (flip-card-turn in index.css), run by the graphics chip. */}
+      <div
+        className="flip-card-turn relative h-full w-full"
+        style={{ transformStyle: 'preserve-3d', transform: `rotateY(${faceUp ? 180 : 0}deg)` }}
       >
         {/* Back */}
         <div
@@ -77,8 +77,8 @@ export function FlipCard({ id, student, bonus, back, faceUp, genderColors, activ
         ) : (
           student && <StudentFace student={student} active={active} jackpotHit={jackpotHit} />
         )}
-      </motion.div>
-    </motion.button>
+      </div>
+    </button>
   )
 }
 
@@ -105,17 +105,14 @@ function StudentFace({
       style={FACE_STYLE}
     >
       {points > 0 && (
-        <motion.div
+        <div
           // Keyed on the score so an award from the side panel pops the badge.
           key={points}
-          initial={{ scale: 1.6 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 12 }}
-          className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[0.6rem] font-bold text-amber-950 shadow-sm"
+          className="count-pop absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[0.6rem] font-bold text-amber-950 shadow-sm"
         >
           <Star size={9} className="shrink-0 fill-amber-950" strokeWidth={0} />
           {points}
-        </motion.div>
+        </div>
       )}
       {avatarSrc && (
         <div className="min-h-0 w-full flex-1 overflow-hidden rounded-lg border border-black/10 bg-white dark:border-white/10">

@@ -1,7 +1,6 @@
 import clsx from 'clsx'
-import { motion } from 'framer-motion'
 import { Lock, LockOpen, LogOut, Minus, Plus, RotateCcw, Shuffle, Star, Users } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { textWidthEm } from '../lib/fitText'
 import { groupTextColor } from '../lib/groups'
 import {
@@ -269,7 +268,9 @@ export function GroupActivity({
   const boardRef = useRef<HTMLDivElement>(null)
   const [board, setBoard] = useState<BoardMetrics>({ width: 0, height: 0, fontPx: 16, headerFontPx: 16 })
 
-  useEffect(() => {
+  // Measured before the first paint, so the cards are planned against the real board from the
+  // start rather than laid out once at zero size and then again.
+  useLayoutEffect(() => {
     const el = boardRef.current
     if (!el) return
     const update = () => {
@@ -321,8 +322,8 @@ export function GroupActivity({
   }
 
   // The deal: every chip gathers into one stack in the middle of the board, then they're
-  // dealt out one at a time into the cards. Framer's layoutId carries each chip between the
-  // two places, so the same element appears to fly.
+  // dealt out one at a time into the cards. The chip in the stack and the chip in the card
+  // are different elements; the glide below makes it look like one chip flying.
   useEffect(() => {
     if (dealTick === 0) return
     clearTimers()
@@ -347,6 +348,51 @@ export function GroupActivity({
     return clearTimers
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealTick])
+
+  /*
+   * How chips move: whichever element stands for a student right now - in a card or in the
+   * stack - is remembered with where it was drawn. After every render, a chip that has moved
+   * is put back where it was and handed to the browser to glide home (element.animate, which
+   * the graphics chip runs), so gathering, dealing, moving a name to another group and the
+   * chips closing up behind it are all the same small glide. This was framer's layoutId on
+   * every chip, which re-measured all thirty chips and every card on every render - a +1 on
+   * a card kept a board's processor busy for a third of a second.
+   */
+  const chipEls = useRef(new Map<string, HTMLElement>())
+  const chipRefs = useRef(new Map<string, (el: HTMLElement | null) => void>())
+  const lastPos = useRef(new Map<string, { x: number; y: number }>())
+  function chipRef(studentId: string) {
+    let fn = chipRefs.current.get(studentId)
+    if (!fn) {
+      fn = (el) => {
+        if (el) chipEls.current.set(studentId, el)
+        else chipEls.current.delete(studentId)
+      }
+      chipRefs.current.set(studentId, fn)
+    }
+    return fn
+  }
+  useLayoutEffect(() => {
+    // Every position is read before any glide starts. Starting one makes the browser redo the
+    // page's layout before the next read, so reading and starting in turn did it thirty times
+    // over on every step of the deal.
+    const now = new Map<string, { x: number; y: number }>()
+    chipEls.current.forEach((el, studentId) => now.set(studentId, pagePosition(el)))
+    chipEls.current.forEach((el, studentId) => {
+      const pos = now.get(studentId)!
+      const was = lastPos.current.get(studentId)
+      if (!was) {
+        // A chip with nowhere to fly from: a fresh deal's chips pop into the stack.
+        if (el.dataset.stacked) el.animate([{ transform: 'scale(0.6)' }, { transform: 'none' }], { duration: 320, easing: GLIDE_EASING })
+        return
+      }
+      const dx = was.x - pos.x
+      const dy = was.y - pos.y
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: GLIDE_MS, easing: GLIDE_EASING })
+    })
+    lastPos.current = now
+  })
 
   function setStatus(group: StudentGroup, status: GroupStatus) {
     if ((group.status ?? 'working') === status) return
@@ -398,7 +444,7 @@ export function GroupActivity({
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm backdrop-blur-xl">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm">
         <div className="flex items-center gap-1.5">
           <TactileButton onClick={onNewGroups} disabled={dealing || locked} className="!px-3 !py-2">
             <Users size={16} /> New Groups
@@ -465,20 +511,19 @@ export function GroupActivity({
               const liftedHere = liftedChip !== null && group.studentIds.includes(liftedChip)
               const dropTarget = liftedChip !== null && !liftedHere
               return (
-                <motion.section
+                <section
                   key={group.id}
-                  layout
                   data-group-id={group.id}
                   data-ink="group-card"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   onClick={() => lifted && !locked && move(lifted, group.id)}
                   className={clsx(
-                    'relative flex min-h-0 flex-col overflow-hidden rounded-2xl border-[3px] bg-card text-card-foreground shadow-md',
+                    'relative flex min-h-0 flex-col overflow-hidden rounded-2xl border-[3px] bg-card text-card-foreground shadow-md transition-[scale] duration-300',
                     dropTarget && 'cursor-pointer',
                     status.id === 'help' && 'card-help-pulse',
+                    // The lit card is the one not faded. It also had a brightness filter,
+                    // repainted on every flash, which the fading already made unnecessary.
                     groupPick && !litCard && 'opacity-35',
-                    litCard && 'brightness-110 saturate-150',
-                    wonCard && 'card-pick-winner',
+                    wonCard && 'card-pick-winner scale-[1.04]',
                   )}
                   // A real border, not a ring outside the card: a ring is clipped wherever a card
                   // meets the edge of the board, and showed up on some sides and not others.
@@ -488,7 +533,6 @@ export function GroupActivity({
                     borderColor: group.color,
                     visibility: picking?.group.id === group.id ? 'hidden' : undefined,
                   }}
-                  animate={wonCard ? { scale: 1.04 } : { scale: 1 }}
                 >
                   {/* The colour band is the group's name tag - it's what the class will call them. */}
                   <header className={clsx('flex shrink-0 items-center px-3', d.headerPad)} style={{ background: group.color, color: fg }}>
@@ -558,6 +602,7 @@ export function GroupActivity({
                         return (
                           <Chip
                             key={studentId}
+                            chipRef={chipRef(studentId)}
                             student={student}
                             widthEm={chipEm}
                             tint={group.color}
@@ -614,14 +659,9 @@ export function GroupActivity({
                       )}
                     >
                       <Star size={points.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
-                      <motion.span
-                        key={group.points}
-                        initial={{ scale: 1.5 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 12 }}
-                      >
+                      <span key={group.points} className="count-pop">
                         {group.points}
-                      </motion.span>
+                      </span>
                     </span>
                     <TactileButton
                       onClick={(e) => {
@@ -636,7 +676,7 @@ export function GroupActivity({
                       <Plus size={points.sign} strokeWidth={2.75} />
                     </TactileButton>
                   </footer>
-                </motion.section>
+                </section>
               )
             })}
           </div>
@@ -662,7 +702,7 @@ export function GroupActivity({
                       transform: `translate(${(depth % 3) - 1}px, ${-Math.min(depth, 12) * 0.6}px) rotate(${((slot.index * 7) % 5) - 2}deg)`,
                     }}
                   >
-                    <Chip student={student} widthEm={chipEm} stacked />
+                    <Chip chipRef={chipRef(slot.studentId)} student={student} widthEm={chipEm} stacked />
                   </div>
                 )
               })}
@@ -718,12 +758,33 @@ interface ChipProps {
   /** Holds a dealt chip's place in its card while it's still in the stack. */
   placeholder?: boolean
   stacked?: boolean
+  /** Hands the chip's element to the glide that moves chips between places. */
+  chipRef?: (el: HTMLElement | null) => void
   onClick?: () => void
   title?: string
 }
 
+/** How long a chip takes to glide to a new place, and the ease: a touch of overshoot, like the spring it replaced. */
+const GLIDE_MS = 450
+const GLIDE_EASING = 'cubic-bezier(0.3, 1.15, 0.6, 1)'
+
+/**
+ * Where an element sits on the page, from its layout rather than what is drawn: offsets ignore
+ * transforms, so a chip still gliding - or the whole board still sliding in - reads as where
+ * it will end up, not where it happens to be this frame.
+ */
+function pagePosition(el: HTMLElement): { x: number; y: number } {
+  let x = 0
+  let y = 0
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) {
+    x += node.offsetLeft
+    y += node.offsetTop
+  }
+  return { x, y }
+}
+
 /** A student's name tag: homeroom number and name, one size for the whole class. */
-function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, placeholder, stacked, onClick, title }: ChipProps) {
+function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, placeholder, stacked, chipRef, onClick, title }: ChipProps) {
   // A name too long for the chip shrinks to fit rather than being cut off - it's the one
   // student whose name is long, and "Alexandr…" on a scoreboard is worse than small type.
   const needed = textWidthEm(student.name) + textWidthEm(student.homeroom) * 0.72 + CHIP_CHROME_EM
@@ -738,6 +799,12 @@ function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, plac
     plain && !stacked && 'bg-card',
     lifted && 'z-20 ring-[3px] ring-amber-400',
     won && 'z-20 shadow-lg ring-[3px] ring-amber-400',
+    // Growing a touch when lifted or picked, and fading when someone else is being picked or
+    // they're away: CSS, which the graphics chip runs. The glide between places is a
+    // transform, so it and this scale never fight.
+    !placeholder && 'transition-[scale,opacity] duration-300',
+    !placeholder && (lifted || won) && 'scale-[1.06]',
+    !placeholder && (dimmed ? 'opacity-30' : absent ? 'opacity-55' : undefined),
   )
   const style = { width: `${widthEm}em`, background: plain || !tint ? undefined : `${tint}22` }
   const inner = (
@@ -761,22 +828,10 @@ function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, plac
     )
   }
   return (
-    <motion.button
+    <button
       type="button"
-      // In the stack a chip only ever needs to fly in (layoutId does that on mount); its own
-      // box must not animate while it waits, or the deal above re-mixes its opacity.
-      layout={!stacked}
-      layoutId={`chip-${student.id}`}
-      // A chip flies from the stack to its card as one solid thing. Framer's default is to
-      // crossfade shared-layout elements, which also dimmed every chip still in the stack.
-      layoutCrossfade={false}
-      // No opacity in the entrance: framer takes a chip's start opacity for its flight from
-      // the last snapshot, and a chip still fading in would then fly in half-faded.
-      initial={stacked ? { scale: 0.6 } : false}
-      // Opacity goes through framer rather than a class: these chips carry a layoutId, and
-      // the shared-layout pass writes an inline opacity that a class can never win against.
-      animate={{ scale: lifted || won ? 1.06 : 1, opacity: dimmed ? 0.3 : absent ? 0.55 : 1 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+      ref={chipRef}
+      data-stacked={stacked ? '' : undefined}
       onClick={(e) => {
         e.stopPropagation()
         onClick?.()
@@ -787,6 +842,6 @@ function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, plac
       style={{ ...style, touchAction: 'manipulation' }}
     >
       {inner}
-    </motion.button>
+    </button>
   )
 }

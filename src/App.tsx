@@ -587,15 +587,12 @@ export default function App() {
         }`}
         onPointerDownCapture={primeAudio}
       >
-        <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="flex shrink-0">
-          {sidePanel}
-        </motion.div>
+        {/* Plain boxes, deliberately. They were framer layout boxes so the panel glided when it
+            moved to the other side - a once-a-term change - and that made framer measure the
+            page on every render: every desk tap, every point, every picker flash. */}
+        <div className="flex shrink-0">{sidePanel}</div>
 
-        <motion.div
-          layout
-          transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-          className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2"
-        >
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
           {/* Hidden entirely until a goal exists - a meter on screen is a meter the class
               will ask about every lesson, whether or not the teacher wanted one. */}
           {(activeClass.pointsGoal ?? 0) > 0 && activeClass.goalEnabled !== false && (
@@ -690,7 +687,7 @@ export default function App() {
               )}
             </AnimatePresence>
           </main>
-        </motion.div>
+        </div>
       </div>
 
       <AnimatePresence>

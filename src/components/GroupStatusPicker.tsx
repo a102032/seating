@@ -114,11 +114,13 @@ export function GroupStatusPicker({ group, studentsById, chipEm, from, onChoose,
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-end" onClick={flyHome}>
-      {/* The blur is what makes the panel feel lifted. The panel itself stays solid: two
-          translucent layers read as muddy, and these are the buttons that matter most to a
-          child who is stuck, on a screen a projector has already washed out. */}
+      {/* A deeper dim is what makes the panel feel lifted. It was a blur, which a 4K board
+          redoes on every frame something moves behind it (a Help card pulsing, the timer).
+          The panel itself stays solid: two translucent layers read as muddy, and these are
+          the buttons that matter most to a child who is stuck, on a screen a projector has
+          already washed out. */}
       <motion.div
-        className="absolute inset-0 bg-black/35 backdrop-blur-md"
+        className="absolute inset-0 bg-black/60"
         initial={{ opacity: 0 }}
         animate={{ opacity: closing ? 0 : 1 }}
         transition={{ duration: closing ? 0.2 : 0.22 }}

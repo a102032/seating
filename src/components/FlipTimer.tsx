@@ -204,18 +204,17 @@ function SpinButton({ children, disabled, onClick }: { children: ReactNode; disa
   }
 
   return (
-    <motion.button
-      whileHover={disabled ? undefined : { scale: 1.1 }}
-      whileTap={disabled ? undefined : { scale: 0.9 }}
+    <button
       disabled={disabled}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={clearHold}
       onPointerCancel={clearHold}
-      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border bg-card text-foreground disabled:opacity-30"
+      // CSS, not framer's whileHover/whileTap: the graphics chip runs it.
+      className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-border bg-card text-foreground transition-[scale] duration-150 enabled:hover:scale-110 enabled:active:scale-90 disabled:opacity-30"
     >
       {children}
-    </motion.button>
+    </button>
   )
 }
 
@@ -231,17 +230,15 @@ function SymbolButton({
   title: string
 }) {
   return (
-    <motion.button
+    <button
       type="button"
-      whileHover={disabled ? undefined : { scale: 1.15 }}
-      whileTap={disabled ? undefined : { scale: 0.88 }}
       disabled={disabled}
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="flex h-10 w-10 items-center justify-center rounded-full text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30"
+      className="flex h-10 w-10 items-center justify-center rounded-full text-clock-foreground transition-[scale,background-color] duration-150 hover:scale-115 hover:bg-black/10 active:scale-[0.88] disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
-    </motion.button>
+    </button>
   )
 }

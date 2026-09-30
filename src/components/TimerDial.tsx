@@ -26,16 +26,17 @@ interface TimerDialProps {
  * No numbers round the edge for the same reason - they'd be too small to read from the back.
  */
 export function TimerDial({ configuredSeconds, remainingSeconds, endsAt, timesUp, className, style }: TimerDialProps) {
-  // Redrawn every frame while running, so the red shrinks smoothly rather than in one-second steps.
+  // Redrawn as often as the red's edge actually moves: every half degree of the circle, so a
+  // 1-minute timer redraws about 12 times a second and a 20-minute one once a second. Each
+  // step is under half a pixel, so it still shrinks smoothly. It used to redraw every frame,
+  // sixty times a second for the whole countdown, mostly to move the edge by nothing.
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (endsAt === null) return
-    let frame = requestAnimationFrame(function tick() {
-      setNow(Date.now())
-      frame = requestAnimationFrame(tick)
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [endsAt])
+    const step = Math.min(1000, Math.max(50, (configuredSeconds * 1000) / 720))
+    const timer = setInterval(() => setNow(Date.now()), step)
+    return () => clearInterval(timer)
+  }, [endsAt, configuredSeconds])
 
   let fraction = 0
   if (configuredSeconds > 0) {

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface FlipDeckSettingsModalProps {
   open: boolean
@@ -24,6 +25,10 @@ export function FlipDeckSettingsModal({ open, onClose, settings, onChange, round
         : BONUS_KINDS.filter((k) => k === kind || settings.bonusKinds.includes(k)),
     })
   }
+
+  // Nothing to build while closed - see useLingerWhileClosing.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
 
   return (
     <Modal open={open} onClose={onClose} title="Flip Card Settings">

@@ -3,7 +3,6 @@ import { Star } from 'lucide-react'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Student } from '../types'
 import { AbsentIcon } from './AbsentIcon'
-import { AvatarSparkles } from './AvatarSparkles'
 
 export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
 
@@ -48,7 +47,7 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
         // near-black boxes. Borderless was tried and fails on the Light theme, where a
         // white desk on a near-white ground loses its edge entirely; a hairline also
         // survives a classroom projector, which washes soft shadows out.
-        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border p-1 text-center shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] transition-opacity duration-200 outline-none',
+        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border p-1 text-center shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] transition-opacity duration-200',
         empty
           ? 'border-border bg-card/40 text-muted-foreground'
           : 'border-[rgba(0,0,0,0.12)] bg-card text-card-foreground dark:border-[rgba(255,255,255,0.16)]',
@@ -61,7 +60,14 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
         pointsState === 'selected' && (wiggleLoop ? 'desk-wiggle-loop' : 'desk-wiggle'),
         pointsState === 'landed' && (landedTick % 2 === 0 ? 'desk-landed-a' : 'desk-landed-b'),
         pointsState === 'landed' && wiggleLoop && 'desk-wiggle-loop',
-        highlight === 'flashing' && 'brightness-110 saturate-150',
+        // The picked desk (or row) is ringed in the pickers' amber, the colour the group picker
+        // and the floating window use too. It had a ring of twinkling stars swirling round it,
+        // taken out for the board's sake: six moving, glowing stars per desk, redrawn every
+        // frame for as long as the pick stayed up. The flashing desk had a brightness filter
+        // for the same reason - the dimmed desks around it already make it stand out.
+        // An outline, not a ring: Chalkboard and Comic Book draw their desks with their own
+        // box-shadow, which a ring (also a box-shadow) loses to.
+        highlight === 'winner' ? 'desk-picked outline-4 outline-solid outline-amber-400' : 'outline-none',
         !empty && 'cursor-pointer',
       )}
       style={{ containerType: 'inline-size', animationDelay: wiggleDelayMs ? `${wiggleDelayMs}ms` : undefined }}
@@ -95,7 +101,6 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
           )}
 
           <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
-            {highlight === 'winner' && <AvatarSparkles />}
             {absent ? (
               // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
               <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
