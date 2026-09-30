@@ -31,9 +31,6 @@ interface PointsMeterProps {
   onToggleFloat?: () => void
 }
 
-/** How long the +N rises off the coin (meter-plus-rise in index.css). */
-const PLUS_RISE_MS = 1100
-
 /** How full the meter has to get before the chest starts straining. */
 const RATTLE_FROM = 0.85
 /** Start fetching the celebration gif here, so it's decoded before the chest opens. */
@@ -75,8 +72,6 @@ export function PointsMeter({
     waitingChangeRef.current = onWaitingChange
   })
   const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
-  const [pop, setPop] = useState<{ id: number; amount: number } | null>(null)
-  const nextId = useRef(0)
   // Normally mirrors classPoints, but holds at full through the celebration so the bar
   // doesn't snap back to the new run while the chest is still open.
   const [displayPoints, setDisplayPoints] = useState(classPoints)
@@ -120,14 +115,11 @@ export function PointsMeter({
       return
     }
 
+    // The coin moving and the count popping say a point landed. A "+1" also rose off the coin
+    // every time; the teacher took it out as one thing more than the moment needed.
     if (classPoints > prev.value) {
-      const amount = classPoints - prev.value
       setDisplayPoints(classPoints)
       playCoinTick()
-      const id = nextId.current++
-      setPop({ id, amount })
-      const popTimer = setTimeout(() => setPop((p) => (p?.id === id ? null : p)), PLUS_RISE_MS)
-      return () => clearTimeout(popTimer)
     }
   }, [classId, classPoints, goal, goalsReached])
 
@@ -227,10 +219,9 @@ export function PointsMeter({
         </div>
 
         {/*
-          The coin and the +N hang off one anchor that travels along the track, so the +N
-          rises from wherever the coin is rather than from the finish line. The anchor spans
-          the whole track and slides by a percentage of its own width - a transform, which the
-          graphics chip moves on its own - and the coin sits on its left edge.
+          The coin hangs off an anchor that travels along the track. The anchor spans the whole
+          track and slides by a percentage of its own width - a transform, which the graphics
+          chip moves on its own - and the coin sits on its left edge.
         */}
         <div
           className="pointer-events-none absolute inset-0 transition-transform duration-700 ease-[cubic-bezier(0.34,1.25,0.64,1)]"
@@ -251,15 +242,6 @@ export function PointsMeter({
               style={{ left: -13, top: -13 }}
             />
 
-            {pop && (
-              <span
-                key={pop.id}
-                className="meter-plus-rise absolute whitespace-nowrap text-xs font-extrabold text-amber-600 dark:text-amber-300"
-                style={{ left: 9, top: -14 }}
-              >
-                +{pop.amount}
-              </span>
-            )}
           </div>
         </div>
       </div>
