@@ -80,7 +80,6 @@ export function FloatingGoal({
   onClearPick,
 }: FloatingGoalProps) {
   const lastTap = useRef(0)
-  const [rises, setRises] = useState(0)
   // Celebrate was tapped, but the app is still behind the lesson.
   const [asked, setAsked] = useState(false)
   if (!waiting && asked) setAsked(false)
@@ -105,10 +104,6 @@ export function FloatingGoal({
     action()
   }
 
-  function add() {
-    onAdd()
-    setRises((n) => n + 1)
-  }
 
   function celebrate() {
     setAsked(true)
@@ -195,7 +190,9 @@ export function FloatingGoal({
     <button
       type="button"
       data-slot="button"
-      onClick={() => tap(add)}
+      // Just the point: the count pops and the coin sound plays. A "+1" also rose off this
+      // button; it went with the one on the board's goal bar, as more than the moment needed.
+      onClick={() => tap(onAdd)}
       title="Add a point to the class goal"
       className={cn(
         buttonVariants({ variant: 'default' }),
@@ -207,11 +204,6 @@ export function FloatingGoal({
     >
       <img src={treasure('star-coin')} alt="" draggable={false} className="size-[1em] max-w-none" />
       +1
-      {!strip && rises > 0 && (
-        <span key={rises} className="float-plus-rise pointer-events-none absolute right-4 top-1 text-base font-extrabold">
-          +1
-        </span>
-      )}
     </button>
   )
 
