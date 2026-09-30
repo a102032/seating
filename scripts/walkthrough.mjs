@@ -6,7 +6,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright/index.js')
 // A scripted run through the app, the way a lesson and a class setup go, looking for what breaks.
 // Serve the app first (npm run dev -- --port 5175, or a build with npx vite preview --port 4173). Then:
 //   URL=http://localhost:5175/seating/ node scripts/walkthrough.mjs [only]
-// `only` runs the scenarios whose names contain it. FONTS=<dir> serves the real faces (Andika,
+// `only` runs the scenarios whose names contain it; THEME=comic limits "nothing scrolls" to one theme. FONTS=<dir> serves the real faces (Andika,
 // Cabin Sketch, Bangers) from fontsource packages in that dir, since Google Fonts may be blocked.
 // Each check prints OK or FAIL; anything a person should look at is written to SHOTS (default: a temp dir).
 const URL = process.env.URL || 'http://localhost:5175/seating/'
@@ -493,7 +493,7 @@ const scenarios = {
 
   /** The rule: nothing scrolls, in any theme, at any of the three sizes. */
   async 'nothing scrolls'() {
-    for (const theme of THEMES) {
+    for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SIZES) {
         const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20 })
         const page = await open({ state: stateOf(cls, makeClass('c2', 'Kindergarten Phonics', 3)), theme, size })
@@ -501,7 +501,11 @@ const scenarios = {
         const bad = []
         const look = async (label) => {
           const o = await overflow(page)
-          if (o.page > 0 || o.pageX > 0 || o.panel > 0 || o.dialog > 0) {
+          // The accepted exception (CLAUDE.md): at 1024x640 the open timer controls plus a
+          // selected student leave the panel 16px short, 18 in Comic Book.
+          const known = label === 'flip clock controls' && size[1] === 640 && o.panel <= 18 && !o.page && !o.pageX && !o.dialog
+          if (known) console.log(`KNOWN ${where}: ${label} ${o.panel}px short`)
+          else if (o.page > 0 || o.pageX > 0 || o.panel > 0 || o.dialog > 0) {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }
