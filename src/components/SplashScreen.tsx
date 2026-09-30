@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ClassData } from '../types'
-import { loadCloud, signInOffered, type Account } from '../lib/cloud'
+import { loadCloud, type Account } from '../lib/cloud'
 import { GoogleG, Initial } from './Account'
 import { ClassYesLogo } from './ClassYesLogo'
 
@@ -377,7 +377,7 @@ export function SplashScreen({
   onSwitchTeacher,
 }: SplashScreenProps) {
   const firstRun = classes.length === 1 && classes[0].students.length === 0
-  const offerSignIn = (!account && signInOffered) || needsSignIn
+  const offerSignIn = !account || needsSignIn
 
   // Fetch the sign-in code while the splash is up, so a tap on Sign in opens Google's window at
   // once: a browser only lets a page open a window straight after a tap.
