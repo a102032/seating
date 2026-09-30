@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
@@ -205,6 +205,24 @@ export default function App() {
   )
   const picker = usePicker(presentSeating, activeClassId, deskColumns)
   const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
+
+  /**
+   * A pick started from the floating class goal runs on that window's clock, which stops for
+   * good if the window closes mid-flash. Without this the picker would be left flashing
+   * forever, with Pick Student greyed out.
+   */
+  const pickOnFloatClock = useRef(false)
+  const { mode: pickMode, dismiss: dismissPick } = picker
+  useEffect(() => {
+    if (pickMode !== 'student-flashing') {
+      pickOnFloatClock.current = false
+      return
+    }
+    if (!floatWin && pickOnFloatClock.current) {
+      pickOnFloatClock.current = false
+      dismissPick()
+    }
+  }, [floatWin, pickMode, dismissPick])
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
@@ -784,6 +802,21 @@ export default function App() {
           // The browser may or may not bring the app forward for this. Either way the chest
           // opens only once the app is in front, so the fanfare never plays behind the lesson.
           onCelebrate={() => window.focus()}
+          pick={
+            picker.mode === 'student-flashing' || picker.mode === 'student-result'
+              ? {
+                  name: (picker.shownStudentId && studentsById.get(picker.shownStudentId)?.name) || '',
+                  landed: picker.mode === 'student-result',
+                }
+              : null
+          }
+          // Off whenever the side panel's Pick Student would be, or it would pick behind cards.
+          canPick={!picker.isPicking && !swapMode && !attendanceMode && !flipDeckOpen && !groupActivityOpen && seatedIds.length > 0}
+          onPick={() => {
+            pickOnFloatClock.current = true
+            startPick(() => picker.pickStudent(floatWin))
+          }}
+          onClearPick={picker.dismiss}
         />
       )}
     </>

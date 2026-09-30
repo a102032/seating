@@ -72,11 +72,19 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const intervalRef = useRef<number | null>(null)
+  /** Whose clock the flashing runs on - this page's, or the floating window's (see pickStudent). */
+  const timerWindowRef = useRef<Window>(window)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearTimers = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current)
+    if (intervalRef.current) {
+      try {
+        timerWindowRef.current.clearInterval(intervalRef.current)
+      } catch {
+        // The floating window it ran on has closed, and its clock went with it.
+      }
+    }
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     intervalRef.current = null
     timeoutRef.current = null
@@ -108,7 +116,12 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
     })
   }, [])
 
-  const pickStudent = useCallback(() => {
+  /**
+   * `clock` is the window whose timer paces the flashing. A pick started from the floating
+   * class goal runs on the floating window's clock: this page is behind the lesson then, and
+   * Chrome slows a hidden page's timers to about one a second - the flicker would crawl.
+   */
+  const pickStudent = useCallback((clock: Window = window) => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
     const { allowRepeats, soundEnabled } = settingsRef.current
     const currentSeating = seatingRef.current
@@ -147,7 +160,8 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
     if (!stayingInRow) setRowLock(null)
 
     const startedAt = Date.now()
-    intervalRef.current = setInterval(() => {
+    timerWindowRef.current = clock
+    intervalRef.current = clock.setInterval(() => {
       // The final pass lands rather than flashing. It used to do both, which fired a tick and
       // the landing in the same callback and buried the one under the other.
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
@@ -189,7 +203,8 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
     setWinnerColumn(null)
 
     const startedAt = Date.now()
-    intervalRef.current = setInterval(() => {
+    timerWindowRef.current = window
+    intervalRef.current = window.setInterval(() => {
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
         clearTimers()
         const winner = eligible[Math.floor(Math.random() * eligible.length)]
@@ -213,13 +228,16 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
   }, [mode, pickedColumns, columns, clearTimers])
 
   const dismiss = useCallback(() => {
+    // Also stops a flash that is still running: one paced by the floating window stops for
+    // good when that window closes, and would leave the picker stuck mid-flash.
+    clearTimers()
     setMode('idle')
     setWinnerDesk(null)
     setWinnerColumn(null)
     setFlashDesk(null)
     setFlashColumn(null)
     setRowLock(null)
-  }, [])
+  }, [clearTimers])
 
   const resetPickHistory = useCallback(() => {
     setPickedStudentIds(new Set())
@@ -265,12 +283,24 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
     return 'none'
   })
 
+  /**
+   * The student Pick Student is showing right now: whoever the flash is on, then the winner.
+   * The floating class goal shows it as a name, since the desks are behind the lesson.
+   */
+  const shownStudentId =
+    mode === 'student-flashing' && flashDesk !== null
+      ? seating[flashDesk]
+      : mode === 'student-result' && winnerDesk !== null
+        ? seating[winnerDesk]
+        : null
+
   return {
     mode,
     isPicking: mode === 'student-flashing' || mode === 'row-flashing',
     hasResult: mode === 'student-result' || mode === 'row-result',
     /** Who the board is currently pointing at, so the points buttons can act on them. */
     winnerStudentIds,
+    shownStudentId,
     rowLocked: rowLock !== null,
     /** True only while Pick Student is genuinely confined to the locked row. */
     rowLockBinds,

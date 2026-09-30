@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { PartyPopper } from 'lucide-react'
+import { PartyPopper, User } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { buttonVariants } from '@/components/ui/button'
@@ -17,27 +17,56 @@ interface FloatingGoalProps {
   onAdd: () => void
   /** Ask for the app to come to the front, where the chest opens. */
   onCelebrate: () => void
+  /** Pick Student as it stands: the name flashing past, then the one it landed on. */
+  pick: { name: string; landed: boolean } | null
+  /** False while the app is using the desks for something else (Flip Cards, groups, Swap Seats, Attendance). */
+  canPick: boolean
+  onPick: () => void
+  onClearPick: () => void
 }
 
 const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
 
-/** Smart boards read one touch as two; a second +1 this soon after the first is that echo. */
+/**
+ * Smart boards read one touch as two. Any tap this soon after the last one is that echo -
+ * for every button here, since clearing a name puts +1 and Pick back under the same finger.
+ */
 const TAP_GUARD_MS = 700
+
+/**
+ * One size for the name, as big as the window allows: the height caps a short name, and a
+ * long one is held to the width (a bold Andika letter is about half its size wide).
+ */
+function nameSize(name: string) {
+  return `min(26vh, ${Math.round(160 / Math.max(5, name.length))}vw)`
+}
 
 /** The same fill as the meter on the board, so the two read as one thing. */
 const FILL = 'linear-gradient(90deg, #38bdf8, #a3e635, #facc15)'
 
 /**
- * The class goal, floating over the lesson: the meter and one big +1, a marble in the jar.
- * No student list - the class earns it together, which is what lets this be one button
- * rather than a roster to scroll.
+ * The class goal, floating over the lesson: the meter and one big +1, a marble in the jar,
+ * with Pick beside it. No student list - the class earns it together, which is what lets
+ * this be one button rather than a roster to scroll.
  *
  * Every movement here is CSS. This window is drawn by the page behind it, and that page's
  * animation frames stop while the lesson covers it, so a framer-motion animation would
  * freeze halfway in here.
  */
-export function FloatingGoal({ win, className, classPoints, goal, waiting, onAdd, onCelebrate }: FloatingGoalProps) {
-  const lastAdd = useRef(0)
+export function FloatingGoal({
+  win,
+  className,
+  classPoints,
+  goal,
+  waiting,
+  onAdd,
+  onCelebrate,
+  pick,
+  canPick,
+  onPick,
+  onClearPick,
+}: FloatingGoalProps) {
+  const lastTap = useRef(0)
   const [rises, setRises] = useState(0)
   // Celebrate was tapped, but the app is still behind the lesson.
   const [asked, setAsked] = useState(false)
@@ -47,10 +76,14 @@ export function FloatingGoal({ win, className, classPoints, goal, waiting, onAdd
   const shown = waiting ? goal : classPoints
   const pct = goal > 0 ? Math.min(100, (shown / goal) * 100) : 0
 
-  function add() {
+  function tap(action: () => void) {
     const now = Date.now()
-    if (now - lastAdd.current < TAP_GUARD_MS) return
-    lastAdd.current = now
+    if (now - lastTap.current < TAP_GUARD_MS) return
+    lastTap.current = now
+    action()
+  }
+
+  function add() {
     onAdd()
     setRises((n) => n + 1)
   }
@@ -92,7 +125,7 @@ export function FloatingGoal({ win, className, classPoints, goal, waiting, onAdd
         <button
           type="button"
           data-slot="button"
-          onClick={celebrate}
+          onClick={() => tap(celebrate)}
           className="float-celebrate-glow flex min-h-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl bg-amber-400 font-extrabold text-amber-950 shadow-sm transition-transform active:scale-[0.97]"
           style={{ touchAction: 'manipulation' }}
         >
@@ -101,26 +134,67 @@ export function FloatingGoal({ win, className, classPoints, goal, waiting, onAdd
           </span>
           {asked && <span className="text-sm font-bold">Open the app to see it</span>}
         </button>
-      ) : (
+      ) : pick ? (
+        // The desks are behind the lesson, so the pick is a name here: flashing past, then
+        // landed and ringed in the picker's amber. It stays until a tap - nothing timed.
         <button
           type="button"
-          data-slot="button"
-          onClick={add}
-          title="Add a point to the class goal"
-          className={cn(
-            buttonVariants({ variant: 'default' }),
-            'relative h-auto min-h-0 flex-1 gap-2 rounded-2xl font-extrabold shadow-sm transition-transform active:scale-[0.97]',
+          onClick={() => pick.landed && tap(onClearPick)}
+          title={pick.landed ? 'Tap to go back' : undefined}
+          className={clsx(
+            'flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-2xl border border-border bg-card px-3 shadow-sm',
+            pick.landed && 'ring-4 ring-amber-400',
           )}
-          style={{ touchAction: 'manipulation', fontSize: 'clamp(1.25rem, 24vh, 3rem)' }}
+          style={{ touchAction: 'manipulation' }}
         >
-          <img src={treasure('star-coin')} alt="" draggable={false} className="h-[1em] w-[1em] max-w-none" />
-          +1
-          {rises > 0 && (
-            <span key={rises} className="float-plus-rise pointer-events-none absolute right-4 top-1 text-base font-extrabold">
-              +1
-            </span>
-          )}
+          <span
+            key={pick.landed ? 'landed' : 'flashing'}
+            className={clsx('truncate font-extrabold', pick.landed ? 'float-count-pop text-foreground' : 'text-muted-foreground')}
+            style={{ fontSize: nameSize(pick.name) }}
+          >
+            {pick.name || ' '}
+          </span>
         </button>
+      ) : (
+        <div className="flex min-h-0 flex-1 gap-2">
+          <button
+            type="button"
+            data-slot="button"
+            onClick={() => tap(add)}
+            title="Add a point to the class goal"
+            className={cn(
+              buttonVariants({ variant: 'default' }),
+              'relative h-auto min-h-0 flex-[2] gap-2 rounded-2xl font-extrabold shadow-sm transition-transform active:scale-[0.97]',
+            )}
+            style={{ touchAction: 'manipulation', fontSize: 'clamp(1.25rem, 24vh, 3rem)' }}
+          >
+            <img src={treasure('star-coin')} alt="" draggable={false} className="h-[1em] w-[1em] max-w-none" />
+            +1
+            {rises > 0 && (
+              <span key={rises} className="float-plus-rise pointer-events-none absolute right-4 top-1 text-base font-extrabold">
+                +1
+              </span>
+            )}
+          </button>
+          {/* The app's own Pick Student - same pace, same sounds, same Allow Repeats, and it
+              skips anyone away today. It stands down while the app is using the desks. */}
+          <button
+            type="button"
+            data-slot="button"
+            onClick={() => tap(onPick)}
+            disabled={!canPick}
+            title={canPick ? 'Pick a student' : 'Pick is off while the app is busy with the desks'}
+            className={cn(
+              buttonVariants({ variant: 'secondary' }),
+              'h-auto min-h-0 min-w-0 flex-1 flex-col gap-1 rounded-2xl font-extrabold shadow-sm transition-transform active:scale-[0.97]',
+              !canPick && 'opacity-40',
+            )}
+            style={{ touchAction: 'manipulation', fontSize: 'clamp(1rem, 11vh, 1.5rem)' }}
+          >
+            <User className="size-[1.2em]" />
+            Pick
+          </button>
+        </div>
       )}
     </div>,
     win.document.body,
