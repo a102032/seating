@@ -287,12 +287,20 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * Gone from the roster means gone from everything: their seat, their team in the last
+   * groups, and the attendance record, where a day they were away would otherwise keep a
+   * column in the export with nobody in it. The days themselves stay taken.
+   */
   const deleteStudent = useCallback(
     (classId: string, studentId: string) =>
       updateClass(classId, (c) => ({
         ...c,
         students: c.students.filter((s) => s.id !== studentId),
         seating: c.seating.map((seat) => (seat === studentId ? null : seat)),
+        groups: c.groups?.map((g) => ({ ...g, studentIds: g.studentIds.filter((id) => id !== studentId) })),
+        attendance:
+          c.attendance && Object.fromEntries(Object.entries(c.attendance).map(([day, ids]) => [day, ids.filter((id) => id !== studentId)])),
       })),
     [updateClass],
   )

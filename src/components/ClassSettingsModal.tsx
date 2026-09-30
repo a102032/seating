@@ -182,6 +182,8 @@ export function ClassSettingsModal({
   function commitRename() {
     const trimmed = name.trim()
     if (!trimmed || trimmed === activeClass.name) {
+      // A cleared box goes back to the name the class still has, rather than sitting empty.
+      setName(activeClass.name)
       setNameError(null)
       return
     }
@@ -194,12 +196,19 @@ export function ClassSettingsModal({
     onRename(trimmed)
   }
 
+  /**
+   * Anyone already on the roster (same name and homeroom) is skipped, so importing a file a
+   * second time - after fixing a line in it, say - adds only who is new rather than doubling
+   * the class.
+   */
   async function handleFiles(files: FileList | null) {
     const file = files?.[0]
     if (!file) return
     const text = await file.text()
-    const parsed = parseRosterCsv(text)
-    if (parsed.length > 0) onAddStudents(parsed)
+    const key = (s: { name: string; homeroom: string }) => `${s.name.trim().toLowerCase()}|${s.homeroom.trim()}`
+    const known = new Set(activeClass.students.map(key))
+    const fresh = parseRosterCsv(text).filter((s) => !known.has(key(s)) && known.add(key(s)))
+    if (fresh.length > 0) onAddStudents(fresh)
   }
 
   function submitManualAdd() {
@@ -319,7 +328,11 @@ export function ClassSettingsModal({
                     type="file"
                     accept=".csv,text/csv"
                     className="hidden"
-                    onChange={(e) => void handleFiles(e.target.files)}
+                    onChange={(e) => {
+                      void handleFiles(e.target.files)
+                      // Otherwise choosing the same file again (fixed and saved) does nothing at all.
+                      e.target.value = ''
+                    }}
                   />
                 </div>
                 <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
@@ -531,6 +544,22 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
   const [gender, setGender] = useState<Gender>(student.gender)
   const [points, setPoints] = useState(String(student.points ?? 0))
 
+  // Cancel throws the edit away, so opening the row again shows the student as they are.
+  function cancel() {
+    setName(student.name)
+    setHomeroom(student.homeroom)
+    setGender(student.gender)
+    setPoints(String(student.points ?? 0))
+    onCancelEdit()
+  }
+
+  function save() {
+    // A name wiped out by mistake keeps the old one: a desk with no name on it can't be read.
+    const kept = name.trim() || student.name
+    setName(kept)
+    onSave({ name: kept, homeroom: homeroom.trim(), gender, points: Math.max(0, Number(points) || 0) })
+  }
+
   if (editing) {
     return (
       <div className="flex flex-wrap items-center gap-2 border-b border-black/5 p-2 last:border-b-0 dark:border-white/5">
@@ -549,10 +578,10 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
             className="h-8 w-16"
           />
         </div>
-        <TactileButton variant="primary" onClick={() => onSave({ name, homeroom, gender, points: Math.max(0, Number(points) || 0) })}>
+        <TactileButton variant="primary" onClick={save}>
           Save
         </TactileButton>
-        <TactileButton onClick={onCancelEdit}>Cancel</TactileButton>
+        <TactileButton onClick={cancel}>Cancel</TactileButton>
       </div>
     )
   }
