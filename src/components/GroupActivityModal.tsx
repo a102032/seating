@@ -90,7 +90,7 @@ export function GroupActivityModal({
               <span className="min-w-0">
                 <span className="block font-bold text-foreground">Continue with Last Groups</span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  {lastGroups.length} groups
+                  {lastGroups.length} {lastGroups.length === 1 ? 'group' : 'groups'}
                   <GroupDots groups={lastGroups} />
                   {lastPoints > 0 && (
                     <span className="flex items-center gap-0.5 font-semibold text-foreground/80">
@@ -198,8 +198,8 @@ export function GroupActivityModal({
               </Label>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {chimes
-                  ? 'On: a soft chime when a group taps Need Help, Ready to Check or Done - so you hear it with your back to the board.'
-                  : 'Off: the lights change silently.'}
+                  ? 'On: a soft chime when a group taps Help, Ready or Done - so you hear it with your back to the board.'
+                  : 'Off: the cards change colour silently.'}
               </p>
             </div>
             <Switch id="status-chimes" checked={chimes} onCheckedChange={onSetChimes} className="shrink-0" />

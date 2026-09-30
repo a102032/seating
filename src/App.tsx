@@ -316,7 +316,7 @@ export default function App() {
       id: Date.now(),
       text:
         mode === 'students'
-          ? `${studentsAwarded} students got their group’s stars.`
+          ? `${studentsAwarded} student${studentsAwarded === 1 ? '' : 's'} got their group’s stars.`
           : `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal.`,
     })
   }
