@@ -787,6 +787,33 @@ button {
   }
 }
 
+/* Time's up on the timer dial (TimerDial.tsx): the words and the pale red behind them breathe
+   slowly, and keep breathing until the teacher resets the timer - nothing stops it on a clock.
+   Gentle on purpose: the class goal is the one big moment. Scaled about the dial's centre. */
+@keyframes dial-times-up {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.dial-times-up {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: dial-times-up 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dial-times-up {
+    animation: none;
+  }
+}
+
 /* The floating class goal (FloatingGoal.tsx). All CSS, because the page that draws that window
    stops getting animation frames while the lesson covers it. Small moments only: the count
    pops, a +1 rises off the button, and a full jar rattles and glows until it's celebrated -

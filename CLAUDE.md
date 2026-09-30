@@ -60,6 +60,7 @@ checks the live URL. Confirm it went green before saying something is live.
   - `SidePanel.tsx`: class switcher, timer, pickers and points.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
+  - `FlipTimer.tsx` / `TimerDial.tsx` / `TimerSettingsModal.tsx`: the side panel's timer, as flip digits or a Time Timer-style dial.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity.
   - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal. `FloatingGoal.tsx`: the goal floating over the lesson
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`). CSS animations only in there.

@@ -25,7 +25,7 @@ import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
 
-const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
+const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding', face: 'flip' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
