@@ -67,9 +67,14 @@ export function PointsMeter({
   const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing'>('idle')
   const holdRef = useRef(holdCelebration)
   const waitingChangeRef = useRef(onWaitingChange)
+  const phaseRef = useRef(phase)
+  /** The meter's real total, for picking up once the chest has shut. */
+  const latestPoints = useRef(classPoints)
   useEffect(() => {
     holdRef.current = holdCelebration
     waitingChangeRef.current = onWaitingChange
+    phaseRef.current = phase
+    latestPoints.current = classPoints
   })
   const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
   // Normally mirrors classPoints, but holds at full through the celebration so the bar
@@ -89,6 +94,14 @@ export function PointsMeter({
       stopFanfare.current = null
       setDisplayPoints(classPoints)
       setPhase('idle')
+      return
+    }
+
+    // The chest is already open, or waiting to be: the bar stays full until it shuts, and
+    // what landed meanwhile is picked up then. A second party on top of the first would play
+    // two fanfares at once.
+    if (phaseRef.current === 'opening' || phaseRef.current === 'waiting') {
+      if (classPoints > prev.value || goalsReached > prev.reached) playCoinTick()
       return
     }
 
@@ -165,14 +178,21 @@ export function PointsMeter({
     }
   }, [celebrationGifId, approaching])
 
-  /** The celebration is over: shut the lid, send the coin home, then pick up the new total. */
+  /**
+   * The celebration is over: shut the lid, send the coin home, then pick up the new total -
+   * points past the goal carry into the next run, and the bar used to sit at 0 over them
+   * until the next point landed.
+   */
   function finishCelebration() {
     if (phase !== 'opening') return
     stopFanfare.current?.()
     stopFanfare.current = null
     setPhase('closing')
     setDisplayPoints(0)
-    setTimeout(() => setPhase('idle'), CLOSE_UP_MS)
+    setTimeout(() => {
+      setPhase('idle')
+      setDisplayPoints(latestPoints.current)
+    }, CLOSE_UP_MS)
   }
 
   useEffect(() => () => stopFanfare.current?.(), [])
