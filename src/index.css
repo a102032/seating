@@ -970,8 +970,8 @@ button {
 
 /* The floating class goal (FloatingGoal.tsx). All CSS, because the page that draws that window
    stops getting animation frames while the lesson covers it. Small moments only: the count
-   pops, a +1 rises off the button, and a full jar rattles and glows until it's celebrated -
-   the celebration itself stays the app's, full screen. */
+   pops, and a full jar rattles and glows until it's celebrated - the celebration itself stays
+   the app's, full screen. */
 @keyframes float-count-pop {
   0% {
     scale: 1.35;
@@ -983,24 +983,6 @@ button {
 
 .float-count-pop {
   animation: float-count-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes float-plus-rise {
-  0% {
-    opacity: 0;
-    translate: 0 8px;
-  }
-  25% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    translate: 0 -18px;
-  }
-}
-
-.float-plus-rise {
-  animation: float-plus-rise 0.9s ease-out forwards;
 }
 
 @keyframes float-chest-rattle {
@@ -1045,7 +1027,6 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .float-count-pop,
-  .float-plus-rise,
   .float-chest-rattle {
     animation: none;
   }
