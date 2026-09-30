@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MAX_DESKS, deskColumn } from '../types'
 import type { DeskHighlight } from '../components/Desk'
+import type { LayoutPlan } from '../lib/layouts'
 import { playPickerLand, playPickerTick } from '../lib/sound'
 
 type PickerMode = 'idle' | 'student-flashing' | 'student-result' | 'row-flashing' | 'row-result'
@@ -45,14 +45,16 @@ function saveSettings(settings: PickerSettings) {
   }
 }
 
-function columnOf(deskIndex: number): number {
-  return deskColumn(deskIndex)
-}
-
-/** `columns` is how many rows of desks Pick Row chooses between: six, or seven for a class of more than thirty. */
-export function usePicker(seating: (string | null)[], classId: string | null, columns: number) {
+/**
+ * `plan` is the room's layout: Pick Row chooses between its rows of desks, or its tables. The
+ * picker's "row" state (the locked row, the rows already picked this round) is a set of desks
+ * in that plan - a row in Rows, Pairs and Rows of 3, a table in the table layouts.
+ */
+export function usePicker(seating: (string | null)[], classId: string | null, plan: LayoutPlan) {
   const seatingRef = useRef(seating)
   seatingRef.current = seating
+  const columns = plan.setCount
+  const columnOf = useCallback((deskIndex: number) => plan.seats[deskIndex]?.set ?? -1, [plan])
 
   const [mode, setMode] = useState<PickerMode>('idle')
   const [flashDesk, setFlashDesk] = useState<number | null>(null)
@@ -107,6 +109,24 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
     setColumnPickCounts(new Map())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId])
+
+  // A new layout means new desks and new rows or tables: a pick on the board, the locked row
+  // and the rows already picked this round all name desks that have moved. Who has been
+  // picked this round still stands.
+  const planRef = useRef(plan)
+  useEffect(() => {
+    if (planRef.current === plan) return
+    planRef.current = plan
+    clearTimers()
+    setMode('idle')
+    setFlashDesk(null)
+    setFlashColumn(null)
+    setWinnerDesk(null)
+    setWinnerColumn(null)
+    setRowLock(null)
+    setPickedColumns(new Set())
+    setColumnPickCounts(new Map())
+  }, [plan, clearTimers])
 
   const updateSettings = useCallback((patch: Partial<PickerSettings>) => {
     setSettings((prev) => {
@@ -183,7 +203,7 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
       setFlashDesk(pick.index)
       if (soundEnabled) playPickerTick()
     }, FLASH_TICK_MS)
-  }, [mode, pickedStudentIds, rowLock, clearTimers])
+  }, [mode, pickedStudentIds, rowLock, clearTimers, columnOf])
 
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
@@ -230,7 +250,7 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
       setFlashColumn(pick)
       if (soundEnabled) playPickerTick()
     }, FLASH_TICK_MS)
-  }, [mode, pickedColumns, columns, clearTimers])
+  }, [mode, pickedColumns, columns, clearTimers, columnOf])
 
   const dismiss = useCallback(() => {
     // Also stops a flash that is still running: one paced by the floating window stops for
@@ -261,7 +281,7 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
       return seating.filter((id, index): id is string => Boolean(id) && columnOf(index) === winnerColumn)
     }
     return []
-  }, [seating, winnerDesk, winnerColumn])
+  }, [seating, winnerDesk, winnerColumn, columnOf])
 
   /**
    * Whether the next Pick Student really will stay inside the locked row.
@@ -280,7 +300,7 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
         (settings.allowRepeats || !pickedStudentIds.has(studentId as string)),
     )
 
-  const deskHighlights: DeskHighlight[] = Array.from({ length: MAX_DESKS }, (_, index) => {
+  const deskHighlights: DeskHighlight[] = Array.from({ length: seating.length }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
     if (mode === 'row-flashing') return columnOf(index) === flashColumn ? 'flashing' : 'dimmed'

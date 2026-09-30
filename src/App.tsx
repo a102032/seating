@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
@@ -23,7 +23,8 @@ import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from
 import { playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
-import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
+import { planFor } from './lib/layouts'
+import { type GroupPointsMode, type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding', face: 'flip' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
@@ -82,6 +83,7 @@ export default function App() {
     swapSeats,
     seatClass,
     mixUpSeats,
+    setLayout,
     unseatAll,
     unseatStudent,
     toggleAbsent,
@@ -191,7 +193,9 @@ export default function App() {
   }, [toast])
 
   const seating = activeClass?.seating ?? []
-  const deskColumns = deskColumnsFor(activeClass)
+  /** Where the desks stand: the class's layout, grown for a big class. */
+  const plan = planFor(activeClass)
+  const setOf = useCallback((deskIndex: number) => plan.seats[deskIndex]?.set ?? -1, [plan])
   const absentIds = useMemo(() => absentOn(activeClass, today), [activeClass, today])
   /**
    * The seating chart as the lesson sees it today: an absent student's desk counts as empty
@@ -202,7 +206,7 @@ export default function App() {
     () => (activeClass?.seating ?? []).map((id) => (id && absentIds.has(id) ? null : id)),
     [activeClass, absentIds],
   )
-  const picker = usePicker(presentSeating, activeClassId, deskColumns)
+  const picker = usePicker(presentSeating, activeClassId, plan)
   const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
 
   /**
@@ -265,7 +269,7 @@ export default function App() {
 
   function startGroups(scheme: GroupScheme) {
     if (!activeClassId) return
-    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups))
+    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, setOf))
     setGroupScheme(scheme)
     setDealWasShuffle(false)
     setDealTick((t) => t + 1)
@@ -288,7 +292,7 @@ export default function App() {
 
   function shuffleGroups() {
     if (!activeClassId || !groupScheme) return
-    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups))
+    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, setOf))
     setDealWasShuffle(true)
     setDealTick((t) => t + 1)
   }
@@ -522,6 +526,7 @@ export default function App() {
       groupMode={groupActivityOpen}
       rowLocked={picker.rowLocked}
       rowLockBinds={picker.rowLockBinds}
+      setName={plan.setName}
       studentPickActive={
         groupActivityOpen ? groupPicker.pick?.kind === 'student' : picker.mode === 'student-flashing' || picker.mode === 'student-result'
       }
@@ -620,7 +625,7 @@ export default function App() {
           <main className="relative min-h-0 flex-1 overflow-hidden">
             <DeskGrid
               seating={seating}
-              columns={deskColumns}
+              plan={plan}
               studentsById={studentsById}
               selectedDesk={selectedDesk}
               pointsSelection={activeSelection}
@@ -717,6 +722,8 @@ export default function App() {
         activeClass={activeClass}
         seating={presentSeating}
         studentsById={studentsById}
+        setOf={setOf}
+        setName={plan.setName}
         lastGroups={groups}
         onStart={startGroups}
         onContinue={continueGroups}
@@ -794,6 +801,7 @@ export default function App() {
           mixUpSeats(activeClass.id)
           playShuffle()
         }}
+        onSetLayout={(layout) => setLayout(activeClass.id, layout)}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         theme={theme}
         onSetTheme={(next) => {

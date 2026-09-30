@@ -7,9 +7,15 @@ import { deskColumn, type Gender, type Student, type StudentGroup } from '../typ
  * - `size`: groups of this many; leftovers are spread across the groups rather than left as
  *   a group of one or two, which is the thing that makes a kid feel left over.
  * - `gender`: boys and girls. Students with no gender set go wherever there's more room.
- * - `rows`: one group per row of desks, in board order.
+ * - `rows`: one group per row of desks, or per table in a table layout, in board order.
  */
 export type GroupScheme = { kind: 'count'; count: number } | { kind: 'size'; size: number } | { kind: 'gender' } | { kind: 'rows' }
+
+/**
+ * Which row of desks, or which table, a desk belongs to - the room's layout decides
+ * (lib/layouts). In a table layout the `rows` scheme is one group per table.
+ */
+export type SetOf = (deskIndex: number) => number
 
 /**
  * Fixed colours, the same on every theme, ordered so the first six - the counts a class
@@ -110,6 +116,7 @@ export function describeScheme(
   scheme: GroupScheme,
   seating: (string | null)[],
   studentsById: Map<string, Student>,
+  setOf: SetOf = deskColumn,
 ): { groups: number; caption: string } | null {
   const seated = seatedStudents(seating, studentsById)
   const n = seated.length
@@ -137,7 +144,7 @@ export function describeScheme(
       return { groups: 2, caption: `${boys} · ${girls}` }
     }
     case 'rows': {
-      const rows = new Set(seated.map((s) => deskColumn(s.deskIndex)))
+      const rows = new Set(seated.map((s) => setOf(s.deskIndex)))
       if (rows.size < 2) return null
       return { groups: rows.size, caption: `${rows.size} groups` }
     }
@@ -164,6 +171,7 @@ export function buildGroups(
   seating: (string | null)[],
   studentsById: Map<string, Student>,
   previous?: StudentGroup[],
+  setOf: SetOf = deskColumn,
 ): StudentGroup[] {
   const seated = seatedStudents(seating, studentsById)
   const ids = seated.map((s) => s.student.id)
@@ -196,7 +204,7 @@ export function buildGroups(
     case 'rows': {
       const rows = new Map<number, string[]>()
       seated.forEach((s) => {
-        const row = deskColumn(s.deskIndex)
+        const row = setOf(s.deskIndex)
         rows.set(row, [...(rows.get(row) ?? []), s.student.id])
       })
       return Array.from(rows.keys())

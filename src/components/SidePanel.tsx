@@ -41,6 +41,8 @@ interface SidePanelProps {
   rowLocked: boolean
   /** Pick Student is currently confined to the row that was picked. */
   rowLockBinds: boolean
+  /** What Pick Row picks in this room: a row of desks, or a table (lib/layouts). */
+  setName: 'row' | 'table'
   /** A student pick is flashing or its winner is on the board. */
   studentPickActive: boolean
   /** A row pick is flashing or its winner is on the board. */
@@ -87,6 +89,7 @@ export function SidePanel({
   groupMode,
   rowLocked,
   rowLockBinds,
+  setName,
   studentPickActive,
   rowPickActive,
   onOpenSettings,
@@ -289,7 +292,8 @@ export function SidePanel({
               disabled={deskMode || flipDeckOpen}
               className="w-full justify-start"
             >
-              <User size={18} /> {!groupMode && rowLockBinds ? 'Pick from This Row' : 'Pick Student'}
+              <User size={18} />{' '}
+              {!groupMode && rowLockBinds ? (setName === 'table' ? 'Pick from This Table' : 'Pick from This Row') : 'Pick Student'}
             </TactileButton>
             {/* A row and a group are both "a set of students", so the button keeps its
                 meaning and only what counts as a set changes with the screen. */}
@@ -298,9 +302,12 @@ export function SidePanel({
               onClick={onPickRow}
               disabled={deskMode || flipDeckOpen}
               className="w-full justify-start"
-              title={!groupMode && rowLockBinds ? 'Picks are staying in this row. Tap any desk to go back to the whole class.' : undefined}
+              title={
+                !groupMode && rowLockBinds ? `Picks are staying in this ${setName}. Tap any desk to go back to the whole class.` : undefined
+              }
             >
-              {groupMode ? <UsersRound size={18} /> : <Users size={18} />} {groupMode ? 'Pick Group' : 'Pick Row'}
+              {groupMode ? <UsersRound size={18} /> : <Users size={18} />}{' '}
+              {groupMode ? 'Pick Group' : setName === 'table' ? 'Pick Table' : 'Pick Row'}
             </TactileButton>
             <TactileButton
               active={flipDeckOpen}
