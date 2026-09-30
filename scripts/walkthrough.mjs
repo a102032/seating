@@ -572,6 +572,96 @@ const scenarios = {
     return page
   },
 
+  /**
+   * Room layouts: each one chosen in Class Settings, for a class of 30 and a class of 35, at the
+   * three sizes - everyone seated once, nothing scrolls, the names as big as in Rows (the
+   * layouts keep six desks across), and Pick Row/Table and Split by Rows/Tables use the room.
+   */
+  async 'room layouts'() {
+    const LAYOUTS = [
+      ['pairs', 'Pairs', 'row', 6],
+      ['threes', 'Rows of 3', 'row', 6],
+      ['tables4', 'Tables of 4', 'table', 9],
+      ['tables5-top', '5th desk on top', 'table', 6],
+      ['tables5-bottom', '5th desk below', 'table', 6],
+      ['rows', 'Rows', 'row', 6],
+    ]
+    const nameSize = (page) =>
+      page.evaluate(() => {
+        const span = document.querySelector('[data-ink=desk] span[style*="--desk-name"]')
+        return span ? parseFloat(getComputedStyle(span).fontSize) : 0
+      })
+    for (const count of [30, 35]) {
+      for (const size of SIZES) {
+        const page = await open({ state: stateOf(makeClass('c1', 'Layouts', count), makeClass('c2', 'Other', 2)), size })
+        const where = `${count} students ${size.join('x')}`
+        const rowsName = await nameSize(page)
+        const bad = []
+        for (const [id, label, setName, sets] of LAYOUTS) {
+          await page.locator('aside button[aria-label="Class Settings"]').click()
+          await page.waitForTimeout(500)
+          await page.getByRole('tab', { name: 'Class' }).click()
+          await page.waitForTimeout(300)
+          const o1 = await overflow(page)
+          if (o1.page || o1.dialog) bad.push(`${id} settings ${JSON.stringify(o1)}`)
+          await page.locator('[role=dialog] button[aria-pressed]', { hasText: label }).first().click()
+          await page.waitForTimeout(300)
+          await page.keyboard.press('Escape')
+          await page.waitForTimeout(600)
+          const c = await activeSaved(page)
+          const seated = c.seating.filter(Boolean)
+          if (c.layout !== id && !(id === 'rows' && (c.layout ?? 'rows') === 'rows')) bad.push(`${id}: saved layout is ${c.layout}`)
+          if (seated.length !== count || new Set(seated).size !== count) bad.push(`${id}: ${seated.length} seated`)
+          const o = await overflow(page)
+          if (o.page || o.pageX || o.panel > 0) bad.push(`${id} board ${JSON.stringify(o)}`)
+          const drawn = await page.locator('[data-ink=desk]').count()
+          if (drawn !== count) bad.push(`${id}: ${drawn} desks with a student drawn`)
+          // Six across keeps the names at Rows' size; a big class in tables of 5 is the exception (eight across).
+          const ratio = (await nameSize(page)) / rowsName
+          if (!(id === 'tables5-top' || id === 'tables5-bottom') || count <= 30) {
+            if (ratio < 0.97) bad.push(`${id}: names ${Math.round(ratio * 100)}% of Rows`)
+          }
+          const pickLabel = setName === 'table' ? 'Pick Table' : 'Pick Row'
+          await panelButton(page, pickLabel).click()
+          await page.waitForTimeout(3200)
+          const lit = await page.locator('[data-ink=desk].desk-picked').count()
+          if (lit === 0) bad.push(`${id}: ${pickLabel} lit nobody`)
+          await page.mouse.click(5, 5)
+          await page.waitForTimeout(300)
+          await panelButton(page, 'Group Activity').click()
+          await page.waitForTimeout(500)
+          const split = page.getByRole('button', { name: new RegExp(`^${setName === 'table' ? 'Tables' : 'Rows'}`) })
+          const caption = (await split.textContent()) ?? ''
+          const groups = Number(caption.match(/(\d+) groups/)?.[1] ?? 0)
+          if (groups < 2 || groups > sets + (count > 30 ? 2 : 0)) bad.push(`${id}: split makes "${caption}"`)
+          await page.keyboard.press('Escape')
+          await page.waitForTimeout(500)
+          if (size[0] === 1280) await page.screenshot({ path: `${SHOTS}/layout-${id}-${count}.png` })
+        }
+        check(`room layouts: ${where}`, bad.length === 0 && page.errors.length === 0, [...bad, ...page.errors].join('; '))
+        await page.context().close()
+      }
+    }
+    // Rows, Pairs and Rows of 3 number their desks alike: switching between them moves nobody.
+    const cls = makeClass('c1', 'Same seats', 20)
+    cls.seating[3] = null
+    cls.seating[25] = cls.students[3].id
+    const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)) })
+    const before = (await activeSaved(page)).seating.slice(0, 35).join()
+    for (const label of ['Pairs', 'Rows of 3', 'Rows']) {
+      await page.locator('aside button[aria-label="Class Settings"]').click()
+      await page.waitForTimeout(500)
+      await page.getByRole('tab', { name: 'Class' }).click()
+      await page.waitForTimeout(300)
+      await page.locator('[role=dialog] button[aria-pressed]', { hasText: label }).first().click()
+      await page.waitForTimeout(300)
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(500)
+    }
+    check('room layouts: rows, pairs and rows of 3 move nobody', (await activeSaved(page)).seating.slice(0, 35).join() === before)
+    return page
+  },
+
   /** The rule: nothing scrolls, in any theme, at any of the three sizes. */
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {

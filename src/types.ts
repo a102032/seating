@@ -1,3 +1,5 @@
+import type { RoomLayout } from './lib/layouts'
+
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
 export interface Student {
@@ -12,13 +14,15 @@ export interface Student {
 }
 
 /**
- * The chart is six desks across and five deep - thirty desks, which is most classes. A class
- * with more than thirty students gets a seventh column on the right, for thirty-five. Classes
- * of thirty or fewer never see it, so their board stays exactly as it was.
+ * The Rows layout: six desks across and five deep - thirty desks, which is most classes. A
+ * class with more than thirty students gets a seventh column on the right, for thirty-five.
+ * Classes of thirty or fewer never see it, so their board stays exactly as it was.
  *
  * Desks 0-29 are the six-wide chart, row by row, as they always were; the seventh column is
  * desks 30-34, top to bottom. Numbering the new desks on the end, rather than re-numbering
  * the grid seven wide, is what keeps every seating chart saved before this in its place.
+ * The other layouts (Pairs, tables...) and how every layout numbers its desks are in
+ * lib/layouts.ts; MAX_DESKS stays the most students a class seats.
  */
 export const DESK_COUNT = 30
 export const DESK_COLUMNS = 6
@@ -26,28 +30,16 @@ export const DESK_ROWS = 5
 export const MAX_DESK_COLUMNS = 7
 export const MAX_DESKS = MAX_DESK_COLUMNS * DESK_ROWS
 
-/** Which column (the app's "row" of desks, as Pick Row means it) a desk is in, counting from the left. */
+/** Which column (the app's "row" of desks, as Pick Row means it) a Rows desk is in, counting from the left. */
 export function deskColumn(deskIndex: number): number {
   return deskIndex < DESK_COUNT ? deskIndex % DESK_COLUMNS : DESK_COLUMNS
 }
 
-/** Which row a desk is in, counting from the top. */
-export function deskRow(deskIndex: number): number {
-  return deskIndex < DESK_COUNT ? Math.floor(deskIndex / DESK_COLUMNS) : deskIndex - DESK_COUNT
-}
-
-export function deskAt(row: number, column: number): number {
+function deskAt(row: number, column: number): number {
   return column < DESK_COLUMNS ? row * DESK_COLUMNS + column : DESK_COUNT + row
 }
 
-/** Six columns, or seven when the class needs them: more than thirty students, or anyone still sitting in the seventh. */
-export function deskColumnsFor(cls: Pick<ClassData, 'students' | 'seating'> | undefined): number {
-  if (!cls) return DESK_COLUMNS
-  const needed = cls.students.length > DESK_COUNT || cls.seating.slice(DESK_COUNT).some(Boolean)
-  return needed ? MAX_DESK_COLUMNS : DESK_COLUMNS
-}
-
-/** Every desk on the board, in reading order (row by row, left to right). */
+/** Every Rows desk on the board, in reading order (row by row, left to right). */
 export function desksInOrder(columns: number): number[] {
   return Array.from({ length: columns * DESK_ROWS }, (_, i) => deskAt(Math.floor(i / columns), i % columns))
 }
@@ -69,8 +61,14 @@ export interface ClassData {
    * lib/attendance's takenDays reads them that way until the next change writes the list.
    */
   attendanceTaken?: string[]
-  /** length MAX_DESKS (older saves have DESK_COUNT and are padded on load); each slot holds a student id or null for an empty desk */
+  /**
+   * Who sits at each desk: a student id, or null for an empty desk. The desks are numbered by the
+   * class's layout (lib/layouts.ts); in Rows, the numbering the app always had. Padded to
+   * MAX_SEATS on load, so any layout fits - older saves have 30 or 35.
+   */
   seating: (string | null)[]
+  /** How the desks stand in the room. Unset is Rows, the six-by-five grid. */
+  layout?: RoomLayout
   updatedAt: string
   /** Class points earned toward pointsGoal - wraps back down each time the class hits it. Unset is treated as 0. */
   classPoints?: number

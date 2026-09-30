@@ -4,18 +4,8 @@ import { absentOn, dateKey, takenDays } from '../lib/attendance'
 import { loadLocalState, saveLocalState } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
-import {
-  DESK_ROWS,
-  MAX_DESKS,
-  deskAt,
-  deskColumnsFor,
-  type ClassData,
-  type Gender,
-  type GroupPointsMode,
-  type GroupStatus,
-  type Student,
-  type StudentGroup,
-} from '../types'
+import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
+import { type ClassData, type Gender, type GroupPointsMode, type GroupStatus, type Student, type StudentGroup } from '../types'
 
 export const MAX_CLASSES = 5
 
@@ -27,14 +17,17 @@ function genId(): string {
 }
 
 function emptySeating(): (string | null)[] {
-  return Array.from({ length: MAX_DESKS }, () => null)
+  return Array.from({ length: MAX_SEATS }, () => null)
 }
 
-/** Saves from before the seventh column hold thirty desks; the five new ones start empty. */
+/**
+ * Saves from before the seventh column hold thirty desks, and from before layouts thirty-five;
+ * the rest start empty, so every layout has all its desks.
+ */
 function withAllDesks(seating: (string | null)[] | undefined): (string | null)[] {
   if (!seating) return emptySeating()
-  if (seating.length >= MAX_DESKS) return seating
-  return [...seating, ...Array.from({ length: MAX_DESKS - seating.length }, () => null)]
+  if (seating.length >= MAX_SEATS) return seating
+  return [...seating, ...Array.from({ length: MAX_SEATS - seating.length }, () => null)]
 }
 
 function makeClass(name: string): ClassData {
@@ -101,17 +94,12 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
 }
 
 /**
- * The order desks are filled in: bottom row first, left to right, then up row by row. The
- * seventh column is only there for a class of more than thirty, so a smaller class fills as
- * it always did.
+ * The order desks are filled in: bottom row first, left to right, then up row by row, in
+ * whatever layout the class has. The extra desks a big class gets are only there for a class
+ * of more than thirty, so a smaller class fills as it always did.
  */
 function fillOrder(c: ClassData): number[] {
-  const columns = deskColumnsFor(c)
-  const order: number[] = []
-  for (let row = DESK_ROWS - 1; row >= 0; row--) {
-    for (let col = 0; col < columns; col++) order.push(deskAt(row, col))
-  }
-  return order
+  return planFor(c).fillOrder
 }
 
 function shuffled<T>(items: T[]): T[] {
@@ -379,6 +367,16 @@ export function useClasses() {
   )
 
   /**
+   * The room's layout. Between the grid layouts nobody moves; into or out of tables the class
+   * keeps its order and closes up (lib/layouts, reseatForLayout).
+   */
+  const setLayout = useCallback(
+    (classId: string, layout: RoomLayout) =>
+      updateClass(classId, (c) => ((c.layout ?? 'rows') === layout ? c : { ...c, layout, seating: reseatForLayout(c, layout) })),
+    [updateClass],
+  )
+
+  /**
    * Attendance mode: a tap marks a student absent for the day, and a second tap brings them
    * back. Anything done in the mode is taking attendance, so the day counts as taken from the
    * first tap - a class left mid-mode keeps its record, as it always did.
@@ -592,6 +590,7 @@ export function useClasses() {
     swapSeats,
     seatClass,
     mixUpSeats,
+    setLayout,
     unseatAll,
     unseatStudent,
     toggleAbsent,

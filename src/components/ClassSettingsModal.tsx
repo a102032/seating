@@ -36,6 +36,8 @@ import { DangerCover } from './DangerCover'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { ThemePicker } from './ThemePicker'
+import { LayoutPicker } from './LayoutPicker'
+import type { RoomLayout } from '../lib/layouts'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface ClassSettingsModalProps {
@@ -56,6 +58,7 @@ interface ClassSettingsModalProps {
   onUnseatAll: () => void
   onSeatClass: () => void
   onMixUpSeats: () => void
+  onSetLayout: (layout: RoomLayout) => void
   onToggleAbsentInRecord: (studentId: string, day: string) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -153,6 +156,7 @@ export function ClassSettingsModal({
   onUnseatAll,
   onSeatClass,
   onMixUpSeats,
+  onSetLayout,
   onToggleAbsentInRecord,
   theme,
   onSetTheme,
@@ -467,6 +471,14 @@ export function ClassSettingsModal({
                   Theme <span className="font-normal">(changes every class)</span>
                 </Label>
                 <ThemePicker theme={theme} onSetTheme={onSetTheme} />
+              </section>
+
+              {/* Per class, unlike the theme: classes can meet in different rooms. */}
+              <section className="shrink-0">
+                <Label className="mb-1.5">
+                  Room Layout <span className="font-normal">(this class)</span>
+                </Label>
+                <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
               </section>
             </>
           )}

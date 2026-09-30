@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Play, Star, Target, Users } from 'lucide-react'
-import { describeScheme, type GroupScheme } from '../lib/groups'
+import { describeScheme, type GroupScheme, type SetOf } from '../lib/groups'
 import { goalIsLive } from '../hooks/useClasses'
 import type { ClassData, GroupPointsMode, Student, StudentGroup } from '../types'
 import { Label } from '@/components/ui/label'
@@ -15,6 +15,9 @@ interface GroupActivityModalProps {
   /** The seating as today's lesson sees it: absent students' desks count as empty. */
   seating: (string | null)[]
   studentsById: Map<string, Student>
+  /** Which row of desks, or table, a desk is in: Split By Rows is Split By Tables in a table layout. */
+  setOf: SetOf
+  setName: 'row' | 'table'
   /** The saved groups as they stand now - already pruned to who is seated. */
   lastGroups: StudentGroup[]
   onStart: (scheme: GroupScheme) => void
@@ -45,6 +48,8 @@ export function GroupActivityModal({
   activeClass,
   seating,
   studentsById,
+  setOf,
+  setName,
   lastGroups,
   onStart,
   onContinue,
@@ -107,7 +112,7 @@ export function GroupActivityModal({
             <div className="grid grid-cols-5 gap-2">
               {COUNT_OPTIONS.map((count) => {
                 const scheme: GroupScheme = { kind: 'count', count }
-                const plan = describeScheme(scheme, seating, studentsById)
+                const plan = describeScheme(scheme, seating, studentsById, setOf)
                 return (
                   <SchemeButton
                     key={count}
@@ -127,7 +132,7 @@ export function GroupActivityModal({
             <div className="grid grid-cols-4 gap-2">
               {SIZE_OPTIONS.map(({ size, label }) => {
                 const scheme: GroupScheme = { kind: 'size', size }
-                const plan = describeScheme(scheme, seating, studentsById)
+                const plan = describeScheme(scheme, seating, studentsById, setOf)
                 return (
                   <SchemeButton
                     key={size}
@@ -153,12 +158,12 @@ export function GroupActivityModal({
                   },
                   {
                     scheme: { kind: 'rows' } as GroupScheme,
-                    label: 'Rows',
-                    unavailable: 'Needs 2+ rows',
+                    label: setName === 'table' ? 'Tables' : 'Rows',
+                    unavailable: setName === 'table' ? 'Needs 2+ tables' : 'Needs 2+ rows',
                   },
                 ] as const
               ).map(({ scheme, label, unavailable }) => {
-                const plan = describeScheme(scheme, seating, studentsById)
+                const plan = describeScheme(scheme, seating, studentsById, setOf)
                 return (
                   <SchemeButton
                     key={scheme.kind}

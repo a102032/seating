@@ -55,9 +55,11 @@ checks the live URL. Confirm it went green before saying something is live.
 ## Where things are
 
 - `src/App.tsx`: top-level state and wiring (points selection, which screen is open, modals).
-- `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`; a 6x5 desk grid (`DESK_COUNT` 30), plus a
-  seventh column (desks 30-34, `MAX_DESKS` 35) only for classes of more than 30. Use `deskColumn`/`deskRow`/`deskAt`,
-  never `index % 6`, and `deskColumnsFor(cls)` for how many columns a class shows.
+- `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`. A class seats at most 35 (`MAX_DESKS`).
+- `src/lib/layouts.ts`: room layouts (Rows, Pairs, Rows of 3, Tables of 4, Tables of 5 two ways). `planFor(cls)` gives
+  the desks a class shows, which row or table each belongs to (Pick Row / Pick Table, Split by Rows / Tables) and the
+  fill order. Never work out a desk's place with `index % 6`: go through the plan. Rows keeps the old numbering (desks
+  0-29 six wide, 30-34 the seventh column), and `DeskGrid` draws Rows with its original code.
 - `src/hooks/useClasses.ts`: all class data changes (seating, points, class goal, groups, attendance) and saving.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks. `useGroupPicker.ts`: the same during Group Activity.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus

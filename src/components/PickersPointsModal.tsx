@@ -381,7 +381,7 @@ export function PickersPointsModal({
               <ToggleRow
                 label="Allow Repeats"
                 onDescription="Anyone can be picked again straight away."
-                offDescription="Everyone gets picked once before anyone repeats, and the same for rows."
+                offDescription="Everyone gets picked once before anyone repeats, and the same for rows and tables."
                 checked={settings.allowRepeats}
                 onCheckedChange={(checked) => onUpdateSettings({ allowRepeats: checked })}
               />
