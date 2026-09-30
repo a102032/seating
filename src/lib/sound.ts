@@ -257,16 +257,6 @@ export function playPickerLand() {
   })
 }
 
-/** A bright, snappy two-note blip for a point landing on the class goal meter. */
-export function playPointAward() {
-  const ctx = getContext()
-  const master = ctx.createGain()
-  master.gain.value = 1
-  master.connect(ctx.destination)
-  playTone(ctx, master, { frequency: 1046.5, start: 0, duration: 0.12, type: 'sine', peakGain: 0.35 })
-  playTone(ctx, master, { frequency: 1568, start: 0.06, duration: 0.16, type: 'sine', peakGain: 0.3 })
-}
-
 /**
  * A point being taken away: a recording, chosen by the teacher who uses this.
  *
@@ -387,14 +377,25 @@ export function playGoalCelebration(): () => void {
   }
 }
 
-/** A single coin landing - used when the meter ticks up. */
+/**
+ * A point landing: an arcade coin, the one sound for every point - the class goal meter
+ * moving up (a point from the desks, +1 in the floating window, Everyone +1) and +1 on a group
+ * card. A short G, then a C that rings, in a triangle wave with a faint octave on top.
+ *
+ * It replaced two quick sine pings (E6 and B6, and a group card's C6 and G6) that the teacher
+ * found jarring on the board: the top note sat near 2kHz, where a board's speaker is at its
+ * sharpest. He asked for a coin "like in Mario" and chose this one by ear on a listening page
+ * of four at matched loudness. It is a coin in spirit, not Nintendo's: a console's square wave
+ * is buzzy, which is its own kind of jarring, so this is the rounder triangle and sits lower.
+ */
 export function playCoinTick() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
   master.connect(ctx.destination)
-  playTone(ctx, master, { frequency: 1318.51, start: 0, duration: 0.14, type: 'sine', peakGain: 0.16 })
-  playTone(ctx, master, { frequency: 1975.53, start: 0.04, duration: 0.16, type: 'sine', peakGain: 0.12 })
+  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.09, type: 'triangle', peakGain: 0.16, attack: 0.004 })
+  playTone(ctx, master, { frequency: 1046.5, start: 0.07, duration: 0.5, type: 'triangle', peakGain: 0.16, attack: 0.004 })
+  playTone(ctx, master, { frequency: 2093, start: 0.07, duration: 0.22, type: 'sine', peakGain: 0.016, attack: 0.004 })
 }
 
 function cardContext(): { ctx: AudioContext; master: GainNode } {
