@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
@@ -16,7 +16,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
-import { canFloat, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
+import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
@@ -26,8 +26,6 @@ import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
-/** The floating class goal's first size: the meter and a +1 big enough to hit on a board. It can be resized. */
-const FLOAT_WINDOW_SIZE = { width: 340, height: 180 }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
@@ -205,6 +203,24 @@ export default function App() {
   )
   const picker = usePicker(presentSeating, activeClassId, deskColumns)
   const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
+
+  /**
+   * A pick started from the floating class goal runs on that window's clock, which stops for
+   * good if the window closes mid-flash. Without this the picker would be left flashing
+   * forever, with Pick Student greyed out.
+   */
+  const pickOnFloatClock = useRef(false)
+  const { mode: pickMode, dismiss: dismissPick } = picker
+  useEffect(() => {
+    if (pickMode !== 'student-flashing') {
+      pickOnFloatClock.current = false
+      return
+    }
+    if (!floatWin && pickOnFloatClock.current) {
+      pickOnFloatClock.current = false
+      dismissPick()
+    }
+  }, [floatWin, pickMode, dismissPick])
 
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
@@ -587,7 +603,7 @@ export default function App() {
               holdCelebration={!appInFront}
               onWaitingChange={setGoalWaiting}
               floating={floatWin !== null}
-              onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_WINDOW_SIZE)) : undefined}
+              onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE)) : undefined}
             />
           )}
 
@@ -784,6 +800,21 @@ export default function App() {
           // The browser may or may not bring the app forward for this. Either way the chest
           // opens only once the app is in front, so the fanfare never plays behind the lesson.
           onCelebrate={() => window.focus()}
+          pick={
+            picker.mode === 'student-flashing' || picker.mode === 'student-result'
+              ? {
+                  name: (picker.shownStudentId && studentsById.get(picker.shownStudentId)?.name) || '',
+                  landed: picker.mode === 'student-result',
+                }
+              : null
+          }
+          // Off whenever the side panel's Pick Student would be, or it would pick behind cards.
+          canPick={!picker.isPicking && !swapMode && !attendanceMode && !flipDeckOpen && !groupActivityOpen && seatedIds.length > 0}
+          onPick={() => {
+            pickOnFloatClock.current = true
+            startPick(() => picker.pickStudent(floatWin))
+          }}
+          onClearPick={picker.dismiss}
         />
       )}
     </>
