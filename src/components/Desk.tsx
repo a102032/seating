@@ -40,6 +40,7 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
       type="button"
       onClick={() => onTap(index)}
       data-ink={empty ? 'desk-empty' : 'desk'}
+      aria-label={empty ? 'Empty desk' : undefined}
       className={clsx(
         // Rounded at the top, square at the bottom, so the desks sit on the grid like objects on a shelf.
         // A hairline and a little lift, not an outline. This was a 2px #1b3a4b - a fixed
@@ -72,11 +73,9 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
       )}
       style={{ containerType: 'inline-size', animationDelay: wiggleDelayMs ? `${wiggleDelayMs}ms` : undefined }}
     >
-      {empty ? (
-        <span className="m-auto opacity-50" style={{ fontSize: 'clamp(0.7rem, 6cqi, 1.15rem)' }}>
-          Empty
-        </span>
-      ) : (
+      {/* An empty desk is just the faded tile. It said "Empty", on every empty desk, which
+          was one more word on a board already full of names. */}
+      {empty ? null : (
         <>
           {/* Both corners sit over the avatar's empty top corners, leaving the whole
               bottom row to the name. */}

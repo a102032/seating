@@ -328,7 +328,10 @@ export function SidePanel({
             buttons a teacher taps most. No icon: the highlight is the state, the
             word is the action.
           */}
-          <div className="mt-1.5 flex items-stretch gap-1.5">
+          {/* Taller as the screen gets taller. These are the buttons tapped all lesson, and
+              they were the smallest on the panel while a third of it sat empty on a big board.
+              A 640-tall screen keeps the 38px it had, so the panel still fits there. */}
+          <div className="mt-1.5 flex h-[clamp(38px,7vh_-_7px,76px)] items-stretch gap-1.5">
             <TactileButton
               active={allSeatedSelected}
               // On the flip cards +/- always mean "the student named below", never the room.
@@ -336,7 +339,7 @@ export function SidePanel({
               onClick={onToggleSelectAll}
               title={allSeatedSelected ? 'Unpick All' : 'Pick All'}
               // Wide enough for "Unpick All", so +/- don't change width when the label does.
-              className="h-[38px] w-[6.25rem] shrink-0 !px-0 justify-center"
+              className="w-[6.1em] shrink-0 !px-0 !text-[clamp(0.8rem,2vmin,1.3rem)] justify-center"
             >
               {allSeatedSelected ? 'Unpick All' : 'Pick All'}
             </TactileButton>
@@ -348,17 +351,20 @@ export function SidePanel({
               disabled={busy || pointsSelectedCount === 0 || !canDeductPoint}
               onClick={onDeductPoint}
               title={pointsSelectedCount > 0 && !canDeductPoint ? 'No points to take away' : 'Deduct Point'}
-              className="h-[38px] min-w-9 flex-1 !px-0 justify-center"
+              className="min-w-9 flex-1 !px-0 justify-center"
             >
-              <Minus size={20} strokeWidth={2.75} />
+              <Minus className="size-[clamp(20px,3.2vh,34px)]" strokeWidth={2.75} />
             </TactileButton>
+            {/* data-points: in Elementary, where every other button is pale, + stays yellow so
+                a hand finds it without looking (index.css). */}
             <TactileButton
               disabled={busy || pointsSelectedCount === 0}
               onClick={onAwardPoint}
               title="Award Point"
-              className="h-[38px] min-w-9 flex-1 !px-0 justify-center"
+              data-points="award"
+              className="min-w-9 flex-1 !px-0 justify-center"
             >
-              <Plus size={20} strokeWidth={2.75} />
+              <Plus className="size-[clamp(20px,3.2vh,34px)]" strokeWidth={2.75} />
             </TactileButton>
           </div>
           {flipDeckOpen ? (
