@@ -20,7 +20,7 @@ import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
-import { playGroupsDone, playPointDeduct, primeAudio } from './lib/sound'
+import { playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
@@ -81,6 +81,7 @@ export default function App() {
     deleteStudent,
     swapSeats,
     seatClass,
+    mixUpSeats,
     unseatAll,
     unseatStudent,
     toggleAbsent,
@@ -787,6 +788,12 @@ export default function App() {
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
+        onMixUpSeats={() => {
+          // A pick is ringed by desk, and that desk now holds somebody else.
+          picker.dismiss()
+          mixUpSeats(activeClass.id)
+          playShuffle()
+        }}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         theme={theme}
         onSetTheme={(next) => {

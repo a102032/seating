@@ -671,6 +671,7 @@ export function GroupActivity({
                       }}
                       disabled={dealing}
                       title="Give a point"
+                      data-points="award"
                       className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
                     >
                       <Plus size={points.sign} strokeWidth={2.75} />

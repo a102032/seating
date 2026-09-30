@@ -100,6 +100,29 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
   return { ...c, classPoints, goalsReached }
 }
 
+/**
+ * The order desks are filled in: bottom row first, left to right, then up row by row. The
+ * seventh column is only there for a class of more than thirty, so a smaller class fills as
+ * it always did.
+ */
+function fillOrder(c: ClassData): number[] {
+  const columns = deskColumnsFor(c)
+  const order: number[] = []
+  for (let row = DESK_ROWS - 1; row >= 0; row--) {
+    for (let col = 0; col < columns; col++) order.push(deskAt(row, col))
+  }
+  return order
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
 /** The day counts as taken. Writes the taken list out in full, so an old save gets one. */
 function withDayTaken(c: ClassData, day: string): ClassData {
   if (c.attendanceTaken?.includes(day)) return c
@@ -325,21 +348,30 @@ export function useClasses() {
           .filter((s) => !seatedIds.has(s.id))
           .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 
-        // Bottom row first, left to right, then moving up row by row. The seventh column is
-        // only there for a class of more than thirty, so a smaller class fills as it always did.
-        const columns = deskColumnsFor(c)
-        const fillOrder: number[] = []
-        for (let row = DESK_ROWS - 1; row >= 0; row--) {
-          for (let col = 0; col < columns; col++) {
-            fillOrder.push(deskAt(row, col))
-          }
-        }
-        const emptyDesks = fillOrder.filter((i) => c.seating[i] === null)
+        const emptyDesks = fillOrder(c).filter((i) => c.seating[i] === null)
 
         const seating = [...c.seating]
         emptyDesks.forEach((deskIndex, i) => {
           const student = unseated[i]
           if (student) seating[deskIndex] = student.id
+        })
+        return { ...c, seating }
+      }),
+    [updateClass],
+  )
+
+  /**
+   * A new seating plan in one tap: everyone on the roster dealt into random seats, back rows
+   * first like Seat Students, so the empty desks are left at the front. Before this, a fresh
+   * plan meant Unseat All and then placing the class by hand.
+   */
+  const mixUpSeats = useCallback(
+    (classId: string) =>
+      updateClass(classId, (c) => {
+        const order = fillOrder(c)
+        const seating = emptySeating()
+        shuffled(c.students.map((s) => s.id)).forEach((id, i) => {
+          if (i < order.length) seating[order[i]] = id
         })
         return { ...c, seating }
       }),
@@ -559,6 +591,7 @@ export function useClasses() {
     deleteStudent,
     swapSeats,
     seatClass,
+    mixUpSeats,
     unseatAll,
     unseatStudent,
     toggleAbsent,

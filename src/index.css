@@ -86,8 +86,11 @@
   --popover-foreground: #1e2a44;
   --primary: #8b5cf6;
   --primary-foreground: #ffffff;
-  --secondary: #ffe27a;
-  --secondary-foreground: #7a4b00;
+  /* Everyday buttons are pale, with purple words. They were all this theme's yellow - nine
+     of them on the side panel alone - so nothing stood out and the eye had nowhere to land.
+     Purple still means on; yellow is kept for a point (below). */
+  --secondary: #f6f1ff;
+  --secondary-foreground: #5b3fa0;
   --muted: #f3ecff;
   --muted-foreground: #7c5a94;
   --accent: #d1fae5;
@@ -99,6 +102,13 @@
   --ring: #8b5cf6;
   --clock-bg: #8b5cf6;
   --clock-fg: #f3ecff;
+}
+
+/* Yellow means a point: the side panel's + and a group card's +, the buttons tapped all
+   lesson, are the one bright button among the pale ones. Greyed, they fade like the rest. */
+:root[data-theme='vibrant'] [data-points='award']:not(:disabled) {
+  background: #ffd84d;
+  color: #6b3f00;
 }
 
 /*

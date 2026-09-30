@@ -12,32 +12,54 @@ import { deskColumn, type Gender, type Student, type StudentGroup } from '../typ
 export type GroupScheme = { kind: 'count'; count: number } | { kind: 'size'; size: number } | { kind: 'gender' } | { kind: 'rows' }
 
 /**
- * Fixed colours, the same on every theme, ordered so neighbouring groups sit far apart on
- * the wheel: Group 1 and Group 2 should never be told apart by a squint. Fifteen is the most
- * groups the board can produce (pairs of a full class of thirty).
+ * Fixed colours, the same on every theme, ordered so the first six - the counts a class
+ * uses most - are six different families: Group 1 and Group 2 should never be told apart by
+ * a squint.
+ *
+ * None of them is red, amber, orange, green or grey, because those are the statuses (Help,
+ * Ready, Done, Working) and the status is what the room scans for. The set used to include
+ * the exact red of Help and green of Done, so Group 1 always wore a red band, even while it
+ * was working happily, and "look for the red card" stopped working. Twelve colours; pairs
+ * of a full 35 make 17 groups, so the last few repeat.
  */
 export const GROUP_COLORS: { bg: string; fg: string }[] = [
-  { bg: '#ef4444', fg: '#ffffff' }, // red
   { bg: '#3b82f6', fg: '#ffffff' }, // blue
-  { bg: '#22c55e', fg: '#ffffff' }, // green
-  { bg: '#f97316', fg: '#ffffff' }, // orange
-  { bg: '#8b5cf6', fg: '#ffffff' }, // violet
-  { bg: '#14b8a6', fg: '#ffffff' }, // teal
   { bg: '#ec4899', fg: '#ffffff' }, // pink
-  { bg: '#84cc16', fg: '#1a2e05' }, // lime
-  { bg: '#6366f1', fg: '#ffffff' }, // indigo
-  { bg: '#f59e0b', fg: '#451a03' }, // amber
+  { bg: '#14b8a6', fg: '#ffffff' }, // teal
+  { bg: '#8b5cf6', fg: '#ffffff' }, // violet
+  { bg: '#8d5a2b', fg: '#ffffff' }, // brown
+  { bg: '#334155', fg: '#ffffff' }, // charcoal
   { bg: '#0ea5e9', fg: '#ffffff' }, // sky
   { bg: '#d946ef', fg: '#ffffff' }, // fuchsia
-  { bg: '#059669', fg: '#ffffff' }, // emerald
-  { bg: '#64748b', fg: '#ffffff' }, // slate
-  { bg: '#b45309', fg: '#ffffff' }, // brown
+  { bg: '#6366f1', fg: '#ffffff' }, // indigo
+  { bg: '#0891b2', fg: '#ffffff' }, // cyan
+  { bg: '#7e22ce', fg: '#ffffff' }, // plum
+  { bg: '#1e3a8a', fg: '#ffffff' }, // navy
 ]
 
-/** The app's gender colours, shared with desks and card backs, so Boys / Girls reads at once. */
+/**
+ * The app's gender colours, close to the card backs', so Boys / Girls reads at once. Girls
+ * were rose, a red that read as Help from the back of the room; they are pink now.
+ */
 const GENDER_COLORS: Record<'boy' | 'girl', { bg: string; fg: string }> = {
   boy: { bg: '#0ea5e9', fg: '#ffffff' },
-  girl: { bg: '#f43f5e', fg: '#ffffff' },
+  girl: { bg: '#ec4899', fg: '#ffffff' },
+}
+
+/** Colours groups were saved in before the statuses got their colours to themselves. */
+const RETIRED_COLORS = new Set(['#ef4444', '#22c55e', '#f97316', '#84cc16', '#f59e0b', '#059669', '#64748b', '#b45309', '#f43f5e'])
+
+/**
+ * Saved groups in a retired colour are coloured afresh by position, all of them together so
+ * two groups can't end up sharing one - "Continue with Last Groups" would otherwise bring
+ * back yesterday's red Group 1.
+ */
+function recolorRetired(groups: StudentGroup[]): StudentGroup[] {
+  if (!groups.some((g) => RETIRED_COLORS.has(g.color))) return groups
+  return groups.map((g, i) => ({
+    ...g,
+    color: g.name === 'Boys' ? GENDER_COLORS.boy.bg : g.name === 'Girls' ? GENDER_COLORS.girl.bg : GROUP_COLORS[i % GROUP_COLORS.length].bg,
+  }))
 }
 
 /** Text colour for a group's band - dark on the two light colours, white everywhere else. */
@@ -191,7 +213,7 @@ export function buildGroups(
  */
 export function pruneGroups(groups: StudentGroup[], seating: (string | null)[]): StudentGroup[] {
   const seated = new Set(seating.filter(Boolean) as string[])
-  return groups
+  return recolorRetired(groups)
     .map((g) => ({
       ...g,
       studentIds: g.studentIds.filter((id) => seated.has(id)),

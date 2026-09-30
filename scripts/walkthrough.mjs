@@ -491,6 +491,87 @@ const scenarios = {
     return page
   },
 
+  /** Red, amber, green and grey belong to the statuses (Help, Ready, Done, Working), never to a group. */
+  async 'group colours never look like a status'() {
+    const STATUS = ['#ef4444', '#f59e0b', '#22c55e', '#64748b', '#f43f5e', '#f97316']
+    const bandColors = (page) =>
+      page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((card) => getComputedStyle(card).borderTopColor))
+    const hex = (rgb) =>
+      '#' +
+      rgb
+        .match(/\d+/g)
+        .slice(0, 3)
+        .map((n) => Number(n).toString(16).padStart(2, '0'))
+        .join('')
+    // Groups saved in yesterday's colours, the first one red: "Continue" should bring them back recoloured.
+    const cls = makeClass('c1', 'Colours', 12)
+    cls.groups = ['#ef4444', '#3b82f6', '#22c55e'].map((color, g) => ({
+      id: 'g' + g,
+      name: `Group ${g + 1}`,
+      color,
+      points: 0,
+      studentIds: cls.students.filter((_, i) => i % 3 === g).map((s) => s.id),
+    }))
+    const page = await open({ state: stateOf(cls) })
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /Continue with Last Groups/ }).click()
+    await page.waitForTimeout(4500)
+    const continued = (await bandColors(page)).map(hex)
+    check(
+      'saved groups in a status colour come back recoloured',
+      continued.length === 3 && !continued.some((c) => STATUS.includes(c)),
+      continued.join(' '),
+    )
+    await page.locator('button', { hasText: 'New Groups' }).first().click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /^6/ }).first().click()
+    await page.waitForTimeout(4500)
+    const dealt = (await bandColors(page)).map(hex)
+    check(
+      'a new deal of six uses no status colour, and no colour twice',
+      dealt.length === 6 && !dealt.some((c) => STATUS.includes(c)) && new Set(dealt).size === 6,
+      dealt.join(' '),
+    )
+    return page
+  },
+
+  /** One tap for a new seating plan: everyone seated at random, back rows first. */
+  async 'mix up seats'() {
+    const cls = makeClass('c1', 'Mix', 20)
+    // Two unseated students, who should get seats too.
+    cls.seating[18] = null
+    cls.seating[19] = null
+    const page = await open({ state: stateOf(cls) })
+    const before = (await activeSaved(page)).seating.slice(0, 30).join()
+    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: /Mix Up Seats/ }).click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'Yes, Mix Up' }).click()
+    await page.waitForTimeout(800)
+    const after = (await activeSaved(page)).seating
+    const seated = after.filter(Boolean)
+    // Rows are six desks, the top one first. Twenty fill the back three rows (desks 12-29), then
+    // two desks at the left of the fourth (6 and 7); the rest stay empty.
+    const backFirst =
+      after.slice(12, 30).every(Boolean) && after[6] && after[7] && [...after.slice(0, 6), ...after.slice(8, 12)].every((s) => !s)
+    check('mix up seats: everyone seated once', seated.length === 20 && new Set(seated).size === 20, `${seated.length} seated`)
+    check(
+      'mix up seats: back rows first',
+      backFirst,
+      JSON.stringify(
+        after
+          .slice(0, 30)
+          .map((s) => (s ? 1 : 0))
+          .join(''),
+      ),
+    )
+    check('mix up seats: a different plan', after.slice(0, 30).join() !== before)
+    check('mix up seats: the window closes on the new plan', (await page.locator('[role=dialog]').count()) === 0)
+    return page
+  },
+
   /** The rule: nothing scrolls, in any theme, at any of the three sizes. */
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
