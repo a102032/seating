@@ -4,14 +4,6 @@ import type { Account } from './firebase'
 export type { Account }
 
 /**
- * While the teacher tries signing in on the real board, Sign in with Google only shows at the
- * app's address with ?signin on the end; at its usual address the app is as it was. (Google only
- * signs in on addresses the project allows, so this can't be tried from a preview.) Comes out when
- * signing in goes live for everyone.
- */
-export const signInOffered = Boolean(import.meta.env.VITE_FIREBASE_EMULATOR) || new URLSearchParams(location.search).has('signin')
-
-/**
  * Firebase, loaded the first time it's needed. It is most of the size of the app, so a teacher
  * who never signs in never downloads it; the splash starts fetching it in the background so a
  * tap on Sign in doesn't wait for it.
