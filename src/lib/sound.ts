@@ -22,12 +22,14 @@ interface ToneOptions {
   type?: OscillatorType
   peakGain?: number
   detune?: number
+  /** Seconds to fade in. The default is near-instant; a slower one takes the edge off a note. */
+  attack?: number
 }
 
 function playTone(
   ctx: AudioContext,
   master: GainNode,
-  { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0 }: ToneOptions,
+  { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0, attack }: ToneOptions,
 ) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
@@ -40,7 +42,7 @@ function playTone(
 
   const t0 = ctx.currentTime + start
   gain.gain.setValueAtTime(0, t0)
-  gain.gain.linearRampToValueAtTime(peakGain, t0 + Math.min(0.02, duration / 4))
+  gain.gain.linearRampToValueAtTime(peakGain, t0 + (attack ?? Math.min(0.02, duration / 4)))
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration)
 
   osc.connect(gain)
@@ -219,34 +221,40 @@ let lastPickerTick = 0
 /**
  * A picker's flash: Pick Student, Pick Row, the group pickers and the floating class goal.
  *
- * A soft pop (pop.mp3, centred near 500Hz) at a third of full volume, and only on every other
- * flash: the desk or name still changes every 90ms, but the room hears half as many sounds.
- * It replaced a dry 3.5kHz tick on every flash at full volume, which the teacher found too
- * jarring on the board - he chose this one by ear from three candidates played side by side,
- * over the same pop at half volume on every flash ("still a lot of pops"). pop.mp3 carries
- * 53ms of silence before its attack, skipped so the pop lands with the flash, not after it.
+ * A soft pop (pop.mp3, centred near 500Hz), only on every other flash: the desk or name still
+ * changes every 90ms, but the room hears half as many sounds. It replaced a dry 3.5kHz tick on
+ * every flash at full volume, which the teacher found too jarring on the board; he chose this
+ * by ear from three candidates played side by side. It first went in at a third of full
+ * volume, and on the board he had to turn the speakers all the way up to hear it - 500Hz is
+ * near the bottom of what a classroom speaker does - so it plays at 80%. pop.mp3 carries 53ms
+ * of silence before its attack, skipped so the pop lands with the flash, not after it.
  */
 export function playPickerTick() {
   const now = performance.now()
   if (now - lastPickerTick < PICKER_TICK_GAP_MS) return
   lastPickerTick = now
-  playSample('/sounds/pop.mp3', 4, undefined, { volume: 0.32, from: 0.053 })
+  playSample('/sounds/pop.mp3', 4, undefined, { volume: 0.8, from: 0.053 })
 }
 
 /**
- * The picker landing on its winner, after the pops stop: one soft ding, with a faint octave
- * above it for a little shimmer. Pure tones and no attack edge, so it says "this one" without
- * making anyone jump. Small on purpose: it fires on every pick, many times a lesson, and the
- * fanfare belongs to the class goal. Nothing goes below 400Hz - a classroom tablet can't
- * reproduce the bottom end.
+ * The picker landing on its winner, after the pops stop: a gentle chime, three notes of a major
+ * chord (G, C, E) rolled upward, each fading in over 40ms and ringing out for about a second,
+ * with a faint octave above each for a bell's shimmer. It replaced a single pure ding at
+ * 1.3kHz with a near-instant start, which on the board came out "loud and abrupt" - that pitch
+ * is where a classroom speaker is strongest, and it followed pops that were too quiet. Small
+ * on purpose: it fires on every pick, many times a lesson, and the fanfare belongs to the
+ * class goal. Nothing goes below 400Hz - a classroom tablet can't reproduce the bottom end.
  */
 export function playPickerLand() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
   master.connect(ctx.destination)
-  playTone(ctx, master, { frequency: 1318.5, start: 0, duration: 0.55, type: 'sine', peakGain: 0.14 })
-  playTone(ctx, master, { frequency: 2637, start: 0, duration: 0.3, type: 'sine', peakGain: 0.03 })
+  ;[783.99, 1046.5, 1318.5].forEach((frequency, i) => {
+    const start = i * 0.07
+    playTone(ctx, master, { frequency, start, duration: 1, type: 'sine', peakGain: 0.075, attack: 0.04 })
+    playTone(ctx, master, { frequency: frequency * 2, start, duration: 0.5, type: 'sine', peakGain: 0.015, attack: 0.04 })
+  })
 }
 
 /** A bright, snappy two-note blip for a point landing on the class goal meter. */
