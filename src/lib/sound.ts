@@ -257,26 +257,22 @@ export function playPickerLand() {
   })
 }
 
-/** A bright, snappy two-note blip for a point landing on the class goal meter. */
-export function playPointAward() {
-  const ctx = getContext()
-  const master = ctx.createGain()
-  master.gain.value = 1
-  master.connect(ctx.destination)
-  playTone(ctx, master, { frequency: 1046.5, start: 0, duration: 0.12, type: 'sine', peakGain: 0.35 })
-  playTone(ctx, master, { frequency: 1568, start: 0.06, duration: 0.16, type: 'sine', peakGain: 0.3 })
-}
-
 /**
- * A point being taken away: a recording, chosen by the teacher who uses this.
+ * A point being taken away: "Negative reverberate", one low note that drops and fades. The
+ * teacher's own pick, from recordings he found and sent.
  *
- * It sits at -16.5 LUFS with its energy centred on 330-500Hz, which is the range a tablet or
- * laptop speaker can actually reproduce - the trap the synthesised version fell into, where a
- * 233Hz -> 156Hz fall measured louder than the coin tick and was still inaudible in a room
- * because almost all of it was below what the speaker could move.
+ * The recording before it played at full scale, about 14 dB louder than the coin, and the room
+ * heard it as a blast. This one plays at 43%, which puts it about 1.3 dB under the coin to the
+ * ear (A-weighted: the ear hears a low note as quieter, so it gets more raw level than the coin
+ * does), and skips the 71ms of silence at the front of the file so it lands with the tap.
+ *
+ * Nearly all of it sits at 280-400Hz, under the line this file otherwise keeps to, and it was
+ * chosen by ear anyway. The trap to remember: a synthesised 233Hz -> 156Hz fall once went
+ * missing in a room while measuring louder than the coin, because a small speaker can't move
+ * that low. If this one goes quiet on the board, the volume here is the first knob.
  */
 export function playPointDeduct() {
-  playSample('/sounds/point-down.mp3', 2, playSynthPointDeduct)
+  playSample('/sounds/negative-reverberate.mp3', 2, playSynthPointDeduct, { volume: 0.43, from: 0.071 })
 }
 
 /**
@@ -288,7 +284,8 @@ export function playPointDeduct() {
 function playSynthPointDeduct() {
   const ctx = getContext()
   const master = ctx.createGain()
-  master.gain.value = 1
+  // Level with the recording it stands in for; at full it was 6 dB louder, the old blast again.
+  master.gain.value = 0.48
   master.connect(ctx.destination)
   // The tick. Broadband noise survives a small speaker better than any single tone.
   playNoiseBurst(ctx, master, 0, 0.035, 0.4)
@@ -387,14 +384,25 @@ export function playGoalCelebration(): () => void {
   }
 }
 
-/** A single coin landing - used when the meter ticks up. */
+/**
+ * A point landing: an arcade coin, the one sound for every point - the class goal meter
+ * moving up (a point from the desks, +1 in the floating window, Everyone +1) and +1 on a group
+ * card. A short G, then a C that rings, in a triangle wave with a faint octave on top.
+ *
+ * It replaced two quick sine pings (E6 and B6, and a group card's C6 and G6) that the teacher
+ * found jarring on the board: the top note sat near 2kHz, where a board's speaker is at its
+ * sharpest. He asked for a coin "like in Mario" and chose this one by ear on a listening page
+ * of four at matched loudness. It is a coin in spirit, not Nintendo's: a console's square wave
+ * is buzzy, which is its own kind of jarring, so this is the rounder triangle and sits lower.
+ */
 export function playCoinTick() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
   master.connect(ctx.destination)
-  playTone(ctx, master, { frequency: 1318.51, start: 0, duration: 0.14, type: 'sine', peakGain: 0.16 })
-  playTone(ctx, master, { frequency: 1975.53, start: 0.04, duration: 0.16, type: 'sine', peakGain: 0.12 })
+  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.09, type: 'triangle', peakGain: 0.16, attack: 0.004 })
+  playTone(ctx, master, { frequency: 1046.5, start: 0.07, duration: 0.5, type: 'triangle', peakGain: 0.16, attack: 0.004 })
+  playTone(ctx, master, { frequency: 2093, start: 0.07, duration: 0.22, type: 'sine', peakGain: 0.016, attack: 0.004 })
 }
 
 function cardContext(): { ctx: AudioContext; master: GainNode } {

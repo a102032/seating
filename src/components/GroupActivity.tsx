@@ -7,7 +7,7 @@ import { groupTextColor } from '../lib/groups'
 import {
   playCardDeal,
   playCardFlip,
-  playPointAward,
+  playCoinTick,
   playPointDeduct,
   playShuffle,
   playStatusDone,
@@ -627,7 +627,7 @@ export function GroupActivity({
                       onClick={(e) => {
                         e.stopPropagation()
                         onAdjustPoints(group.id, 1)
-                        playPointAward()
+                        playCoinTick()
                       }}
                       disabled={dealing}
                       title="Give a point"
