@@ -274,11 +274,7 @@ export default function App() {
 
   function updateGroupChimes(on: boolean) {
     setGroupChimes(on)
-    try {
-      localStorage.setItem(GROUP_CHIMES_KEY, on ? '1' : '0')
-    } catch {
-      // ignore
-    }
+    remember(GROUP_CHIMES_KEY, on ? '1' : '0')
   }
 
   function continueGroups() {
@@ -364,17 +360,25 @@ export default function App() {
     openSettings('class')
   }
 
+  // A full or locked-down storage refuses a write by throwing. Unguarded, moving the panel
+  // took the whole app down with it; now the choice just isn't remembered.
+  function remember(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value)
+    } catch {
+      // ignore
+    }
+  }
+
   function updateTimerSettings(next: TimerSettings) {
     setTimerSettings(next)
-    localStorage.setItem('seating-chart-timer-settings-v1', JSON.stringify(next))
+    remember('seating-chart-timer-settings-v1', JSON.stringify(next))
   }
 
   function togglePanelSide() {
-    setPanelSide((prev) => {
-      const next = prev === 'left' ? 'right' : 'left'
-      localStorage.setItem(PANEL_SIDE_KEY, next)
-      return next
-    })
+    const next = panelSide === 'left' ? 'right' : 'left'
+    setPanelSide(next)
+    remember(PANEL_SIDE_KEY, next)
   }
 
   function handleTapDesk(index: number) {
