@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Armchair,
   ClipboardCheck,
+  Dices,
   GraduationCap,
   Pencil,
   Plus,
@@ -54,6 +55,7 @@ interface ClassSettingsModalProps {
   onDeleteClass: () => void
   onUnseatAll: () => void
   onSeatClass: () => void
+  onMixUpSeats: () => void
   onToggleAbsentInRecord: (studentId: string, day: string) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -150,6 +152,7 @@ export function ClassSettingsModal({
   onDeleteClass,
   onUnseatAll,
   onSeatClass,
+  onMixUpSeats,
   onToggleAbsentInRecord,
   theme,
   onSetTheme,
@@ -164,6 +167,7 @@ export function ClassSettingsModal({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
+  const [confirmingMixUp, setConfirmingMixUp] = useState(false)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
@@ -231,6 +235,7 @@ export function ClassSettingsModal({
   function closeAndReset() {
     setConfirmingDelete(false)
     setConfirmingUnseatAll(false)
+    setConfirmingMixUp(false)
     setConfirmingDeleteStudent(null)
     setPickingAvatarFor(null)
     setEditingId(null)
@@ -250,6 +255,7 @@ export function ClassSettingsModal({
           open &&
           !confirmingDelete &&
           !confirmingUnseatAll &&
+          !confirmingMixUp &&
           !confirmingDeleteStudent &&
           !pickingAvatarFor &&
           !assigningAvatars &&
@@ -378,6 +384,16 @@ export function ClassSettingsModal({
                   <Smile size={16} /> Student Avatars
                 </TactileButton>
                 <p className="min-w-0 flex-1 text-sm leading-tight text-muted-foreground">Change every avatar at once</p>
+                {/* A new seating plan in one tap, behind a confirm: the plan it replaces can't be
+                    brought back. */}
+                <TactileButton
+                  onClick={() => setConfirmingMixUp(true)}
+                  disabled={activeClass.students.length < 2}
+                  className={clsx('shrink-0', activeClass.students.length < 2 && 'opacity-40')}
+                  title="Give everyone a new, random seat"
+                >
+                  <Dices size={16} /> Mix Up Seats
+                </TactileButton>
                 <TactileButton
                   onClick={() => setConfirmingUnseatAll(true)}
                   disabled={seatedIds.size === 0}
@@ -467,6 +483,20 @@ export function ClassSettingsModal({
         onConfirm={() => {
           onUnseatAll()
           setConfirmingUnseatAll(false)
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingMixUp}
+        title="Mix Up Seats?"
+        message={`Everyone in "${activeClass.name}" gets a new, random seat. The seating plan you have now can't be brought back.`}
+        confirmLabel="Yes, Mix Up"
+        cancelLabel="No"
+        onCancel={() => setConfirmingMixUp(false)}
+        onConfirm={() => {
+          onMixUpSeats()
+          // Closed, so the new plan is the first thing the teacher sees - as Seat Students does.
+          closeAndReset()
         }}
       />
 
