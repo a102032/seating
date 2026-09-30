@@ -39,7 +39,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
 ## Stack and commands
 
 React 19, TypeScript, Vite 8, Tailwind v4, shadcn/ui (Radix), framer-motion, lucide-react. The font is Andika
-(weights 400 and 700 only). Saved in localStorage; Supabase sync exists but is not turned on.
+(weights 400 and 700 only). Saved in localStorage, and to the teacher's Google account once they sign in (Firebase: Google
+sign-in and Firestore, project class-yes).
 
 ```bash
 npm run dev -- --port 5175     # dev server at http://localhost:5175/seating/
@@ -61,6 +62,11 @@ checks the live URL. Confirm it went green before saying something is live.
   fill order. Never work out a desk's place with `index % 6`: go through the plan. Rows keeps the old numbering (desks
   0-29 six wide, 30-34 the seventh column), and `DeskGrid` draws Rows with its original code.
 - `src/hooks/useClasses.ts`: all class data changes (seating, points, class goal, groups, attendance) and saving.
+- `src/hooks/useCloudSync.ts`: signing in and sync (the first-sign-in question, live sync, offline catch-up, Switch
+  teacher). It watches `classes` and sends whatever changed, so class changes need nothing extra to sync.
+  `lib/firebase.ts` is Firebase itself, loaded only when needed; `lib/cloud.ts` loads it and keeps the account record,
+  the put-aside board classes and the sign-in error words. `components/Account.tsx`: the Saved mark, Switch teacher
+  and the question. `firestore.rules` is a copy of the rules in the Firebase console.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks. `useGroupPicker.ts`: the same during Group Activity.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
   cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
@@ -99,5 +105,12 @@ whole lesson and class setup (the bugs found in the sweep, edge-size classes, re
 theme at all three sizes); run it after a change to anything shared. Google Fonts is blocked in the sandbox,
 so Andika renders as a fallback unless the font files are served locally. Measure "no scroll" as
 `scrollHeight - clientHeight` on the document and on `aside`.
+
+Sync is checked against Firebase's own emulators (Java is needed), never the real project: start them from the repo
+root with `npx -y firebase-tools@15 emulators:start --only auth,firestore --project class-yes`, build a copy that
+talks to them (`VITE_FIREBASE_EMULATOR=1 npx vite build --outDir /tmp/dist-emu`, served with `npx vite preview --port
+4174 --outDir /tmp/dist-emu`), then `URL=http://localhost:4174/seating/ node scripts/sync-check.mjs`. Google's sign-in
+window can't load in the sandbox, so that copy signs in as whatever account a test names (`window.__testGoogle`).
+The proxy blocks the real project's addresses, so nothing here can reach it.
 
 @DECISIONS.md

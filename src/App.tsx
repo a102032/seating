@@ -13,6 +13,7 @@ import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
+import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
@@ -97,8 +98,16 @@ export default function App() {
     setGroupStatus,
     setGroupPointsMode,
     finishGroupActivity,
+    cloud,
     saveError,
   } = useClasses()
+
+  /**
+   * Switch teacher, from the splash or the side panel's Saved mark. Whether the board has changes
+   * the account hasn't got is read as it opens, since switching would lose them.
+   */
+  const [switchTeacher, setSwitchTeacher] = useState<{ unsent: boolean } | null>(null)
+  const openSwitchTeacher = () => setSwitchTeacher({ unsent: cloud.status !== 'saved' && cloud.unsent() })
 
   const [swapMode, setSwapMode] = useState(false)
   const [attendanceMode, setAttendanceMode] = useState(false)
@@ -540,6 +549,8 @@ export default function App() {
       side={panelSide}
       onToggleSide={togglePanelSide}
       saveError={saveError}
+      cloud={cloud}
+      onSwitchTeacher={openSwitchTeacher}
       pointsSelectedCount={activeSelection.size}
       allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id))}
       onToggleSelectAll={toggleSelectAll}
@@ -583,9 +594,25 @@ export default function App() {
             onNewClass={startNewClassFromSplash}
             onSetUpFirst={setUpFirstClass}
             canAddClass={classes.length < MAX_CLASSES}
+            account={cloud.account}
+            needsSignIn={cloud.needsSignIn}
+            signingIn={cloud.signingIn}
+            signInError={cloud.signInError}
+            onSignIn={() => void cloud.signIn()}
+            onSwitchTeacher={openSwitchTeacher}
           />
         )}
       </AnimatePresence>
+      <AccountQuestionModal question={cloud.question} onAnswer={cloud.answerQuestion} />
+      {cloud.account && (
+        <SwitchTeacherModal
+          account={cloud.account}
+          open={switchTeacher !== null}
+          unsent={switchTeacher?.unsent ?? false}
+          onCancel={() => setSwitchTeacher(null)}
+          onConfirm={() => void cloud.switchTeacher()}
+        />
+      )}
 
       <div
         // data-ink is where a theme may repaint the whole ground. The comic theme lays a
