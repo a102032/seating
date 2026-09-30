@@ -264,7 +264,9 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
 
       const { flipMode, soundEnabled } = settingsRef.current
       const putAway = () => {
-        if (flipMode === 'discard') {
+        // A bonus card always goes onto the pile. Turned back over in Flip Back, it paid out
+        // again every time it was found - and a class soon remembers where Everyone +1 is.
+        if (flipMode === 'discard' || card.bonus) {
           setCards((prev) => prev.map((c) => (c.studentId === studentId ? { ...c, setAside: true } : c)))
           if (soundEnabled) playCardDeal()
         } else {
@@ -274,7 +276,8 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
       }
 
       // A bonus card is never anybody's turn: it turns over, does its thing, and leaves
-      // the glow where it was. Face up, one tap puts it away - there's no turn to give back.
+      // the glow where it was. Face up, one tap puts it away - there's no turn to give back -
+      // and away means the discard pile, whichever mode the deck is in.
       if (card.bonus) {
         if (card.faceUp) {
           putAway()

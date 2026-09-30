@@ -30,7 +30,8 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
     const el = document.querySelector(`[data-flip-card="${studentId}"]`)?.getBoundingClientRect()
     // Only a card that this tap puts away: the glowing student, or any face-up bonus card.
     const leaving = card?.faceUp && (card.bonus || studentId === activeId)
-    if (leaving && settings.flipMode === 'discard' && board && el) {
+    // A bonus card goes onto the pile in either mode (useFlipDeck's tap says why).
+    if (leaving && (settings.flipMode === 'discard' || card.bonus) && board && el) {
       // The pile's own box: bottom-2 right-2, w-20 h-24.
       const pileX = board.right - 8 - PILE_W / 2
       const pileY = board.bottom - 8 - PILE_H / 2

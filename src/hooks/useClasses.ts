@@ -72,11 +72,15 @@ function rowToClass(row: SupabaseRow): ClassData {
  * undo the whole class's shared progress toward the goal. Stars convert to class points at
  * the teacher's rate, and the leftovers are banked rather than dropped, so awarding one star
  * at a time eventually counts for as much as awarding them all at once.
+ *
+ * With the goal switched off the meter stays where it is. It used to fill out of sight, so
+ * switching the goal back on showed a meter the class had never watched move, and a goal
+ * could be passed with no celebration.
  */
 function awardStars(c: ClassData, studentIds: string[], delta: number): ClassData {
   const ids = new Set(studentIds)
   const students = c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s))
-  if (delta <= 0) return { ...c, students }
+  if (delta <= 0 || !goalIsLive(c)) return { ...c, students }
 
   const perClassPoint = Math.max(1, Math.round(c.starsPerClassPoint ?? 1))
   const banked = (c.goalRemainder ?? 0) + studentIds.length * delta
@@ -283,12 +287,20 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * Gone from the roster means gone from everything: their seat, their team in the last
+   * groups, and the attendance record, where a day they were away would otherwise keep a
+   * column in the export with nobody in it. The days themselves stay taken.
+   */
   const deleteStudent = useCallback(
     (classId: string, studentId: string) =>
       updateClass(classId, (c) => ({
         ...c,
         students: c.students.filter((s) => s.id !== studentId),
         seating: c.seating.map((seat) => (seat === studentId ? null : seat)),
+        groups: c.groups?.map((g) => ({ ...g, studentIds: g.studentIds.filter((id) => id !== studentId) })),
+        attendance:
+          c.attendance && Object.fromEntries(Object.entries(c.attendance).map(([day, ids]) => [day, ids.filter((id) => id !== studentId)])),
       })),
     [updateClass],
   )
@@ -401,11 +413,17 @@ export function useClasses() {
 
   const setGoalSettings = useCallback(
     (classId: string, goal: number, starsPerClassPoint: number) =>
-      updateClass(classId, (c) => ({
-        ...c,
-        pointsGoal: Math.max(0, Math.round(goal)),
-        starsPerClassPoint: Math.max(1, Math.round(starsPerClassPoint)),
-      })),
+      updateClass(classId, (c) => {
+        const pointsGoal = Math.max(0, Math.round(goal))
+        return {
+          ...c,
+          pointsGoal,
+          // A goal lowered below what's on the meter leaves it full, not past full: the meter
+          // read "40 / 30" until the next point. Full waits for one more point to open the chest.
+          classPoints: pointsGoal > 0 ? Math.min(c.classPoints ?? 0, pointsGoal) : c.classPoints,
+          starsPerClassPoint: Math.max(1, Math.round(starsPerClassPoint)),
+        }
+      }),
     [updateClass],
   )
 

@@ -24,8 +24,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
 
 - **The app never scrolls.** Not the board, not the side panel, not a screen that slides over the board. Content
   inside a modal may scroll; a modal itself must fit. Check new UI at 1024x640, 1280x800 and 1920x1080.
-  (Known exception: 1024x640 with the dial timer's controls open is about 38px short in the side panel. Accepted. The flip
-  clock fits.)
+  (Known exceptions, both accepted: 1024x640 with the dial timer's controls open is about 38px short in the side panel;
+  the flip clock fits, except with students selected too, when it's 16px short.)
 - **Smooth on the board.** Classroom boards are often 4K panels with weak processors, and the app was choppy on the teacher's (see "Smooth on the
   board" in DECISIONS). No backdrop blur. Anything that moves many elements, or keeps moving, is CSS or
   `element.animate`, not framer-motion. No framer `layout`/`layoutId` on anything that is always on screen: framer then
@@ -92,7 +92,9 @@ checks the live URL. Confirm it went green before saying something is live.
 
 Playwright is installed globally (`/opt/node22/lib/node_modules/playwright/index.js`); launch Chromium with
 `executablePath: '/opt/pw-browsers/chromium'`. Seed a class through `localStorage` in `addInitScript`, click past
-the splash screen (`.splash-board button`), then act and take screenshots. Google Fonts is blocked in the sandbox,
+the splash screen (`.splash-board button`), then act and take screenshots. `scripts/walkthrough.mjs` does this for a
+whole lesson and class setup (the bugs found in the sweep, edge-size classes, reloads, and "nothing scrolls" in every
+theme at all three sizes); run it after a change to anything shared. Google Fonts is blocked in the sandbox,
 so Andika renders as a fallback unless the font files are served locally. Measure "no scroll" as
 `scrollHeight - clientHeight` on the document and on `aside`.
 

@@ -188,15 +188,20 @@ export function usePicker(seating: (string | null)[], classId: string | null, co
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
     const { allowRepeats, soundEnabled } = settingsRef.current
-    let eligible = Array.from({ length: columns }, (_, i) => i).filter((c) => allowRepeats || !pickedColumns.has(c))
+    // Only rows with somebody in them today. A class that doesn't fill the grid, or a row
+    // whose students are all away, used to be able to win - a row of nobody.
+    const occupied = new Set(seatingRef.current.flatMap((id, index) => (id ? [columnOf(index)] : [])))
+    const rows = Array.from({ length: columns }, (_, i) => i).filter((c) => occupied.has(c))
+    if (rows.length === 0) return
+    let eligible = rows.filter((c) => allowRepeats || !pickedColumns.has(c))
     let usedPicked = pickedColumns
     if (eligible.length === 0) {
       usedPicked = new Set()
-      eligible = Array.from({ length: columns }, (_, i) => i)
+      eligible = rows
     }
     // Same idea as pickStudent: flash across every row for a lively sequence,
     // but only ever land the winner on one that's still eligible.
-    const flashPool = Array.from({ length: columns }, (_, i) => i)
+    const flashPool = rows
 
     clearTimers()
     setMode('row-flashing')

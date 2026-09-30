@@ -50,6 +50,12 @@ interface GroupStatusPickerProps {
   onClose: () => void
 }
 
+/**
+ * Smart boards read one touch as two. The echo of the tap that opened this lands on the dim
+ * (or, for a card low on the board, a status button) and used to shut it again at once.
+ */
+const TAP_GUARD_MS = 700
+
 interface Flight {
   x: number
   y: number
@@ -71,6 +77,7 @@ interface Flight {
 export function GroupStatusPicker({ group, studentsById, chipEm, from, onChoose, onClose }: GroupStatusPickerProps) {
   const portraitRef = useRef<HTMLDivElement>(null)
   const flightRef = useRef<Flight | null>(null)
+  const openedAt = useRef(0)
   const [closing, setClosing] = useState(false)
   /** The status just tapped, so the card flies home already wearing its new colour. */
   const [chosen, setChosen] = useState<GroupStatus | null>(null)
@@ -81,6 +88,7 @@ export function GroupStatusPicker({ group, studentsById, chipEm, from, onChoose,
   // Measured before paint, so the copy starts exactly where the real card is and there is no
   // frame where it appears in the wrong place.
   useLayoutEffect(() => {
+    openedAt.current = performance.now()
     const el = portraitRef.current
     if (!el) return
     const to = el.getBoundingClientRect()
@@ -94,8 +102,9 @@ export function GroupStatusPicker({ group, studentsById, chipEm, from, onChoose,
     void animate(el, { x: [flight.x, 0], y: [flight.y, 0], scale: [flight.scale, 1] }, { type: 'spring', stiffness: 260, damping: 30 })
   }, [from])
 
-  function flyHome() {
-    if (closing) return
+  /** `at` is the tap's own timestamp, on the same clock as `openedAt`. */
+  function flyHome(at: number) {
+    if (closing || at - openedAt.current < TAP_GUARD_MS) return
     setClosing(true)
     const el = portraitRef.current
     const flight = flightRef.current
@@ -105,15 +114,15 @@ export function GroupStatusPicker({ group, studentsById, chipEm, from, onChoose,
     setTimeout(onClose, 300)
   }
 
-  function choose(status: GroupStatus) {
-    if (closing) return
+  function choose(status: GroupStatus, at: number) {
+    if (closing || at - openedAt.current < TAP_GUARD_MS) return
     onChoose(status)
     setChosen(status)
-    flyHome()
+    flyHome(at)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-end" onClick={flyHome}>
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-end" onClick={(e) => flyHome(e.timeStamp)}>
       {/* A deeper dim is what makes the panel feel lifted. It was a blur, which a 4K board
           redoes on every frame something moves behind it (a Help card pulsing, the timer).
           The panel itself stays solid: two translucent layers read as muddy, and these are
@@ -184,7 +193,7 @@ export function GroupStatusPicker({ group, studentsById, chipEm, from, onChoose,
                 data-slot="button"
                 data-status-choice={status.id}
                 data-current={current || undefined}
-                onClick={() => choose(status.id)}
+                onClick={(e) => choose(status.id, e.timeStamp)}
                 className={clsx(
                   'flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-4 font-extrabold shadow-lg transition-transform active:scale-95 sm:py-5',
                   current && 'scale-[1.04]',

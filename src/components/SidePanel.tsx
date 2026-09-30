@@ -266,7 +266,7 @@ export function SidePanel({
               type="button"
               onClick={onOpenPickerSettings}
               disabled={deskMode}
-              title="Random picker settings"
+              title="Pickers & Points settings"
               className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
             >
               <Settings size={15} />
@@ -393,7 +393,7 @@ export function SidePanel({
             <Badge
               variant="outline"
               className="gap-1.5 border-amber-400/50 text-amber-600 dark:text-amber-400"
-              title="Changes aren't saving on this device right now (storage may be full or private-browsing mode). Export a backup from Settings when you can."
+              title="Changes aren't saving on this device right now. Its storage may be full, or this may be a private window."
             >
               <TriangleAlert size={12} />
               Not saving

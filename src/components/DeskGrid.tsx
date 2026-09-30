@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { fitClassNameSize } from '../lib/fitText'
 import { DESK_ROWS, desksInOrder, type Student } from '../types'
 import { Desk, type DeskHighlight } from './Desk'
@@ -33,8 +34,23 @@ export function DeskGrid({ seating, columns, studentsById, selectedDesk, pointsS
   const everyoneSelected =
     showSelection && seatedStudents.length > 0 && seatedStudents.every((s) => pointsSelection.has(s.id))
 
+  // Names are measured in Andika. If it arrives after the desks are first drawn (a first
+  // visit, a slow connection) they were sized in the stand-in face, a size too small, and
+  // stayed that way until something else redrew the board.
+  const [fontsLoaded, setFontsLoaded] = useState(0)
+  useEffect(() => {
+    const fonts = document.fonts
+    if (!fonts) return
+    const refit = () => setFontsLoaded((n) => n + 1)
+    fonts.addEventListener('loadingdone', refit)
+    return () => fonts.removeEventListener('loadingdone', refit)
+  }, [])
+
   // One size for every desk, so no student's name ends up visibly smaller than the rest.
-  const nameSize = fitClassNameSize(seated.filter((s): s is Student => s !== undefined).map((s) => s.name))
+  // Measured once per roster rather than on every tap.
+  const names = seatedStudents.map((s) => s.name).join('\n')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const nameSize = useMemo(() => fitClassNameSize(names ? names.split('\n') : []), [names, fontsLoaded])
 
   return (
     <div
