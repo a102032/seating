@@ -70,6 +70,11 @@ export interface ClassData {
   /** How the desks stand in the room. Unset is Rows, the six-by-five grid. */
   layout?: RoomLayout
   updatedAt: string
+  /**
+   * When the class was made, which is the order classes are listed in once they come from a
+   * teacher's account. Classes from before sign-in existed get one when they first go up.
+   */
+  createdAt?: string
   /** Class points earned toward pointsGoal - wraps back down each time the class hits it. Unset is treated as 0. */
   classPoints?: number
   /** How many class points fill the goal. Unset or 0 means the meter isn't configured yet. */

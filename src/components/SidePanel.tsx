@@ -18,7 +18,9 @@ import {
 import { useEffect, useState } from 'react'
 import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData, TimerSettings } from '../types'
+import type { useCloudSync } from '../hooks/useCloudSync'
 import { Badge } from '@/components/ui/badge'
+import { SyncMark } from './Account'
 import { ConfirmModal } from './ConfirmModal'
 import { FlipTimer } from './FlipTimer'
 import { TactileButton } from './TactileButton'
@@ -54,6 +56,9 @@ interface SidePanelProps {
   side: 'left' | 'right'
   onToggleSide: () => void
   saveError: boolean
+  /** Signing in and sync: once signed in, a Saved mark sits at the foot of the panel. */
+  cloud: ReturnType<typeof useCloudSync>
+  onSwitchTeacher: () => void
   pointsSelectedCount: number
   allSeatedSelected: boolean
   onToggleSelectAll: () => void
@@ -99,6 +104,8 @@ export function SidePanel({
   side,
   onToggleSide,
   saveError,
+  cloud,
+  onSwitchTeacher,
   pointsSelectedCount,
   allSeatedSelected,
   onToggleSelectAll,
@@ -401,7 +408,21 @@ export function SidePanel({
           at exactly the moment the panel was out of room. No divider above it: a rule across
           the panel for one small button read as the start of a section with nothing in it. */}
       <div className="mt-auto flex shrink-0 flex-col">
-        <div className="flex shrink-0 flex-col items-center gap-1.5">
+        {/* One row, so a Saved mark beside the arrow costs the panel no height. */}
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-1.5">
+          {cloud.account && (
+            <SyncMark
+              account={cloud.account}
+              status={cloud.status}
+              needsSignIn={cloud.needsSignIn}
+              signingIn={cloud.signingIn}
+              signInError={cloud.signInError}
+              disabled={deskMode}
+              side={side}
+              onSignIn={() => void cloud.signIn()}
+              onSwitchTeacher={onSwitchTeacher}
+            />
+          )}
           {saveError && (
             <Badge
               variant="outline"

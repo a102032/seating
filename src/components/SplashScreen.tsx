@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import type { CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
 import {
   Apple,
   Backpack,
@@ -22,6 +22,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ClassData } from '../types'
+import { loadCloud, signInOffered, type Account } from '../lib/cloud'
+import { GoogleG, Initial } from './Account'
 import { ClassYesLogo } from './ClassYesLogo'
 
 interface SplashScreenProps {
@@ -34,6 +36,14 @@ interface SplashScreenProps {
   onSetUpFirst: () => void
   /** False once every class slot is used, so New Class stops offering what it can't do. */
   canAddClass: boolean
+  /** Whose classes are on the board, when a teacher has signed in. */
+  account: Account | null
+  /** Signed in once, but Google needs the sign-in done again. */
+  needsSignIn: boolean
+  signingIn: boolean
+  signInError: string | null
+  onSignIn: () => void
+  onSwitchTeacher: () => void
 }
 
 /**
@@ -176,11 +186,13 @@ const DOODLES: {
   { Shape: Cat, style: { left: '4%', top: '44%', '--w': '7.5cqw' } as React.CSSProperties, rotate: 14, color: CHALK.pink, opacity: 0.55, small: true },
   { Shape: Dog, style: { right: '4%', top: '42%', '--w': '8cqw' } as React.CSSProperties, rotate: -10, color: CHALK.sky, opacity: 0.55, small: true },
   { Shape: AppleDoodle, style: { left: '15%', bottom: '8%', '--w': '5.5cqw' } as React.CSSProperties, rotate: 18, color: CHALK.pink, opacity: 0.55, small: true },
-  { Shape: Flower, style: { right: '22%', bottom: '6%', '--w': '6cqw' } as React.CSSProperties, rotate: -15, color: CHALK.lavender, opacity: 0.55, small: true },
+  { Shape: Flower, style: { right: '17%', bottom: '6%', '--w': '6cqw' } as React.CSSProperties, rotate: -15, color: CHALK.lavender, opacity: 0.55, small: true },
   { Shape: Heart, style: { left: '16%', top: '22%', '--w': '4.5cqw' } as React.CSSProperties, rotate: -22, color: CHALK.pink, opacity: 0.5, small: true },
   { Shape: Smiley, style: { right: '14%', top: '31%', '--w': '5cqw' } as React.CSSProperties, rotate: 12, color: CHALK.yellow, opacity: 0.5, small: true },
-  { Shape: Sum, style: { left: '23%', bottom: '6%', '--w': '11cqw' } as React.CSSProperties, rotate: -4, color: CHALK.white, opacity: 0.5 },
-  { Shape: StarShape, style: { left: '27%', bottom: '24%', '--w': '4.5cqw' } as React.CSSProperties, rotate: 20, color: CHALK.yellow, opacity: 0.5, small: true },
+  // Up the left edge between the sun and the cat, and the star between the dog and the house:
+  // the Google buttons widened the row under the classes, and the sum and the star sat under it.
+  { Shape: Sum, style: { left: '3.5%', top: '30%', '--w': '11cqw' } as React.CSSProperties, rotate: -4, color: CHALK.white, opacity: 0.5 },
+  { Shape: StarShape, style: { right: '8%', top: '66%', '--w': '4.5cqw' } as React.CSSProperties, rotate: 20, color: CHALK.yellow, opacity: 0.5, small: true },
 ]
 
 function ChalkDoodles() {
@@ -351,8 +363,39 @@ function ChalkTray() {
  * lays every class out as a card the teacher taps to open, rosters full or not: a period
  * that hasn't been imported yet is still a real class, and it gets a card that says so.
  */
-export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, canAddClass }: SplashScreenProps) {
+export function SplashScreen({
+  classes,
+  onOpenClass,
+  onNewClass,
+  onSetUpFirst,
+  canAddClass,
+  account,
+  needsSignIn,
+  signingIn,
+  signInError,
+  onSignIn,
+  onSwitchTeacher,
+}: SplashScreenProps) {
   const firstRun = classes.length === 1 && classes[0].students.length === 0
+  const offerSignIn = (!account && signInOffered) || needsSignIn
+
+  // Fetch the sign-in code while the splash is up, so a tap on Sign in opens Google's window at
+  // once: a browser only lets a page open a window straight after a tap.
+  useEffect(() => {
+    if (!offerSignIn) return
+    const fetchAhead = () => void loadCloud().catch(() => {})
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(fetchAhead)
+      return () => cancelIdleCallback(id)
+    }
+    fetchAhead()
+  }, [offerSignIn])
+
+  const fitRef = useFitToScreen()
+
+  const note =
+    signInError ??
+    (needsSignIn ? 'Sign in again to keep saving to your account.' : offerSignIn ? 'Signing in keeps your classes safe, and the same on every computer.' : null)
 
   return (
     <motion.div
@@ -393,101 +436,151 @@ export function SplashScreen({ classes, onOpenClass, onNewClass, onSetUpFirst, c
         ))}
       </div>
 
-      <motion.div
-        className="relative z-10 flex w-full max-w-5xl flex-col"
-        initial={{ scale: 0.92, y: 20, opacity: 0 }}
-        animate={{ scale: 1, y: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-      >
-        {/* The wooden frame. */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
-          <Bunting />
-          <div className="splash-board relative overflow-hidden rounded-lg" style={{ minHeight: 'min(78vh, 640px)' }}>
-            <ChalkDoodles />
+      {/* Scaled down as a whole when the board is taller than the screen (five classes on a short
+          laptop), so nothing is cut off and nothing is squeezed; at full size otherwise. */}
+      <div ref={fitRef} className="relative z-10 w-full max-w-5xl">
+        <motion.div
+          className="relative flex w-full flex-col"
+          initial={{ scale: 0.92, y: 20, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+        >
+          {/* The wooden frame. */}
+          <div className="relative rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
+            <Bunting />
+            <div className="splash-board relative overflow-hidden rounded-lg" style={{ minHeight: 'min(78vh, 640px)' }}>
+              <ChalkDoodles />
 
-            {/* The chalk-drawn inner border. */}
-            <div
-              className="pointer-events-none absolute inset-4 rounded-xl border-2 border-dashed sm:inset-6"
-              style={{ borderColor: 'rgba(244,241,232,0.55)' }}
-            />
+              {/* The chalk-drawn inner border. */}
+              <div
+                className="pointer-events-none absolute inset-4 rounded-xl border-2 border-dashed sm:inset-6"
+                style={{ borderColor: 'rgba(244,241,232,0.55)' }}
+              />
 
-            {/* What the teacher reads and taps. */}
-            <div className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
-              {/* The name is the headline; the welcome is the line under it. */}
-              <motion.h1
-                className="relative"
-                initial={{ scale: 0.6, rotate: -5, opacity: 0 }}
-                animate={{ scale: 1, rotate: -1.5, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.15 }}
-              >
-                <ClassYesLogo className="h-auto" style={{ width: 'clamp(15rem, 54vmin, 36rem)' }} />
-              </motion.h1>
-
-              <motion.p
-                className="splash-chalk relative mt-3"
-                style={{ color: CHALK.yellow, fontSize: 'clamp(1.6rem, 4.6vmin, 2.6rem)', lineHeight: 1.1 }}
-                initial={{ y: 12, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                Welcome, Teacher!
-              </motion.p>
-
-              <motion.p
-                className="splash-chalk relative mt-2 max-w-xl"
-                style={{ color: CHALK.sky, fontSize: 'clamp(1.05rem, 2.8vmin, 1.5rem)' }}
-                initial={{ y: 12, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                {firstRun ? "Let's set up your first class." : 'Pick a class to start, or make a new one.'}
-              </motion.p>
-
-              {!firstRun && (
-                <motion.div
-                  className="relative mt-7 flex flex-wrap items-stretch justify-center gap-3 sm:gap-4"
-                  initial="hidden"
-                  animate="show"
-                  variants={{ show: { transition: { staggerChildren: 0.08, delayChildren: 0.55 } } }}
+              {/* What the teacher reads and taps. */}
+              <div className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
+                {/* The name is the headline; the welcome is the line under it. */}
+                <motion.h1
+                  className="relative"
+                  initial={{ scale: 0.6, rotate: -5, opacity: 0 }}
+                  animate={{ scale: 1, rotate: -1.5, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.15 }}
                 >
-                  {classes.map((c, i) => (
-                    <ClassCard
-                      key={c.id}
-                      name={c.name}
-                      students={c.students.length}
-                      color={CARDS[i % CARDS.length]}
-                      tilt={i % 2 === 0 ? -2 : 1.6}
-                      onClick={() => onOpenClass(c.id)}
-                    />
-                  ))}
-                </motion.div>
-              )}
+                  <ClassYesLogo className="h-auto" style={{ width: 'clamp(15rem, 54vmin, 36rem)' }} />
+                </motion.h1>
 
-              <motion.div
-                className="relative mt-7 flex flex-wrap items-center justify-center gap-3"
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: firstRun ? 0.55 : 0.85 }}
-              >
-                {firstRun ? (
-                  <ChalkButton primary onClick={onSetUpFirst}>
-                    <GraduationCap size={22} /> Create My First Class
-                  </ChalkButton>
-                ) : (
-                  canAddClass && (
-                    <ChalkButton onClick={onNewClass}>
-                      <Plus size={22} /> New Class
-                    </ChalkButton>
-                  )
+                <motion.p
+                  className="splash-chalk relative mt-3"
+                  style={{ color: CHALK.yellow, fontSize: 'clamp(1.6rem, 4.6vmin, 2.6rem)', lineHeight: 1.1 }}
+                  initial={{ y: 12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  Welcome, {account?.firstName ?? 'Teacher'}!
+                </motion.p>
+
+                <motion.p
+                  className="splash-chalk relative mt-2 max-w-xl"
+                  style={{ color: CHALK.sky, fontSize: 'clamp(1.05rem, 2.8vmin, 1.5rem)' }}
+                  initial={{ y: 12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {firstRun ? "Let's set up your first class." : 'Pick a class to start, or make a new one.'}
+                </motion.p>
+
+                {!firstRun && (
+                  <motion.div
+                    className="relative mt-7 flex flex-wrap items-stretch justify-center gap-3 sm:gap-4"
+                    initial="hidden"
+                    animate="show"
+                    variants={{ show: { transition: { staggerChildren: 0.08, delayChildren: 0.55 } } }}
+                  >
+                    {classes.map((c, i) => (
+                      <ClassCard
+                        key={c.id}
+                        name={c.name}
+                        students={c.students.length}
+                        color={CARDS[i % CARDS.length]}
+                        tilt={i % 2 === 0 ? -2 : 1.6}
+                        onClick={() => onOpenClass(c.id)}
+                      />
+                    ))}
+                  </motion.div>
                 )}
-              </motion.div>
+
+                <motion.div
+                  className="relative mt-7 flex flex-wrap items-center justify-center gap-3"
+                  initial={{ y: 14, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: firstRun ? 0.55 : 0.85 }}
+                >
+                  {firstRun ? (
+                    <ChalkButton primary onClick={onSetUpFirst}>
+                      <GraduationCap size={22} /> Create My First Class
+                    </ChalkButton>
+                  ) : (
+                    canAddClass && (
+                      <ChalkButton onClick={onNewClass}>
+                        <Plus size={22} /> New Class
+                      </ChalkButton>
+                    )
+                  )}
+                  {offerSignIn && (
+                    <ChalkButton google onClick={onSignIn} disabled={signingIn}>
+                      <GoogleG size={22} /> {signingIn ? 'Signing in…' : needsSignIn ? 'Sign in again' : 'Sign in with Google'}
+                    </ChalkButton>
+                  )}
+                  {account && (
+                    <ChalkButton quiet onClick={onSwitchTeacher} disabled={signingIn}>
+                      <Initial name={account.firstName} className="size-7 text-base" />
+                      Not {account.firstName}? Switch teacher
+                    </ChalkButton>
+                  )}
+                </motion.div>
+
+                {note && (
+                  <p
+                    className="splash-chalk relative mt-3.5 max-w-2xl"
+                    style={{ color: signInError ? CHALK.peach : CHALK.white, opacity: signInError ? 1 : 0.8, fontSize: 'clamp(0.95rem, 2.4vmin, 1.2rem)' }}
+                    role={signInError ? 'alert' : undefined}
+                  >
+                    {note}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        <ChalkTray />
-      </motion.div>
+          <ChalkTray />
+        </motion.div>
+      </div>
     </motion.div>
   )
+}
+
+/**
+ * Keeps the board on the screen: when it is taller than the room it has, it is scaled down evenly.
+ * Set straight on the element, since it only follows the screen's size and the board's contents.
+ */
+function useFitToScreen() {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    const room = el?.parentElement
+    if (!el || !room) return
+    const fit = () => {
+      const style = getComputedStyle(room)
+      const height = room.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+      const scale = Math.min(1, height / el.offsetHeight)
+      el.style.transform = scale < 1 ? `scale(${scale})` : ''
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(el)
+    observer.observe(room)
+    return () => observer.disconnect()
+  }, [])
+  return ref
 }
 
 /** A class, as a card stuck to the board. Tapping it opens the class. */
@@ -523,16 +616,42 @@ function ClassCard({
   )
 }
 
-function ChalkButton({ primary, onClick, children }: { primary?: boolean; onClick: () => void; children: React.ReactNode }) {
+/**
+ * primary: the one thing to do next, in yellow chalk. google: white, with Google's G, the way
+ * Google asks a sign-in button to look. quiet: Switch teacher, which is for the next teacher and
+ * shouldn't compete with the classes.
+ */
+function ChalkButton({
+  primary,
+  google,
+  quiet,
+  disabled,
+  onClick,
+  children,
+}: {
+  primary?: boolean
+  google?: boolean
+  quiet?: boolean
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
   return (
     <motion.button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-2 rounded-full border-2 px-6 py-3 text-base font-extrabold outline-none focus-visible:ring-4 focus-visible:ring-white/60 sm:text-lg"
+      disabled={disabled}
+      className={`flex items-center gap-2 rounded-full border-2 font-extrabold outline-none focus-visible:ring-4 focus-visible:ring-white/60 disabled:opacity-60 ${
+        quiet ? 'py-2 pr-5 pl-2.5 text-base' : 'px-6 py-3 text-base sm:text-lg'
+      }`}
       style={
         primary
           ? { background: CHALK.yellow, color: INK, borderColor: CHALK.white, boxShadow: '0 6px 0 rgba(0,0,0,0.28)' }
-          : { background: 'rgba(244,241,232,0.1)', color: CHALK.white, borderColor: CHALK.white, boxShadow: '0 4px 0 rgba(0,0,0,0.22)' }
+          : google
+            ? { background: '#fff', color: '#1f1f1f', borderColor: CHALK.white, boxShadow: '0 6px 0 rgba(0,0,0,0.28)' }
+            : quiet
+              ? { background: 'rgba(244,241,232,0.1)', color: CHALK.white, borderColor: 'rgba(244,241,232,0.6)' }
+              : { background: 'rgba(244,241,232,0.1)', color: CHALK.white, borderColor: CHALK.white, boxShadow: '0 4px 0 rgba(0,0,0,0.22)' }
       }
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95, y: 3 }}
