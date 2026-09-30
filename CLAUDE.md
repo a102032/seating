@@ -24,7 +24,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
 
 - **The app never scrolls.** Not the board, not the side panel, not a screen that slides over the board. Content
   inside a modal may scroll; a modal itself must fit. Check new UI at 1024x640, 1280x800 and 1920x1080.
-  (Known exception: 1024x640 with the timer controls open is about 39px short in the side panel. Accepted.)
+  (Known exception: 1024x640 with the dial timer's controls open is about 38px short in the side panel. Accepted. The flip
+  clock fits.)
 - Fixed-size boards: once a board (flip cards, group cards) is laid out, cards don't resize or move as others
   leave. A class of 30 or fewer must look exactly as it did before the seventh column existed.
   Empty space goes where a child won't miss it: the flip deck's short row goes on top, starting at the left, so
@@ -60,6 +61,7 @@ checks the live URL. Confirm it went green before saying something is live.
   - `SidePanel.tsx`: class switcher, timer, pickers and points.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
+  - `FlipTimer.tsx` / `TimerDial.tsx` / `TimerSettingsModal.tsx`: the side panel's timer, as flip digits or a Time Timer-style dial.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity.
   - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal. `FloatingGoal.tsx`: the goal floating over the lesson
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`). CSS animations only in there.

@@ -9,6 +9,8 @@ export function useCountdown(onComplete: () => void) {
   const [configuredSeconds, setConfiguredSeconds] = useState(0)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [running, setRunning] = useState(false)
+  // When a running countdown reaches zero, for the dial to redraw against every frame; null when stopped or paused.
+  const [endsAt, setEndsAt] = useState<number | null>(null)
 
   const endTimestampRef = useRef<number | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -56,6 +58,7 @@ export function useCountdown(onComplete: () => void) {
     if (remainingSeconds <= 0) return
     setRunning(true)
     endTimestampRef.current = Date.now() + remainingSeconds * 1000
+    setEndsAt(endTimestampRef.current)
     clearTick()
     intervalRef.current = setInterval(() => {
       if (!endTimestampRef.current) return
@@ -64,6 +67,7 @@ export function useCountdown(onComplete: () => void) {
       if (secondsLeft <= 0) {
         clearTick()
         setRunning(false)
+        setEndsAt(null)
         onCompleteRef.current()
       }
     }, 250)
@@ -71,11 +75,13 @@ export function useCountdown(onComplete: () => void) {
 
   const pause = useCallback(() => {
     setRunning(false)
+    setEndsAt(null)
     clearTick()
   }, [clearTick])
 
   const stop = useCallback(() => {
     setRunning(false)
+    setEndsAt(null)
     clearTick()
     setConfiguredSeconds(0)
     setRemainingSeconds(0)
@@ -96,6 +102,9 @@ export function useCountdown(onComplete: () => void) {
     minutes,
     seconds,
     running,
+    configuredSeconds,
+    remainingSeconds,
+    endsAt,
     warningLevel,
     adjustMinutes,
     adjustSeconds,

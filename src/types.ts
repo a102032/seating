@@ -136,7 +136,11 @@ export interface StudentGroup {
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'
 
+/** The flip clock's digits, or a dial whose red shrinks as the time runs out. */
+export type TimerFace = 'flip' | 'dial'
+
 export interface TimerSettings {
   warningEnabled: boolean
   alarmSound: AlarmSound
+  face: TimerFace
 }
