@@ -1,12 +1,14 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Minus, Pause, Play, Plus, Settings, Square } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Minus, Pause, Play, Plus, Settings, Square } from 'lucide-react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useCountdown } from '../hooks/useCountdown'
 import { playAlarm } from '../lib/sound'
 import type { TimerSettings } from '../types'
 import { FlipDigit } from './FlipDigit'
 import { TimerDial } from './TimerDial'
+
+const TAP_GUARD_MS = 700
 
 interface FlipTimerProps {
   settings: TimerSettings
@@ -43,62 +45,69 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
   const mm = String(minutes).padStart(2, '0')
   const ss = String(seconds).padStart(2, '0')
 
-  const controlsToggle = (
-    <button
-      type="button"
-      onClick={() => setMenuOpen((v) => !v)}
-      disabled={disabled}
-      className={clsx(
-        'flex items-center gap-1 rounded-full py-0.5 text-xs font-semibold whitespace-nowrap text-clock-foreground hover:bg-black/10 disabled:pointer-events-none disabled:opacity-30',
-        // Beside the dial the column is narrower than the words' usual padding allows.
-        dial ? 'px-0.5' : 'px-3',
-      )}
-    >
-      {menuOpen ? 'Hide controls' : 'Timer controls'}
-      <motion.span animate={{ rotate: menuOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
-        <ChevronDown size={14} />
-      </motion.span>
-    </button>
+  // The controls open from a tap on the timer itself - no words on the box, so the clock gets
+  // the room. A second tap within 0.7 s is ignored: smart boards read one touch as two, and
+  // the second would shut what the first just opened.
+  const lastToggle = useRef(0)
+  function toggleControls() {
+    if (disabled) return
+    const now = performance.now()
+    if (now - lastToggle.current < TAP_GUARD_MS) return
+    lastToggle.current = now
+    setMenuOpen((v) => !v)
+  }
+  const faceProps = {
+    role: 'button',
+    tabIndex: disabled ? -1 : 0,
+    'aria-expanded': menuOpen,
+    'aria-label': 'Timer controls',
+    title: disabled ? undefined : menuOpen ? 'Hide timer controls' : 'Timer controls',
+    onClick: toggleControls,
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      e.preventDefault()
+      toggleControls()
+    },
+  }
+  const faceClass = clsx(
+    'flex w-full items-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-clock-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-clock',
+    !disabled && 'cursor-pointer',
   )
 
   return (
     <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-border bg-clock p-3 shadow-lg">
       {dial ? (
-        // The dial stands the full height of the digits and the controls toggle together, so it
-        // is as big as the box allows while the box stays the flip clock's height and nothing
-        // below it moves. Its width is the flip digits' height worked out from the same row.
-        <div className="flex w-full items-center gap-2.5">
+        // The dial is the point - it's what the children read - so it takes most of the row and
+        // the time sits small beside it for the teacher, centred top to bottom. Capped by the
+        // screen's height so a short screen's panel still fits with the controls open.
+        <div {...faceProps} className={clsx(faceClass, 'gap-2.5')}>
           <TimerDial
             configuredSeconds={configuredSeconds}
             remainingSeconds={remainingSeconds}
             endsAt={endsAt}
             timesUp={timesUp}
             className="shrink-0 drop-shadow-md"
-            style={{ width: 'calc((100% - 30px) / 3 + 27px)' }}
+            style={{ width: 'min(62%, 15.5vh)' }}
           />
-          <div className="flex min-w-0 flex-1 flex-col items-center gap-2" style={{ containerType: 'inline-size' }}>
+          <div className="min-w-0 flex-1" style={{ containerType: 'inline-size' }}>
             <div
-              className="w-full rounded-lg border border-black/5 bg-card py-0.5 text-center font-mono font-black text-card-foreground tabular-nums shadow-lg dark:border-white/10"
+              className="w-full rounded-md border border-black/5 bg-card py-0.5 text-center font-mono font-black text-card-foreground tabular-nums shadow-md dark:border-white/10"
               style={{ fontSize: '26cqw' }}
             >
               {mm}:{ss}
             </div>
-            {controlsToggle}
           </div>
         </div>
       ) : (
-        <>
-          <div className="flex w-full items-center gap-1">
-            <FlipDigit value={mm[0]} warningLevel={activeWarningLevel} />
-            <FlipDigit value={mm[1]} warningLevel={activeWarningLevel} />
-            <span className="shrink-0 px-0.5 font-black text-clock-foreground" style={{ fontSize: 'clamp(1rem, 4.5vmin, 2.4rem)' }}>
-              :
-            </span>
-            <FlipDigit value={ss[0]} warningLevel={activeWarningLevel} />
-            <FlipDigit value={ss[1]} warningLevel={activeWarningLevel} />
-          </div>
-          {controlsToggle}
-        </>
+        <div {...faceProps} className={clsx(faceClass, 'gap-1')}>
+          <FlipDigit value={mm[0]} warningLevel={activeWarningLevel} />
+          <FlipDigit value={mm[1]} warningLevel={activeWarningLevel} />
+          <span className="shrink-0 px-0.5 font-black text-clock-foreground" style={{ fontSize: 'clamp(1rem, 4.5vmin, 2.4rem)' }}>
+            :
+          </span>
+          <FlipDigit value={ss[0]} warningLevel={activeWarningLevel} />
+          <FlipDigit value={ss[1]} warningLevel={activeWarningLevel} />
+        </div>
       )}
 
       <AnimatePresence initial={false}>
