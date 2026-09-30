@@ -19,6 +19,30 @@ declare global {
 /** Firefox and Safari have no floating window, so the Float button isn't offered there. */
 export const canFloat = typeof window !== 'undefined' && 'documentPictureInPicture' in window
 
+/** The floating window's first size: the meter and a +1 big enough to hit on a board. */
+export const FLOAT_SIZE = { width: 340, height: 180 }
+
+/**
+ * The one-row strip it shrinks to, for when it's covering too much of the lesson. A see-through
+ * window was asked for, but Chrome draws this window solid; small is what a web page can do.
+ * Chrome won't resize it below 240x62.
+ */
+export const FLOAT_STRIP_SIZE = { width: 240, height: 62 }
+
+/**
+ * Resize the floating window to this much room inside. resizeTo counts the title bar and
+ * edges too, and they differ from one computer to the next, so they're measured first.
+ */
+export function resizeFloatingWindow(win: Window, size: { width: number; height: number }) {
+  const frameWidth = win.outerWidth - win.innerWidth
+  const frameHeight = win.outerHeight - win.innerHeight
+  try {
+    win.resizeTo(size.width + frameWidth, size.height + frameHeight)
+  } catch {
+    // Refused: it has to come straight from a tap. The teacher can still drag its edges.
+  }
+}
+
 /**
  * The floating window starts as a blank page, so it gets a copy of this one's styles: the
  * theme's colours, the keyframes and the fonts. A stylesheet from another site (Google Fonts)

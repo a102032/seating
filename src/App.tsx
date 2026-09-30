@@ -16,7 +16,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
-import { canFloat, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
+import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
@@ -26,8 +26,6 @@ import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { deskColumnsFor, type GroupPointsMode, type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding' }
-/** The floating class goal's first size: the meter and a +1 big enough to hit on a board. It can be resized. */
-const FLOAT_WINDOW_SIZE = { width: 340, height: 180 }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
@@ -605,7 +603,7 @@ export default function App() {
               holdCelebration={!appInFront}
               onWaitingChange={setGoalWaiting}
               floating={floatWin !== null}
-              onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_WINDOW_SIZE)) : undefined}
+              onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE)) : undefined}
             />
           )}
 
