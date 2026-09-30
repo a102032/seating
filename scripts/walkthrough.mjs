@@ -1,0 +1,574 @@
+import { createRequire } from 'module'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+const require = createRequire(import.meta.url)
+const { chromium } = require('/opt/node22/lib/node_modules/playwright/index.js')
+// A scripted run through the app, the way a lesson and a class setup go, looking for what breaks.
+// Serve the app first (npm run dev -- --port 5175, or a build with npx vite preview --port 4173). Then:
+//   URL=http://localhost:5175/seating/ node scripts/walkthrough.mjs [only]
+// `only` runs the scenarios whose names contain it. FONTS=<dir> serves the real faces (Andika,
+// Cabin Sketch, Bangers) from fontsource packages in that dir, since Google Fonts may be blocked.
+// Each check prints OK or FAIL; anything a person should look at is written to SHOTS (default: a temp dir).
+const URL = process.env.URL || 'http://localhost:5175/seating/'
+const only = process.argv[2] || ''
+const SHOTS = process.env.SHOTS || `${tmpdir()}/walkthrough`
+mkdirSync(SHOTS, { recursive: true })
+const FONT_DIR = process.env.FONTS
+const FONTS = FONT_DIR && {
+  'andika-400': `${FONT_DIR}/fontsource-andika/files/andika-latin-400-normal.woff2`,
+  'andika-700': `${FONT_DIR}/fontsource-andika/files/andika-latin-700-normal.woff2`,
+  'cabin-700': `${FONT_DIR}/fontsource-cabin-sketch/files/cabin-sketch-latin-700-normal.woff2`,
+  'bangers-400': `${FONT_DIR}/fontsource-bangers/files/bangers-latin-400-normal.woff2`,
+}
+const FAMILY = { andika: 'Andika', cabin: 'Cabin Sketch', bangers: 'Bangers' }
+const FONT_CSS = FONTS
+  ? Object.keys(FONTS)
+      .map((k) => {
+        const [fam, w] = k.split('-')
+        return `@font-face { font-family: '${FAMILY[fam]}'; font-weight: ${w}; src: url(https://fonts.gstatic.com/local/${k}) format('woff2'); }`
+      })
+      .join('\n')
+  : ''
+
+const THEMES = ['light', 'dark', 'chalkboard', 'vibrant', 'comic']
+const SIZES = [
+  [1024, 640],
+  [1280, 800],
+  [1920, 1080],
+]
+const NAMES =
+  'Amy Tony Kevin Mulan Brian Cindy Daniel Emma Grace Henry Ivy Jack Leo Sophia Andy Bella Chris Doris Eric Fiona Gary Hannah Ian Judy Kelly Louis Mandy Nick Olivia Peter Queenie Ray Sandy Tina Vicky'.split(
+    ' ',
+  )
+
+function makeClass(id, name, count, extra = {}) {
+  const students = NAMES.slice(0, count).map((n, i) => ({
+    id: `${id}-s${i}`,
+    name: n,
+    homeroom: String(i + 1),
+    gender: i % 2 ? 'boy' : 'girl',
+    points: 0,
+  }))
+  const seating = Array(35).fill(null)
+  students.forEach((s, i) => (seating[i] = s.id))
+  return { id, name, students, seating, updatedAt: new Date().toISOString(), ...extra }
+}
+
+function stateOf(...classes) {
+  return { classes, activeClassId: classes[0].id }
+}
+
+const results = []
+function check(name, ok, detail = '') {
+  results.push({ name, ok })
+  console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}${detail ? ` - ${detail}` : ''}`)
+}
+
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+/** The page most recently opened, photographed if a scenario's script falls over. */
+let lastPage = null
+
+/**
+ * A fresh page with this state saved, past the splash screen. `storage` sets any other keys
+ * (theme, flip deck settings); `before` runs in the page before the app does.
+ */
+async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}, before, fontDelayMs = 0, splash = true }) {
+  const context = await browser.newContext({ viewport: { width: size[0], height: size[1] } })
+  const page = await context.newPage()
+  lastPage = page
+  page.errors = []
+  page.on('pageerror', (e) => page.errors.push(e.message))
+  page.on('console', (m) => m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text()) && page.errors.push(m.text()))
+  if (FONTS) {
+    await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: FONT_CSS }))
+    await page.route('https://fonts.gstatic.com/local/**', async (r) => {
+      if (fontDelayMs) await new Promise((res) => setTimeout(res, fontDelayMs))
+      await r.fulfill({ contentType: 'font/woff2', body: readFileSync(FONTS[r.request().url().split('/').pop()]) })
+    })
+  }
+  await page.addInitScript(
+    ([s, t, extra]) => {
+      if (sessionStorage.getItem('seeded')) return
+      sessionStorage.setItem('seeded', '1')
+      localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+      localStorage.setItem('seating-chart-theme-v1', t)
+      localStorage.setItem('seating-chart-theme-chosen-v1', '1')
+      for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v))
+    },
+    [state, theme, storage],
+  )
+  if (before) await page.addInitScript(before)
+  await page.goto(URL)
+  if (splash) {
+    await page.locator('.splash-board button').first().click()
+    await page.waitForTimeout(900)
+  }
+  return page
+}
+
+const saved = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-state-v1')))
+const activeSaved = async (page) => {
+  const s = await saved(page)
+  return s.classes.find((c) => c.id === s.activeClassId)
+}
+const desk = (page, name) => page.locator('[data-ink=desk]', { hasText: name }).first()
+const panelButton = (page, name) => page.locator('aside').getByRole('button', { name, exact: true })
+const meterText = (page) => page.locator('.count-pop').first().textContent()
+const award = (page) => page.locator('aside button[title="Award Point"]').click()
+
+/** How far past the screen the page and the side panel run. 0 is the rule. */
+async function overflow(page) {
+  return page.evaluate(() => {
+    const doc = document.documentElement
+    const aside = document.querySelector('aside')
+    const dialog = document.querySelector('[role=dialog], [role=alertdialog]')
+    const box = dialog?.getBoundingClientRect()
+    return {
+      page: doc.scrollHeight - doc.clientHeight,
+      pageX: doc.scrollWidth - doc.clientWidth,
+      panel: aside ? aside.scrollHeight - aside.clientHeight : 0,
+      dialog: box ? Math.max(0, Math.round(box.bottom - innerHeight), Math.round(-box.top)) : 0,
+    }
+  })
+}
+
+const scenarios = {
+  /** Stars given with the class goal switched off shouldn't be filling a meter nobody can see. */
+  async 'goal off: stars leave the meter alone'() {
+    const cls = makeClass('c1', 'Goal Off', 5, { pointsGoal: 50, classPoints: 0, goalEnabled: false })
+    const page = await open({ state: stateOf(cls) })
+    for (let i = 0; i < 3; i++) {
+      await desk(page, 'Amy').click()
+      await award(page)
+      await page.waitForTimeout(250)
+    }
+    const c = await activeSaved(page)
+    check(
+      'goal off: stars leave the meter alone',
+      (c.classPoints ?? 0) === 0,
+      `Amy has ${c.students[0].points} stars, meter holds ${c.classPoints}`,
+    )
+    return page
+  },
+
+  /** Points past the goal carry into the next run, and the meter should show them once the chest shuts. */
+  async 'meter shows the carried-over points after a celebration'() {
+    const cls = makeClass('c1', 'Overflow', 5, { pointsGoal: 10, classPoints: 8, goalEnabled: true })
+    const page = await open({ state: stateOf(cls) })
+    await panelButton(page, 'Pick All').click()
+    await award(page)
+    await page.waitForTimeout(1500)
+    await page.mouse.click(640, 400)
+    await page.waitForTimeout(1500)
+    const c = await activeSaved(page)
+    const shown = (await meterText(page)).trim()
+    check(
+      'meter shows the carried-over points after a celebration',
+      shown === `${c.classPoints} / 10`,
+      `meter reads "${shown}", saved ${c.classPoints}`,
+    )
+    return page
+  },
+
+  /** A goal lowered below the points already on the meter. */
+  async 'lowering the goal below the meter'() {
+    const cls = makeClass('c1', 'Lower', 5, { pointsGoal: 50, classPoints: 40, goalEnabled: true })
+    const page = await open({ state: stateOf(cls) })
+    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await page.waitForTimeout(500)
+    await page.locator('#goal').fill('30')
+    await page.waitForTimeout(700)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    const shown = (await meterText(page)).trim()
+    const [have, goal] = shown.split(' / ').map(Number)
+    check('lowering the goal below the meter', have <= goal, `meter reads "${shown}"`)
+    return page
+  },
+
+  /** Holding a stepper's + until it reaches its limit, then letting go, should stop it. */
+  async 'a held stepper stops at its limit'() {
+    const cls = makeClass('c1', 'Stepper', 5, { pointsGoal: 50, classPoints: 45, goalEnabled: true })
+    const page = await open({ state: stateOf(cls) })
+    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await page.waitForTimeout(500)
+    const plus = page.locator('button[aria-label="Increase Class points on the meter now"]')
+    const box = await plus.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.waitForTimeout(2000)
+    await page.mouse.up()
+    await page.evaluate(() => {
+      window.__writes = 0
+      const set = Storage.prototype.setItem
+      Storage.prototype.setItem = function (k, v) {
+        if (k === 'seating-chart-state-v1') window.__writes++
+        return set.call(this, k, v)
+      }
+    })
+    await page.waitForTimeout(1500)
+    const writes = await page.evaluate(() => window.__writes)
+    check('a held stepper stops at its limit', writes === 0, `${writes} saves in the 1.5 s after letting go`)
+    return page
+  },
+
+  /** In Flip Back mode a bonus card goes back over - and must not pay out again. */
+  async 'flip back: a bonus card pays out once'() {
+    const cls = makeClass('c1', 'Bonus', 10, { pointsGoal: 100, classPoints: 0, goalEnabled: true })
+    const page = await open({
+      state: stateOf(cls),
+      storage: {
+        'seating-chart-flip-deck-settings-v1': {
+          bonusCards: true,
+          bonusKinds: ['everyone'],
+          flipMode: 'stay',
+          soundEnabled: false,
+          genderColors: false,
+        },
+      },
+    })
+    await panelButton(page, 'Flip Cards').click()
+    await page.waitForTimeout(3500)
+    // One card, by name: a deck of only Everyone +1 has several of them.
+    const id = await page.locator('[data-bonus=everyone]').first().getAttribute('data-flip-card')
+    const card = page.locator(`[data-flip-card="${id}"]`)
+    for (let i = 0; i < 3; i++) {
+      await card.click({ timeout: 1500 }).catch(() => {})
+      await page.waitForTimeout(1000)
+    }
+    const c = await activeSaved(page)
+    check('flip back: a bonus card pays out once', c.classPoints === 10, `meter holds ${c.classPoints} (10 students, one Everyone +1 = 10)`)
+    check('flip back: a used bonus card goes to the pile', (await card.count()) === 0)
+    return page
+  },
+
+  /** Storage that refuses a write (full, or a locked-down browser) mustn't take the app down. */
+  async 'storage refusing a write'() {
+    const refuse = () => {
+      const set = Storage.prototype.setItem
+      Storage.prototype.setItem = function (k, v) {
+        if (sessionStorage.getItem('seeded') && k !== 'seeded' && localStorage.getItem('seating-chart-state-v1')) {
+          throw new DOMException('full', 'QuotaExceededError')
+        }
+        return set.call(this, k, v)
+      }
+    }
+    for (const [label, act] of [
+      ['moving the panel', (page) => page.locator('aside button[title^="Move panel"]').click()],
+      [
+        'choosing a timer face',
+        async (page) => {
+          await page.locator('aside [aria-label="Timer controls"]').click()
+          await page.waitForTimeout(400)
+          await page.locator('aside button[title="Timer settings"]').click()
+          await page.waitForTimeout(500)
+          await page.getByRole('button', { name: /Dial/ }).first().click()
+        },
+      ],
+    ]) {
+      const page = await open({ state: stateOf(makeClass('c1', 'Storage', 5)), before: refuse })
+      await act(page)
+      await page.waitForTimeout(600)
+      const alive = await page.locator('aside').count()
+      check(`storage refusing a write: ${label}`, alive === 1 && page.errors.length === 0, page.errors[0] ?? '')
+      await page.context().close()
+    }
+  },
+
+  /** The board reads one touch as two: the second mustn't shut the status picker the first opened. */
+  async 'status picker survives a double-read touch'() {
+    const cls = makeClass('c1', 'Groups', 12)
+    const page = await open({ state: stateOf(cls) })
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /^2/ }).first().click()
+    await page.waitForTimeout(4500)
+    const chip = page.locator('[data-status-target]').first()
+    const box = await chip.boundingBox()
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.click(x, y)
+    await page.waitForTimeout(80)
+    await page.mouse.click(x, y)
+    await page.waitForTimeout(900)
+    const open_ = await page.locator('[data-status-choice]').count()
+    check('status picker survives a double-read touch', open_ === 4, open_ ? 'still open' : 'the second touch closed it')
+    return page
+  },
+
+  /** Saving a roster edit with the name wiped out. */
+  async 'a student cannot be saved with no name'() {
+    const cls = makeClass('c1', 'Roster', 5)
+    const page = await open({ state: stateOf(cls) })
+    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(600)
+    await page.locator('[role=dialog] button:has(svg.lucide-pencil)').first().click()
+    await page.waitForTimeout(300)
+    await page.locator('[role=dialog] input[value="Amy"]').fill('   ')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.waitForTimeout(400)
+    const c = await activeSaved(page)
+    check('a student cannot be saved with no name', c.students[0].name.trim() !== '', `first student is now "${c.students[0].name}"`)
+    return page
+  },
+
+  /** CSV import: Excel's byte-order mark, and the same file brought in twice. */
+  async 'csv import'() {
+    const cls = makeClass('c1', 'CSV', 0)
+    // A second class, so the splash offers class cards rather than first-time setup.
+    const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)) })
+    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(600)
+    const file = `${SHOTS}/roster.csv`
+    writeFileSync(file, '﻿Amy,1,girl\r\nTony,2,boy\r\nKevin,3,boy\r\n')
+    const input = page.locator('[role=dialog] input[type=file]')
+    await input.setInputFiles(file)
+    await page.waitForTimeout(500)
+    let c = await activeSaved(page)
+    check('csv import: no hidden mark on the first name', c.students[0]?.name === 'Amy', JSON.stringify(c.students[0]?.name))
+    await input.setInputFiles(file)
+    await page.waitForTimeout(500)
+    c = await activeSaved(page)
+    check('csv import: the same file twice adds nobody twice', c.students.length === 3, `${c.students.length} students`)
+    return page
+  },
+
+  /** Names are sized for Andika. If Andika arrives late, they must be sized again when it does. */
+  async 'desk names re-fit when the font arrives late'() {
+    if (!FONTS) return check('desk names re-fit when the font arrives late', true, 'skipped: needs FONTS')
+    const cls = makeClass('c1', 'Fonts', 6)
+    cls.students[0].name = 'Maximiliano'
+    const sizes = []
+    for (const delay of [0, 2500]) {
+      const page = await open({ state: stateOf(cls), fontDelayMs: delay, splash: false })
+      await page.locator('.splash-board button').first().click()
+      await page.waitForTimeout(delay + 1500)
+      sizes.push(
+        await page.evaluate(() => {
+          const name = [...document.querySelectorAll('[data-ink=desk] span')].find((s) => s.textContent === 'Maximiliano')
+          return { size: getComputedStyle(name).fontSize, cut: name.scrollWidth > name.clientWidth + 1 }
+        }),
+      )
+      await page.context().close()
+    }
+    check('desk names re-fit when the font arrives late', sizes[0].size === sizes[1].size && !sizes[1].cut, JSON.stringify(sizes))
+  },
+
+  /** Somebody away today is left out of everything that chooses students. */
+  async 'absent students are passed over'() {
+    const cls = makeClass('c1', 'Absent', 6, { pointsGoal: 50, classPoints: 0 })
+    const page = await open({ state: stateOf(cls) })
+    await panelButton(page, 'Attendance').click()
+    for (const n of ['Amy', 'Tony', 'Kevin']) await desk(page, n).click()
+    await panelButton(page, 'Attendance').click()
+    await page.waitForTimeout(400)
+    const landed = new Set()
+    for (let i = 0; i < 8; i++) {
+      await panelButton(page, 'Pick Student').click()
+      await page.waitForTimeout(3200)
+      landed.add(await page.evaluate(() => document.querySelector('[data-ink=desk].desk-picked')?.textContent ?? ''))
+      await page.mouse.click(5, 5)
+    }
+    const pickedAway = [...landed].filter((t) => /Amy|Tony|Kevin/.test(t))
+    check('absent students are never picked', landed.size > 0 && pickedAway.length === 0, `landed on ${[...landed].join(', ')}`)
+    await panelButton(page, 'Pick All').click()
+    await award(page)
+    await page.waitForTimeout(300)
+    const c = await activeSaved(page)
+    const awayStars = c.students.slice(0, 3).reduce((n, s) => n + (s.points ?? 0), 0)
+    check('absent students get no stars from Pick All', awayStars === 0, `${awayStars}`)
+    await panelButton(page, 'Flip Cards').click()
+    await page.waitForTimeout(3000)
+    const dealt = await page.locator('[data-flip-card]').count()
+    check('absent students are not dealt a flip card', dealt === 3, `${dealt} cards for 3 present`)
+    return page
+  },
+
+  /** Tiny, empty and full classes through every screen, looking for errors. */
+  async 'edge classes'() {
+    for (const count of [0, 1, 2, 35]) {
+      const cls = makeClass('c1', `Edge ${count}`, count, { pointsGoal: 10, classPoints: 0 })
+      // A second class, so the splash offers class cards rather than first-time setup.
+      const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size: [1024, 640] })
+      if (count > 0) {
+        await panelButton(page, 'Pick Student').click()
+        await page.waitForTimeout(3200)
+        await page.mouse.click(5, 5)
+        await panelButton(page, 'Pick Row').click()
+        await page.waitForTimeout(3200)
+        const rowPicked = await page.evaluate(() => document.querySelectorAll('[data-ink=desk].desk-picked').length)
+        check(
+          `edge class of ${count}: Pick Row lands on a row with someone in it`,
+          rowPicked > 0,
+          `${rowPicked} students in the picked row`,
+        )
+        await page.mouse.click(5, 5)
+        // A pick selects its winner, so with one student Pick All may already read Unpick All.
+        if (await panelButton(page, 'Pick All').count()) await panelButton(page, 'Pick All').click()
+        await award(page)
+      }
+      await panelButton(page, 'Flip Cards').click()
+      await page.waitForTimeout(2500)
+      await page.screenshot({ path: `${SHOTS}/edge-${count}-flip.png` })
+      const flipOver = await overflow(page)
+      await panelButton(page, 'Flip Cards').click()
+      await page.waitForTimeout(800)
+      await panelButton(page, 'Group Activity').click()
+      await page.waitForTimeout(600)
+      if (count >= 2) {
+        await page.getByRole('button', { name: /^Pairs/ }).click()
+        await page.waitForTimeout(5000)
+        await page.screenshot({ path: `${SHOTS}/edge-${count}-pairs.png` })
+      } else {
+        await page.screenshot({ path: `${SHOTS}/edge-${count}-groups.png` })
+      }
+      const groupOver = await overflow(page)
+      check(
+        `edge class of ${count}: no errors, nothing scrolls`,
+        page.errors.length === 0 && !flipOver.page && !groupOver.page && !groupOver.dialog,
+        page.errors[0] ?? JSON.stringify({ flipOver, groupOver }),
+      )
+      await page.context().close()
+    }
+  },
+
+  /** A reload in the middle of things: what comes back, and does anything break. */
+  async 'reload mid-activity'() {
+    const cls = makeClass('c1', 'Reload', 12, { pointsGoal: 10 })
+    const page = await open({ state: stateOf(cls) })
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /^3/ }).first().click()
+    await page.waitForTimeout(4500)
+    await page.locator('[data-group-id] button[title="Give a point"]').first().click()
+    await page.reload()
+    await page.locator('.splash-board button').first().click()
+    await page.waitForTimeout(900)
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(600)
+    const cont = await page.getByRole('button', { name: /Continue with Last Groups/ }).textContent()
+    check('reload mid-activity: last groups kept, with their point', /3 groups/.test(cont) && /1/.test(cont), cont.replace(/\s+/g, ' '))
+    await page.keyboard.press('Escape')
+    await page.locator('aside [aria-label="Timer controls"]').click()
+    await page.waitForTimeout(400)
+    await page.locator('aside').locator('text=MIN').locator('..').locator('button').nth(1).click()
+    await page.locator('aside button[title="Start"]').click()
+    await page.waitForTimeout(1200)
+    await page.reload()
+    await page.locator('.splash-board button').first().click()
+    await page.waitForTimeout(900)
+    check('reload mid-timer: no errors', page.errors.length === 0, page.errors[0] ?? '')
+    return page
+  },
+
+  /** Changing class with the flip cards up, and with a group activity running. */
+  async 'switching class mid-activity'() {
+    const a = makeClass('c1', 'Class A', 8)
+    const b = makeClass('c2', 'Class B', 12)
+    const page = await open({ state: stateOf(a, b) })
+    await panelButton(page, 'Flip Cards').click()
+    await page.waitForTimeout(3000)
+    await page.locator('[data-flip-card]').first().click()
+    await page.waitForTimeout(800)
+    await page.locator('aside button[title="Switch class"]').click()
+    await page.waitForTimeout(400)
+    await page.locator('aside').getByRole('button', { name: 'Class B' }).click()
+    await page.waitForTimeout(400)
+    await page
+      .getByRole('button', { name: /^(Switch|Yes)/ })
+      .first()
+      .click()
+    await page.waitForTimeout(3000)
+    const cards = await page.locator('[data-flip-card]').count()
+    const up = await page.locator('[data-flip-card][data-state=active], [data-flip-card][data-state=up]').count()
+    await page.screenshot({ path: `${SHOTS}/switch-flip.png` })
+    check(
+      'switching class with flip cards up: the new class is dealt, all face down',
+      cards === 12 && up === 0,
+      `${cards} cards, ${up} face up`,
+    )
+    check('switching class: no errors', page.errors.length === 0, page.errors[0] ?? '')
+    return page
+  },
+
+  /** The rule: nothing scrolls, in any theme, at any of the three sizes. */
+  async 'nothing scrolls'() {
+    for (const theme of THEMES) {
+      for (const size of SIZES) {
+        const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20 })
+        const page = await open({ state: stateOf(cls, makeClass('c2', 'Kindergarten Phonics', 3)), theme, size })
+        const where = `${theme} ${size.join('x')}`
+        const bad = []
+        const look = async (label) => {
+          const o = await overflow(page)
+          if (o.page > 0 || o.pageX > 0 || o.panel > 0 || o.dialog > 0) {
+            bad.push(`${label} ${JSON.stringify(o)}`)
+            await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
+          }
+        }
+        await look('board')
+        await desk(page, 'Amy').click()
+        await look('one selected')
+        await page.locator('aside [aria-label="Timer controls"]').click()
+        await page.waitForTimeout(400)
+        await look('flip clock controls')
+        await page.waitForTimeout(800) // past the timer's double-touch guard
+        await page.locator('aside [aria-label="Timer controls"]').click({ position: { x: 10, y: 10 } })
+        await page.waitForTimeout(700)
+        await panelButton(page, 'Flip Cards').click()
+        await page.waitForTimeout(2500)
+        await look('flip cards')
+        await panelButton(page, 'Flip Cards').click()
+        await page.waitForTimeout(800)
+        await panelButton(page, 'Group Activity').click()
+        await page.waitForTimeout(600)
+        await look('group modal')
+        await page.getByRole('button', { name: /^6/ }).first().click()
+        await page.waitForTimeout(4500)
+        await look('6 groups')
+        await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
+        await page.waitForTimeout(800)
+        await page.locator('aside button[aria-label="Class Settings"]').click()
+        await page.waitForTimeout(600)
+        await look('settings students')
+        await page.getByRole('tab', { name: 'Class' }).click()
+        await page.waitForTimeout(400)
+        await look('settings class')
+        await page.getByRole('tab', { name: 'Students' }).click()
+        await page.getByRole('button', { name: /View \/ Edit Attendance/ }).click()
+        await page.waitForTimeout(600)
+        await look('attendance record')
+        await page.keyboard.press('Escape')
+        await page.waitForTimeout(400)
+        await page.keyboard.press('Escape')
+        await page.waitForTimeout(600)
+        await page.locator('aside button[title="Pickers & Points settings"]').click()
+        await page.waitForTimeout(600)
+        await look('pickers and points')
+        await page.keyboard.press('Escape')
+        await page.waitForTimeout(600)
+        check(`nothing scrolls: ${where}`, bad.length === 0 && page.errors.length === 0, [...bad, ...page.errors].join('; '))
+        await page.context().close()
+      }
+    }
+  },
+}
+
+for (const [name, run] of Object.entries(scenarios)) {
+  if (only && !name.includes(only)) continue
+  try {
+    const page = await run()
+    if (page) {
+      if (page.errors.length) check(`${name}: no page errors`, false, page.errors.join('; '))
+      await page.context().close()
+    }
+  } catch (e) {
+    const shot = `${SHOTS}/script-failed-${name.replace(/\W+/g, '-')}.png`
+    await lastPage?.screenshot({ path: shot }).catch(() => {})
+    check(name, false, `the script itself failed (${shot}): ${e.message.split('\n').slice(0, 3).join(' | ')}`)
+  }
+}
+await browser.close()
+const failed = results.filter((r) => !r.ok)
+console.log(`\n${results.length - failed.length} OK, ${failed.length} FAIL. Screenshots in ${SHOTS}`)
+if (existsSync(SHOTS)) process.exitCode = failed.length ? 1 : 0
