@@ -258,15 +258,21 @@ export function playPickerLand() {
 }
 
 /**
- * A point being taken away: a recording, chosen by the teacher who uses this.
+ * A point being taken away: "Negative reverberate", one low note that drops and fades. The
+ * teacher's own pick, from recordings he found and sent.
  *
- * It sits at -16.5 LUFS with its energy centred on 330-500Hz, which is the range a tablet or
- * laptop speaker can actually reproduce - the trap the synthesised version fell into, where a
- * 233Hz -> 156Hz fall measured louder than the coin tick and was still inaudible in a room
- * because almost all of it was below what the speaker could move.
+ * The recording before it played at full scale, about 14 dB louder than the coin, and the room
+ * heard it as a blast. This one plays at 43%, which puts it about 1.3 dB under the coin to the
+ * ear (A-weighted: the ear hears a low note as quieter, so it gets more raw level than the coin
+ * does), and skips the 71ms of silence at the front of the file so it lands with the tap.
+ *
+ * Nearly all of it sits at 280-400Hz, under the line this file otherwise keeps to, and it was
+ * chosen by ear anyway. The trap to remember: a synthesised 233Hz -> 156Hz fall once went
+ * missing in a room while measuring louder than the coin, because a small speaker can't move
+ * that low. If this one goes quiet on the board, the volume here is the first knob.
  */
 export function playPointDeduct() {
-  playSample('/sounds/point-down.mp3', 2, playSynthPointDeduct)
+  playSample('/sounds/negative-reverberate.mp3', 2, playSynthPointDeduct, { volume: 0.43, from: 0.071 })
 }
 
 /**
@@ -278,7 +284,8 @@ export function playPointDeduct() {
 function playSynthPointDeduct() {
   const ctx = getContext()
   const master = ctx.createGain()
-  master.gain.value = 1
+  // Level with the recording it stands in for; at full it was 6 dB louder, the old blast again.
+  master.gain.value = 0.48
   master.connect(ctx.destination)
   // The tick. Broadband noise survives a small speaker better than any single tone.
   playNoiseBurst(ctx, master, 0, 0.035, 0.4)
