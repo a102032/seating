@@ -22,12 +22,14 @@ interface ToneOptions {
   type?: OscillatorType
   peakGain?: number
   detune?: number
+  /** Seconds to fade in. The default is near-instant; a slower one takes the edge off a note. */
+  attack?: number
 }
 
 function playTone(
   ctx: AudioContext,
   master: GainNode,
-  { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0 }: ToneOptions,
+  { frequency, endFrequency, start, duration, type = 'sine', peakGain = 0.4, detune = 0, attack }: ToneOptions,
 ) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
@@ -40,7 +42,7 @@ function playTone(
 
   const t0 = ctx.currentTime + start
   gain.gain.setValueAtTime(0, t0)
-  gain.gain.linearRampToValueAtTime(peakGain, t0 + Math.min(0.02, duration / 4))
+  gain.gain.linearRampToValueAtTime(peakGain, t0 + (attack ?? Math.min(0.02, duration / 4)))
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration)
 
   osc.connect(gain)
@@ -198,7 +200,8 @@ export function primeAudio() {
  */
 const samplePools = new Map<string, { pool: HTMLAudioElement[]; next: number }>()
 
-function playSample(file: string, size = 6, onFailure?: () => void) {
+/** `volume` is 0 to 1; `from` skips silence at the start of a file, in seconds. */
+function playSample(file: string, size = 6, onFailure?: () => void, { volume = 1, from = 0 } = {}) {
   let entry = samplePools.get(file)
   if (!entry) {
     entry = { pool: Array.from({ length: size }, () => new Audio(assetUrl(file))), next: 0 }
@@ -206,47 +209,52 @@ function playSample(file: string, size = 6, onFailure?: () => void) {
   }
   const audio = entry.pool[entry.next]
   entry.next = (entry.next + 1) % entry.pool.length
-  audio.currentTime = 0
+  audio.volume = volume
+  audio.currentTime = from
   void audio.play().catch(() => onFailure?.())
 }
 
+/** Pickers flash every 90ms; a gap this long between sounds means one on every other flash. */
+const PICKER_TICK_GAP_MS = 150
+let lastPickerTick = 0
+
 /**
- * A single tick of a picker's flashing animation.
+ * A picker's flash: Pick Student, Pick Row, the group pickers and the floating class goal.
  *
- * pop.mp3 is the previous sound and is kept in the repo on purpose: this one is a trial, and
- * going back is a one-word edit. The two are within 0.4 LUFS of each other, so swapping them
- * changes the character and not the volume - the old one is a soft pop centred near 500Hz,
- * this one is a dry tick with nearly all its energy at 3.5kHz. It also starts 47ms sooner,
- * since pop.mp3 carries 53ms of silence before its attack and this is trimmed to 6ms, so the
- * tick lands with the desk lighting up rather than after it.
+ * A soft pop (pop.mp3, centred near 500Hz), only on every other flash: the desk or name still
+ * changes every 90ms, but the room hears half as many sounds. It replaced a dry 3.5kHz tick on
+ * every flash at full volume, which the teacher found too jarring on the board; he chose this
+ * by ear from three candidates played side by side. It first went in at a third of full
+ * volume, and on the board he had to turn the speakers all the way up to hear it - 500Hz is
+ * near the bottom of what a classroom speaker does - so it plays at 80%. pop.mp3 carries 53ms
+ * of silence before its attack, skipped so the pop lands with the flash, not after it.
  */
 export function playPickerTick() {
-  playSample('/sounds/tick.mp3')
+  const now = performance.now()
+  if (now - lastPickerTick < PICKER_TICK_GAP_MS) return
+  lastPickerTick = now
+  playSample('/sounds/pop.mp3', 4, undefined, { volume: 0.8, from: 0.053 })
 }
 
 /**
- * The picker landing on its winner, after the ticks stop.
- *
- * The ticks are deliberately flat and dry - two dozen of the same dead sound - so the landing
- * only has to do one thing to register: have pitch, and rise. It's a pop (a sine gliding up
- * fast, which is what a pop is) with a bright two-note sparkle on top of it, all over inside
- * 300ms. Small on purpose: this fires on every pick, many times a lesson, so it's a full stop
- * rather than a fanfare - the fanfare belongs to the class goal and shouldn't have a rival.
- *
- * Nothing here goes below 400Hz, which is the lesson the deduct sound taught: a classroom
- * tablet cannot reproduce the bottom end, so anything that matters lives above it.
+ * The picker landing on its winner, after the pops stop: a gentle chime, three notes of a major
+ * chord (G, C, E) rolled upward, each fading in over 40ms and ringing out for about a second,
+ * with a faint octave above each for a bell's shimmer. It replaced a single pure ding at
+ * 1.3kHz with a near-instant start, which on the board came out "loud and abrupt" - that pitch
+ * is where a classroom speaker is strongest, and it followed pops that were too quiet. Small
+ * on purpose: it fires on every pick, many times a lesson, and the fanfare belongs to the
+ * class goal. Nothing goes below 400Hz - a classroom tablet can't reproduce the bottom end.
  */
 export function playPickerLand() {
   const ctx = getContext()
   const master = ctx.createGain()
   master.gain.value = 1
   master.connect(ctx.destination)
-  // The pop: a fast glide up, with a noise transient to give it an edge.
-  playNoiseBurst(ctx, master, 0, 0.02, 0.3)
-  playTone(ctx, master, { frequency: 420, endFrequency: 880, start: 0, duration: 0.075, type: 'sine', peakGain: 0.72 })
-  // The sparkle: two notes up, the second ringing on as the tail.
-  playTone(ctx, master, { frequency: 1046.5, start: 0.06, duration: 0.1, type: 'triangle', peakGain: 0.46 })
-  playTone(ctx, master, { frequency: 1567.98, start: 0.115, duration: 0.22, type: 'triangle', peakGain: 0.4 })
+  ;[783.99, 1046.5, 1318.5].forEach((frequency, i) => {
+    const start = i * 0.07
+    playTone(ctx, master, { frequency, start, duration: 1, type: 'sine', peakGain: 0.075, attack: 0.04 })
+    playTone(ctx, master, { frequency: frequency * 2, start, duration: 0.5, type: 'sine', peakGain: 0.015, attack: 0.04 })
+  })
 }
 
 /** A bright, snappy two-note blip for a point landing on the class goal meter. */
