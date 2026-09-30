@@ -57,6 +57,8 @@ interface SidePanelProps {
   onToggleSelectAll: () => void
   onAwardPoint: () => void
   onDeductPoint: () => void
+  /** Someone selected has at least one star, so minus has something to take. */
+  canDeductPoint: boolean
   flipDeckOpen: boolean
   /** A pick is mid-flash; opening the flip cards now would leave it landing on hidden desks. */
   pickFlashing: boolean
@@ -99,6 +101,7 @@ export function SidePanel({
   onToggleSelectAll,
   onAwardPoint,
   onDeductPoint,
+  canDeductPoint,
   flipDeckOpen,
   pickFlashing,
   flipActiveName,
@@ -339,10 +342,12 @@ export function SidePanel({
             </TactileButton>
             {/* The word takes what the word needs; +/- share the rest. They're the two
                 buttons a teacher taps most, so the free space is theirs. */}
+            {/* Greyed when nobody selected has a star to lose, like a group card's minus at
+                zero: the sound of a point going with nothing going was a small lie. */}
             <TactileButton
-              disabled={busy || pointsSelectedCount === 0}
+              disabled={busy || pointsSelectedCount === 0 || !canDeductPoint}
               onClick={onDeductPoint}
-              title="Deduct Point"
+              title={pointsSelectedCount > 0 && !canDeductPoint ? 'No points to take away' : 'Deduct Point'}
               className="h-[38px] min-w-9 flex-1 !px-0 justify-center"
             >
               <Minus size={20} strokeWidth={2.75} />

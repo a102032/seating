@@ -464,8 +464,13 @@ export default function App() {
     run()
   }
 
+  // Stars are floored at 0, so minus only means something when someone selected has one.
+  const canDeductPoint = Array.from(activeSelection).some((id) => (studentsById.get(id)?.points ?? 0) > 0)
+
   function applyPointsDelta(delta: number) {
     if (!activeClassId || activeSelection.size === 0) return
+    // No sound of a point going when there was nothing to take.
+    if (delta < 0 && !canDeductPoint) return
     adjustPoints(activeClassId, Array.from(activeSelection), delta)
     // Awards already sound: the coin ticks when the class meter moves. Taking a point away
     // never moves the meter by design, so without this the minus button was silent - the
@@ -530,6 +535,7 @@ export default function App() {
       onToggleSelectAll={toggleSelectAll}
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
+      canDeductPoint={canDeductPoint}
       flipDeckOpen={flipDeckOpen}
       pickFlashing={picker.isPicking}
       flipActiveName={deck.activeId ? (studentsById.get(deck.activeId)?.name ?? null) : null}
