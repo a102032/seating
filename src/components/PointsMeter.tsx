@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { PictureInPicture2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../lib/assets'
@@ -31,19 +31,8 @@ interface PointsMeterProps {
   onToggleFloat?: () => void
 }
 
-interface Sparkle {
-  id: number
-  /** Offset from the coin's centre, in px. The coin carries them, so this is all they need. */
-  dx: number
-  dy: number
-  size: number
-  delay: number
-}
-
-/** How many sparkles a point throws off, and how long they take to fade. */
-const SPARKLE_COUNT = 9
-const SPARKLE_STAGGER = 0.055
-const SPARKLE_LIFE_MS = 1400
+/** How long the +N rises off the coin (meter-plus-rise in index.css). */
+const PLUS_RISE_MS = 1100
 
 /** How full the meter has to get before the chest starts straining. */
 const RATTLE_FROM = 0.85
@@ -86,7 +75,6 @@ export function PointsMeter({
     waitingChangeRef.current = onWaitingChange
   })
   const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
-  const [sparkles, setSparkles] = useState<Sparkle[]>([])
   const [pop, setPop] = useState<{ id: number; amount: number } | null>(null)
   const nextId = useRef(0)
   // Normally mirrors classPoints, but holds at full through the celebration so the bar
@@ -138,30 +126,8 @@ export function PointsMeter({
       playCoinTick()
       const id = nextId.current++
       setPop({ id, amount })
-      setSparkles((s) => [
-        ...s,
-        ...Array.from({ length: SPARKLE_COUNT }, (_, i) => {
-          // Spread evenly round the circle with a little jitter, so the coin is ringed
-          // rather than flecked on one side.
-          const angle = ((i + Math.random() * 0.7) / SPARKLE_COUNT) * Math.PI * 2
-          const reach = 15 + Math.random() * 13
-          return {
-            id: nextId.current++,
-            dx: Math.cos(angle) * reach,
-            dy: Math.sin(angle) * reach,
-            size: 3 + Math.random() * 4,
-            // Staggered across the coin's travel, so it sparkles the whole way rather
-            // than flashing once on arrival.
-            delay: i * SPARKLE_STAGGER,
-          }
-        }),
-      ])
-      const popTimer = setTimeout(() => setPop((p) => (p?.id === id ? null : p)), 900)
-      const sparkleTimer = setTimeout(() => setSparkles((s) => s.slice(-SPARKLE_COUNT)), SPARKLE_LIFE_MS)
-      return () => {
-        clearTimeout(popTimer)
-        clearTimeout(sparkleTimer)
-      }
+      const popTimer = setTimeout(() => setPop((p) => (p?.id === id ? null : p)), PLUS_RISE_MS)
+      return () => clearTimeout(popTimer)
     }
   }, [classId, classPoints, goal, goalsReached])
 
@@ -227,7 +193,7 @@ export function PointsMeter({
     <div
       data-ink="panel"
       className={clsx(
-        'relative flex h-14 shrink-0 items-center gap-2.5 overflow-visible rounded-2xl border border-border bg-card/70 px-3 shadow-sm backdrop-blur-xl transition-shadow sm:gap-3 sm:px-4',
+        'relative flex h-14 shrink-0 items-center gap-2.5 overflow-visible rounded-2xl border border-border bg-card/70 px-3 shadow-sm transition-shadow sm:gap-3 sm:px-4',
         open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
       )}
     >
@@ -241,82 +207,61 @@ export function PointsMeter({
         transition={{ duration: 0.7 }}
       />
 
+      {/*
+        Everything that moves here is CSS, so the board's graphics chip runs it and the main
+        processor is left free. It was framer-motion springs, plus a ring of nine sparkles
+        per point: on a 4K board that was a stutter on every +1, so the sparkles went and the
+        rest moved to CSS with an ease that overshoots a touch, like the springs did.
+      */}
       <div className="relative h-4 flex-1">
         <div className="absolute inset-0 overflow-hidden rounded-full bg-muted">
-          <motion.div
-            className="h-full rounded-full"
+          <div
+            className="h-full rounded-full transition-[width] duration-700 ease-[cubic-bezier(0.34,1.25,0.64,1)]"
             style={{
+              width: `${pct}%`,
               background: 'linear-gradient(90deg, #38bdf8, #a3e635, #facc15)',
               backgroundSize: '200% 100%',
               backgroundPositionX: `${100 - pct}%`,
             }}
-            initial={false}
-            animate={{ width: `${pct}%` }}
-            transition={{ type: 'spring', stiffness: 120, damping: 18 }}
           />
         </div>
 
         {/*
-          Sparkles, the coin and the +N all hang off one anchor that springs along the track.
-          They used to be positioned independently at the destination percentage, which put
-          them on the finish line while the coin was still travelling - reading as a burst
-          jumping out ahead of it. As children they inherit the coin's motion instead, so the
-          sparkle ring travels with it.
+          The coin and the +N hang off one anchor that travels along the track, so the +N
+          rises from wherever the coin is rather than from the finish line. The anchor spans
+          the whole track and slides by a percentage of its own width - a transform, which the
+          graphics chip moves on its own - and the coin sits on its left edge.
         */}
-        <motion.div
-          className="pointer-events-none absolute top-1/2 h-0 w-0"
-          initial={false}
-          animate={{ left: `${pct}%` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+        <div
+          className="pointer-events-none absolute inset-0 transition-transform duration-700 ease-[cubic-bezier(0.34,1.25,0.64,1)]"
+          style={{ transform: `translateX(${pct}%)` }}
         >
+          <div className="absolute left-0 top-1/2 h-0 w-0">
           {/*
             The class, travelling. Centred on the anchor with plain offsets, so framer's rotate
             transform has nothing to fight over. max-w-none is load-bearing: the preflight's
             `img { max-width: 100% }` resolves against this anchor's zero-width content box and
             would otherwise squash the coin to nothing.
           */}
-          <motion.img
-            src={treasure('star-coin')}
-            alt=""
-            draggable={false}
-            className="absolute h-[26px] w-[26px] max-w-none select-none drop-shadow"
-            style={{ left: -13, top: -13 }}
-            initial={false}
-            animate={{ rotate: open ? [0, 360] : 0 }}
-            transition={{ rotate: { duration: 0.8, repeat: open ? Infinity : 0, ease: 'linear' } }}
-          />
+            <img
+              src={treasure('star-coin')}
+              alt=""
+              draggable={false}
+              className={clsx('absolute h-[26px] w-[26px] max-w-none select-none drop-shadow', open && 'animate-[spin_0.8s_linear_infinite]')}
+              style={{ left: -13, top: -13 }}
+            />
 
-          <AnimatePresence>
-            {sparkles.map((s) => (
-              <motion.span
-                key={s.id}
-                className="absolute rounded-full bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.9)]"
-                style={{ left: -s.size / 2, top: -s.size / 2, width: s.size, height: s.size }}
-                initial={{ opacity: 0, x: s.dx * 0.55, y: s.dy * 0.55, scale: 0.4 }}
-                animate={{ opacity: [0, 1, 0], x: s.dx, y: s.dy, scale: [0.4, 1, 0.25] }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.7, delay: s.delay, ease: 'easeOut' }}
-              />
-            ))}
-          </AnimatePresence>
-
-          <AnimatePresence>
             {pop && (
-              <motion.span
+              <span
                 key={pop.id}
-                className="absolute whitespace-nowrap text-xs font-extrabold text-amber-600 drop-shadow-sm dark:text-amber-300"
+                className="meter-plus-rise absolute whitespace-nowrap text-xs font-extrabold text-amber-600 dark:text-amber-300"
                 style={{ left: 9, top: -14 }}
-                initial={{ opacity: 0, y: 4, scale: 0.7 }}
-                animate={{ opacity: 1, y: -18, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.85 }}
               >
                 +{pop.amount}
-              </motion.span>
+              </span>
             )}
-          </AnimatePresence>
-        </motion.div>
-
+          </div>
+        </div>
       </div>
 
       {/* Where it's going. Straining near the end, then open. */}
@@ -326,42 +271,25 @@ export function PointsMeter({
         title="Class goal settings"
         className="shrink-0 rounded-xl p-0.5 transition-transform active:scale-90"
       >
-        <motion.div
-          ref={chestRef}
-          animate={
-            open
-              ? { rotate: 0, scale: [1, 1.35, 1.15], y: [0, -6, 0] }
-              : rattling
-                ? { rotate: [0, -6, 6, -4, 4, 0], scale: [1, 1.06, 1], y: [0, -2, 0] }
-                : { rotate: 0, scale: 1, y: 0 }
-          }
-          transition={
-            open
-              ? { duration: 0.55, ease: 'backOut' }
-              : rattling
-                ? { duration: 0.9, repeat: Infinity, repeatDelay: 0.7 }
-                : { duration: 0.25 }
-          }
-        >
+        {/* The rattle runs for as long as the class sits near the goal - a whole lesson,
+            sometimes - which is why it had to leave framer for CSS above all. */}
+        <div ref={chestRef} className={clsx(open ? 'meter-chest-open' : rattling && 'meter-chest-rattle')}>
           <img
             src={treasure(open ? 'chest-open' : 'chest-closed')}
             alt=""
             draggable={false}
             className="h-8 w-8 select-none"
           />
-        </motion.div>
+        </div>
       </button>
 
-      <motion.span
+      <span
         key={displayPoints}
-        initial={{ scale: 1.35 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 12 }}
-        className="shrink-0 font-bold tabular-nums text-foreground"
+        className="count-pop shrink-0 font-bold tabular-nums text-foreground"
         style={{ fontSize: 'clamp(0.85rem, 1.6vmin, 1.1rem)' }}
       >
         {displayPoints} / {goal}
-      </motion.span>
+      </span>
 
       {/*
         The meter is what floats, so the button to float it is on the meter - and it costs the

@@ -47,7 +47,7 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col gap-2">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm backdrop-blur-xl">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm">
         <div className="flex items-center gap-1.5">
           <TactileButton onClick={reshuffle} disabled={phase !== 'ready'} className="!px-3 !py-2">
             <Shuffle size={16} /> Shuffle
@@ -139,18 +139,16 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
                     onExitComplete={() => setLanded((prev) => new Set(prev).add(card.studentId))}
                   >
                     {!card.setAside && (
+                      // The deal is a CSS animation (flip-card-deal in index.css) so the graphics
+                      // chip flies the cards in: framer moved all thirty frame by frame. Framer
+                      // keeps the discard, one card at a time, which needs AnimatePresence.
                       <motion.div
                         variants={CARD_VARIANTS}
-                        initial="dealt"
+                        initial={false}
                         animate="placed"
                         exit="discarded"
-                        transition={{
-                          type: 'spring',
-                          stiffness: 260,
-                          damping: 24,
-                          delay: phase === 'dealing' ? (dealOrder * DEAL_STAGGER_MS) / 1000 : 0,
-                        }}
-                        className="h-full min-h-0"
+                        className={clsx('h-full min-h-0', phase === 'dealing' && 'flip-card-deal')}
+                        style={phase === 'dealing' ? { animationDelay: `${dealOrder * DEAL_STAGGER_MS}ms` } : undefined}
                       >
                         <FlipCard
                           id={card.studentId}
@@ -248,7 +246,6 @@ const PILE_H = 96
 const PILE_CARD_W = 56
 
 const CARD_VARIANTS = {
-  dealt: { opacity: 0, scale: 0.4, x: 0, y: -140, rotate: -12 },
   placed: { opacity: 1, scale: 1, x: 0, y: 0, rotate: 0 },
   // Straight onto the pile, shrinking to a pile card's size on the way, and gone as it lands.
   discarded: (to?: FlyTo) => ({

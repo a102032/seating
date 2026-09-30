@@ -3,6 +3,7 @@ import { summarizeGroupPoints } from '../lib/groups'
 import type { GroupPointsMode, StudentGroup } from '../types'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface GroupExitModalProps {
   open: boolean
@@ -21,6 +22,10 @@ interface GroupExitModalProps {
 export function GroupExitModal({ open, onClose, groups, pointsMode, onGiveOut, onKeep }: GroupExitModalProps) {
   const { totalPoints } = summarizeGroupPoints(groups)
   const scoring = groups.filter((g) => g.points > 0)
+
+  // Nothing to build while closed - see useLingerWhileClosing.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
 
   return (
     <Modal open={open} onClose={onClose} title="Points Are on the Board">

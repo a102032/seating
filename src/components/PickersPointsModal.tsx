@@ -13,6 +13,7 @@ import type { ClassData, Student } from '../types'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 export interface PickerSettingsValue {
   allowRepeats: boolean
@@ -356,6 +357,10 @@ export function PickersPointsModal({
   const hasHistory = studentEntries.length > 0
   /** Rows alone are still state a teacher can be stuck with, so reset stays live for them. */
   const canReset = hasHistory || columnPickCounts.size > 0
+
+  // Nothing to build while closed - see useLingerWhileClosing.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
 
   return (
     <>

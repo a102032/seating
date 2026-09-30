@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 import type { WarningLevel } from '../hooks/useCountdown'
@@ -42,8 +41,6 @@ function Face({ value, warningLevel, half }: { value: string; warningLevel: Warn
   )
 }
 
-const FLIP_PHASE_MS = 260
-
 export function FlipDigit({ value, warningLevel }: FlipDigitProps) {
   const [settled, setSettled] = useState(value)
   const [pending, setPending] = useState<string | null>(null)
@@ -71,46 +68,35 @@ export function FlipDigit({ value, warningLevel }: FlipDigitProps) {
         <Face value={settled} warningLevel={warningLevel} half="bottom" />
       </div>
 
+      {/* The two leaves are CSS animations (flip-leaf-* in index.css), so the graphics chip
+          turns them: framer drove them frame by frame, every second, for as long as a
+          countdown ran. Each leaf moves on to the next phase when its own animation ends -
+          the shade inside it ends at the same moment, hence the target check. */}
       {phase === 'leaf1' && pending !== null && (
-        <motion.div
-          className="absolute inset-x-0 top-0 h-1/2 origin-bottom overflow-hidden rounded-t-lg"
+        <div
+          className="flip-leaf-fall absolute inset-x-0 top-0 h-1/2 origin-bottom overflow-hidden rounded-t-lg"
           style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
-          initial={{ rotateX: 0 }}
-          animate={{ rotateX: -90 }}
-          transition={{ duration: FLIP_PHASE_MS / 1000, ease: 'easeIn' }}
-          onAnimationComplete={() => setPhase('leaf2')}
+          onAnimationEnd={(e) => e.target === e.currentTarget && setPhase('leaf2')}
         >
           <Face value={settled} warningLevel={warningLevel} half="top" />
-          <motion.div
-            className="absolute inset-0 bg-black"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.45 }}
-            transition={{ duration: FLIP_PHASE_MS / 1000, ease: 'easeIn' }}
-          />
-        </motion.div>
+          <div className="flip-leaf-shade-in absolute inset-0 bg-black" />
+        </div>
       )}
 
       {phase === 'leaf2' && pending !== null && (
-        <motion.div
-          className="absolute inset-x-0 bottom-0 h-1/2 origin-top overflow-hidden rounded-b-lg"
+        <div
+          className="flip-leaf-rise absolute inset-x-0 bottom-0 h-1/2 origin-top overflow-hidden rounded-b-lg"
           style={{ transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
-          initial={{ rotateX: 90 }}
-          animate={{ rotateX: 0 }}
-          transition={{ duration: FLIP_PHASE_MS / 1000, ease: 'easeOut' }}
-          onAnimationComplete={() => {
+          onAnimationEnd={(e) => {
+            if (e.target !== e.currentTarget) return
             setSettled(pending)
             setPending(null)
             setPhase('idle')
           }}
         >
           <Face value={pending} warningLevel={warningLevel} half="bottom" />
-          <motion.div
-            className="absolute inset-0 bg-black"
-            initial={{ opacity: 0.45 }}
-            animate={{ opacity: 0 }}
-            transition={{ duration: FLIP_PHASE_MS / 1000, ease: 'easeOut' }}
-          />
-        </motion.div>
+          <div className="flip-leaf-shade-out absolute inset-0 bg-black" />
+        </div>
       )}
 
       <div className="pointer-events-none absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-black/15 dark:bg-black/40" />

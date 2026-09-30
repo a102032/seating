@@ -35,6 +35,7 @@ import { DangerCover } from './DangerCover'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { ThemePicker } from './ThemePicker'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface ClassSettingsModalProps {
   open: boolean
@@ -227,6 +228,11 @@ export function ClassSettingsModal({
     setGuardOpen(false)
     onClose()
   }
+
+  // Nothing to build while closed - see useLingerWhileClosing. This one built the roster and
+  // a month of attendance on every desk tap.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
 
   return (
     <>

@@ -26,6 +26,11 @@ that were built and deliberately taken out. It is imported at the bottom of this
   inside a modal may scroll; a modal itself must fit. Check new UI at 1024x640, 1280x800 and 1920x1080.
   (Known exception: 1024x640 with the dial timer's controls open is about 38px short in the side panel. Accepted. The flip
   clock fits.)
+- **Smooth on the board.** Classroom boards are often 4K panels with weak processors, and the app was choppy on the teacher's (see "Smooth on the
+  board" in DECISIONS). No backdrop blur. Anything that moves many elements, or keeps moving, is CSS or
+  `element.animate`, not framer-motion. No framer `layout`/`layoutId` on anything that is always on screen: framer then
+  measures the page on every render. A modal returns null while closed (`useLingerWhileClosing`). Check a change that
+  moves things with `node scripts/frame-check.mjs` against a production build.
 - Fixed-size boards: once a board (flip cards, group cards) is laid out, cards don't resize or move as others
   leave. A class of 30 or fewer must look exactly as it did before the seventh column existed.
   Empty space goes where a child won't miss it: the flip deck's short row goes on top, starting at the left, so

@@ -146,7 +146,7 @@ export function SidePanel({
         // class name was cut and Swap Seats ran out past the edge. 30vmin keeps the two in
         // step: 16rem until about 850px tall, which is where the text starts growing, and
         // 21rem where the text stops. A board 800px tall or less is exactly as it was.
-        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 backdrop-blur-xl backdrop-saturate-150 sm:w-[clamp(16rem,30vmin,21rem)]',
+        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 sm:w-[clamp(16rem,30vmin,21rem)]',
         'dark:border-white/10 dark:shadow-black/20',
       )}
     >

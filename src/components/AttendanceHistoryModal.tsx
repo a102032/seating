@@ -6,6 +6,7 @@ import type { ClassData } from '../types'
 import { AbsentIcon } from './AbsentIcon'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 interface AttendanceHistoryModalProps {
   open: boolean
@@ -85,6 +86,10 @@ export function AttendanceHistoryModal({ open, onClose, activeClass, onToggleAbs
     link.click()
     URL.revokeObjectURL(url)
   }
+
+  // Nothing to build while closed - see useLingerWhileClosing.
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
 
   return (
     <Modal open={open} onClose={onClose} title={`Attendance - ${activeClass.name}`} size="xl">
