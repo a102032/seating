@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Armchair,
+  ChevronDown,
   ClipboardCheck,
   Dices,
+  FilePlus2,
+  FileUp,
   GraduationCap,
   Pencil,
   Plus,
@@ -17,7 +20,12 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { parseRosterCsv } from '../lib/csv'
+import { Popover } from 'radix-ui'
+import type { ComponentType, ReactNode } from 'react'
+import { parseRosterCsv, rosterFromRows } from '../lib/csv'
+import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../lib/drive'
+import type { useCloudSync } from '../hooks/useCloudSync'
+import { useDrive } from '../hooks/useDrive'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Theme } from '../lib/theme'
@@ -28,7 +36,10 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { GoogleG } from './Account'
 import { AvatarPickerModal } from './AvatarPickerModal'
+import { GoogleTab } from './GoogleTab'
+import { RosterSheetsModal } from './RosterSheetsModal'
 import { AttendanceHistoryModal } from './AttendanceHistoryModal'
 import { ClassAvatarsModal } from './ClassAvatarsModal'
 import { ConfirmModal } from './ConfirmModal'
@@ -64,6 +75,9 @@ interface ClassSettingsModalProps {
   onSetTheme: (theme: Theme) => void
   /** Which tab it opens on. A class just made from the splash needs its name first, so the Class tab. */
   initialTab?: SettingsTab
+  /** Signing in, for the Google tab and the Google Sheets import. */
+  cloud: ReturnType<typeof useCloudSync>
+  onSwitchTeacher: () => void
 }
 
 const genderOptions: { value: Gender; label: string }[] = [
@@ -93,17 +107,19 @@ function GenderSelect({ value, onChange, className }: { value: Gender; onChange:
   )
 }
 
-export type SettingsTab = 'students' | 'class'
+export type SettingsTab = 'students' | 'class' | 'google'
 
-const SETTINGS_TABS: { id: SettingsTab; label: string; icon: typeof Users }[] = [
+const SETTINGS_TABS: { id: SettingsTab; label: string; icon: ComponentType<{ size?: number; className?: string }> }[] = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'class', label: 'Class', icon: School },
+  { id: 'google', label: 'Google', icon: GoogleG },
 ]
 
 /**
- * Two tabs, so each half of this window is about one thing: the students (the roster, their
- * seats, today's attendance) or the class as a whole (its look, and making or deleting it).
- * It was one page, and the roster - the part used most - got a row and a half of it.
+ * Each tab is about one thing: the students (the roster, their seats, today's attendance), the
+ * class as a whole (its look, and making or deleting it), or Google (the account, the seating
+ * chart as a picture, the Drive folder). It was one page, and the roster - the part used most -
+ * got a row and a half of it.
  */
 function SettingsTabs({ tab, onChange }: { tab: SettingsTab; onChange: (tab: SettingsTab) => void }) {
   return (
@@ -161,6 +177,8 @@ export function ClassSettingsModal({
   theme,
   onSetTheme,
   initialTab = 'students',
+  cloud,
+  onSwitchTeacher,
 }: ClassSettingsModalProps) {
   const [name, setName] = useState(activeClass.name)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -179,6 +197,11 @@ export function ClassSettingsModal({
   const [guardOpen, setGuardOpen] = useState(false)
   const [tab, setTab] = useState<SettingsTab>(initialTab)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [sheetsOpen, setSheetsOpen] = useState(false)
+  const [sheets, setSheets] = useState<DriveFile[] | null>(null)
+  const [imported, setImported] = useState<string | null>(null)
+  const drive = useDrive(cloud.account?.uid)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
 
@@ -209,14 +232,59 @@ export function ClassSettingsModal({
    * second time - after fixing a line in it, say - adds only who is new rather than doubling
    * the class.
    */
+  function addNew(students: Omit<Student, 'id'>[]): number {
+    const key = (s: { name: string; homeroom: string }) => `${s.name.trim().toLowerCase()}|${s.homeroom.trim()}`
+    const known = new Set(activeClass.students.map(key))
+    const fresh = students.filter((s) => !known.has(key(s)) && known.add(key(s)))
+    if (fresh.length > 0) onAddStudents(fresh)
+    return fresh.length
+  }
+
   async function handleFiles(files: FileList | null) {
     const file = files?.[0]
     if (!file) return
-    const text = await file.text()
-    const key = (s: { name: string; homeroom: string }) => `${s.name.trim().toLowerCase()}|${s.homeroom.trim()}`
-    const known = new Set(activeClass.students.map(key))
-    const fresh = parseRosterCsv(text).filter((s) => !known.has(key(s)) && known.add(key(s)))
-    if (fresh.length > 0) onAddStudents(fresh)
+    addNew(parseRosterCsv(await file.text()))
+  }
+
+  // Each of these starts Drive straight from the tap: the first time in an hour it opens
+  // Google's window, which a browser only allows right after one.
+  function openRosterSheets(make: boolean) {
+    setImportOpen(false)
+    setImported(null)
+    setSheetsOpen(true)
+    if (make) makeSheet()
+    else {
+      setSheets(null)
+      void drive.run('list', rosterSheets).then((found) => found && setSheets(found))
+    }
+  }
+
+  function makeSheet() {
+    void drive
+      .run('make', (token) => makeRosterSheet(token, activeClass.name))
+      .then((made) => made && setSheets((list) => [made, ...(list ?? []).filter((s) => s.id !== made.id)]))
+  }
+
+  function importSheet(sheet: DriveFile) {
+    setImported(null)
+    void drive
+      .run('read', (token) => readSheet(token, sheet.id))
+      .then((rows) => {
+        if (!rows) return
+        const students = rosterFromRows(rows)
+        const added = addNew(students)
+        setImported(
+          students.length === 0
+            ? 'This sheet has no students yet. Fill it in first.'
+            : added === 0
+              ? 'Everyone on this sheet is already in the class.'
+              : `Added ${added} ${added === 1 ? 'student' : 'students'}.${
+                  students.length > added
+                    ? ` ${students.length - added} ${students.length - added === 1 ? 'was' : 'were'} already in the class.`
+                    : ''
+                }`,
+        )
+      })
   }
 
   function submitManualAdd() {
@@ -263,7 +331,8 @@ export function ClassSettingsModal({
           !confirmingDeleteStudent &&
           !pickingAvatarFor &&
           !assigningAvatars &&
-          !attendanceOpen
+          !attendanceOpen &&
+          !sheetsOpen
         }
         onClose={closeAndReset}
         title="Class Settings"
@@ -319,13 +388,55 @@ export function ClassSettingsModal({
                     </span>
                   )}
                   <div className="ml-auto flex gap-1.5">
-                    <TactileButton
-                      onClick={() => fileInputRef.current?.click()}
-                      className="!py-1.5"
-                      title="Add students from a CSV file with Name, Homeroom Number and Gender columns"
-                    >
-                      <Upload size={16} /> Import CSV
-                    </TactileButton>
+                    {/* Signed in, Import is a short menu with Google Sheets in it; signed out it
+                        is the CSV import it always was. */}
+                    {cloud.account ? (
+                      <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
+                        <Popover.Trigger asChild>
+                          <TactileButton className="!py-1.5">
+                            <Upload size={16} /> Import <ChevronDown size={14} />
+                          </TactileButton>
+                        </Popover.Trigger>
+                        <Popover.Portal>
+                          <Popover.Content
+                            align="end"
+                            sideOffset={6}
+                            className="z-50 flex w-80 flex-col gap-0.5 rounded-2xl border border-black/5 bg-card p-1.5 text-card-foreground shadow-xl dark:border-white/10"
+                          >
+                            <ImportChoice
+                              icon={<GoogleG size={20} />}
+                              title="From a Google Sheet"
+                              note="A roster sheet in your Drive"
+                              onClick={() => openRosterSheets(false)}
+                            />
+                            <ImportChoice
+                              icon={<FileUp size={20} className="text-muted-foreground" />}
+                              title="From a CSV file"
+                              note="From this computer"
+                              onClick={() => {
+                                setImportOpen(false)
+                                fileInputRef.current?.click()
+                              }}
+                            />
+                            <div className="mx-2 my-1 h-px bg-black/10 dark:bg-white/10" />
+                            <ImportChoice
+                              icon={<FilePlus2 size={20} className="text-emerald-600" />}
+                              title="Make a roster sheet"
+                              note="A ready-made Sheet to fill in, then import"
+                              onClick={() => openRosterSheets(true)}
+                            />
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover.Root>
+                    ) : (
+                      <TactileButton
+                        onClick={() => fileInputRef.current?.click()}
+                        className="!py-1.5"
+                        title="Add students from a CSV file with Name, Homeroom Number and Gender columns"
+                      >
+                        <Upload size={16} /> Import CSV
+                      </TactileButton>
+                    )}
                     {/* The record, not the register: attendance is taken on the seating chart,
                         with the side panel's button. This is for looking back, fixing a day, or
                         marking someone away ahead of time. */}
@@ -348,7 +459,7 @@ export function ClassSettingsModal({
                 <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
                   {activeClass.students.length === 0 ? (
                     <p className="p-4 text-center text-muted-foreground">
-                      No students yet. Add them above, or tap Import CSV
+                      No students yet. Add them above, or tap {cloud.account ? 'Import' : 'Import CSV'}
                       <br />
                       (a file with Name, Homeroom Number and Gender columns).
                     </p>
@@ -421,7 +532,7 @@ export function ClassSettingsModal({
                 </TactileButton>
               </section>
             </>
-          ) : (
+          ) : tab === 'class' ? (
             <>
               {/* Making and removing classes, together at the top. Delete stays behind its cover,
                   and the row leaves room for the cover's note. */}
@@ -481,6 +592,8 @@ export function ClassSettingsModal({
                 <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
               </section>
             </>
+          ) : (
+            <GoogleTab activeClass={activeClass} cloud={cloud} onSwitchTeacher={onSwitchTeacher} />
           )}
         </div>
       </Modal>
@@ -546,6 +659,17 @@ export function ClassSettingsModal({
         onClose={() => setAttendanceOpen(false)}
         activeClass={activeClass}
         onToggleAbsent={onToggleAbsentInRecord}
+        uid={cloud.account?.uid}
+      />
+
+      <RosterSheetsModal
+        open={sheetsOpen}
+        onClose={() => setSheetsOpen(false)}
+        drive={drive}
+        sheets={sheets}
+        onMakeSheet={makeSheet}
+        onImportSheet={importSheet}
+        imported={imported}
       />
 
       <ClassAvatarsModal
@@ -565,6 +689,23 @@ export function ClassSettingsModal({
         }}
       />
     </>
+  )
+}
+
+/** One line of the Import menu: a big target, with what it does under the title. */
+function ImportChoice({ icon, title, note, onClick }: { icon: ReactNode; title: string; note: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-start gap-3 rounded-xl p-2.5 text-left hover:bg-accent active:scale-[0.99]"
+    >
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span>
+        <span className="block font-bold text-foreground">{title}</span>
+        <span className="block text-sm text-muted-foreground">{note}</span>
+      </span>
+    </button>
   )
 }
 

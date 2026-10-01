@@ -836,6 +836,8 @@ export default function App() {
           setTheme(next)
           chooseTheme(next)
         }}
+        cloud={cloud}
+        onSwitchTeacher={openSwitchTeacher}
       />
 
       {floatWin && goalLive && (

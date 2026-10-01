@@ -55,14 +55,21 @@ function csvCell(value: string): string {
 
 /**
  * The whole record as a spreadsheet: one row per student, one column per day with something on
- * record, an A where they were away, and their total at the end.
+ * record, an A where they were away, and their total at the end. The CSV export and the
+ * attendance Sheet in Google Drive both hold exactly this.
  */
-export function attendanceToCsv(cls: ClassData): string {
+export function attendanceRows(cls: ClassData): string[][] {
   const dates = attendanceDates(cls)
   const header = ['Homeroom', 'Name', ...dates, 'Days absent']
   const rows = cls.students.map((s) => {
     const marks = dates.map((d) => (cls.attendance?.[d]?.includes(s.id) ? 'A' : ''))
     return [s.homeroom, s.name, ...marks, String(marks.filter(Boolean).length)]
   })
-  return [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\n')
+  return [header, ...rows]
+}
+
+export function attendanceToCsv(cls: ClassData): string {
+  return attendanceRows(cls)
+    .map((row) => row.map(csvCell).join(','))
+    .join('\n')
 }
