@@ -16,6 +16,7 @@ import {
   indexedDBLocalPersistence,
   initializeAuth,
   onAuthStateChanged,
+  reauthenticateWithPopup,
   signInWithCredential,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -104,6 +105,42 @@ export async function signIn(): Promise<Account> {
   provider.setCustomParameters({ prompt: 'select_account' })
   const result = await signInWithPopup(auth, provider)
   return toAccount(result.user)
+}
+
+const DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file'
+let drivePass: { token: string; until: number } | null = null
+
+/**
+ * A pass into the teacher's Google Drive that reaches only the files this app makes there
+ * (Google's drive.file permission, which needs no review by Google and no school IT). Google
+ * gives one for an hour. Asking opens Google's window for the same account; the first time it
+ * asks the teacher to allow Drive, and after that it closes again by itself. Called straight
+ * from a tap, because a browser only lets a page open a window then.
+ */
+export async function driveToken(): Promise<string> {
+  if (drivePass && drivePass.until > Date.now()) return drivePass.token
+  const user = connect().auth.currentUser
+  if (!user) throw Object.assign(new Error('Not signed in'), { code: 'auth/no-current-user' })
+  if (import.meta.env.VITE_FIREBASE_EMULATOR) {
+    // Tests hand over a pass (or the error they want) and a stand-in for Google answers it.
+    const test = (window as { __testGoogle?: { driveToken?: string; driveError?: string } }).__testGoogle
+    if (test?.driveError) throw Object.assign(new Error(test.driveError), { code: test.driveError })
+    if (test?.driveToken) return test.driveToken
+  }
+  const provider = new GoogleAuthProvider()
+  provider.addScope(DRIVE_FILE)
+  if (user.email) provider.setCustomParameters({ login_hint: user.email })
+  const result = await reauthenticateWithPopup(user, provider)
+  const token = GoogleAuthProvider.credentialFromResult(result)?.accessToken
+  if (!token) throw Object.assign(new Error('No Drive pass'), { code: 'drive/no-token' })
+  // A little under the hour, so a pass never runs out halfway through a save.
+  drivePass = { token, until: Date.now() + 50 * 60_000 }
+  return token
+}
+
+/** Google turned the pass down (it ran out, or the teacher didn't allow Drive): ask again next time. */
+export function forgetDriveToken() {
+  drivePass = null
 }
 
 /** Who Firebase has signed in on this browser, once it has checked. */

@@ -8,9 +8,9 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTit
 import { Button } from '@/components/ui/button'
 
 /** Google's G, in its own colours, as Google asks its sign-in buttons to show it. */
-export function GoogleG({ size = 20 }: { size?: number }) {
+export function GoogleG({ size = 20, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" className="shrink-0" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 48 48" className={clsx('shrink-0', className)} aria-hidden>
       <path
         fill="#FFC107"
         d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"
@@ -183,6 +183,17 @@ const MARKS: Record<SyncStatus, { Icon: typeof Cloud; label: string; className: 
     className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
   },
   error: { Icon: CloudAlert, label: 'Not saving', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300' },
+}
+
+/** The same mark, only to read: in Class Settings' Google tab, beside the account. */
+export function SyncBadge({ status, needsSignIn }: { status: SyncStatus; needsSignIn: boolean }) {
+  const mark = MARKS[needsSignIn ? 'error' : status]
+  return (
+    <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold', mark.className)}>
+      <mark.Icon size={14} />
+      {mark.label}
+    </span>
+  )
 }
 
 function statusSentence(status: SyncStatus, needsSignIn: boolean): string {

@@ -34,6 +34,12 @@ service cloud.firestore {
 }
 ```
 
+Saving to Google Drive and Sheets (the seating chart picture, roster sheets,
+attendance) also needs the **Google Drive API** and **Google Sheets API** enabled
+in the same project's Google Cloud console, and the `drive.file` scope listed on
+its consent screen. That scope only reaches files the app makes, so Google
+doesn't need to review the app for it.
+
 A build made with `VITE_FIREBASE_EMULATOR=1` talks to Firebase's local
 emulators (auth on port 9099, Firestore on 8080) instead, for testing.
 

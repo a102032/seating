@@ -67,6 +67,11 @@ checks the live URL. Confirm it went green before saying something is live.
   `lib/firebase.ts` is Firebase itself, loaded only when needed; `lib/cloud.ts` loads it and keeps the account record,
   the put-aside board classes and the sign-in error words. `components/Account.tsx`: the Saved mark, Switch teacher
   and the question. `firestore.rules` is a copy of the rules in the Firebase console.
+- Google Drive and Sheets: `lib/drive.ts` (the folder, the roster sheet, reading a sheet, the attendance Sheet, the
+  picture upload, error words), `hooks/useDrive.ts` (one action at a time, with its link or its problem),
+  `lib/chartPicture.ts` (the seating chart picture, drawn on a canvas from the class's plan),
+  `components/GoogleTab.tsx` (Class Settings' third tab) and `components/RosterSheetsModal.tsx`. Only Google's
+  drive.file permission; every Drive action starts from a tap, because Google's window may need to open.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks. `useGroupPicker.ts`: the same during Group Activity.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
   cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
@@ -111,6 +116,8 @@ root with `npx -y firebase-tools@15 emulators:start --only auth,firestore --proj
 talks to them (`VITE_FIREBASE_EMULATOR=1 npx vite build --outDir /tmp/dist-emu`, served with `npx vite preview --port
 4174 --outDir /tmp/dist-emu`), then `URL=http://localhost:4174/seating/ node scripts/sync-check.mjs`. Google's sign-in
 window can't load in the sandbox, so that copy signs in as whatever account a test names (`window.__testGoogle`).
-The proxy blocks the real project's addresses, so nothing here can reach it.
+The proxy blocks the real project's addresses, so nothing here can reach it. `scripts/drive-check.mjs` runs the same
+way and checks Drive and Sheets against a stand-in for Google built into the script (that copy hands over a pass with
+`window.__testGoogle.driveToken`).
 
 @DECISIONS.md

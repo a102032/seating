@@ -7,6 +7,10 @@ import { AbsentIcon } from './AbsentIcon'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
+import { useDrive } from '../hooks/useDrive'
+import { updateAttendanceSheet } from '../lib/drive'
+import { GoogleG } from './Account'
+import { DriveLink, DriveProblem } from './GoogleTab'
 
 interface AttendanceHistoryModalProps {
   open: boolean
@@ -14,6 +18,8 @@ interface AttendanceHistoryModalProps {
   activeClass: ClassData
   /** Mark a student away on a day, or bring them back - past, today or ahead. */
   onToggleAbsent: (studentId: string, day: string) => void
+  /** The signed-in teacher, whose Drive the record can go to. */
+  uid?: string
 }
 
 /** "2026-09" from "2026-09-27". */
@@ -51,7 +57,8 @@ const REPEAT_TAP_MS = 700
  * day that was missed or is still ahead needs somewhere to tap. Days that were taken read
  * at full strength; the rest are quieter. Editing here never counts as taking attendance.
  */
-export function AttendanceHistoryModal({ open, onClose, activeClass, onToggleAbsent }: AttendanceHistoryModalProps) {
+export function AttendanceHistoryModal({ open, onClose, activeClass, onToggleAbsent, uid }: AttendanceHistoryModalProps) {
+  const drive = useDrive(uid)
   const today = dateKey()
   const thisMonth = today.slice(0, 7)
   const dates = useMemo(() => attendanceDates(activeClass), [activeClass])
@@ -110,10 +117,30 @@ export function AttendanceHistoryModal({ open, onClose, activeClass, onToggleAbs
               <ChevronRight size={18} />
             </TactileButton>
           </div>
-          <p className="hidden text-sm text-muted-foreground md:block">Tap a square to mark who is away.</p>
-          <TactileButton onClick={downloadCsv} disabled={dates.length === 0} title="Download every day's attendance as a CSV file">
-            <Download size={16} /> Export
-          </TactileButton>
+          {/* After a Drive update, the note where the hint was links to the Sheet. */}
+          {drive.problem ? (
+            <DriveProblem text={drive.problem.text} />
+          ) : drive.done ? (
+            <DriveLink file={drive.done.file} />
+          ) : (
+            <p className="hidden text-sm text-muted-foreground md:block">Tap a square to mark who is away.</p>
+          )}
+          <div className="flex gap-1.5">
+            {/* One Sheet per class in the teacher's Drive folder, brought up to date in place
+                rather than a new file every time. The CSV stays, for anyone not signed in. */}
+            {uid && (
+              <TactileButton
+                onClick={() => void drive.run('attendance', (token) => updateAttendanceSheet(token, activeClass))}
+                disabled={dates.length === 0 || drive.busy !== null}
+                title="Bring this class's attendance Sheet in Google Drive up to date"
+              >
+                <GoogleG size={16} /> {drive.busy ? 'Updating…' : 'Update in Drive'}
+              </TactileButton>
+            )}
+            <TactileButton onClick={downloadCsv} disabled={dates.length === 0} title="Download every day's attendance as a CSV file">
+              <Download size={16} /> Export
+            </TactileButton>
+          </div>
         </div>
 
         {activeClass.students.length === 0 ? (
