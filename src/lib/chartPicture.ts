@@ -1,11 +1,10 @@
 import type { ClassData, Student } from '../types'
 import { dateKey } from './attendance'
 import { planFor, type Gap } from './layouts'
-import { resolveAvatarSrc } from './stickers'
 
 /**
  * The seating chart as a picture: the room as it's laid out today, for a substitute or the
- * classroom door. Names, homeroom numbers and avatars, the class name and the date - and none of
+ * classroom door. Names and homeroom numbers, the class name and the date - and none of
  * the app's buttons. Settled with the teacher: no stars (it's not a scoreboard) and nothing to say
  * which end is the front of the room, which a teacher writes on and the app stays out of.
  *
@@ -27,15 +26,6 @@ const NAME = '#4a4468'
 const LINE = '#cdc6e6'
 const EMPTY_LINE = '#e1dcef'
 const FACE = 'Andika, ui-sans-serif, system-ui, sans-serif'
-
-function loadImage(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => resolve(null)
-    img.src = src
-  })
-}
 
 /** The title can't run into the date, so a long class name shrinks to fit. */
 function fitFont(ctx: CanvasRenderingContext2D, text: string, weight: number, size: number, maxWidth: number): number {
@@ -68,12 +58,6 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
     const id = cls.seating[i]
     return (id && byId.get(id)) || null
   })
-  const images = new Map<string, HTMLImageElement | null>()
-  await Promise.all(
-    seated.map(async (s) => {
-      if (s) images.set(s.id, await loadImage(resolveAvatarSrc(s)))
-    }),
-  )
 
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH
@@ -167,17 +151,10 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
       ctx.fillText(student.homeroom, x + pad * 0.8, y + homeroomSize * 1.15)
     }
 
-    const nameBand = nameSize * 1.3
-    const img = images.get(student.id)
-    if (img) {
-      const room = Math.min(deskW * 0.72, deskH - nameBand - deskH * 0.1)
-      ctx.drawImage(img, x + (deskW - room) / 2, y + deskH * 0.07, room, room)
-    }
-
     ctx.font = `700 ${nameSize}px ${FACE}`
     ctx.fillStyle = NAME
     ctx.textAlign = 'center'
-    ctx.fillText(student.name, x + deskW / 2, y + deskH - nameSize * 0.32, deskW - 2 * pad)
+    ctx.fillText(student.name, x + deskW / 2, y + deskH / 2 + nameSize * 0.35, deskW - 2 * pad)
   })
   ctx.textAlign = 'left'
   return canvas
