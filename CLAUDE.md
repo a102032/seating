@@ -22,10 +22,13 @@ that were built and deliberately taken out. It is imported at the bottom of this
 
 ## Hard rules
 
-- **The app never scrolls.** Not the board, not the side panel, not a screen that slides over the board. Content
-  inside a modal may scroll; a modal itself must fit. Check new UI at 1024x640, 1280x800 and 1920x1080.
-  (Known exceptions, both accepted: 1024x640 with the dial timer's controls open is about 38px short in the side panel;
-  the flip clock fits, except with students selected too, when it's 16px short.)
+- **The app never scrolls, and fits any screen from 1024x500 up with no browser or Windows settings changed.** Not the
+  board, not the side panel, not a screen that slides over the board. Content inside a modal may scroll; a modal itself
+  must fit. It will run on many boards and laptops, and a teacher must never have to change a setting to make it fit:
+  the teacher's own 4K board at 300% gives Chrome 1280x559. Check new UI at 1024x640, 1280x800, 1920x1080 and the real
+  screens in `SCROLL_SIZES` (`scripts/walkthrough.mjs`), down to 1024x500. Nothing opens by pushing the side panel down
+  (the class list and the timer controls open over it), and the panel tightens itself to its height
+  (`hooks/useFitToHeight.ts`) - anything new on it must fit by the same means.
 - **Smooth on the board.** Classroom boards are often 4K panels with weak processors, and the app was choppy on the teacher's (see "Smooth on the
   board" in DECISIONS). No backdrop blur. Anything that moves many elements, or keeps moving, is CSS or
   `element.animate`, not framer-motion. No framer `layout`/`layoutId` on anything that is always on screen: framer then

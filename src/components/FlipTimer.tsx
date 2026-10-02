@@ -75,11 +75,12 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
   )
 
   return (
-    <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-border bg-clock p-3 shadow-lg">
+    // relative, so the controls can open over the panel below it rather than push it down.
+    <div className="relative z-20 flex w-full flex-col items-center gap-2 rounded-2xl border border-border bg-clock p-[var(--panel-pad,0.75rem)] shadow-lg">
       {dial ? (
         // The dial is the point - it's what the children read - so it takes most of the row and
         // the time sits small beside it for the teacher, centred top to bottom. Capped by the
-        // screen's height so a short screen's panel still fits with the controls open.
+        // screen's height, and by the side panel's fitting (--dial-cap) on a short screen.
         <div {...faceProps} className={clsx(faceClass, 'gap-2.5')}>
           <TimerDial
             configuredSeconds={configuredSeconds}
@@ -87,7 +88,7 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
             endsAt={endsAt}
             timesUp={timesUp}
             className="shrink-0 drop-shadow-md"
-            style={{ width: 'min(62%, 15.5vh)' }}
+            style={{ width: 'min(62%, var(--dial-cap, 15.5vh))' }}
           />
           <div className="min-w-0 flex-1" style={{ containerType: 'inline-size' }}>
             <div
@@ -112,12 +113,16 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
 
       <AnimatePresence initial={false}>
         {menuOpen && (
+          // The controls drop down over the panel below, in the timer's own colour, rather than
+          // pushing it down: on a board that gives the app 1280x559 they pushed Group Activity
+          // and +/- off the bottom. They are only open while the time is being set, and a tap
+          // on the timer shuts them, as before.
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="flex w-full flex-col items-center gap-2 overflow-hidden"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="absolute inset-x-0 top-full z-30 -mt-3 flex flex-col items-center gap-2 rounded-b-2xl border border-t-0 border-border bg-clock px-3 pb-2.5 pt-2 shadow-xl"
           >
             <div className="flex items-center gap-4 pt-1">
               <div className="flex flex-col items-center gap-1">

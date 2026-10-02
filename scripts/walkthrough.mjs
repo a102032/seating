@@ -36,6 +36,13 @@ const SIZES = [
   [1280, 800],
   [1920, 1080],
 ]
+/**
+ * Where "nothing scrolls" is checked: the three above, plus the room Chrome actually leaves a
+ * page on real screens once Windows' scaling, Chrome's tabs and bookmarks bar and the taskbar
+ * are taken off - 1280x559 is the teacher's 4K board at 300%. 1024x500 is the floor: the app
+ * fits anything that size or bigger with no browser or Windows settings changed.
+ */
+const SCROLL_SIZES = [...SIZES, [1024, 500], [1280, 559], [1366, 620], [1536, 700], [1920, 940], [2560, 1300]]
 const NAMES =
   'Amy Tony Kevin Mulan Brian Cindy Daniel Emma Grace Henry Ivy Jack Leo Sophia Andy Bella Chris Doris Eric Fiona Gary Hannah Ian Judy Kelly Louis Mandy Nick Olivia Peter Queenie Ray Sandy Tina Vicky'.split(
     ' ',
@@ -662,21 +669,19 @@ const scenarios = {
     return page
   },
 
-  /** The rule: nothing scrolls, in any theme, at any of the three sizes. */
+  /** The rule: nothing scrolls, in any theme, at any screen from 1024x500 up. */
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
-      for (const size of SIZES) {
+      for (const size of SCROLL_SIZES) {
         const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20 })
         const page = await open({ state: stateOf(cls, makeClass('c2', 'Kindergarten Phonics', 3)), theme, size })
         const where = `${theme} ${size.join('x')}`
         const bad = []
         const look = async (label) => {
           const o = await overflow(page)
-          // The accepted exception (CLAUDE.md): at 1024x640 the open timer controls plus a
-          // selected student leave the panel 16px short, 18 in Comic Book.
-          const known = label === 'flip clock controls' && size[1] === 640 && o.panel <= 18 && !o.page && !o.pageX && !o.dialog
-          if (known) console.log(`KNOWN ${where}: ${label} ${o.panel}px short`)
-          else if (o.page > 0 || o.pageX > 0 || o.panel > 0 || o.dialog > 0) {
+          // The timer controls and the class list open over the panel now, so there is no
+          // accepted exception left: the panel fits itself to the screen (useFitToHeight).
+          if (o.page > 0 || o.pageX > 0 || o.panel > 0 || o.dialog > 0) {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }
@@ -686,10 +691,15 @@ const scenarios = {
         await look('one selected')
         await page.locator('aside [aria-label="Timer controls"]').click()
         await page.waitForTimeout(400)
-        await look('flip clock controls')
+        await look('timer controls')
         await page.waitForTimeout(800) // past the timer's double-touch guard
         await page.locator('aside [aria-label="Timer controls"]').click({ position: { x: 10, y: 10 } })
         await page.waitForTimeout(700)
+        await page.locator('aside button[title="Switch class"]').click()
+        await page.waitForTimeout(400)
+        await look('class list')
+        await page.mouse.click(size[0] / 2, size[1] / 2)
+        await page.waitForTimeout(400)
         await panelButton(page, 'Flip Cards').click()
         await page.waitForTimeout(2500)
         await look('flip cards')

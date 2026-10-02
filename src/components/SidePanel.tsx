@@ -15,7 +15,8 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useFitToHeight } from '../hooks/useFitToHeight'
 import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData, TimerSettings } from '../types'
 import type { useCloudSync } from '../hooks/useCloudSync'
@@ -80,6 +81,28 @@ interface SidePanelProps {
   onToggleGroupActivity: () => void
 }
 
+/**
+ * The panel's spacing at each step of fitting itself to a short screen (useFitToHeight): the
+ * gaps go first, then the buttons' padding, then the dial. Names and button text never shrink
+ * here. Step 0 is the panel as it always was, so a screen it fitted is drawn exactly as before.
+ */
+const FIT_STEPS: CSSProperties[] = [
+  {},
+  { '--panel-gap': '0.5rem', '--panel-pad': '0.625rem', '--btn-py': '0.5rem' },
+  { '--panel-gap': '0.4rem', '--panel-pad': '0.5rem', '--btn-py': '0.375rem', '--panel-inner-gap': '0.3rem', '--dial-cap': '13.5vh' },
+  {
+    '--panel-gap': '0.3rem',
+    '--panel-pad': '0.5rem',
+    '--btn-py': '0.25rem',
+    '--panel-inner-gap': '0.25rem',
+    '--dial-cap': '12vh',
+    '--points-row': 'clamp(32px, 7vh - 12px, 76px)',
+  },
+] as CSSProperties[]
+
+/** A panel button's padding top and bottom, which a short screen's panel takes in. */
+const FIT_PY = '!py-[var(--btn-py,0.625rem)]'
+
 export function SidePanel({
   classes,
   activeClassId,
@@ -135,6 +158,12 @@ export function SidePanel({
   // that still doesn't fit gives up a little size before it gives up letters.
   const classNameRef = useShrinkToFit<HTMLSpanElement>(activeClass?.name, 0.75)
 
+  // Fits itself to the screen's height rather than to a list of screens: anything that adds a
+  // line to the panel starts the fitting again.
+  const asideRef = useRef<HTMLElement>(null)
+  const fitKey = [flipDeckOpen, pointsSelectedCount > 0, Boolean(cloud.account), saveError, classes.length > 1, timerSettings.face].join()
+  const fit = useFitToHeight(asideRef, FIT_STEPS.length - 1, fitKey)
+
   useEffect(() => {
     if (deskMode) setListOpen(false)
   }, [deskMode])
@@ -149,19 +178,23 @@ export function SidePanel({
 
   return (
     <aside
+      ref={asideRef}
       data-ink="panel"
+      data-fit={fit}
+      style={FIT_STEPS[fit]}
       className={clsx(
         // The panel grows with the screen once its text does. Its buttons and labels are sized
         // in vmin, so on a tall screen they grew while the panel stayed 16rem - at 1920x1080 the
         // class name was cut and Swap Seats ran out past the edge. 30vmin keeps the two in
         // step: 16rem until about 850px tall, which is where the text starts growing, and
         // 21rem where the text stops. A board 800px tall or less is exactly as it was.
-        'flex h-full w-56 shrink-0 flex-col gap-3 rounded-3xl border border-white/60 bg-card/70 p-3 shadow-xl shadow-black/5 sm:w-[clamp(16rem,30vmin,21rem)]',
+        'flex h-full w-56 shrink-0 flex-col gap-[var(--panel-gap,0.75rem)] rounded-3xl border border-white/60 bg-card/70 p-[var(--panel-pad,0.75rem)] shadow-xl shadow-black/5 sm:w-[clamp(16rem,30vmin,21rem)]',
         'dark:border-white/10 dark:shadow-black/20',
       )}
     >
-      <div className="shrink-0">
-        <div className="flex items-center gap-1">
+      {/* relative and above the panel, so the class list can open over what is below. */}
+      <div className="relative z-30 shrink-0">
+        <div className="relative z-30 flex items-center gap-1">
           <span
             ref={classNameRef}
             data-ink="class-name"
@@ -202,16 +235,31 @@ export function SidePanel({
           </button>
         </div>
 
+        {/*
+          The class list opens over the panel, like a menu, rather than pushing the timer and the
+          pickers down: on a board that gives the app 1280x559 it pushed Pick All and +/- off
+          the bottom. A tap anywhere else closes it.
+        */}
+        {listOpen && classes.length > 1 && (
+          <button
+            type="button"
+            aria-label="Close the class list"
+            className="fixed inset-0 z-20 cursor-default"
+            onClick={() => setListOpen(false)}
+          />
+        )}
         <AnimatePresence initial={false}>
           {listOpen && classes.length > 1 && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="overflow-hidden"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              data-ink="menu"
+              className="absolute inset-x-0 top-full z-30 mt-1.5 rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
             >
-              <div className="mt-1.5 flex flex-col gap-1 pt-1">
+              <div className="flex flex-col gap-1">
+                {' '}
                 {classes.map((cls) => (
                   <button
                     key={cls.id}
@@ -236,7 +284,7 @@ export function SidePanel({
 
       <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={deskMode} />
 
-      <div className="flex shrink-0 flex-col gap-1.5">
+      <div className="flex shrink-0 flex-col gap-[var(--panel-inner-gap,0.375rem)]">
         <div className="flex gap-1.5">
           {/*
             The two desk modes, side by side: each turns a desk tap into something else, and
@@ -249,7 +297,7 @@ export function SidePanel({
             active={attendanceMode}
             onClick={onToggleAttendance}
             disabled={swapMode || flipDeckOpen || groupActivityOpen || pickFlashing}
-            className="grow shrink basis-0 !px-2 justify-center"
+            className={clsx('grow shrink basis-0 !px-2 justify-center', FIT_PY)}
             title={attendanceTaken ? 'Attendance is done for today' : 'Take attendance'}
           >
             {attendanceTaken && !attendanceMode ? (
@@ -263,7 +311,7 @@ export function SidePanel({
             active={swapMode}
             onClick={onToggleSwap}
             disabled={groupActivityOpen || attendanceMode}
-            className="grow shrink basis-0 !px-2 justify-center"
+            className={clsx('grow shrink basis-0 !px-2 justify-center', FIT_PY)}
             title={groupActivityOpen ? 'Seats can\u2019t be swapped while the group cards are up' : undefined}
           >
             <Shuffle size={18} /> Swap Seats
@@ -282,7 +330,7 @@ export function SidePanel({
               <Settings size={15} />
             </button>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-[var(--panel-inner-gap,0.375rem)]">
             {/*
               The label says what the button will actually do. Picking a row quietly confines
               Pick Student to it, and the only thing that said so was a hover tooltip on the
@@ -297,7 +345,7 @@ export function SidePanel({
               active={studentPickActive}
               onClick={onPickStudent}
               disabled={deskMode || flipDeckOpen}
-              className="w-full justify-start"
+              className={clsx('w-full justify-start', FIT_PY)}
             >
               <User size={18} />{' '}
               {!groupMode && rowLockBinds ? (setName === 'table' ? 'Pick from This Table' : 'Pick from This Row') : 'Pick Student'}
@@ -308,7 +356,7 @@ export function SidePanel({
               active={groupMode ? rowPickActive : rowLocked || rowPickActive}
               onClick={onPickRow}
               disabled={deskMode || flipDeckOpen}
-              className="w-full justify-start"
+              className={clsx('w-full justify-start', FIT_PY)}
               title={
                 !groupMode && rowLockBinds ? `Picks are staying in this ${setName}. Tap any desk to go back to the whole class.` : undefined
               }
@@ -320,7 +368,7 @@ export function SidePanel({
               active={flipDeckOpen}
               onClick={onToggleFlipDeck}
               disabled={busy || pickFlashing}
-              className="w-full justify-start"
+              className={clsx('w-full justify-start', FIT_PY)}
             >
               <Layers size={18} /> Flip Cards
             </TactileButton>
@@ -328,7 +376,7 @@ export function SidePanel({
               active={groupActivityOpen}
               onClick={onToggleGroupActivity}
               disabled={deskMode || groupActivityLocked}
-              className="w-full justify-start"
+              className={clsx('w-full justify-start', FIT_PY)}
             >
               <UsersRound size={18} /> Group Activity
             </TactileButton>
@@ -345,7 +393,7 @@ export function SidePanel({
           {/* Taller as the screen gets taller. These are the buttons tapped all lesson, and
               they were the smallest on the panel while a third of it sat empty on a big board.
               A 640-tall screen keeps the 38px it had, so the panel still fits there. */}
-          <div className="mt-1.5 flex h-[clamp(38px,7vh_-_7px,76px)] items-stretch gap-1.5">
+          <div className="mt-1.5 flex h-[var(--points-row,clamp(38px,7vh_-_7px,76px))] items-stretch gap-1.5">
             <TactileButton
               active={allSeatedSelected}
               // On the flip cards +/- always mean "the student named below", never the room.
