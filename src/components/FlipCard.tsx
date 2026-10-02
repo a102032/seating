@@ -14,6 +14,8 @@ interface FlipCardProps {
   bonus?: BonusKind
   back: Gender
   faceUp: boolean
+  /** Show the student's stars on the face - see showDeskStars in types.ts. */
+  showStars: boolean
   /** Colour the back by gender so the class can be told "pick a blue card". */
   genderColors: boolean
   /** Their turn: the side panel's +/- go to this card. */
@@ -37,13 +39,16 @@ const NEUTRAL_BACK = 'from-violet-400 to-violet-600 text-violet-50'
 const BACK_PATTERN =
   'repeating-linear-gradient(45deg, rgba(255,255,255,0.14) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(0,0,0,0.08) 0 6px, transparent 6px 12px)'
 
-export function FlipCard({ id, student, bonus, back, faceUp, genderColors, active, dimmed, jackpotHit, onTap }: FlipCardProps) {
+export function FlipCard({ id, student, bonus, back, faceUp, showStars, genderColors, active, dimmed, jackpotHit, onTap }: FlipCardProps) {
   return (
     <button
       type="button"
       onClick={onTap}
       data-flip-card={id}
       data-bonus={bonus}
+      // Where a star flies from when this student gets a point (lib/starFlight). Face down,
+      // the class can't see whose card it is, so nothing flies from it.
+      data-star-from={student && faceUp ? student.id : undefined}
       data-state={active ? 'active' : dimmed ? 'dimmed' : faceUp ? 'up' : 'down'}
       // Lifts under a mouse, presses under a finger, fades once its turn is over - all CSS, so
       // the graphics chip runs it. These were framer props on every card, and every card turned
@@ -75,7 +80,7 @@ export function FlipCard({ id, student, bonus, back, faceUp, genderColors, activ
         {bonus ? (
           <BonusFace kind={bonus} faceUp={faceUp} />
         ) : (
-          student && <StudentFace student={student} active={active} jackpotHit={jackpotHit} />
+          student && <StudentFace student={student} active={active} showStars={showStars} jackpotHit={jackpotHit} />
         )}
       </div>
     </button>
@@ -87,10 +92,12 @@ const FACE_STYLE = { backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' 
 function StudentFace({
   student,
   active,
+  showStars,
   jackpotHit,
 }: {
   student: Student
   active: boolean
+  showStars: boolean
   jackpotHit?: { points: number; tick: number } | null
 }) {
   const avatarSrc = resolveAvatarSrc(student)
@@ -104,7 +111,7 @@ function StudentFace({
       )}
       style={FACE_STYLE}
     >
-      {points > 0 && (
+      {showStars && points > 0 && (
         <div
           // Keyed on the score so an award from the side panel pops the badge.
           key={points}

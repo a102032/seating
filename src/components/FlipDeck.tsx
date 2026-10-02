@@ -10,11 +10,13 @@ import { TactileButton } from './TactileButton'
 interface FlipDeckProps {
   deck: ReturnType<typeof useFlipDeck>
   studentsById: Map<string, Student>
+  /** Cards show their student's stars, as the desks do - see showDeskStars in types.ts. */
+  showStars: boolean
   onOpenSettings: () => void
   onExit: () => void
 }
 
-export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDeckProps) {
+export function FlipDeck({ deck, studentsById, showStars, onOpenSettings, onExit }: FlipDeckProps) {
   const { cards, columns, inPlay, studentsLeft, studentsDone, jackpot, jackpotHit, phase, settings, updateSettings } = deck
   const { shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
   const boardRef = useRef<HTMLDivElement>(null)
@@ -158,6 +160,7 @@ export function FlipDeck({ deck, studentsById, onOpenSettings, onExit }: FlipDec
                           back={card.back}
                           jackpotHit={jackpotHit?.studentId === card.studentId ? jackpotHit : null}
                           faceUp={card.faceUp}
+                          showStars={showStars}
                           genderColors={settings.genderColors}
                           active={card.studentId === activeId}
                           dimmed={card.faceUp && card.spent}

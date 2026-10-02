@@ -28,10 +28,25 @@ interface DeskProps {
   absent: boolean
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
+  /** Show the student's stars in the corner - see showDeskStars in types.ts. */
+  showStars: boolean
   onTap: (index: number) => void
 }
 
-export function Desk({ index, student, selected, pointsState, wiggleDelayMs, landedTick, wiggleLoop, highlight, absent, nameSize, onTap }: DeskProps) {
+export function Desk({
+  index,
+  student,
+  selected,
+  pointsState,
+  wiggleDelayMs,
+  landedTick,
+  wiggleLoop,
+  highlight,
+  absent,
+  nameSize,
+  showStars,
+  onTap,
+}: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
 
@@ -40,6 +55,8 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
       type="button"
       onClick={() => onTap(index)}
       data-ink={empty ? 'desk-empty' : 'desk'}
+      // Where a star flies from when this student gets a point (lib/starFlight).
+      data-star-from={student?.id}
       aria-label={empty ? 'Empty desk' : undefined}
       className={clsx(
         // Rounded at the top, square at the bottom, so the desks sit on the grid like objects on a shelf.
@@ -87,7 +104,7 @@ export function Desk({ index, student, selected, pointsState, wiggleDelayMs, lan
             {student.homeroom}
           </span>
 
-          {points > 0 && (
+          {showStars && points > 0 && (
             <div
               className="absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full border-[1.5px] border-card-foreground/25 px-[0.45em] py-[0.2em] font-bold leading-none text-card-foreground"
               style={{ fontSize: 'clamp(0.55rem, 7.5cqi, 1rem)' }}

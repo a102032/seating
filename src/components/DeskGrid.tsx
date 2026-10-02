@@ -29,10 +29,24 @@ interface DeskGridProps {
   deskHighlights: DeskHighlight[]
   /** Students marked absent today. */
   absentIds: Set<string>
+  /** Each desk shows its student's stars. Off by default: the board shows the jar instead. */
+  showStars: boolean
   onTapDesk: (index: number) => void
 }
 
-export function DeskGrid({ seating, plan, studentsById, selectedDesk, pointsSelection, landedTick, staggerWiggle, deskHighlights, absentIds, onTapDesk }: DeskGridProps) {
+export function DeskGrid({
+  seating,
+  plan,
+  studentsById,
+  selectedDesk,
+  pointsSelection,
+  landedTick,
+  staggerWiggle,
+  deskHighlights,
+  absentIds,
+  showStars,
+  onTapDesk,
+}: DeskGridProps) {
   const seated = seating.map((id) => (id ? studentsById.get(id) : undefined))
 
   // While a picker is flashing or showing its winner it owns the board's attention, so the
@@ -42,8 +56,7 @@ export function DeskGrid({ seating, plan, studentsById, selectedDesk, pointsSele
 
   // With every student selected nothing is left to dim, so those desks shiver instead.
   const seatedStudents = seated.filter((s): s is Student => s !== undefined)
-  const everyoneSelected =
-    showSelection && seatedStudents.length > 0 && seatedStudents.every((s) => pointsSelection.has(s.id))
+  const everyoneSelected = showSelection && seatedStudents.length > 0 && seatedStudents.every((s) => pointsSelection.has(s.id))
 
   // Names are measured in Andika. If it arrives after the desks are first drawn (a first
   // visit, a slow connection) they were sized in the stand-in face, a size too small, and
@@ -75,13 +88,7 @@ export function DeskGrid({ seating, plan, studentsById, selectedDesk, pointsSele
         pointsState={
           // Points can land on a picker's winner too, so the pop is decided before the
           // dimming is - the picker keeps the board, the desk still reacts.
-          inSelection && landedTick > 0
-            ? 'landed'
-            : !showSelection
-              ? 'none'
-              : inSelection
-                ? 'selected'
-                : 'muted'
+          inSelection && landedTick > 0 ? 'landed' : !showSelection ? 'none' : inSelection ? 'selected' : 'muted'
         }
         wiggleDelayMs={showSelection && inSelection && staggerWiggle ? position * 18 : 0}
         landedTick={landedTick}
@@ -89,6 +96,7 @@ export function DeskGrid({ seating, plan, studentsById, selectedDesk, pointsSele
         highlight={deskHighlights[index] ?? 'none'}
         absent={student !== undefined && absentIds.has(student.id)}
         nameSize={nameSize}
+        showStars={showStars}
         onTap={onTapDesk}
       />
     )

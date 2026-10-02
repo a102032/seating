@@ -85,6 +85,8 @@ checks the live URL. Confirm it went green before saying something is live.
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`). CSS animations only in there.
   - `AttendanceHistoryModal.tsx` (the record, opened from Class Settings) and `AbsentIcon.tsx` (the zzz).
   - `ui/`: shadcn primitives.
+- `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it
+  to land (`starsLandingIn`) before the coin moves.
 - `src/lib/`: `sound.ts` (every sound, synthesised with Web Audio), `groups.ts` (building and pruning groups),
   `bonusCards.ts`, `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV).
 - Absent students: `App.tsx` builds `presentSeating` (absent desks as empty) for everything that chooses students.

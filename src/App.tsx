@@ -22,6 +22,7 @@ import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
 import { playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
+import { flyStarsToGoal } from './lib/starFlight'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
@@ -75,6 +76,7 @@ export default function App() {
     adjustPoints,
     setGoalSettings,
     setGoalEnabled,
+    setShowDeskStars,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -246,10 +248,14 @@ export default function App() {
     genderOf: (id) => studentsById.get(id)?.gender ?? 'unspecified',
     // Bonus points land the way any award does, class meter included.
     onEveryone: () => {
-      if (activeClassId) adjustPoints(activeClassId, seatedIds, 1)
+      if (!activeClassId) return
+      if (goalLive) flyStarsToGoal(seatedIds)
+      adjustPoints(activeClassId, seatedIds, 1)
     },
     onJackpot: (id, points) => {
-      if (activeClassId) adjustPoints(activeClassId, [id], points)
+      if (!activeClassId) return
+      if (goalLive) flyStarsToGoal([id])
+      adjustPoints(activeClassId, [id], points)
     },
   })
 
@@ -489,6 +495,9 @@ export default function App() {
     if (!activeClassId || activeSelection.size === 0) return
     // No sound of a point going when there was nothing to take.
     if (delta < 0 && !canDeductPoint) return
+    // A point goes to everyone: a star flies from each desk into the jar, and the meter moves
+    // as it lands. Only while there is a jar on the board to fly to.
+    if (delta > 0 && goalLive) flyStarsToGoal(Array.from(activeSelection))
     adjustPoints(activeClassId, Array.from(activeSelection), delta)
     // Awards already sound: the coin ticks when the class meter moves. Taking a point away
     // never moves the meter by design, so without this the minus button was silent - the
@@ -660,6 +669,7 @@ export default function App() {
               staggerWiggle={staggerWiggle}
               deskHighlights={picker.deskHighlights}
               absentIds={absentIds}
+              showStars={activeClass.showDeskStars === true}
               onTapDesk={handleTapDesk}
             />
 
@@ -678,6 +688,7 @@ export default function App() {
                   <FlipDeck
                     deck={deck}
                     studentsById={studentsById}
+                    showStars={activeClass.showDeskStars === true}
                     onOpenSettings={() => setFlipSettingsOpen(true)}
                     onExit={() => {
                       setFlipDeckOpen(false)
@@ -797,6 +808,7 @@ export default function App() {
         activeClass={activeClass}
         onSaveGoal={(goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer)}
         onSetGoalEnabled={(enabled) => setGoalEnabled(activeClass.id, enabled)}
+        onSetShowDeskStars={(show) => setShowDeskStars(activeClass.id, show)}
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}

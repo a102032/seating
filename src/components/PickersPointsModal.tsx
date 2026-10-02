@@ -31,6 +31,7 @@ interface PickersPointsModalProps {
   activeClass: ClassData
   onSaveGoal: (goal: number, starsPerClassPoint: number) => void
   onSetGoalEnabled: (enabled: boolean) => void
+  onSetShowDeskStars: (show: boolean) => void
   onSetCelebrationGif: (gifId: string) => void
   onResetClassGoal: () => void
   onSetClassPoints: (points: number) => void
@@ -199,7 +200,8 @@ function Stepper({
     )
   }
 
-  const button = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
+  const button =
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
 
   return (
     <div className="shrink-0 sm:w-64">
@@ -259,6 +261,7 @@ export function PickersPointsModal({
   activeClass,
   onSaveGoal,
   onSetGoalEnabled,
+  onSetShowDeskStars,
   onSetCelebrationGif,
   onResetClassGoal,
   onSetClassPoints,
@@ -410,12 +413,7 @@ export function PickersPointsModal({
                 </div>
               </ScrollArea>
             )}
-            <TactileButton
-              variant="danger"
-              disabled={!canReset}
-              className="w-full justify-center"
-              onClick={() => setConfirmingReset(true)}
-            >
+            <TactileButton variant="danger" disabled={!canReset} className="w-full justify-center" onClick={() => setConfirmingReset(true)}>
               <RotateCcw size={16} /> Reset All Pick Counts
             </TactileButton>
           </section>
@@ -423,47 +421,59 @@ export function PickersPointsModal({
           <Separator className="lg:hidden" />
 
           <section className="flex min-w-0 flex-1 flex-col gap-2.5">
-            <ToggleRow
-              label="Class Goal"
-              onDescription="The goal meter shows at the top of the board."
-              offDescription="No meter on the board at all, and nothing for the class to ask about."
-              checked={goalOn}
-              onCheckedChange={toggleGoal}
-            />
-            {goalOn && (
-            <div className="flex flex-col gap-2.5">
-              <ChipRow
-                label="Stars for 1 class point"
-                hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
-                value={starsPer}
-                choices={STARS_PER_CHOICES}
-                onChange={changeStarsPer}
+            {/* Side by side, so the second switch costs the modal no height. */}
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <ToggleRow
+                label="Class Goal"
+                onDescription="The goal meter shows at the top of the board."
+                offDescription="No meter on the board at all, and nothing for the class to ask about."
+                checked={goalOn}
+                onCheckedChange={toggleGoal}
               />
-              {/* Side by side, so the second stepper costs the modal no height - it was
-                  sized to fit the screen without scrolling, and it should stay that way. */}
-              <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-4">
-                <Stepper
-                  id="goal"
-                  label="Class points to fill the goal"
-                  hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
-                  value={goal}
-                  min={1}
-                  max={999}
-                  onChange={changeGoal}
-                />
-                {/* The one place the meter can be corrected. A point that landed by mistake
-                    had no way back before this, short of resetting the whole run. */}
-                <Stepper
-                  id="class-points"
-                  label="Class points on the meter now"
-                  hint="Fix a point that landed by mistake. Never opens the chest."
-                  value={Math.min(goal, activeClass.classPoints ?? 0)}
-                  min={0}
-                  max={goal}
-                  onChange={onSetClassPoints}
-                />
-              </div>
+              {/* Off by default: the board shows the jar the class fills together, and nothing
+                  for children to compare. The stars are still counted, in the roster. */}
+              <ToggleRow
+                label="Show Stars on Desks"
+                onDescription="Each desk shows how many stars its student has."
+                offDescription="Stars are counted, but only you see them, in the roster."
+                checked={activeClass.showDeskStars === true}
+                onCheckedChange={onSetShowDeskStars}
+              />
             </div>
+            {goalOn && (
+              <div className="flex flex-col gap-2.5">
+                <ChipRow
+                  label="Stars for 1 class point"
+                  hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
+                  value={starsPer}
+                  choices={STARS_PER_CHOICES}
+                  onChange={changeStarsPer}
+                />
+                {/* Side by side, so the second stepper costs the modal no height - it was
+                  sized to fit the screen without scrolling, and it should stay that way. */}
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-4">
+                  <Stepper
+                    id="goal"
+                    label="Class points to fill the goal"
+                    hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
+                    value={goal}
+                    min={1}
+                    max={999}
+                    onChange={changeGoal}
+                  />
+                  {/* The one place the meter can be corrected. A point that landed by mistake
+                    had no way back before this, short of resetting the whole run. */}
+                  <Stepper
+                    id="class-points"
+                    label="Class points on the meter now"
+                    hint="Fix a point that landed by mistake. Never opens the chest."
+                    value={Math.min(goal, activeClass.classPoints ?? 0)}
+                    min={0}
+                    max={goal}
+                    onChange={onSetClassPoints}
+                  />
+                </div>
+              </div>
             )}
             {goalOn && (
               <div>

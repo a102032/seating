@@ -35,6 +35,14 @@ const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
 const TAP_GUARD_MS = 700
 
 /**
+ * +1 after +1 only needs to outlast the board's echo, which comes within a split second. At
+ * 0.7 s, quick taps gave a point on every other tap and looked broken; at 0.2 s four or five
+ * deliberate taps a second all count. If one tap ever gives two points on the board, 0.3 s.
+ * Every other tap keeps the long guard, because each changes what is under the finger.
+ */
+const REPEAT_ADD_GUARD_MS = 200
+
+/**
  * Shorter than this, the window is the one-row strip. Going by the window's own height means
  * the strip shows whether it was the shrink button or the teacher dragging an edge.
  */
@@ -97,13 +105,17 @@ export function FloatingGoal({
   const shown = waiting ? goal : classPoints
   const pct = goal > 0 ? Math.min(100, (shown / goal) * 100) : 0
 
-  function tap(action: () => void) {
+  /** Whether the last tap that counted was +1, so another +1 can follow it quickly. */
+  const lastWasAdd = useRef(false)
+
+  function tap(action: () => void, isAdd = false) {
     const now = Date.now()
-    if (now - lastTap.current < TAP_GUARD_MS) return
+    const guard = isAdd && lastWasAdd.current ? REPEAT_ADD_GUARD_MS : TAP_GUARD_MS
+    if (now - lastTap.current < guard) return
     lastTap.current = now
+    lastWasAdd.current = isAdd
     action()
   }
-
 
   function celebrate() {
     setAsked(true)
@@ -192,7 +204,7 @@ export function FloatingGoal({
       data-slot="button"
       // Just the point: the count pops and the coin sound plays. A "+1" also rose off this
       // button; it went with the one on the board's goal bar, as more than the moment needed.
-      onClick={() => tap(onAdd)}
+      onClick={() => tap(onAdd, true)}
       title="Add a point to the class goal"
       className={cn(
         buttonVariants({ variant: 'default' }),

@@ -86,6 +86,12 @@ export interface ClassData {
    */
   goalEnabled?: boolean
   /**
+   * Whether each desk (and flip card) shows its student's stars. Unset is off: the board shows
+   * the jar, which the whole class fills, and nothing for children to compare. The stars are
+   * still counted, and the roster shows them to the teacher.
+   */
+  showDeskStars?: boolean
+  /**
    * Which celebration plays when the goal is reached: a GIPHY id from lib/celebrationGifs,
    * or unset for the treasure chest. The chest is also the fallback whenever a chosen gif
    * hasn't loaded, so a bad network never leaves the moment blank.

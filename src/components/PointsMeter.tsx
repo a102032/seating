@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
+import { starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
 import { TactileButton } from './TactileButton'
 
@@ -86,10 +87,16 @@ export function PointsMeter({
   /** Cuts the fanfare short when the teacher closes the celebration. */
   const stopFanfare = useRef<(() => void) | null>(null)
 
+  /** Meter moves waiting for a star still in the air (lib/starFlight). */
+  const landings = useRef<ReturnType<typeof setTimeout>[]>([])
+  useEffect(() => () => landings.current.forEach(clearTimeout), [])
+
   useEffect(() => {
     const prev = prevRef.current
     prevRef.current = { classId, value: classPoints, reached: goalsReached }
     if (!prev || prev.classId !== classId) {
+      landings.current.forEach(clearTimeout)
+      landings.current = []
       stopFanfare.current?.()
       stopFanfare.current = null
       setDisplayPoints(classPoints)
@@ -97,6 +104,21 @@ export function PointsMeter({
       return
     }
 
+    // A point from a desk sends a star flying into the jar first: the coin moves, the sound
+    // plays and a filled goal opens as it lands, not while it is still on the desk. Decided
+    // when it lands, so a second point in the air sees the chest the first one opened.
+    const wait = classPoints > prev.value || goalsReached > prev.reached ? starsLandingIn() : 0
+    if (wait > 0) {
+      const timer = setTimeout(() => {
+        landings.current = landings.current.filter((t) => t !== timer)
+        land(prev)
+      }, wait)
+      landings.current.push(timer)
+    } else land(prev)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, classPoints, goal, goalsReached])
+
+  function land(prev: { value: number; reached: number }) {
     // The chest is already open, or waiting to be: the bar stays full until it shuts, and
     // what landed meanwhile is picked up then. A second party on top of the first would play
     // two fanfares at once.
@@ -134,7 +156,7 @@ export function PointsMeter({
       setDisplayPoints(classPoints)
       playCoinTick()
     }
-  }, [classId, classPoints, goal, goalsReached])
+  }
 
   // A goal filled from the floating window opens the moment the app is in front again - when
   // the teacher taps Celebrate there, or comes back to the app some other way.
@@ -248,7 +270,7 @@ export function PointsMeter({
           style={{ transform: `translateX(${pct}%)` }}
         >
           <div className="absolute left-0 top-1/2 h-0 w-0">
-          {/*
+            {/*
             The class, travelling. Centred on the anchor with plain offsets, so framer's rotate
             transform has nothing to fight over. max-w-none is load-bearing: the preflight's
             `img { max-width: 100% }` resolves against this anchor's zero-width content box and
@@ -258,10 +280,14 @@ export function PointsMeter({
               src={treasure('star-coin')}
               alt=""
               draggable={false}
-              className={clsx('absolute h-[26px] w-[26px] max-w-none select-none drop-shadow', open && 'animate-[spin_0.8s_linear_infinite]')}
+              // Where a student's star flies to (lib/starFlight).
+              data-goal-coin=""
+              className={clsx(
+                'absolute h-[26px] w-[26px] max-w-none select-none drop-shadow',
+                open && 'animate-[spin_0.8s_linear_infinite]',
+              )}
               style={{ left: -13, top: -13 }}
             />
-
           </div>
         </div>
       </div>
@@ -276,12 +302,7 @@ export function PointsMeter({
         {/* The rattle runs for as long as the class sits near the goal - a whole lesson,
             sometimes - which is why it had to leave framer for CSS above all. */}
         <div ref={chestRef} className={clsx(open ? 'meter-chest-open' : rattling && 'meter-chest-rattle')}>
-          <img
-            src={treasure(open ? 'chest-open' : 'chest-closed')}
-            alt=""
-            draggable={false}
-            className="h-8 w-8 select-none"
-          />
+          <img src={treasure(open ? 'chest-open' : 'chest-closed')} alt="" draggable={false} className="h-8 w-8 select-none" />
         </div>
       </button>
 
@@ -312,7 +333,11 @@ export function PointsMeter({
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}
       {open && (
-        <GoalCelebration origin={burstOrigin} gifUrl={readyGif && readyGif.id === celebrationGifId ? readyGif.url : null} onDone={finishCelebration} />
+        <GoalCelebration
+          origin={burstOrigin}
+          gifUrl={readyGif && readyGif.id === celebrationGifId ? readyGif.url : null}
+          onDone={finishCelebration}
+        />
       )}
     </div>
   )

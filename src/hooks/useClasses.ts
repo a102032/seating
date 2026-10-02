@@ -376,6 +376,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setShowDeskStars = useCallback(
+    (classId: string, show: boolean) => updateClass(classId, (c) => ({ ...c, showDeskStars: show })),
+    [updateClass],
+  )
+
   const setCelebrationGif = useCallback(
     (classId: string, gifId: string) => updateClass(classId, (c) => ({ ...c, celebrationGifId: gifId })),
     [updateClass],
@@ -495,6 +500,7 @@ export function useClasses() {
     adjustPoints,
     setGoalSettings,
     setGoalEnabled,
+    setShowDeskStars,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
