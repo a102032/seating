@@ -16,6 +16,14 @@ function widthAtReferenceSize(text: string): number {
   return measuringContext.measureText(text).width
 }
 
+/** A homeroom number shown after a name (lib/sameNames) is this much smaller than the name. */
+export const HOMEROOM_TAG_SCALE = 0.6
+
+/** A name, plus the small homeroom number after it when two students share the name. */
+function labelWidth({ name, homeroom }: { name: string; homeroom?: string }): number {
+  return widthAtReferenceSize(name) + (homeroom ? HOMEROOM_TAG_SCALE * widthAtReferenceSize(` ${homeroom}`) : 0)
+}
+
 /**
  * One name size for the whole class, chosen so the longest name fits.
  *
@@ -23,8 +31,8 @@ function widthAtReferenceSize(text: string): number {
  * everyone else's, which singles them out. The floor stops a single pasted-in full
  * name from shrinking all thirty desks - past that point the one name truncates instead.
  */
-export function fitClassNameSize(names: string[]): number {
-  const widest = names.reduce((max, name) => Math.max(max, widthAtReferenceSize(name)), 0)
+export function fitClassNameSize(names: { name: string; homeroom?: string }[]): number {
+  const widest = names.reduce((max, label) => Math.max(max, labelWidth(label)), 0)
   if (widest <= 0) return MAX_CQI
   // Text width scales linearly with font size, so one measurement gives the fitting size.
   const fitted = (AVAILABLE_CQI * REFERENCE_PX) / widest

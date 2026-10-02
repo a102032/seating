@@ -36,6 +36,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { GoogleG } from './Account'
 import { AvatarPickerModal } from './AvatarPickerModal'
 import { GoogleTab } from './GoogleTab'
@@ -70,6 +71,7 @@ interface ClassSettingsModalProps {
   onSeatClass: () => void
   onMixUpSeats: () => void
   onSetLayout: (layout: RoomLayout) => void
+  onSetShowAllHomerooms: (show: boolean) => void
   onToggleAbsentInRecord: (studentId: string, day: string) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -173,6 +175,7 @@ export function ClassSettingsModal({
   onSeatClass,
   onMixUpSeats,
   onSetLayout,
+  onSetShowAllHomerooms,
   onToggleAbsentInRecord,
   theme,
   onSetTheme,
@@ -584,11 +587,29 @@ export function ClassSettingsModal({
                 <ThemePicker theme={theme} onSetTheme={onSetTheme} />
               </section>
 
-              {/* Per class, unlike the theme: classes can meet in different rooms. */}
+              {/* Per class, unlike the theme: classes can meet in different rooms. The homeroom
+                  switch shares the heading row, so it costs the tab no height: at 1024x640 a row
+                  of its own fell below the window's edge. Off, a number shows only after a name
+                  two students share - the app finds them (lib/sameNames). */}
               <section className="shrink-0">
-                <Label className="mb-1.5">
-                  Room Layout <span className="font-normal">(this class)</span>
-                </Label>
+                <div className="mb-1.5 flex items-center gap-3">
+                  <Label>
+                    Room Layout <span className="font-normal">(this class)</span>
+                  </Label>
+                  <Label htmlFor="all-homerooms" className="ml-auto cursor-pointer">
+                    Homeroom on all desks
+                  </Label>
+                  <Switch
+                    id="all-homerooms"
+                    checked={activeClass.showAllHomerooms === true}
+                    onCheckedChange={onSetShowAllHomerooms}
+                    title={
+                      activeClass.showAllHomerooms
+                        ? 'Every desk shows its homeroom number.'
+                        : 'Only students with the same name show their homeroom number.'
+                    }
+                  />
+                </div>
                 <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
               </section>
             </>

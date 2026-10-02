@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fitClassNameSize } from '../lib/fitText'
+import { homeroomsToShow } from '../lib/sameNames'
 import type { Gap, LayoutPlan } from '../lib/layouts'
 import { DESK_ROWS, desksInOrder, type Student } from '../types'
 import { Desk, type DeskHighlight } from './Desk'
@@ -31,6 +32,8 @@ interface DeskGridProps {
   absentIds: Set<string>
   /** Each desk shows its student's stars. Off by default: the board shows the jar instead. */
   showStars: boolean
+  /** Every desk shows its homeroom number, not only names two students share. */
+  showAllHomerooms: boolean
   onTapDesk: (index: number) => void
 }
 
@@ -45,6 +48,7 @@ export function DeskGrid({
   deskHighlights,
   absentIds,
   showStars,
+  showAllHomerooms,
   onTapDesk,
 }: DeskGridProps) {
   const seated = seating.map((id) => (id ? studentsById.get(id) : undefined))
@@ -72,9 +76,23 @@ export function DeskGrid({
 
   // One size for every desk, so no student's name ends up visibly smaller than the rest.
   // Measured once per roster rather than on every tap.
-  const names = seatedStudents.map((s) => s.name).join('\n')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const nameSize = useMemo(() => fitClassNameSize(names ? names.split('\n') : []), [names, fontsLoaded])
+  // A homeroom number shows only after a name two students share (lib/sameNames), and the
+  // name size makes room for it.
+  const tagged = useMemo(() => homeroomsToShow(studentsById.values(), showAllHomerooms), [studentsById, showAllHomerooms])
+  const labels = seatedStudents.map((s) => `${s.name}\t${tagged.has(s.id) ? s.homeroom : ''}`).join('\n')
+  const nameSize = useMemo(
+    () =>
+      fitClassNameSize(
+        labels
+          ? labels.split('\n').map((l) => {
+              const [name, homeroom] = l.split('\t')
+              return { name, homeroom }
+            })
+          : [],
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [labels, fontsLoaded],
+  )
 
   const renderDesk = (index: number, position: number) => {
     const student = seated[index]
@@ -96,6 +114,7 @@ export function DeskGrid({
         highlight={deskHighlights[index] ?? 'none'}
         absent={student !== undefined && absentIds.has(student.id)}
         nameSize={nameSize}
+        showHomeroom={student !== undefined && tagged.has(student.id)}
         showStars={showStars}
         onTap={onTapDesk}
       />

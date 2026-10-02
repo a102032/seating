@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Gift, Star } from 'lucide-react'
 import type { BonusKind } from '../hooks/useFlipDeck'
 import { BONUS_FACES } from '../lib/bonusCards'
+import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Gender, Student } from '../types'
 
@@ -16,6 +17,8 @@ interface FlipCardProps {
   faceUp: boolean
   /** Show the student's stars on the face - see showDeskStars in types.ts. */
   showStars: boolean
+  /** Another student has the same name, so the homeroom number tells them apart (lib/sameNames). */
+  showHomeroom: boolean
   /** Colour the back by gender so the class can be told "pick a blue card". */
   genderColors: boolean
   /** Their turn: the side panel's +/- go to this card. */
@@ -39,7 +42,20 @@ const NEUTRAL_BACK = 'from-violet-400 to-violet-600 text-violet-50'
 const BACK_PATTERN =
   'repeating-linear-gradient(45deg, rgba(255,255,255,0.14) 0 6px, transparent 6px 12px), repeating-linear-gradient(-45deg, rgba(0,0,0,0.08) 0 6px, transparent 6px 12px)'
 
-export function FlipCard({ id, student, bonus, back, faceUp, showStars, genderColors, active, dimmed, jackpotHit, onTap }: FlipCardProps) {
+export function FlipCard({
+  id,
+  student,
+  bonus,
+  back,
+  faceUp,
+  showStars,
+  showHomeroom,
+  genderColors,
+  active,
+  dimmed,
+  jackpotHit,
+  onTap,
+}: FlipCardProps) {
   return (
     <button
       type="button"
@@ -80,7 +96,9 @@ export function FlipCard({ id, student, bonus, back, faceUp, showStars, genderCo
         {bonus ? (
           <BonusFace kind={bonus} faceUp={faceUp} />
         ) : (
-          student && <StudentFace student={student} active={active} showStars={showStars} jackpotHit={jackpotHit} />
+          student && (
+            <StudentFace student={student} active={active} showStars={showStars} showHomeroom={showHomeroom} jackpotHit={jackpotHit} />
+          )
         )}
       </div>
     </button>
@@ -93,11 +111,13 @@ function StudentFace({
   student,
   active,
   showStars,
+  showHomeroom,
   jackpotHit,
 }: {
   student: Student
   active: boolean
   showStars: boolean
+  showHomeroom: boolean
   jackpotHit?: { points: number; tick: number } | null
 }) {
   const avatarSrc = resolveAvatarSrc(student)
@@ -131,6 +151,11 @@ function StudentFace({
         style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
       >
         {student.name}
+        {showHomeroom && (
+          <span data-ink="homeroom" className="ml-[0.25em] font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
+            {student.homeroom}
+          </span>
+        )}
       </span>
       {jackpotHit && (
         // The jackpot rising off the card as it lands, then gone - the badge keeps the score.

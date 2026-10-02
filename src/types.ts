@@ -92,6 +92,11 @@ export interface ClassData {
    */
   showDeskStars?: boolean
   /**
+   * Show every student's homeroom number after their name on the board. Unset is off: the
+   * number then shows only where two students share a name (lib/sameNames), which is its job.
+   */
+  showAllHomerooms?: boolean
+  /**
    * Which celebration plays when the goal is reached: a GIPHY id from lib/celebrationGifs,
    * or unset for the treasure chest. The chest is also the fallback whenever a chosen gif
    * hasn't loaded, so a bad network never leaves the moment blank.

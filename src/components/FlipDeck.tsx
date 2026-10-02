@@ -1,9 +1,10 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowDownRight, Eye, Gift, EyeOff, Layers, RotateCcw, Settings, Shuffle, X } from 'lucide-react'
 import { DEAL_STAGGER_MS, type FlipMode, type useFlipDeck } from '../hooks/useFlipDeck'
 import type { Student } from '../types'
+import { homeroomsToShow } from '../lib/sameNames'
 import { FlipCard } from './FlipCard'
 import { TactileButton } from './TactileButton'
 
@@ -12,14 +13,18 @@ interface FlipDeckProps {
   studentsById: Map<string, Student>
   /** Cards show their student's stars, as the desks do - see showDeskStars in types.ts. */
   showStars: boolean
+  /** Every card shows its homeroom number, as the desks do. */
+  showAllHomerooms: boolean
   onOpenSettings: () => void
   onExit: () => void
 }
 
-export function FlipDeck({ deck, studentsById, showStars, onOpenSettings, onExit }: FlipDeckProps) {
+export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOpenSettings, onExit }: FlipDeckProps) {
   const { cards, columns, inPlay, studentsLeft, studentsDone, jackpot, jackpotHit, phase, settings, updateSettings } = deck
   const { shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
   const boardRef = useRef<HTMLDivElement>(null)
+  // As on the desks: a homeroom number only after a name two students share.
+  const tagged = useMemo(() => homeroomsToShow(studentsById.values(), showAllHomerooms), [studentsById, showAllHomerooms])
   /** Where each discarded card has to travel to reach the pile, measured when it was tapped. */
   const [flyTo, setFlyTo] = useState(new Map<string, FlyTo>())
   /** Discards that have finished their flight - the pile counts a card when it lands, not when it leaves. */
@@ -161,6 +166,7 @@ export function FlipDeck({ deck, studentsById, showStars, onOpenSettings, onExit
                           jackpotHit={jackpotHit?.studentId === card.studentId ? jackpotHit : null}
                           faceUp={card.faceUp}
                           showStars={showStars}
+                          showHomeroom={tagged.has(card.studentId)}
                           genderColors={settings.genderColors}
                           active={card.studentId === activeId}
                           dimmed={card.faceUp && card.spent}

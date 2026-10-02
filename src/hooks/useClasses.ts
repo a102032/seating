@@ -381,6 +381,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setShowAllHomerooms = useCallback(
+    (classId: string, show: boolean) => updateClass(classId, (c) => ({ ...c, showAllHomerooms: show })),
+    [updateClass],
+  )
+
   const setCelebrationGif = useCallback(
     (classId: string, gifId: string) => updateClass(classId, (c) => ({ ...c, celebrationGifId: gifId })),
     [updateClass],
@@ -501,6 +506,7 @@ export function useClasses() {
     setGoalSettings,
     setGoalEnabled,
     setShowDeskStars,
+    setShowAllHomerooms,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,

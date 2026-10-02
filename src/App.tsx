@@ -77,6 +77,7 @@ export default function App() {
     setGoalSettings,
     setGoalEnabled,
     setShowDeskStars,
+    setShowAllHomerooms,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -670,6 +671,7 @@ export default function App() {
               deskHighlights={picker.deskHighlights}
               absentIds={absentIds}
               showStars={activeClass.showDeskStars === true}
+              showAllHomerooms={activeClass.showAllHomerooms === true}
               onTapDesk={handleTapDesk}
             />
 
@@ -689,6 +691,7 @@ export default function App() {
                     deck={deck}
                     studentsById={studentsById}
                     showStars={activeClass.showDeskStars === true}
+                    showAllHomerooms={activeClass.showAllHomerooms === true}
                     onOpenSettings={() => setFlipSettingsOpen(true)}
                     onExit={() => {
                       setFlipDeckOpen(false)
@@ -841,6 +844,7 @@ export default function App() {
           playShuffle()
         }}
         onSetLayout={(layout) => setLayout(activeClass.id, layout)}
+        onSetShowAllHomerooms={(show) => setShowAllHomerooms(activeClass.id, show)}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         theme={theme}
         onSetTheme={(next) => {

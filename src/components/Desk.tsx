@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 import { Star } from 'lucide-react'
+import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Student } from '../types'
 import { AbsentIcon } from './AbsentIcon'
@@ -28,6 +29,8 @@ interface DeskProps {
   absent: boolean
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
+  /** Another student in the class has the same name, so the homeroom number tells them apart. */
+  showHomeroom: boolean
   /** Show the student's stars in the corner - see showDeskStars in types.ts. */
   showStars: boolean
   onTap: (index: number) => void
@@ -44,6 +47,7 @@ export function Desk({
   highlight,
   absent,
   nameSize,
+  showHomeroom,
   showStars,
   onTap,
 }: DeskProps) {
@@ -94,16 +98,9 @@ export function Desk({
           was one more word on a board already full of names. */}
       {empty ? null : (
         <>
-          {/* Both corners sit over the avatar's empty top corners, leaving the whole
-              bottom row to the name. */}
-          <span
-            data-ink="homeroom"
-            className="absolute left-1.5 top-1 z-10 font-semibold leading-none opacity-45"
-            style={{ fontSize: 'clamp(0.55rem, 8cqi, 1rem)' }}
-          >
-            {student.homeroom}
-          </span>
-
+          {/* The stars sit over the avatar's empty top corner, leaving the whole bottom row
+              to the name. The homeroom number sat in the other corner on every desk; it is
+              after the name now, and only where two students share one (lib/sameNames). */}
           {showStars && points > 0 && (
             <div
               className="absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full border-[1.5px] border-card-foreground/25 px-[0.45em] py-[0.2em] font-bold leading-none text-card-foreground"
@@ -137,6 +134,11 @@ export function Desk({
             style={{ fontSize: `${nameSize}cqi`, color: 'var(--desk-name, var(--card-foreground))' }}
           >
             {student.name}
+            {showHomeroom && (
+              <span data-ink="homeroom" className="ml-[0.25em] font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
+                {student.homeroom}
+              </span>
+            )}
           </span>
         </>
       )}
