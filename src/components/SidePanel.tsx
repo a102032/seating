@@ -310,9 +310,11 @@ export function SidePanel({
           <TactileButton
             active={swapMode}
             onClick={onToggleSwap}
-            disabled={groupActivityOpen || attendanceMode}
+            // Swap Seats acts on the desks, so it is only for the seating chart: not while the
+            // flip cards or the group cards cover them.
+            disabled={flipDeckOpen || groupActivityOpen || attendanceMode}
             className={clsx('grow shrink basis-0 !px-2 justify-center', FIT_PY)}
-            title={groupActivityOpen ? 'Seats can\u2019t be swapped while the group cards are up' : undefined}
+            title={flipDeckOpen || groupActivityOpen ? 'Seats can only be swapped on the seating chart' : undefined}
           >
             <Shuffle size={18} /> Swap Seats
           </TactileButton>
