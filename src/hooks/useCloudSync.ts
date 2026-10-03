@@ -286,6 +286,15 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
           setStatus('error')
           return
         }
+        // The name the board greets was saved at sign-in. Take it again from the session, so a
+        // name read better since (or changed in Google, then signed in again) reaches the splash.
+        const r = record.current
+        if (who.firstName !== r.firstName || who.email !== r.email) {
+          r.firstName = who.firstName
+          r.email = who.email
+          saveAccount(r)
+          setAccount({ uid: r.uid, firstName: r.firstName, email: r.email })
+        }
         setVerified(true)
       } catch {
         if (!cancelled) setStatus('offline')

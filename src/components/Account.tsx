@@ -3,6 +3,7 @@ import { Cloud, CloudAlert, CloudCheck, CloudOff } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { useState } from 'react'
 import type { Account } from '../lib/cloud'
+import { initialOf } from '../lib/teacherName'
 import type { AccountQuestion, SyncStatus } from '../hooks/useCloudSync'
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,7 @@ export function Initial({ name, className }: { name: string; className?: string 
       className={clsx('flex shrink-0 items-center justify-center rounded-full bg-[#7c4ddf] font-bold text-white', className)}
       aria-hidden
     >
-      {Array.from(name)[0]?.toUpperCase()}
+      {initialOf(name)}
     </span>
   )
 }

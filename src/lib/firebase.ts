@@ -40,6 +40,7 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import type { ClassData } from '../types'
+import { greetingName } from './teacherName'
 
 // Web settings for the class-yes project. They name the project; they are not a password.
 // What keeps one teacher out of another's classes is the Firestore rules: a teacher can only
@@ -80,14 +81,21 @@ function connect() {
 
 export interface Account {
   uid: string
-  /** What the splash greets: the first word of the Google name, or the email before the @. */
+  /**
+   * What the splash greets: the first word of the Google name, with the next one if the first
+   * is a title ("Teacher Derek", "Ms. Amy"), or the email before the @.
+   */
   firstName: string
   email: string
 }
 
 function toAccount(user: User): Account {
   const email = user.email ?? ''
-  const firstName = user.displayName?.trim().split(/\s+/)[0] || email.split('@')[0] || 'Teacher'
+  // The Google sign-in's own copy of the name first: Firebase refreshes it at every sign-in,
+  // where the account's top-level name keeps whatever it was the first time, so a teacher who
+  // changes their name in Google would otherwise be greeted by the old one for good.
+  const google = user.providerData.find((p) => p.providerId === 'google.com')?.displayName
+  const firstName = greetingName(google || user.displayName) || email.split('@')[0] || 'Teacher'
   return { uid: user.uid, firstName, email }
 }
 

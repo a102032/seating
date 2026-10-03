@@ -406,6 +406,33 @@ try {
     await pc.context().close()
   }
 
+  if (want('title')) {
+    // A Google name that starts with a title is greeted with the name after it, not the title alone.
+    const AMY = { sub: 'google-amy', email: 'amy@yuteh.ntpc.edu.tw', email_verified: true, name: 'Teacher Amy Chen' }
+    const pc = await computer('pc-title', null)
+    await signIn(pc, AMY)
+    const greeted = await waitFor(async () => /Welcome, Teacher Amy!/.test(await splashText(pc)))
+    check(
+      'title: "Teacher Amy Chen" is welcomed as Teacher Amy',
+      Boolean(greeted),
+      (await splashText(pc)).replace(/\s+/g, ' ').slice(0, 80),
+    )
+    check('title: and asked "Not Teacher Amy?"', /Not Teacher Amy\? Switch teacher/.test(await splashText(pc)))
+    await shot(pc, '11-title-name')
+    // A board that saved the name the old way, as "Teacher", puts it right the next time it opens.
+    await pc.evaluate(() => {
+      const a = JSON.parse(localStorage.getItem('seating-chart-account-v1'))
+      localStorage.setItem('seating-chart-account-v1', JSON.stringify({ ...a, firstName: 'Teacher' }))
+    })
+    await pc.reload()
+    const fixed = await waitFor(async () => /Welcome, Teacher Amy!/.test(await splashText(pc)))
+    check('title: a board that saved "Teacher" greets Teacher Amy once it has checked the sign-in', Boolean(fixed))
+    const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-account-v1')).firstName)
+    check('title: and keeps the new name for next time', kept === 'Teacher Amy', kept)
+    if (pc.errors.length) check('title: no page errors', false, pc.errors.slice(0, 3).join(' | '))
+    await pc.context().close()
+  }
+
   if (want('panel') && board) {
     // The side panel: the Saved mark doesn't push anything off the screen, and it holds Switch teacher.
     for (const [w, h] of [
