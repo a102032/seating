@@ -11,6 +11,8 @@ interface ModalProps {
   size?: 'default' | 'wide' | 'xl'
   /** Hold one height whatever is inside, for a modal with tabs: switching must not resize it. */
   fixedHeight?: boolean
+  /** A button beside the title, for an action that belongs to the whole window rather than one tab. */
+  headerAction?: ReactNode
 }
 
 const sizeClassNames = {
@@ -21,12 +23,13 @@ const sizeClassNames = {
   xl: 'max-w-[min(64rem,calc(100vw-2rem))]',
 }
 
-export function Modal({ open, title, onClose, children, wide, size, fixedHeight }: ModalProps) {
+export function Modal({ open, title, onClose, children, wide, size, fixedHeight, headerAction }: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className={clsx(sizeClassNames[size ?? (wide ? 'wide' : 'default')], fixedHeight && 'h-[min(90vh,52rem)]')}>
-        <DialogHeader>
+        <DialogHeader className={headerAction ? 'flex-row items-center gap-4' : undefined}>
           <DialogTitle>{title}</DialogTitle>
+          {headerAction}
         </DialogHeader>
         <DialogBody>{children}</DialogBody>
       </DialogContent>

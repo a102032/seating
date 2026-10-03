@@ -35,7 +35,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { GoogleG } from './Account'
 import { AvatarPickerModal } from './AvatarPickerModal'
@@ -341,8 +340,27 @@ export function ClassSettingsModal({
         title="Class Settings"
         wide
         fixedHeight
+        // New Class makes another class rather than setting this one, so it sits by the title,
+        // on every tab, where it costs the Class tab no row. A new class needs its name first,
+        // so it lands on the Class tab, as from the splash. Pulled in top and bottom so the
+        // header is no taller than the title.
+        headerAction={
+          <TactileButton
+            onClick={() => {
+              onCreateClass()
+              setTab('class')
+            }}
+            disabled={classesCount >= MAX_CLASSES}
+            className={clsx('-my-1.5 !py-1.5', classesCount >= MAX_CLASSES && 'opacity-40')}
+            title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
+          >
+            <Plus size={16} /> New Class
+          </TactileButton>
+        }
       >
-        <div className="flex min-h-full flex-col gap-3.5">
+        {/* Closer on a short screen, so the Class tab's room layouts fit on the teacher's own
+            board (1280x559) without scrolling inside the window. */}
+        <div className="flex min-h-full flex-col gap-3.5 [@media(max-height:600px)]:gap-2.5">
           <SettingsTabs tab={tab} onChange={setTab} />
 
           {tab === 'students' ? (
@@ -537,36 +555,26 @@ export function ClassSettingsModal({
             </>
           ) : tab === 'class' ? (
             <>
-              {/* Making and removing classes, together at the top. Delete stays behind its cover,
-                  and the row leaves room for the cover's note. */}
-              <section className="flex shrink-0 items-center gap-2">
-                <TactileButton
-                  onClick={onCreateClass}
-                  disabled={classesCount >= MAX_CLASSES}
-                  className={classesCount >= MAX_CLASSES ? 'opacity-40' : ''}
-                  title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
-                >
-                  <Plus size={16} /> New Class
-                </TactileButton>
+              {/* This class's name and Delete Class share the top row: both are about this class.
+                  (New Class, which makes another, is by the window's title.) The name box is
+                  narrowed to leave room for the delete cover's note, and the cover sits level
+                  with the box's foot, beside the label rather than below it, so the row is no
+                  taller than the name. Delete stays behind its cover. */}
+              <section className="grid shrink-0 grid-cols-[minmax(0,20rem)_auto] justify-between gap-x-2">
+                <Label htmlFor="class-name" className="mb-1.5">
+                  Class Name
+                </Label>
                 <DangerCover
                   open={guardOpen}
                   onOpen={() => setGuardOpen(true)}
                   onAutoClose={() => setGuardOpen(false)}
-                  className="ml-auto"
+                  className="col-start-2 row-span-2 row-start-1 self-end"
                   note={['Delete Class…', 'Be careful!']}
                 >
                   <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
                     <Trash2 size={16} /> Delete Class
                   </TactileButton>
                 </DangerCover>
-              </section>
-
-              <Separator className="shrink-0" />
-
-              <section className="shrink-0">
-                <Label htmlFor="class-name" className="mb-1.5">
-                  Class Name
-                </Label>
                 <Input
                   id="class-name"
                   value={name}
@@ -575,9 +583,9 @@ export function ClassSettingsModal({
                     setNameError(null)
                   }}
                   onBlur={commitRename}
-                  className={clsx('max-w-sm font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
+                  className={clsx('col-start-1 font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
                 />
-                {nameError && <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
+                {nameError && <p className="col-start-1 mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
               </section>
 
               <section className="shrink-0">
