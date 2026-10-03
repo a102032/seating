@@ -121,15 +121,9 @@ export interface ClassData {
    * week shouldn't have to re-deal every lesson. Cleared only by making new groups.
    */
   groups?: StudentGroup[]
-  /** Where a group's points go when the activity ends. Unset means each student. */
-  groupPointsMode?: GroupPointsMode
+  // groupPointsMode, where a group's points went (each student or the class goal), is no
+  // longer read: group points always go onto the class goal. Older saves may still carry it.
 }
-
-/**
- * What a group's points become when the activity finishes: a star for every member, or
- * one class point per group point straight onto the class goal meter.
- */
-export type GroupPointsMode = 'students' | 'goal'
 
 /**
  * Where a group is with its work - the digital cousin of the red, yellow and green cups on a

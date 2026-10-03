@@ -1,8 +1,7 @@
 import clsx from 'clsx'
-import { Play, Star, Target, Users } from 'lucide-react'
+import { Play, Star } from 'lucide-react'
 import { describeScheme, type GroupScheme, type SetOf } from '../lib/groups'
-import { goalIsLive } from '../hooks/useClasses'
-import type { ClassData, GroupPointsMode, Student, StudentGroup } from '../types'
+import type { Student, StudentGroup } from '../types'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
@@ -11,7 +10,6 @@ import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 interface GroupActivityModalProps {
   open: boolean
   onClose: () => void
-  activeClass: ClassData
   /** The seating as today's lesson sees it: absent students' desks count as empty. */
   seating: (string | null)[]
   studentsById: Map<string, Student>
@@ -22,7 +20,6 @@ interface GroupActivityModalProps {
   lastGroups: StudentGroup[]
   onStart: (scheme: GroupScheme) => void
   onContinue: () => void
-  onSetPointsMode: (mode: GroupPointsMode) => void
   chimes: boolean
   onSetChimes: (on: boolean) => void
 }
@@ -45,7 +42,6 @@ const SIZE_OPTIONS: { size: number; label: string }[] = [
 export function GroupActivityModal({
   open,
   onClose,
-  activeClass,
   seating,
   studentsById,
   setOf,
@@ -53,14 +49,10 @@ export function GroupActivityModal({
   lastGroups,
   onStart,
   onContinue,
-  onSetPointsMode,
   chimes,
   onSetChimes,
 }: GroupActivityModalProps) {
   const seatedCount = seating.filter(Boolean).length
-  const goalLive = goalIsLive(activeClass)
-  // Shown as it will behave: "goal" with the goal switched off would fall back to students.
-  const mode: GroupPointsMode = activeClass.groupPointsMode === 'goal' && goalLive ? 'goal' : 'students'
   const lastPoints = lastGroups.reduce((sum, g) => sum + g.points, 0)
 
   function start(scheme: GroupScheme) {
@@ -177,25 +169,6 @@ export function GroupActivityModal({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-black/10 p-3 dark:border-white/10">
-            <Label className="mb-2">Points Go To</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <ModeButton
-                icon={<Users size={18} />}
-                label="Each Student"
-                active={mode === 'students'}
-                onClick={() => onSetPointsMode('students')}
-              />
-              <ModeButton icon={<Target size={18} />} label="Class Goal" active={mode === 'goal'} onClick={() => onSetPointsMode('goal')} />
-            </div>
-            <p className="mt-2 px-1 text-sm text-muted-foreground">
-              {mode === 'students'
-                ? 'Every student gets a star for each point their group earns.'
-                : `Each group point becomes one class point on the goal meter (goal: ${activeClass.pointsGoal}). No stars for students.`}
-              {mode === 'students' && !goalLive && ' Choosing Class Goal switches the class goal on for you.'}
-            </p>
-          </section>
-
           <section className="flex items-center justify-between gap-4 rounded-2xl border border-black/10 p-3 dark:border-white/10">
             <div className="min-w-0">
               <Label htmlFor="status-chimes" className="text-foreground">
@@ -242,38 +215,6 @@ function SchemeButton({
     >
       <span className={clsx('font-extrabold leading-none', big ? 'text-2xl' : 'text-base')}>{label}</span>
       <span className="mt-1 text-[0.7rem] font-medium leading-none opacity-70">{caption}</span>
-    </button>
-  )
-}
-
-function ModeButton({
-  icon,
-  label,
-  active,
-  disabled,
-  onClick,
-}: {
-  icon: React.ReactNode
-  label: string
-  active: boolean
-  disabled?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      data-slot="button"
-      className={clsx(
-        'flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 font-semibold shadow-sm transition-colors active:scale-95',
-        active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent',
-        'disabled:cursor-not-allowed disabled:opacity-40',
-      )}
-      style={{ touchAction: 'manipulation' }}
-    >
-      {icon}
-      {label}
     </button>
   )
 }

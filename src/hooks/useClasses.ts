@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { absentOn, dateKey, takenDays } from '../lib/attendance'
+import { takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
 import { getTheme, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
-import { type ClassData, type Gender, type GroupPointsMode, type GroupStatus, type Student, type StudentGroup } from '../types'
+import { type ClassData, type Gender, type GroupStatus, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
 
 export const MAX_CLASSES = 5
@@ -112,11 +112,6 @@ function withDayTaken(c: ClassData, day: string): ClassData {
 /** The class goal has to exist and be switched on for group points to have anywhere to go. */
 export function goalIsLive(c: ClassData): boolean {
   return (c.pointsGoal ?? 0) > 0 && c.goalEnabled !== false
-}
-
-/** The mode a class will actually use: "class goal" falls back to students while there's no goal. */
-export function effectiveGroupPointsMode(c: ClassData): GroupPointsMode {
-  return c.groupPointsMode === 'goal' && goalIsLive(c) ? 'goal' : 'students'
 }
 
 export function useClasses() {
@@ -452,33 +447,21 @@ export function useClasses() {
     [updateClass],
   )
 
-  const setGroupPointsMode = useCallback(
-    (classId: string, mode: GroupPointsMode) => updateClass(classId, (c) => ({ ...c, groupPointsMode: mode })),
-    [updateClass],
-  )
-
   /**
-   * The activity is over: hand the groups' points out the way the teacher chose, then zero
-   * them. The groups themselves stay, so the same teams can be picked up again tomorrow.
+   * The activity is over: the groups' points go onto the class goal, one class point each,
+   * and the cards go back to zero. The groups themselves stay, so the same teams can be picked
+   * up again tomorrow. Group points always go to the whole class; stars for each member were
+   * taken out. A goal switched off is switched on (its last number, or 50) so the points land
+   * where the class can see them - a meter filling out of sight was taken out once already.
    */
   const finishGroupActivity = useCallback(
     (classId: string) =>
       updateClass(classId, (c) => {
         const groups = c.groups ?? []
+        const total = groups.reduce((sum, g) => sum + g.points, 0)
         let next = c
-        if (effectiveGroupPointsMode(c) === 'students') {
-          // Nobody earns stars on a day they weren't here, even on a team that did well.
-          const absent = absentOn(c, dateKey())
-          groups.forEach((g) => {
-            const present = g.studentIds.filter((id) => !absent.has(id))
-            if (g.points > 0) next = awardStars(next, present, g.points)
-          })
-        } else {
-          next = addClassPoints(
-            next,
-            groups.reduce((sum, g) => sum + g.points, 0),
-          )
-        }
+        if (total > 0 && !goalIsLive(c)) next = { ...c, pointsGoal: c.pointsGoal || 50, goalEnabled: true }
+        next = addClassPoints(next, total)
         return { ...next, groups: groups.map((g) => ({ ...g, points: 0 })) }
       }),
     [updateClass],
@@ -528,7 +511,6 @@ export function useClasses() {
     resetGroupPoints,
     moveStudentToGroup,
     setGroupStatus,
-    setGroupPointsMode,
     finishGroupActivity,
     cloud,
     saveError,

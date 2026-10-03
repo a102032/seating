@@ -1,6 +1,6 @@
-import { Save, Star, Target, Users } from 'lucide-react'
+import { Save, Star, Target } from 'lucide-react'
 import { summarizeGroupPoints } from '../lib/groups'
-import type { GroupPointsMode, StudentGroup } from '../types'
+import type { StudentGroup } from '../types'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
@@ -9,7 +9,6 @@ interface GroupExitModalProps {
   open: boolean
   onClose: () => void
   groups: StudentGroup[]
-  pointsMode: GroupPointsMode
   onGiveOut: () => void
   onKeep: () => void
 }
@@ -19,7 +18,7 @@ interface GroupExitModalProps {
  * one a teacher means at the end of an activity, and "keep" is for the teacher who is only
  * stepping out to the seating chart mid-lesson.
  */
-export function GroupExitModal({ open, onClose, groups, pointsMode, onGiveOut, onKeep }: GroupExitModalProps) {
+export function GroupExitModal({ open, onClose, groups, onGiveOut, onKeep }: GroupExitModalProps) {
   const { totalPoints } = summarizeGroupPoints(groups)
   const scoring = groups.filter((g) => g.points > 0)
 
@@ -51,14 +50,10 @@ export function GroupExitModal({ open, onClose, groups, pointsMode, onGiveOut, o
           data-slot="button"
           className="flex items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-left text-primary-foreground shadow-sm transition-transform active:scale-[0.99]"
         >
-          {pointsMode === 'students' ? <Users size={22} className="shrink-0" /> : <Target size={22} className="shrink-0" />}
+          <Target size={22} className="shrink-0" />
           <span>
             <span className="block font-bold">Give Out the Points</span>
-            <span className="block text-sm opacity-85">
-              {pointsMode === 'students'
-                ? 'Every student gets a star for each of their group’s points.'
-                : 'They go onto the class goal meter, one class point each.'}
-            </span>
+            <span className="block text-sm opacity-85">They go onto the class goal, one class point each.</span>
           </span>
         </button>
 

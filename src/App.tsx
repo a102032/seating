@@ -15,7 +15,7 @@ import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { effectiveGroupPointsMode, goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
+import { goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
@@ -26,7 +26,7 @@ import { flyStarsToGoal } from './lib/starFlight'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
-import { type GroupPointsMode, type Student, type TimerSettings } from './types'
+import { type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding', face: 'flip' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
@@ -99,7 +99,6 @@ export default function App() {
     resetGroupPoints,
     moveStudentToGroup,
     setGroupStatus,
-    setGroupPointsMode,
     finishGroupActivity,
     cloud,
     saveError,
@@ -324,36 +323,15 @@ export default function App() {
     else setGroupActivityOpen(false)
   }
 
-  /** The points go out the way the teacher chose, and the board comes back. */
+  /** The points go onto the class goal, and the board comes back. */
   function giveOutGroupPoints() {
     if (!activeClass) return
-    const { totalPoints, studentsAwarded } = summarizeGroupPoints(pickableGroups)
-    const mode = effectiveGroupPointsMode(activeClass)
+    const { totalPoints } = summarizeGroupPoints(groups)
     finishGroupActivity(activeClass.id)
     setExitPromptOpen(false)
     setGroupActivityOpen(false)
     playGroupsDone()
-    setToast({
-      id: Date.now(),
-      text:
-        mode === 'students'
-          ? `${studentsAwarded} student${studentsAwarded === 1 ? '' : 's'} got their group’s stars.`
-          : `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal.`,
-    })
-  }
-
-  /**
-   * Class Goal as a destination needs a class goal. Rather than greying the button out and
-   * sending the teacher to another modal to find out why, choosing it switches the goal on
-   * right here - with the number they last set, or the same default Pickers & Points uses.
-   */
-  function chooseGroupPointsMode(mode: GroupPointsMode) {
-    if (!activeClass) return
-    if (mode === 'goal' && !goalIsLive(activeClass)) {
-      setGoalSettings(activeClass.id, activeClass.pointsGoal || 50, activeClass.starsPerClassPoint || 1)
-      setGoalEnabled(activeClass.id, true)
-    }
-    setGroupPointsMode(activeClass.id, mode)
+    setToast({ id: Date.now(), text: `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal.` })
   }
 
   /**
@@ -762,7 +740,6 @@ export default function App() {
       <GroupActivityModal
         open={groupModalOpen}
         onClose={() => setGroupModalOpen(false)}
-        activeClass={activeClass}
         seating={presentSeating}
         studentsById={studentsById}
         setOf={setOf}
@@ -770,7 +747,6 @@ export default function App() {
         lastGroups={groups}
         onStart={startGroups}
         onContinue={continueGroups}
-        onSetPointsMode={chooseGroupPointsMode}
         chimes={groupChimes}
         onSetChimes={updateGroupChimes}
       />
@@ -779,7 +755,6 @@ export default function App() {
         open={exitPromptOpen}
         onClose={() => setExitPromptOpen(false)}
         groups={groups}
-        pointsMode={effectiveGroupPointsMode(activeClass)}
         onGiveOut={giveOutGroupPoints}
         onKeep={() => {
           setExitPromptOpen(false)

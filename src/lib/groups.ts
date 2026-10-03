@@ -244,16 +244,7 @@ export function moveStudent(groups: StudentGroup[], studentId: string, toGroupId
   })
 }
 
-/** What finishing the activity will hand out, for the message the teacher sees afterwards. */
-export function summarizeGroupPoints(groups: StudentGroup[]): {
-  totalPoints: number
-  studentsAwarded: number
-} {
-  return groups.reduce(
-    (acc, g) => ({
-      totalPoints: acc.totalPoints + g.points,
-      studentsAwarded: acc.studentsAwarded + (g.points > 0 ? g.studentIds.length : 0),
-    }),
-    { totalPoints: 0, studentsAwarded: 0 },
-  )
+/** What finishing the activity will put on the class goal, for the message the teacher sees afterwards. */
+export function summarizeGroupPoints(groups: StudentGroup[]): { totalPoints: number } {
+  return { totalPoints: groups.reduce((sum, g) => sum + g.points, 0) }
 }
