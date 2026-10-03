@@ -1293,6 +1293,37 @@ button {
 }
 
 /* ===========================================================================
+ * Room layout drawings (Class Settings -> Class): thirty desks from above.
+ *
+ * A desk there is about ten pixels wide, so its edge is drawn a good deal
+ * stronger than a board desk's: desks pushed together share that edge, and it
+ * is all that tells a pair or a table from one long desk.
+ * =========================================================================== */
+.layout-desk {
+  fill: var(--card);
+  stroke: rgba(0, 0, 0, 0.3);
+  stroke-width: 1px;
+}
+
+:root[data-theme='dark'] .layout-desk {
+  stroke: rgba(255, 255, 255, 0.35);
+}
+
+:root[data-theme='chalk'] .layout-desk {
+  stroke: rgba(244, 241, 230, 0.6);
+}
+
+:root[data-theme='comic'] .layout-desk {
+  stroke: var(--comic-ink);
+}
+
+/* Tables of 4's six desks a class of thirty leaves empty: faded, the way the board shows them. */
+.layout-desk-spare {
+  fill-opacity: 0.4;
+  stroke-opacity: 0.4;
+}
+
+/* ===========================================================================
  * Theme picker thumbnails: a small board in each theme's own colours.
  *
  * The colours come from the theme's tokens (see [data-theme-preview] above);
