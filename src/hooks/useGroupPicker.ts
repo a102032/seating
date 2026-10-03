@@ -33,6 +33,18 @@ interface Options {
 export function useGroupPicker(groups: StudentGroup[], options: Options) {
   const [pick, setPick] = useState<GroupPick | null>(null)
   const picked = useRef<Record<GroupPickKind, Set<string>>>({ group: new Set(), student: new Set() })
+  /**
+   * The group Pick Group landed on. Like Pick Row on the desks, it keeps Pick Student inside
+   * that group ("Pick from This Group") until a tap on the board lets it go, a new deal comes,
+   * or everyone in it has had a turn.
+   */
+  const [lockId, setLockId] = useState<string | null>(null)
+  const lockRef = useRef(lockId)
+  useEffect(() => {
+    lockRef.current = lockId
+  })
+  /** The students picked this round, as state, so the button's label can follow it. */
+  const [pickedStudents, setPickedStudents] = useState<ReadonlySet<string>>(new Set())
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
   const groupsRef = useRef(groups)
   groupsRef.current = groups
@@ -51,11 +63,13 @@ export function useGroupPicker(groups: StudentGroup[], options: Options) {
   const dismiss = useCallback(() => {
     clear()
     setPick(null)
+    setLockId(null)
   }, [clear])
 
   // A fresh deal is a fresh round - the old no-repeat lists are about groups that are gone.
   useEffect(() => {
     picked.current = { group: new Set(), student: new Set() }
+    setPickedStudents(new Set())
     dismiss()
   }, [options.resetKey, dismiss])
 
@@ -63,11 +77,19 @@ export function useGroupPicker(groups: StudentGroup[], options: Options) {
     (kind: GroupPickKind) => {
       const { allowRepeats, soundEnabled } = optionsRef.current
       const live = groupsRef.current.filter((g) => g.studentIds.length > 0)
-      const pool = kind === 'group' ? live.map((g) => g.id) : live.flatMap((g) => g.studentIds)
+      const already = picked.current[kind]
+      // A picked group keeps Pick Student inside it while it still has someone to draw; once
+      // everyone in it has had a turn, the pick goes back to the whole class and lets it go.
+      const locked = kind === 'student' ? live.find((g) => g.id === lockRef.current) : undefined
+      const lockedEligible = locked ? locked.studentIds.filter((id) => allowRepeats || !already.has(id)) : []
+      const staying = lockedEligible.length > 0
+      if (kind === 'student' && !staying) setLockId(null)
+      if (kind === 'group') setLockId(null)
+
+      const pool = kind === 'group' ? live.map((g) => g.id) : staying ? locked!.studentIds : live.flatMap((g) => g.studentIds)
       if (pool.length === 0) return
 
-      const already = picked.current[kind]
-      let eligible = allowRepeats ? pool : pool.filter((id) => !already.has(id))
+      let eligible = staying ? lockedEligible : allowRepeats ? pool : pool.filter((id) => !already.has(id))
       // Everyone has had a turn: start the round again rather than refusing to pick.
       if (eligible.length === 0) {
         already.clear()
@@ -84,6 +106,8 @@ export function useGroupPicker(groups: StudentGroup[], options: Options) {
           clear()
           const winner = eligible[Math.floor(Math.random() * eligible.length)]
           already.add(winner)
+          if (kind === 'student') setPickedStudents(new Set(already))
+          else setLockId(winner)
           setPick({ kind, flashId: null, winnerId: winner })
           if (soundEnabled) playPickerLand()
           return
@@ -97,8 +121,16 @@ export function useGroupPicker(groups: StudentGroup[], options: Options) {
     [clear],
   )
 
+  const lockedGroup = lockId ? groups.find((g) => g.id === lockId) : undefined
   return {
     pick,
+    /** The group Pick Student is staying in, if any. */
+    lockedGroupId: lockedGroup ? lockedGroup.id : null,
+    /**
+     * Whether the next Pick Student really will stay in the picked group - the same test the
+     * pick makes, so the button stops saying "This Group" one pick before it stops meaning it.
+     */
+    lockBinds: Boolean(lockedGroup?.studentIds.some((id) => options.allowRepeats || !pickedStudents.has(id))),
     run,
     dismiss,
     flashing: pick !== null && pick.winnerId === null,

@@ -55,6 +55,8 @@ interface GroupActivityProps {
   onToggleLock: () => void
   /** A pick running on the cards: a whole group, or one student out of the groups. */
   pick: GroupPick | null
+  /** The group Pick Student is staying in after Pick Group (useGroupPicker), if any. */
+  lockedGroupId: string | null
   onDismissPick: () => void
 }
 
@@ -251,6 +253,7 @@ export function GroupActivity({
   locked,
   onToggleLock,
   pick,
+  lockedGroupId,
   onDismissPick,
 }: GroupActivityProps) {
   /** The chip that's been picked up and is waiting for a card to be tapped. */
@@ -506,8 +509,11 @@ export function GroupActivity({
               const fg = groupTextColor(group.color)
               const status = statusStyle(group.status)
               const groupPick = pick?.kind === 'group'
-              const litCard = groupPick && (pick.flashId === group.id || pick.winnerId === group.id)
-              const wonCard = groupPick && pick.winnerId === group.id
+              // While Pick Student is staying in a picked group, that group keeps its ring and
+              // the others stay faded, so the class can see where the pick is coming from.
+              const focusing = groupPick || (pick !== null && lockedGroupId !== null)
+              const litCard = groupPick ? pick.flashId === group.id || pick.winnerId === group.id : lockedGroupId === group.id
+              const wonCard = groupPick ? pick.winnerId === group.id : focusing && lockedGroupId === group.id
               const liftedHere = liftedChip !== null && group.studentIds.includes(liftedChip)
               const dropTarget = liftedChip !== null && !liftedHere
               return (
@@ -522,7 +528,7 @@ export function GroupActivity({
                     status.id === 'help' && 'card-help-pulse',
                     // The lit card is the one not faded. It also had a brightness filter,
                     // repainted on every flash, which the fading already made unnecessary.
-                    groupPick && !litCard && 'opacity-35',
+                    focusing && !litCard && 'opacity-35',
                     wonCard && 'card-pick-winner scale-[1.04]',
                   )}
                   // A real border, not a ring outside the card: a ring is clipped wherever a card

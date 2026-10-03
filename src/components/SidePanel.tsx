@@ -350,17 +350,27 @@ export function SidePanel({
               className={clsx('w-full justify-start', FIT_PY)}
             >
               <User size={18} />{' '}
-              {!groupMode && rowLockBinds ? (setName === 'table' ? 'Pick from This Table' : 'Pick from This Row') : 'Pick Student'}
+              {rowLockBinds
+                ? groupMode
+                  ? 'Pick from This Group'
+                  : setName === 'table'
+                    ? 'Pick from This Table'
+                    : 'Pick from This Row'
+                : 'Pick Student'}
             </TactileButton>
             {/* A row and a group are both "a set of students", so the button keeps its
                 meaning and only what counts as a set changes with the screen. */}
             <TactileButton
-              active={groupMode ? rowPickActive : rowLocked || rowPickActive}
+              active={rowLocked || rowPickActive}
               onClick={onPickRow}
               disabled={deskMode || flipDeckOpen}
               className={clsx('w-full justify-start', FIT_PY)}
               title={
-                !groupMode && rowLockBinds ? `Picks are staying in this ${setName}. Tap any desk to go back to the whole class.` : undefined
+                rowLockBinds
+                  ? groupMode
+                    ? 'Picks are staying in this group. Tap the board to go back to the whole class.'
+                    : `Picks are staying in this ${setName}. Tap any desk to go back to the whole class.`
+                  : undefined
               }
             >
               {groupMode ? <UsersRound size={18} /> : <Users size={18} />}{' '}

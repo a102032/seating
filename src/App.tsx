@@ -543,8 +543,9 @@ export default function App() {
       onPickStudent={() => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent))}
       onPickRow={() => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow))}
       groupMode={groupActivityOpen}
-      rowLocked={picker.rowLocked}
-      rowLockBinds={picker.rowLockBinds}
+      // During a group activity the "set" Pick Student can stay inside is the picked group.
+      rowLocked={groupActivityOpen ? groupPicker.lockedGroupId !== null : picker.rowLocked}
+      rowLockBinds={groupActivityOpen ? groupPicker.lockBinds : picker.rowLockBinds}
       setName={plan.setName}
       studentPickActive={
         groupActivityOpen ? groupPicker.pick?.kind === 'student' : picker.mode === 'student-flashing' || picker.mode === 'student-result'
@@ -732,6 +733,7 @@ export default function App() {
                     locked={groupsLocked}
                     onToggleLock={() => setGroupsLocked((v) => !v)}
                     pick={groupPicker.pick}
+                    lockedGroupId={groupPicker.lockedGroupId}
                     onDismissPick={groupPicker.dismiss}
                   />
                 </motion.div>
