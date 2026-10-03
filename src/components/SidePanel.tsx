@@ -12,11 +12,10 @@ import {
   Shuffle,
   TriangleAlert,
   User,
-  Users,
-  UsersRound,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useFitToHeight } from '../hooks/useFitToHeight'
+import { GroupActivityIcon, PickGroupIcon, PickRowIcon, PickTableIcon } from './PickerIcons'
 import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData, TimerSettings } from '../types'
 import type { useCloudSync } from '../hooks/useCloudSync'
@@ -373,7 +372,7 @@ export function SidePanel({
                   : undefined
               }
             >
-              {groupMode ? <UsersRound size={18} /> : <Users size={18} />}{' '}
+              {groupMode ? <PickGroupIcon size={18} /> : setName === 'table' ? <PickTableIcon size={18} /> : <PickRowIcon size={18} />}{' '}
               {groupMode ? 'Pick Group' : setName === 'table' ? 'Pick Table' : 'Pick Row'}
             </TactileButton>
             <TactileButton
@@ -390,7 +389,7 @@ export function SidePanel({
               disabled={deskMode || groupActivityLocked}
               className={clsx('w-full justify-start', FIT_PY)}
             >
-              <UsersRound size={18} /> Group Activity
+              <GroupActivityIcon size={18} /> Group Activity
             </TactileButton>
           </div>
 
