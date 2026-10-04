@@ -15,7 +15,7 @@ import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { goalIsLive, MAX_CLASSES, useClasses } from './hooks/useClasses'
+import { goalIsLive, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
@@ -343,21 +343,29 @@ export default function App() {
     setSettingsOpen(true)
   }
 
-  /** New Class from the splash: make it, then drop the teacher straight into naming it. */
-  function startNewClassFromSplash() {
-    createClass()
-    setSplashOpen(false)
-    openSettings('class')
-  }
-
   /**
-   * First run. The class already exists - useClasses seeds one - so this opens that empty
-   * class rather than creating a second one next to it.
+   * A brand-new teacher's first sign-in goes straight to setting up a class: the splash steps
+   * aside and Class Settings opens on the Class tab, on the empty class useClasses already made
+   * (so not a second one beside it). Only for a sign-in made here and now, onto a fresh board -
+   * a teacher whose account already has classes gets them as cards on the splash, and opening
+   * the app already signed in is not a sign-in.
    */
-  function setUpFirstClass() {
-    setSplashOpen(false)
-    openSettings('class')
-  }
+  const signedInAtStart = useRef(Boolean(cloud.account))
+  useEffect(() => {
+    if (!cloud.account) {
+      signedInAtStart.current = false
+      return
+    }
+    if (signedInAtStart.current) return
+    signedInAtStart.current = true
+    const fresh = classes.length === 1 && classes[0].students.length === 0
+    if (fresh && splashOpen) {
+      setSplashOpen(false)
+      openSettings('class')
+    }
+    // Only the moment the account arrives counts; classes and the splash are read as they are then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloud.account])
 
   // A full or locked-down storage refuses a write by throwing. Unguarded, moving the panel
   // took the whole app down with it; now the choice just isn't remembered.
@@ -585,9 +593,6 @@ export default function App() {
               setActiveClassId(id)
               setSplashOpen(false)
             }}
-            onNewClass={startNewClassFromSplash}
-            onSetUpFirst={setUpFirstClass}
-            canAddClass={classes.length < MAX_CLASSES}
             account={cloud.account}
             signingIn={cloud.signingIn}
             signInError={cloud.signInError}

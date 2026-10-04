@@ -110,7 +110,7 @@ checks the live URL. Confirm it went green before saying something is live.
 
 Playwright is installed globally (`/opt/node22/lib/node_modules/playwright/index.js`); launch Chromium with
 `executablePath: '/opt/pw-browsers/chromium'`. Seed a class through `localStorage` in `addInitScript`, click past
-the splash screen (`.splash-board button`), then act and take screenshots. `scripts/walkthrough.mjs` does this for a
+the splash screen (`.splash-board button`), then act and take screenshots. Seed it as a signed-in teacher's board (`seating-chart-account-v1`) and block Firebase's requests, as `open()` in the walkthrough does: signed out, the splash offers only Sign in. `scripts/walkthrough.mjs` does this for a
 whole lesson and class setup (the bugs found in the sweep, edge-size classes, reloads, and "nothing scrolls" in every
 theme at all three sizes); run it after a change to anything shared. Google Fonts is blocked in the sandbox,
 so Andika renders as a fallback unless the font files are served locally. Measure "no scroll" as

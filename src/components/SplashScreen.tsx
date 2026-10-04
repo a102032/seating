@@ -15,7 +15,6 @@ import {
   Paperclip,
   Palette,
   Pencil,
-  Plus,
   Ruler,
   Scissors,
   Star,
@@ -30,15 +29,9 @@ interface SplashScreenProps {
   classes: ClassData[]
   /** Tap a class card: make it active and hand the board over, in one go. */
   onOpenClass: (id: string) => void
-  /** Make a class and open its settings, ready for a roster. */
-  onNewClass: () => void
-  /** First run: open the class that already exists rather than making a second empty one. */
-  onSetUpFirst: () => void
-  /** False once every class slot is used, so New Class stops offering what it can't do. */
-  canAddClass: boolean
   /** Whose classes are on the board, when a teacher has signed in. */
   account: Account | null
-  /** Signed in once, but Google needs the sign-in done again. */
+  /** Google's window is open. */
   signingIn: boolean
   signInError: string | null
   onSignIn: () => void
@@ -109,31 +102,15 @@ const DRIFTERS: Drifter[] = [
   { Icon: Apple, left: 42, size: 34, dur: 15, delay: -11, color: CHALK.mint, sway: 12, peak: 0.8 },
 ]
 
-/**
- * How far the bunting hangs, as a share of the frame's width: the string's lowest point plus a
- * flag. It hangs deepest in the middle, right over the logo, so it is kept shallow - it was
- * half again as deep and covered the tops of "Class?" and "Yes!" on a short screen - and the
- * board keeps its words below it (BUNTING_CLEARANCE).
- */
-const BUNTING_SAG = 22
-const BUNTING_FLAG_H = 62
-const BUNTING_DEPTH = (10 + BUNTING_SAG + BUNTING_FLAG_H) / 1000
-/**
- * The space above the logo, so it always sits below the bunting: the bunting's depth in the
- * board's width (cqw), less the frame's padding it hangs through, plus a small gap; never less
- * than the 4rem it always had.
- */
-const BUNTING_CLEARANCE = `max(4rem, calc(${(BUNTING_DEPTH * 100).toFixed(2)}cqw - 2px))`
-
 function Bunting() {
   // The string sags from corner to corner. y(t) below is the sag; its derivative gives the
   // slope at each flag, which is what the flag is rotated to - a flat-topped flag on a
   // sloping string floats off it at one corner, which is what the last cut got wrong.
-  const sag = (t: number) => 10 + Math.sin(t * Math.PI) * BUNTING_SAG
-  const slope = (t: number) => ((BUNTING_SAG * Math.PI * Math.cos(t * Math.PI)) / 1000) * (180 / Math.PI)
+  const sag = (t: number) => 10 + Math.sin(t * Math.PI) * 44
+  const slope = (t: number) => ((44 * Math.PI * Math.cos(t * Math.PI)) / 1000) * (180 / Math.PI)
   const n = 11
-  const flagW = 66
-  const flagH = BUNTING_FLAG_H
+  const flagW = 72
+  const flagH = 86
   const flags = Array.from({ length: n }, (_, i) => {
     const t = (i + 0.5) / n
     return { x: t * 1000, y: sag(t), rot: slope(t), color: FLAGS[i % FLAGS.length] }
@@ -145,7 +122,7 @@ function Bunting() {
   }).join(' ')
   return (
     <svg
-      viewBox="0 0 1000 110"
+      viewBox="0 0 1000 150"
       className="pointer-events-none absolute inset-x-0 top-0 z-20 h-auto w-full"
       style={{ overflow: 'visible' }}
       aria-hidden
@@ -373,24 +350,15 @@ function ChalkTray() {
 /**
  * The front door: a chalkboard.
  *
- * Two states. Which one shows turns on classes.length, not on whether anyone has a roster yet
- * - "first run" means exactly one class exists and it's empty, which is the state useClasses
- * seeds on a truly fresh app (and re-seeds if the last class is ever deleted). Anything else
- * lays every class out as a card the teacher taps to open, rosters full or not: a period
- * that hasn't been imported yet is still a real class, and it gets a card that says so.
+ * Two states, and they turn on whether a teacher is signed in (2026-10-04, the teacher's
+ * call). Signed out, it is "Welcome, Teacher!" and one button, Sign in with Google: classes
+ * are made by signed-in teachers only, so none is ever made that isn't kept in an account.
+ * A brand-new teacher's first sign-in goes straight into Class Settings to set up a class
+ * (App). Signed in, it is the teacher's classes as cards, rosters full or not, and Switch
+ * teacher - nothing else. New Class lives in Class Settings, beside the title.
  */
-export function SplashScreen({
-  classes,
-  onOpenClass,
-  onNewClass,
-  onSetUpFirst,
-  canAddClass,
-  account,
-  signingIn,
-  signInError,
-  onSignIn,
-  onSwitchTeacher,
-}: SplashScreenProps) {
+export function SplashScreen({ classes, onOpenClass, account, signingIn, signInError, onSignIn, onSwitchTeacher }: SplashScreenProps) {
+  // A fresh board: the one empty class useClasses seeds (and re-seeds if the last is deleted).
   const firstRun = classes.length === 1 && classes[0].students.length === 0
   // Only a board nobody is signed in on offers Sign in. A signed-in board whose link to Google
   // has dropped reconnects when a class is tapped (App), so it never shows Sign in again beside
@@ -412,7 +380,8 @@ export function SplashScreen({
   const fitRef = useFitToScreen()
   const boardRef = useRef<HTMLDivElement>(null)
 
-  const note = signInError ?? (offerSignIn ? 'Signing in keeps your classes safe, and the same on every computer.' : null)
+  // Only a problem with signing in has anything to say down here; the one button says the rest.
+  const note = signInError
   useDoodlesKeepClear(boardRef, [classes, account, note, signingIn])
 
   return (
@@ -466,11 +435,7 @@ export function SplashScreen({
           {/* The wooden frame. */}
           <div className="relative rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
             <Bunting />
-            <div
-              ref={boardRef}
-              className="splash-board relative overflow-hidden rounded-lg"
-              style={{ minHeight: 'min(78vh, 640px)', containerType: 'inline-size' }}
-            >
+            <div ref={boardRef} className="splash-board relative overflow-hidden rounded-lg" style={{ minHeight: 'min(78vh, 640px)' }}>
               <ChalkDoodles />
 
               {/* The chalk-drawn inner border. */}
@@ -480,10 +445,7 @@ export function SplashScreen({
               />
 
               {/* What the teacher reads and taps. */}
-              <div
-                className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 pb-12 text-center sm:px-10"
-                style={{ paddingTop: BUNTING_CLEARANCE }}
-              >
+              <div className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
                 {/* The name is the headline; the welcome is the line under it. */}
                 <motion.h1
                   data-keep-clear
@@ -514,10 +476,10 @@ export function SplashScreen({
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
                 >
-                  {firstRun ? "Let's set up your first class." : 'Pick a class to start, or make a new one.'}
+                  {account ? 'Pick a class to start.' : firstRun ? "Let's set up your first class." : 'Sign in to see your classes.'}
                 </motion.p>
 
-                {!firstRun && (
+                {account && (
                   <motion.div
                     data-keep-clear-items
                     className="relative mt-7 flex flex-wrap items-stretch justify-center gap-3 sm:gap-4"
@@ -543,19 +505,8 @@ export function SplashScreen({
                   className="relative mt-7 flex flex-wrap items-center justify-center gap-3"
                   initial={{ y: 14, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: firstRun ? 0.55 : 0.85 }}
+                  transition={{ delay: account ? 0.85 : 0.55 }}
                 >
-                  {firstRun ? (
-                    <ChalkButton primary onClick={onSetUpFirst}>
-                      <GraduationCap size={22} /> Create My First Class
-                    </ChalkButton>
-                  ) : (
-                    canAddClass && (
-                      <ChalkButton onClick={onNewClass}>
-                        <Plus size={22} /> New Class
-                      </ChalkButton>
-                    )
-                  )}
                   {offerSignIn && (
                     <ChalkButton google onClick={onSignIn} disabled={signingIn}>
                       <GoogleG size={22} /> {signingIn ? 'Signing in…' : 'Sign in with Google'}

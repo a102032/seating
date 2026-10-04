@@ -76,6 +76,14 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 let lastPage = null
 
 /**
+ * The board as a signed-in teacher's, offline: classes are opened signed in only, so the splash
+ * has class cards only once someone is. Firebase itself is kept from loading (sync is
+ * sync-check's job), which the app takes as no internet: the side panel says Offline and
+ * everything else is the app as a teacher uses it.
+ */
+const TEACHER = { uid: 'walkthrough-teacher', firstName: 'Test', email: 'test@example.com', dirty: [], deleted: [] }
+
+/**
  * A fresh page with this state saved, past the splash screen. `storage` sets any other keys
  * (theme, flip deck settings); `before` runs in the page before the app does.
  */
@@ -93,16 +101,21 @@ async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}
       await r.fulfill({ contentType: 'font/woff2', body: readFileSync(FONTS[r.request().url().split('/').pop()]) })
     })
   }
+  await page.route(
+    (url) => url.pathname.includes('firebase'),
+    (r) => r.abort(),
+  )
   await page.addInitScript(
-    ([s, t, extra]) => {
+    ([s, t, extra, teacher]) => {
       if (sessionStorage.getItem('seeded')) return
       sessionStorage.setItem('seeded', '1')
       localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+      localStorage.setItem('seating-chart-account-v1', JSON.stringify(teacher))
       localStorage.setItem('seating-chart-theme-v1', t)
       localStorage.setItem('seating-chart-theme-chosen-v1', '1')
       for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v))
     },
-    [state, theme, storage],
+    [state, theme, storage, TEACHER],
   )
   if (before) await page.addInitScript(before)
   await page.goto(URL)

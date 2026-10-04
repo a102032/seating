@@ -173,7 +173,7 @@ try {
       'first: signed out, the splash offers Sign in with Google',
       /Sign in with Google/.test(before) && /Welcome, Teacher!/.test(before),
     )
-    check('first: and says what it is for', /keeps your classes safe/.test(before))
+    check('first: signed out, no class cards - only Sign in', /Sign in to see your classes/.test(before) && !/Grade 4 English/.test(before))
     await board.waitForTimeout(1500)
     check('first: nothing talks to Firebase before a tap', board.firebaseRequests === 0, `${board.firebaseRequests} requests`)
     await shot(board, '01-splash-signed-out')
@@ -335,10 +335,12 @@ try {
     await spare.waitForTimeout(800)
     const after = await splashText(spare)
     check('switch: the board is signed out', /Welcome, Teacher!/.test(after) && /Sign in with Google/.test(after))
+    // Back on the board, and waiting for whoever signs in next (they'll be asked about it).
+    const names = await spare.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-state-v1')).classes.map((c) => c.name))
     check(
-      'switch: its own class is back',
-      /Room 12 Art/.test(after) && !/Grade 4 English/.test(after),
-      after.replace(/\s+/g, ' ').slice(0, 120),
+      'switch: its own class is back, behind Sign in',
+      names.includes('Room 12 Art') && !names.includes('Grade 4 English') && !/Room 12 Art/.test(after),
+      names.join(', '),
     )
     const leftBehind = await spare.evaluate(async () => {
       const dbs = (await indexedDB.databases()).map((d) => d.name)
@@ -399,10 +401,7 @@ try {
     await pc.getByRole('button', { name: /Sign in with Google/ }).click()
     await pc.waitForTimeout(800)
     const t = await splashText(pc)
-    check(
-      "errors: closing Google's window is not an error",
-      !/blocked|didn't work|Can't reach/.test(t) && /keeps your classes safe/.test(t),
-    )
+    check("errors: closing Google's window is not an error", !/blocked|didn't work|Can't reach/.test(t) && /Sign in with Google/.test(t))
     check('errors: still signed out', /Welcome, Teacher!/.test(t) && !(await uidOf(pc)))
     await pc.context().close()
   }
@@ -411,7 +410,19 @@ try {
     // A Google name that starts with a title is greeted with the name after it, not the title alone.
     const AMY = { sub: 'google-amy', email: 'amy@yuteh.ntpc.edu.tw', email_verified: true, name: 'Teacher Amy Chen' }
     const pc = await computer('pc-title', null)
+    // A brand-new teacher on a fresh board: one button, and signing in goes straight to setting up a class.
+    const fresh = await splashText(pc)
+    check(
+      'first sign-in: a fresh board shows Welcome, Teacher! and one button, Sign in with Google',
+      /Welcome, Teacher!/.test(fresh) && (await pc.locator('.splash-board button').count()) === 1,
+      fresh.replace(/\s+/g, ' ').slice(0, 100),
+    )
     await signIn(pc, AMY)
+    const setUp = await waitFor(async () => (await pc.getByRole('tab', { name: 'Class', selected: true }).count()) === 1)
+    check('first sign-in: a brand-new teacher goes straight to Class Settings, on the Class tab', Boolean(setUp))
+    await shot(pc, '11-first-sign-in')
+    // The next day: her class and Switch teacher, nothing else.
+    await pc.reload()
     const greeted = await waitFor(async () => /Welcome, Teacher Amy!/.test(await splashText(pc)))
     check(
       'title: "Teacher Amy Chen" is welcomed as Teacher Amy',
@@ -420,7 +431,13 @@ try {
     )
     const circle = (await pc.getByRole('button', { name: /Switch teacher/ }).innerText()).trim()
     check("title: the circle on Switch teacher is her letter, A, not the title's", /^A\s+Switch teacher$/.test(circle), circle)
-    await shot(pc, '11-title-name')
+    const buttons = await pc.locator('.splash-board button').allInnerTexts()
+    check(
+      'next day: the splash is her class and Switch teacher, nothing else',
+      buttons.length === 2 && /Class 1/.test(buttons[0]) && /Switch teacher/.test(buttons[1]),
+      buttons.map((b) => b.replace(/\s+/g, ' ')).join(' | '),
+    )
+    await shot(pc, '12-next-day')
     // A board that saved the name the old way, as "Teacher", puts it right the next time it opens.
     await pc.evaluate(() => {
       const a = JSON.parse(localStorage.getItem('seating-chart-account-v1'))

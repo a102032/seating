@@ -322,15 +322,29 @@ const filesOf = (kind) => [...drive.files.values()].filter((f) => f.appPropertie
 try {
   await page.goto(URL)
   await page.waitForTimeout(600)
+  // Classes are made and opened signed in only: the splash offers one thing, Sign in with
+  // Google. Signed in with a pass into Drive ready for the stand-in; the empty account takes
+  // the board's two classes, which then show as cards.
+  await page.evaluate(
+    (token) =>
+      (window.__testGoogle = {
+        sub: 'drive-derek',
+        email: 'derek@yuteh.ntpc.edu.tw',
+        email_verified: true,
+        name: 'Derek Hoerler',
+        driveToken: token,
+      }),
+    TOKEN,
+  )
+  await page
+    .locator('.splash-board')
+    .getByRole('button', { name: /Sign in with Google/ })
+    .click()
   await page.locator('.splash-board button', { hasText: 'Grade 4 English' }).click()
   await page.waitForTimeout(800)
 
   if (want('picture')) {
     await settings('Google')
-    const text = await dialog().innerText()
-    check('signed out: the Google tab offers Sign in', /Sign in with Google/.test(text))
-    check('signed out: Save as Picture is there, Save to Drive is not', /Save as Picture/.test(text) && !/Save to Google Drive/.test(text))
-    await shot('01-google-tab-signed-out')
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       dialog()
@@ -352,29 +366,11 @@ try {
       download.suggestedFilename(),
     )
     await closeSettings()
-    await settings('Students')
-    check('signed out: Import is the CSV import it always was', (await dialog().getByRole('button', { name: 'Import CSV' }).count()) === 1)
-    await closeSettings()
   }
 
-  // Sign in from the Google tab itself, with a pass into Drive ready for the stand-in.
   await settings('Google')
-  await page.evaluate(
-    (token) =>
-      (window.__testGoogle = {
-        sub: 'drive-derek',
-        email: 'derek@yuteh.ntpc.edu.tw',
-        email_verified: true,
-        name: 'Derek Hoerler',
-        driveToken: token,
-      }),
-    TOKEN,
-  )
-  await dialog()
-    .getByRole('button', { name: /Sign in with Google/ })
-    .click()
   const signedIn = await waitFor(async () => /derek@yuteh/.test(await dialog().innerText()))
-  check('sign in from the Google tab', Boolean(signedIn))
+  check('signed in on the splash: the Google tab shows the account', Boolean(signedIn))
 
   if (want('picture')) {
     const text = await dialog().innerText()

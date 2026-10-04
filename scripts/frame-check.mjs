@@ -82,9 +82,19 @@ const page = await browser.newPage({
 })
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
+// A signed-in teacher's board, offline: the splash only offers class cards once someone is
+// signed in, and Firebase is kept from loading (as walkthrough.mjs does).
+await page.route(
+  (url) => url.pathname.includes('firebase'),
+  (r) => r.abort(),
+)
 await page.addInitScript(
   ([s, t]) => {
     localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+    localStorage.setItem(
+      'seating-chart-account-v1',
+      JSON.stringify({ uid: 'frame-check-teacher', firstName: 'Test', email: 'test@example.com', dirty: [], deleted: [] }),
+    )
     localStorage.setItem('seating-chart-theme-v1', t)
     localStorage.setItem('seating-chart-theme-chosen-v1', '1')
     localStorage.setItem('seating-chart-timer-settings-v1', JSON.stringify({ warningEnabled: true, alarmSound: 'ding', face: 'dial' }))
