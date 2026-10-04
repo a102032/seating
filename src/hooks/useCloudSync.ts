@@ -403,7 +403,8 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
     try {
       api = await loadCloud()
       cloud.current = api
-      const who = await api.signIn()
+      // A board that already has a teacher's classes is reconnecting that teacher, not asking who.
+      const who = await api.signIn(record.current?.email || undefined)
       const r = record.current
       if (r) {
         // Signing in again on a board whose classes are already someone's.

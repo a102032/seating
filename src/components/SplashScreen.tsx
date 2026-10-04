@@ -39,7 +39,6 @@ interface SplashScreenProps {
   /** Whose classes are on the board, when a teacher has signed in. */
   account: Account | null
   /** Signed in once, but Google needs the sign-in done again. */
-  needsSignIn: boolean
   signingIn: boolean
   signInError: string | null
   onSignIn: () => void
@@ -110,15 +109,31 @@ const DRIFTERS: Drifter[] = [
   { Icon: Apple, left: 42, size: 34, dur: 15, delay: -11, color: CHALK.mint, sway: 12, peak: 0.8 },
 ]
 
+/**
+ * How far the bunting hangs, as a share of the frame's width: the string's lowest point plus a
+ * flag. It hangs deepest in the middle, right over the logo, so it is kept shallow - it was
+ * half again as deep and covered the tops of "Class?" and "Yes!" on a short screen - and the
+ * board keeps its words below it (BUNTING_CLEARANCE).
+ */
+const BUNTING_SAG = 22
+const BUNTING_FLAG_H = 62
+const BUNTING_DEPTH = (10 + BUNTING_SAG + BUNTING_FLAG_H) / 1000
+/**
+ * The space above the logo, so it always sits below the bunting: the bunting's depth in the
+ * board's width (cqw), less the frame's padding it hangs through, plus a small gap; never less
+ * than the 4rem it always had.
+ */
+const BUNTING_CLEARANCE = `max(4rem, calc(${(BUNTING_DEPTH * 100).toFixed(2)}cqw - 2px))`
+
 function Bunting() {
   // The string sags from corner to corner. y(t) below is the sag; its derivative gives the
   // slope at each flag, which is what the flag is rotated to - a flat-topped flag on a
   // sloping string floats off it at one corner, which is what the last cut got wrong.
-  const sag = (t: number) => 10 + Math.sin(t * Math.PI) * 44
-  const slope = (t: number) => ((44 * Math.PI * Math.cos(t * Math.PI)) / 1000) * (180 / Math.PI)
+  const sag = (t: number) => 10 + Math.sin(t * Math.PI) * BUNTING_SAG
+  const slope = (t: number) => ((BUNTING_SAG * Math.PI * Math.cos(t * Math.PI)) / 1000) * (180 / Math.PI)
   const n = 11
-  const flagW = 72
-  const flagH = 86
+  const flagW = 66
+  const flagH = BUNTING_FLAG_H
   const flags = Array.from({ length: n }, (_, i) => {
     const t = (i + 0.5) / n
     return { x: t * 1000, y: sag(t), rot: slope(t), color: FLAGS[i % FLAGS.length] }
@@ -130,7 +145,7 @@ function Bunting() {
   }).join(' ')
   return (
     <svg
-      viewBox="0 0 1000 150"
+      viewBox="0 0 1000 110"
       className="pointer-events-none absolute inset-x-0 top-0 z-20 h-auto w-full"
       style={{ overflow: 'visible' }}
       aria-hidden
@@ -207,6 +222,7 @@ function ChalkDoodles() {
       {DOODLES.map((d, i) => (
         <div
           key={i}
+          data-doodle
           className={`splash-doodle ${d.small ? 'hidden sm:block' : ''}`}
           style={{ ...d.style, transform: `rotate(${d.rotate}deg)`, opacity: d.opacity }}
         >
@@ -370,14 +386,16 @@ export function SplashScreen({
   onSetUpFirst,
   canAddClass,
   account,
-  needsSignIn,
   signingIn,
   signInError,
   onSignIn,
   onSwitchTeacher,
 }: SplashScreenProps) {
   const firstRun = classes.length === 1 && classes[0].students.length === 0
-  const offerSignIn = !account || needsSignIn
+  // Only a board nobody is signed in on offers Sign in. A signed-in board whose link to Google
+  // has dropped reconnects when a class is tapped (App), so it never shows Sign in again beside
+  // Switch teacher: side by side, the two read as two ways of doing one thing.
+  const offerSignIn = !account
 
   // Fetch the sign-in code while the splash is up, so a tap on Sign in opens Google's window at
   // once: a browser only lets a page open a window straight after a tap.
@@ -392,10 +410,10 @@ export function SplashScreen({
   }, [offerSignIn])
 
   const fitRef = useFitToScreen()
+  const boardRef = useRef<HTMLDivElement>(null)
 
-  const note =
-    signInError ??
-    (needsSignIn ? 'Sign in again to keep saving to your account.' : offerSignIn ? 'Signing in keeps your classes safe, and the same on every computer.' : null)
+  const note = signInError ?? (offerSignIn ? 'Signing in keeps your classes safe, and the same on every computer.' : null)
+  useDoodlesKeepClear(boardRef, [classes, account, note, signingIn])
 
   return (
     <motion.div
@@ -448,7 +466,11 @@ export function SplashScreen({
           {/* The wooden frame. */}
           <div className="relative rounded-2xl bg-gradient-to-br from-[#c9975a] via-[#a9773a] to-[#7f5424] p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.45)] sm:p-3.5">
             <Bunting />
-            <div className="splash-board relative overflow-hidden rounded-lg" style={{ minHeight: 'min(78vh, 640px)' }}>
+            <div
+              ref={boardRef}
+              className="splash-board relative overflow-hidden rounded-lg"
+              style={{ minHeight: 'min(78vh, 640px)', containerType: 'inline-size' }}
+            >
               <ChalkDoodles />
 
               {/* The chalk-drawn inner border. */}
@@ -458,9 +480,13 @@ export function SplashScreen({
               />
 
               {/* What the teacher reads and taps. */}
-              <div className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
+              <div
+                className="relative z-10 flex min-h-[inherit] flex-col items-center justify-center px-6 pb-12 text-center sm:px-10"
+                style={{ paddingTop: BUNTING_CLEARANCE }}
+              >
                 {/* The name is the headline; the welcome is the line under it. */}
                 <motion.h1
+                  data-keep-clear
                   className="relative"
                   initial={{ scale: 0.6, rotate: -5, opacity: 0 }}
                   animate={{ scale: 1, rotate: -1.5, opacity: 1 }}
@@ -470,6 +496,7 @@ export function SplashScreen({
                 </motion.h1>
 
                 <motion.p
+                  data-keep-clear
                   className="splash-chalk relative mt-3"
                   style={{ color: CHALK.yellow, fontSize: 'clamp(1.6rem, 4.6vmin, 2.6rem)', lineHeight: 1.1 }}
                   initial={{ y: 12, opacity: 0 }}
@@ -480,6 +507,7 @@ export function SplashScreen({
                 </motion.p>
 
                 <motion.p
+                  data-keep-clear
                   className="splash-chalk relative mt-2 max-w-xl"
                   style={{ color: CHALK.sky, fontSize: 'clamp(1.05rem, 2.8vmin, 1.5rem)' }}
                   initial={{ y: 12, opacity: 0 }}
@@ -491,6 +519,7 @@ export function SplashScreen({
 
                 {!firstRun && (
                   <motion.div
+                    data-keep-clear-items
                     className="relative mt-7 flex flex-wrap items-stretch justify-center gap-3 sm:gap-4"
                     initial="hidden"
                     animate="show"
@@ -510,6 +539,7 @@ export function SplashScreen({
                 )}
 
                 <motion.div
+                  data-keep-clear-items
                   className="relative mt-7 flex flex-wrap items-center justify-center gap-3"
                   initial={{ y: 14, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -528,19 +558,21 @@ export function SplashScreen({
                   )}
                   {offerSignIn && (
                     <ChalkButton google onClick={onSignIn} disabled={signingIn}>
-                      <GoogleG size={22} /> {signingIn ? 'Signing in…' : needsSignIn ? 'Sign in again' : 'Sign in with Google'}
+                      <GoogleG size={22} /> {signingIn ? 'Signing in…' : 'Sign in with Google'}
                     </ChalkButton>
                   )}
+                  {/* Just "Switch teacher": the welcome above already says whose classes these are. */}
                   {account && (
                     <ChalkButton quiet onClick={onSwitchTeacher} disabled={signingIn}>
                       <Initial name={account.firstName} className="size-7 text-base" />
-                      Not {account.firstName}? Switch teacher
+                      Switch teacher
                     </ChalkButton>
                   )}
                 </motion.div>
 
                 {note && (
                   <p
+                    data-keep-clear
                     className="splash-chalk relative mt-3.5 max-w-2xl"
                     style={{ color: signInError ? CHALK.peach : CHALK.white, opacity: signInError ? 1 : 0.8, fontSize: 'clamp(0.95rem, 2.4vmin, 1.2rem)' }}
                     role={signInError ? 'alert' : undefined}
@@ -581,6 +613,54 @@ function useFitToScreen() {
     return () => observer.disconnect()
   }, [])
   return ref
+}
+
+/**
+ * Hides any chalk doodle that would sit on the logo, the words, a class card or a button. The
+ * doodles are placed by hand at the board's edges, but what's in the middle changes - one class
+ * or five, signed in or not, a short laptop or a big board - and every new arrangement put one
+ * on top of something: the grapes on "...every computer", the cat and dog under the cards. Hiding
+ * the odd doodle where the board is busy is better than a drawing over a name. Measured from the
+ * layout (offsets, which the entrance animations don't move), before anything is painted, and
+ * again whenever the board or its contents change size or the fonts arrive.
+ */
+function useDoodlesKeepClear(boardRef: React.RefObject<HTMLDivElement | null>, deps: unknown[]) {
+  useLayoutEffect(() => {
+    const board = boardRef.current
+    if (!board) return
+    /** An element's box in the board's own coordinates. */
+    const boxOf = (el: HTMLElement) => {
+      let x = 0
+      let y = 0
+      let node: HTMLElement | null = el
+      while (node && node !== board) {
+        x += node.offsetLeft
+        y += node.offsetTop
+        node = node.offsetParent as HTMLElement | null
+      }
+      return { x, y, w: el.offsetWidth, h: el.offsetHeight }
+    }
+    // A doodle is drawn at a slant, so its upright box is padded a little.
+    const MARGIN = 8
+    const check = () => {
+      const clear = [...board.querySelectorAll<HTMLElement>('[data-keep-clear], [data-keep-clear-items] > *')].map(boxOf)
+      for (const doodle of board.querySelectorAll<HTMLElement>('[data-doodle]')) {
+        if (!doodle.offsetParent) continue // not shown at this size
+        const d = boxOf(doodle)
+        const hits = clear.some(
+          (c) => d.x - MARGIN < c.x + c.w && c.x < d.x + d.w + MARGIN && d.y - MARGIN < c.y + c.h && c.y < d.y + d.h + MARGIN,
+        )
+        doodle.style.visibility = hits ? 'hidden' : ''
+      }
+    }
+    check()
+    const observer = new ResizeObserver(check)
+    observer.observe(board)
+    board.querySelectorAll<HTMLElement>('[data-keep-clear], [data-keep-clear-items]').forEach((el) => observer.observe(el))
+    void document.fonts?.ready.then(check)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
 }
 
 /** A class, as a card stuck to the board. Tapping it opens the class. */

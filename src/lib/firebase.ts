@@ -99,8 +99,12 @@ function toAccount(user: User): Account {
   return { uid: user.uid, firstName, email }
 }
 
-/** Google's own sign-in window. `select_account` so a shared board always asks who is signing in. */
-export async function signIn(): Promise<Account> {
+/**
+ * Google's own sign-in window. `select_account` so a shared board always asks who is signing in -
+ * except when the board already knows (reconnecting the teacher whose classes it has): then it
+ * names their account, and Google's window can close by itself instead of asking again.
+ */
+export async function signIn(knownEmail?: string): Promise<Account> {
   const { auth } = connect()
   if (import.meta.env.VITE_FIREBASE_EMULATOR) {
     // Google's sign-in window can't load where the tests run, so a test names the Google account
@@ -110,7 +114,7 @@ export async function signIn(): Promise<Account> {
     if (test) return toAccount((await signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify(test)))).user)
   }
   const provider = new GoogleAuthProvider()
-  provider.setCustomParameters({ prompt: 'select_account' })
+  provider.setCustomParameters(knownEmail ? { login_hint: knownEmail } : { prompt: 'select_account' })
   const result = await signInWithPopup(auth, provider)
   return toAccount(result.user)
 }

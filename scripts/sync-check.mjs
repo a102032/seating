@@ -181,7 +181,8 @@ try {
     await signIn(board, DEREK)
     const welcomed = await waitFor(async () => /Welcome, Derek!/.test(await splashText(board)))
     check('first: signed in, the splash greets Derek', Boolean(welcomed))
-    check('first: and offers Switch teacher', /Not Derek\? Switch teacher/.test(await splashText(board)))
+    const offered = await splashText(board)
+    check('first: and offers Switch teacher, in two words', /Switch teacher/.test(offered) && !/Not Derek/.test(offered))
     check('first: no question, since the account was empty', (await board.getByText("Add this board's classes").count()) === 0)
     await shot(board, '02-splash-signed-in')
     derekUid = await uidOf(board)
@@ -326,7 +327,7 @@ try {
     check("question: No shows only the account's classes", Boolean(mine))
     check('question: and leaves the account as it was', (await accountClasses(derekUid)).classes.length === 3)
 
-    await spare.getByRole('button', { name: /Not Derek\? Switch teacher/ }).click()
+    await spare.getByRole('button', { name: /Switch teacher/ }).click()
     const confirm = spare.getByRole('alertdialog')
     check('switch: it asks first, and says the classes are safe', /safe in the Google account/.test(await confirm.innerText()))
     await shot(spare, '06-switch-teacher')
@@ -417,7 +418,8 @@ try {
       Boolean(greeted),
       (await splashText(pc)).replace(/\s+/g, ' ').slice(0, 80),
     )
-    check('title: and asked "Not Teacher Amy?"', /Not Teacher Amy\? Switch teacher/.test(await splashText(pc)))
+    const circle = (await pc.getByRole('button', { name: /Switch teacher/ }).innerText()).trim()
+    check("title: the circle on Switch teacher is her letter, A, not the title's", /^A\s+Switch teacher$/.test(circle), circle)
     await shot(pc, '11-title-name')
     // A board that saved the name the old way, as "Teacher", puts it right the next time it opens.
     await pc.evaluate(() => {
@@ -430,6 +432,54 @@ try {
     const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-account-v1')).firstName)
     check('title: and keeps the new name for next time', kept === 'Teacher Amy', kept)
     if (pc.errors.length) check('title: no page errors', false, pc.errors.slice(0, 3).join(' | '))
+    await pc.context().close()
+  }
+
+  if (want('reconnect')) {
+    // The board remembers the teacher, but its own link to Google has gone (Firebase's sign-in on
+    // this computer was cleared). The splash shows only Switch teacher - no Sign in again beside
+    // it - and tapping a class reconnects, so saving to the account starts again.
+    const pc = await computer('pc-reconnect', [makeClass('g4', 'Grade 4 English', 28)])
+    await signIn(pc, DEREK)
+    await waitFor(async () => /Welcome, Derek!/.test(await splashText(pc)))
+    await pc.evaluate(() => {
+      sessionStorage.setItem('drop-firebase-sign-in', '1')
+      // Firebase's own copy of the sign-in, in both places it may keep one.
+      for (const k of Object.keys(localStorage)) if (k.startsWith('firebase:authUser')) localStorage.removeItem(k)
+    })
+    await pc.addInitScript(() => {
+      if (!sessionStorage.getItem('drop-firebase-sign-in')) return
+      sessionStorage.removeItem('drop-firebase-sign-in')
+      indexedDB.deleteDatabase('firebaseLocalStorageDb')
+    })
+    await pc.reload()
+    await pc.waitForTimeout(2500)
+    const splash = await splashText(pc)
+    check(
+      'reconnect: a board that lost its link still greets Derek, with no Sign in again beside Switch teacher',
+      /Welcome, Derek!/.test(splash) && /Switch teacher/.test(splash) && !/Sign in/.test(splash),
+      splash.replace(/\s+/g, ' ').slice(0, 140),
+    )
+    // Closing Google's window: the class opens anyway, and the Saved mark shows the link is down.
+    await pc.evaluate(() => (window.__testGoogle = { error: 'auth/popup-closed-by-user' }))
+    await openClass(pc, 'Grade 4 English')
+    const down = await waitFor(async () => (await syncMark(pc)) === 'error')
+    check("reconnect: closing Google's window still opens the class, with the Saved mark amber", Boolean(down), String(await syncMark(pc)))
+    await pc.reload()
+    await pc.waitForTimeout(2500)
+    await pc.evaluate((w) => (window.__testGoogle = w), DEREK)
+    await openClass(pc, 'Grade 4 English')
+    const saved = await waitFor(async () => (await syncMark(pc)) === 'saved', 15000)
+    check('reconnect: tapping a class reconnects, and the side panel says Saved', Boolean(saved), String(await syncMark(pc)))
+    await givePoint(pc, 'Amy')
+    const reached = await waitFor(
+      async () =>
+        (await accountClasses(derekUid ?? (await uidOf(pc)))).classes
+          .find((c) => c.name === 'Grade 4 English')
+          ?.students.find((x) => x.name === 'Amy')?.points >= 1,
+    )
+    check('reconnect: a star given afterwards reaches the account', Boolean(reached))
+    if (pc.errors.length) check('reconnect: no page errors', false, pc.errors.slice(0, 3).join(' | '))
     await pc.context().close()
   }
 

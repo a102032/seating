@@ -577,6 +577,11 @@ export default function App() {
           <SplashScreen
             classes={classes}
             onOpenClass={(id) => {
+              // The board knows the teacher but its link to their Google account has dropped:
+              // the tap that opens the class asks Google to reconnect them. Their window usually
+              // closes by itself; if it's closed, the class is open anyway and the Saved mark
+              // keeps Sign in again.
+              if (cloud.needsSignIn) void cloud.signIn()
               setActiveClassId(id)
               setSplashOpen(false)
             }}
@@ -584,7 +589,6 @@ export default function App() {
             onSetUpFirst={setUpFirstClass}
             canAddClass={classes.length < MAX_CLASSES}
             account={cloud.account}
-            needsSignIn={cloud.needsSignIn}
             signingIn={cloud.signingIn}
             signInError={cloud.signInError}
             onSignIn={() => void cloud.signIn()}
