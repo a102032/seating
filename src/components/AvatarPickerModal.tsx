@@ -1,9 +1,11 @@
 import clsx from 'clsx'
+import { Check } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { STICKER_THEMES, getTheme, stickerId, stickerSrc } from '../lib/stickers'
+import { NO_AVATAR, STICKER_THEMES, getTheme, hasNoAvatar, stickerId, stickerSrc } from '../lib/stickers'
 import type { Student } from '../types'
 import { Modal } from './Modal'
+import { NoAvatarPicture } from './NoAvatarPicture'
 
 interface AvatarPickerModalProps {
   open: boolean
@@ -30,6 +32,23 @@ export function AvatarPickerModal({ open, student, onClose, onSelect }: AvatarPi
       <div className="flex h-full min-h-0 flex-col gap-3">
         <ScrollArea className="shrink-0">
           <div className="flex gap-1.5 pb-2">
+            {/* First in the row: one tap gives this student just their name on the desk. It is a
+                choice, not a pack to look through, so it is ticked when chosen rather than lit
+                like the pack whose poses show below, and a rule sets it apart from the packs. */}
+            <button
+              type="button"
+              onClick={() => onSelect(NO_AVATAR)}
+              className="relative flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 border-transparent p-1.5 transition-colors hover:bg-accent active:scale-95"
+            >
+              {hasNoAvatar(student) && (
+                <span className="absolute right-0.5 top-0.5 rounded-full bg-primary p-0.5 text-primary-foreground">
+                  <Check size={11} strokeWidth={3} />
+                </span>
+              )}
+              <NoAvatarPicture className="h-12 w-12 text-foreground" />
+              <span className="max-w-[5rem] truncate text-xs font-semibold text-foreground">No Avatar</span>
+            </button>
+            <span className="mx-1 w-px shrink-0 self-stretch bg-black/10 dark:bg-white/15" aria-hidden />
             {STICKER_THEMES.map((t) => (
               <button
                 key={t.id}

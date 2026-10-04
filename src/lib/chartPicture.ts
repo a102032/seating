@@ -1,7 +1,7 @@
 import type { ClassData, Student } from '../types'
 import { dateKey } from './attendance'
 import { planFor, type Gap } from './layouts'
-import { resolveAvatarSrc } from './stickers'
+import { hasNoAvatar, resolveAvatarSrc } from './stickers'
 
 /**
  * The seating chart as a picture: the room as it's laid out today, for a substitute or the
@@ -71,7 +71,8 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
   const images = new Map<string, HTMLImageElement | null>()
   await Promise.all(
     seated.map(async (s) => {
-      if (s) images.set(s.id, await loadImage(resolveAvatarSrc(s)))
+      const src = s && resolveAvatarSrc(s)
+      if (s) images.set(s.id, src ? await loadImage(src) : null)
     }),
   )
 
@@ -132,9 +133,11 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
     return part === 0 ? xs[whole] : xs[whole] + (xs[whole + 1] - xs[whole]) * part
   }
 
-  // One name size for the whole class, set by the widest name, as on the board.
+  // One name size for the whole class, set by the widest name, as on the board - bigger when no
+  // desk has a picture to share it with.
   const pad = deskW * 0.06
-  const maxName = deskH * 0.19
+  const nameOnlyClass = seated.some(Boolean) && seated.every((s) => !s || hasNoAvatar(s))
+  const maxName = deskH * (nameOnlyClass ? 0.3 : 0.19)
   ctx.font = `700 100px ${FACE}`
   const widest = Math.max(1, ...seated.map((s) => (s ? ctx.measureText(s.name).width : 0)))
   const nameSize = Math.min(maxName, ((deskW - 2 * pad) * 100) / widest)
@@ -159,6 +162,24 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
     ctx.strokeStyle = LINE
     ctx.lineWidth = 3
     ctx.stroke()
+
+    if (hasNoAvatar(student)) {
+      // No avatar: the name in the middle, the homeroom number under it, as on the board (the
+      // printed chart keeps every number - it's a list the teacher reads).
+      ctx.textAlign = 'center'
+      ctx.font = `700 ${nameSize}px ${FACE}`
+      ctx.fillStyle = NAME
+      const baseline = y + deskH / 2 + nameSize * 0.35
+      ctx.fillText(student.name, x + deskW / 2, baseline, deskW - 2 * pad)
+      if (student.homeroom) {
+        ctx.font = `700 ${homeroomSize}px ${FACE}`
+        ctx.fillStyle = SOFT
+        // Below the name's tails (the y in Amy, the p in Sophia), which reach about a third of
+        // the name's size under its line.
+        ctx.fillText(student.homeroom, x + deskW / 2, baseline + nameSize * 0.32 + homeroomSize, deskW - 2 * pad)
+      }
+      return
+    }
 
     if (student.homeroom) {
       ctx.font = `700 ${homeroomSize}px ${FACE}`

@@ -27,7 +27,8 @@ import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../lib
 import type { useCloudSync } from '../hooks/useCloudSync'
 import { useDrive } from '../hooks/useDrive'
 import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
-import { resolveAvatarSrc } from '../lib/stickers'
+import { hasNoAvatar, resolveAvatarSrc } from '../lib/stickers'
+import { NoAvatarPicture } from './NoAvatarPicture'
 import type { Theme } from '../lib/theme'
 import { MAX_DESKS, type ClassData, type Gender, type Student } from '../types'
 import { Badge } from '@/components/ui/badge'
@@ -806,7 +807,11 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         title="Choose an avatar"
         className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10"
       >
-        <img src={resolveAvatarSrc(student)} alt="" draggable={false} className="h-full w-full object-contain select-none" />
+        {hasNoAvatar(student) ? (
+          <NoAvatarPicture className="h-full w-full" />
+        ) : (
+          <img src={resolveAvatarSrc(student) ?? undefined} alt="" draggable={false} className="h-full w-full object-contain select-none" />
+        )}
       </button>
       <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
       {(student.points ?? 0) > 0 && (

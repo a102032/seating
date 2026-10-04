@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { Star } from 'lucide-react'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
-import { resolveAvatarSrc } from '../lib/stickers'
+import { hasNoAvatar, resolveAvatarSrc } from '../lib/stickers'
 import type { Student } from '../types'
 import { AbsentIcon } from './AbsentIcon'
 
@@ -29,6 +29,12 @@ interface DeskProps {
   absent: boolean
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
+  /**
+   * The most a no-avatar desk's name may be, in cqb (a share of the desk's height), shared by
+   * the class: the name sits in the middle and the homeroom number, where one shows, hangs
+   * under it, so a short desk must still have room below the name.
+   */
+  nameHeightCap: number
   /** Another student in the class has the same name, so the homeroom number tells them apart. */
   showHomeroom: boolean
   /** Show the student's stars in the corner - see showDeskStars in types.ts. */
@@ -47,12 +53,17 @@ export function Desk({
   highlight,
   absent,
   nameSize,
+  nameHeightCap,
   showHomeroom,
   showStars,
   onTap,
 }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
+  const nameOnly = student !== undefined && hasNoAvatar(student)
+  // The room above a centred name: from near the desk's top down to just above the name's
+  // capitals, which start about a third of the name's size above the middle.
+  const nameOnlyZzz = `min(34cqb, calc(47cqb - 0.44 * min(${nameSize}cqi, ${nameHeightCap}cqb)))`
 
   return (
     <button
@@ -92,7 +103,8 @@ export function Desk({
         highlight === 'winner' ? 'desk-picked outline-4 outline-solid outline-amber-400' : 'outline-none',
         !empty && 'cursor-pointer',
       )}
-      style={{ containerType: 'inline-size', animationDelay: wiggleDelayMs ? `${wiggleDelayMs}ms` : undefined }}
+      // A no-avatar desk measures its height too (cqb), to keep its centred name inside it.
+      style={{ containerType: nameOnly ? 'size' : 'inline-size', animationDelay: wiggleDelayMs ? `${wiggleDelayMs}ms` : undefined }}
     >
       {/* An empty desk is just the faded tile. It said "Empty", on every empty desk, which
           was one more word on a board already full of names. */}
@@ -113,33 +125,72 @@ export function Desk({
             </div>
           )}
 
-          <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
-            {absent ? (
-              // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
-              <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
-            ) : (
-              <img
-                src={resolveAvatarSrc(student)}
-                alt=""
-                draggable={false}
-                className="h-full w-full object-contain select-none pointer-events-none"
-              />
-            )}
-          </div>
+          {nameOnly ? (
+            // No avatar: the name alone, in the middle of the desk, so the names line up across a
+            // row whether or not a homeroom number hangs under one. The number shows where it
+            // always would (two students sharing a name, or the switch), under the name rather
+            // than after it. Away today: a small zzz above the name, and the desk fades as any does.
+            <>
+              {absent && (
+                // As big as the room above the centred name allows, and never more than a third of the desk.
+                <AbsentIcon
+                  className="absolute left-1/2 top-[3cqb] -translate-x-1/2 text-muted-foreground"
+                  style={{ height: nameOnlyZzz, width: nameOnlyZzz }}
+                />
+              )}
+              <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                <span
+                  className="relative block w-full px-1 font-bold leading-tight"
+                  style={{ fontSize: `min(${nameSize}cqi, ${nameHeightCap}cqb)`, color: 'var(--desk-name, var(--card-foreground))' }}
+                >
+                  <span className="block truncate">{student.name}</span>
+                  {showHomeroom && (
+                    <span
+                      data-ink="homeroom"
+                      className="absolute inset-x-0 top-full block truncate font-semibold opacity-50"
+                      style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}
+                    >
+                      {student.homeroom}
+                    </span>
+                  )}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+                {absent ? (
+                  // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
+                  <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
+                ) : (
+                  <img
+                    src={resolveAvatarSrc(student) ?? undefined}
+                    alt=""
+                    draggable={false}
+                    className="h-full w-full object-contain select-none pointer-events-none"
+                  />
+                )}
+              </div>
 
-          <span
-            className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-tight"
-            // Its own colour token rather than the card's text colour - see --desk-name in
-            // index.css. Dark and Comic Book point it back at the card colour.
-            style={{ fontSize: `${nameSize}cqi`, color: 'var(--desk-name, var(--card-foreground))' }}
-          >
-            {student.name}
-            {showHomeroom && (
-              <span data-ink="homeroom" className="ml-[0.25em] font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
-                {student.homeroom}
+              <span
+                className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-tight"
+                // Its own colour token rather than the card's text colour - see --desk-name in
+                // index.css. Dark and Comic Book point it back at the card colour.
+                style={{ fontSize: `${nameSize}cqi`, color: 'var(--desk-name, var(--card-foreground))' }}
+              >
+                {student.name}
+                {showHomeroom && (
+                  <span
+                    data-ink="homeroom"
+                    className="ml-[0.25em] font-semibold opacity-50"
+                    style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}
+                  >
+                    {student.homeroom}
+                  </span>
+                )}
               </span>
-            )}
-          </span>
+            </>
+          )}
         </>
       )}
     </button>

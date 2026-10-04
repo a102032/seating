@@ -1,6 +1,11 @@
 /** Font size the desks use, expressed in cqi (percent of the desk's own width) so it scales with the board. */
 const MIN_CQI = 10
 const MAX_CQI = 16
+/**
+ * The cap when every desk in the class has no avatar: the name has the whole desk, so a short
+ * name can be nearly twice the size, which is what reads from the back of the room.
+ */
+export const NAME_ONLY_MAX_CQI = 30
 /** Desk width left for the name once its padding is taken off. */
 const AVAILABLE_CQI = 88
 const REFERENCE_PX = 100
@@ -31,12 +36,12 @@ function labelWidth({ name, homeroom }: { name: string; homeroom?: string }): nu
  * everyone else's, which singles them out. The floor stops a single pasted-in full
  * name from shrinking all thirty desks - past that point the one name truncates instead.
  */
-export function fitClassNameSize(names: { name: string; homeroom?: string }[]): number {
-  const widest = names.reduce((max, label) => Math.max(max, labelWidth(label)), 0)
-  if (widest <= 0) return MAX_CQI
+export function fitClassNameSize(names: { name: string; homeroom?: string }[], max = MAX_CQI): number {
+  const widest = names.reduce((most, label) => Math.max(most, labelWidth(label)), 0)
+  if (widest <= 0) return max
   // Text width scales linearly with font size, so one measurement gives the fitting size.
   const fitted = (AVAILABLE_CQI * REFERENCE_PX) / widest
-  return Math.min(MAX_CQI, Math.max(MIN_CQI, fitted))
+  return Math.min(max, Math.max(MIN_CQI, fitted))
 }
 
 /** Width of `text` in em, in the app's bold face - for sizing a box to a name before it renders. */

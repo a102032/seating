@@ -146,17 +146,33 @@ function StudentFace({
           <img src={avatarSrc} alt="" draggable={false} className="h-full w-full object-contain select-none pointer-events-none" />
         </div>
       )}
-      <span
-        className="w-full shrink-0 truncate px-0.5 text-center font-bold leading-tight text-card-foreground"
-        style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
-      >
-        {student.name}
-        {showHomeroom && (
-          <span data-ink="homeroom" className="ml-[0.25em] font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
-            {student.homeroom}
-          </span>
-        )}
-      </span>
+      {avatarSrc ? (
+        <span
+          className="w-full shrink-0 truncate px-0.5 text-center font-bold leading-tight text-card-foreground"
+          style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
+        >
+          {student.name}
+          {showHomeroom && (
+            <span data-ink="homeroom" className="ml-[0.25em] font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
+              {student.homeroom}
+            </span>
+          )}
+        </span>
+      ) : (
+        // No avatar: the name alone, bigger, in the middle of the card, with the homeroom number
+        // (where one shows) under it, as on the desks.
+        <span
+          className="w-full shrink-0 px-0.5 text-center font-bold leading-tight text-card-foreground"
+          style={{ fontSize: 'clamp(0.85rem, 19cqi, 2.2rem)' }}
+        >
+          <span className="block truncate">{student.name}</span>
+          {showHomeroom && (
+            <span data-ink="homeroom" className="block truncate font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
+              {student.homeroom}
+            </span>
+          )}
+        </span>
+      )}
       {jackpotHit && (
         // The jackpot rising off the card as it lands, then gone - the badge keeps the score.
         <motion.span

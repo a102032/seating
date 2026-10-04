@@ -593,6 +593,88 @@ const scenarios = {
   },
 
   /**
+   * No Avatar: chosen for everyone in Student Avatars, the desks show just the name, centred,
+   * bigger than beside a picture, with the homeroom number under a shared name; a newcomer
+   * follows the class; one student can go back to a character; nothing scrolls or spills.
+   */
+  async 'no avatar'() {
+    const cls = makeClass('c1', 'Names', 30)
+    cls.students[29].name = cls.students[0].name // two students share a name, so a number shows
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const nameSize = () =>
+      page
+        .locator('[data-ink=desk] span.font-bold')
+        .first()
+        .evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
+    const besidePictures = await nameSize()
+    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /Student Avatars/ }).click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'No Avatar' }).click()
+    await page.waitForTimeout(300)
+    let c = await activeSaved(page)
+    check(
+      'no avatar: Student Avatars gives everyone No Avatar',
+      c.students.every((s) => s.avatarId === 'none'),
+    )
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    const alone = await nameSize()
+    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
+    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(500)
+    // A newcomer to a class of names gets no avatar too.
+    await page.getByPlaceholder('Name').fill('Zoe')
+    await page.getByRole('button', { name: 'Add', exact: true }).click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check('no avatar: a new student follows the class', c.students.find((s) => s.name === 'Zoe')?.avatarId === 'none')
+    // One student back to a character, from their own picker.
+    await page.getByTitle('Choose an avatar').first().click()
+    await page.waitForTimeout(500)
+    await page.getByRole('dialog').getByRole('button', { name: 'Owl' }).click()
+    await page.getByRole('dialog').locator('.grid button').first().click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check('no avatar: one student can go back to a character', c.students.filter((s) => s.avatarId !== 'none').length === 1)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    const desks = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-ink=desk]')].map((d) => {
+        const r = d.getBoundingClientRect()
+        const spans = [...d.querySelectorAll('span')].map((x) => x.getBoundingClientRect()).filter((q) => q.height > 0)
+        const name = d.querySelector('span.font-bold')?.getBoundingClientRect()
+        return {
+          img: Boolean(d.querySelector('img')),
+          spill: spans.some((q) => q.bottom > r.bottom + 0.5 || q.top < r.top - 0.5),
+          centred: name ? Math.abs((name.top + name.bottom) / 2 - (r.top + r.bottom) / 2) < 3 : false,
+          number: d.querySelector('[data-ink=homeroom]')?.textContent ?? '',
+        }
+      }),
+    )
+    const named = desks.filter((d) => !d.img)
+    check(
+      'no avatar: the names sit in the middle of their desks, and nothing spills out',
+      named.length >= 29 && named.every((d) => d.centred) && desks.every((d) => !d.spill),
+      JSON.stringify({ named: named.length, offCentre: named.filter((d) => !d.centred).length }),
+    )
+    check('no avatar: the two students who share a name show their numbers, nobody else does', desks.filter((d) => d.number).length === 2)
+    // A mixed class keeps one size for every name, centred or beside a picture.
+    const sizes = await page.evaluate(() => [
+      ...new Set(
+        [...document.querySelectorAll('[data-ink=desk] span.font-bold')].map((e) => parseFloat(getComputedStyle(e).fontSize).toFixed(1)),
+      ),
+    ])
+    check('no avatar: with one character in the class, every name is one size', sizes.length === 1, sizes.join(', '))
+    const over = await overflow(page)
+    check('no avatar: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    return page
+  },
+
+  /**
    * Room layouts: each one chosen in Class Settings, for a class of 30 and a class of 35, at the
    * three sizes - everyone seated once, nothing scrolls, the names as big as in Rows (the
    * layouts keep six desks across), and Pick Row/Table and Split by Rows/Tables use the room.

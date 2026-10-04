@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
-import { getTheme, randomPose, stickerId } from '../lib/stickers'
+import { getTheme, hasNoAvatar, NO_AVATAR, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type ClassData, type Gender, type GroupStatus, type Student, type StudentGroup } from '../types'
@@ -164,12 +164,22 @@ export function useClasses() {
     })
   }, [])
 
+  /**
+   * A class whose students all have no avatar keeps it that way for newcomers: they'd otherwise
+   * arrive with a character picked from their id, the one animal on a board of names.
+   */
   const addStudents = useCallback(
     (classId: string, students: Omit<Student, 'id'>[]) =>
-      updateClass(classId, (c) => ({
-        ...c,
-        students: [...c.students, ...students.map((s) => ({ ...s, id: genId() }))],
-      })),
+      updateClass(classId, (c) => {
+        const namesOnly = c.students.length > 0 && c.students.every(hasNoAvatar)
+        return {
+          ...c,
+          students: [
+            ...c.students,
+            ...students.map((s) => ({ ...s, ...(namesOnly && !s.avatarId ? { avatarId: NO_AVATAR } : {}), id: genId() })),
+          ],
+        }
+      }),
     [updateClass],
   )
 
@@ -189,9 +199,11 @@ export function useClasses() {
   const assignAvatars = useCallback(
     (classId: string, themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) =>
       updateClass(classId, (c) => {
+        const targeted = (s: Student) => options.scope === 'all' || s.gender === options.scope
+        // No Avatar is a choice among the characters: the desks show just the name.
+        if (themeId === NO_AVATAR) return { ...c, students: c.students.map((s) => (targeted(s) ? { ...s, avatarId: NO_AVATAR } : s)) }
         const theme = getTheme(themeId)
         if (!theme) return c
-        const targeted = (s: Student) => options.scope === 'all' || s.gender === options.scope
 
         // Re-tapping the character the class already has should visibly re-roll, so in
         // "same" mode steer the single shared draw away from the pose they're wearing.

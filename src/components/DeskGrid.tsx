@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fitClassNameSize } from '../lib/fitText'
+import { fitClassNameSize, NAME_ONLY_MAX_CQI } from '../lib/fitText'
 import { homeroomsToShow } from '../lib/sameNames'
+import { hasNoAvatar } from '../lib/stickers'
 import type { Gap, LayoutPlan } from '../lib/layouts'
 import { DESK_ROWS, desksInOrder, type Student } from '../types'
 import { Desk, type DeskHighlight } from './Desk'
@@ -79,7 +80,11 @@ export function DeskGrid({
   // A homeroom number shows only after a name two students share (lib/sameNames), and the
   // name size makes room for it.
   const tagged = useMemo(() => homeroomsToShow(studentsById.values(), showAllHomerooms), [studentsById, showAllHomerooms])
-  const labels = seatedStudents.map((s) => `${s.name}\t${tagged.has(s.id) ? s.homeroom : ''}`).join('\n')
+  // On a no-avatar desk the number hangs under the name, so it adds nothing to the name's width.
+  const labels = seatedStudents.map((s) => `${s.name}\t${tagged.has(s.id) && !hasNoAvatar(s) ? s.homeroom : ''}`).join('\n')
+  // A class with no avatars at all lets the names grow into the room the pictures had. A class
+  // with some still keeps one size for every name, centred or not.
+  const nameOnlyClass = seatedStudents.length > 0 && seatedStudents.every(hasNoAvatar)
   const nameSize = useMemo(
     () =>
       fitClassNameSize(
@@ -89,10 +94,15 @@ export function DeskGrid({
               return { name, homeroom }
             })
           : [],
+        nameOnlyClass ? NAME_ONLY_MAX_CQI : undefined,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [labels, fontsLoaded],
+    [labels, fontsLoaded, nameOnlyClass],
   )
+  // A centred name with a homeroom number under it needs room below it as well as above: the
+  // name is held to about a third of the desk's height, or a bit under half when no centred
+  // name has a number. One cap for the class, so the names stay one size.
+  const nameHeightCap = seatedStudents.some((s) => hasNoAvatar(s) && tagged.has(s.id)) ? 34 : 44
 
   const renderDesk = (index: number, position: number) => {
     const student = seated[index]
@@ -114,6 +124,7 @@ export function DeskGrid({
         highlight={deskHighlights[index] ?? 'none'}
         absent={student !== undefined && absentIds.has(student.id)}
         nameSize={nameSize}
+        nameHeightCap={nameHeightCap}
         showHomeroom={student !== undefined && tagged.has(student.id)}
         showStars={showStars}
         onTap={onTapDesk}

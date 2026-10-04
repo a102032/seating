@@ -38,8 +38,20 @@ export function stickerSrc(theme: string, pose: string): string {
   return assetUrl(`/avatars/stickers/${theme}/${pose}.svg`)
 }
 
-/** The image to show for a student right now. */
-export function resolveAvatarSrc(student: Pick<Student, 'id' | 'avatarId'>): string {
+/**
+ * No avatar: the desk shows just the name, in the middle, for a teacher who doesn't want
+ * pictures (or for one student whose family would rather not). Kept in the avatar field so it
+ * travels with the student like any other choice.
+ */
+export const NO_AVATAR = 'none'
+
+export function hasNoAvatar(student: Pick<Student, 'avatarId'>): boolean {
+  return student.avatarId === NO_AVATAR
+}
+
+/** The image to show for a student right now, or null for a student with no avatar. */
+export function resolveAvatarSrc(student: Pick<Student, 'id' | 'avatarId'>): string | null {
+  if (hasNoAvatar(student)) return null
   const picked = parse(student.avatarId)
   if (picked) return stickerSrc(picked.theme.id, picked.pose)
   // A pose taken out of the library (stickers/removed.txt) keeps the student's character,
