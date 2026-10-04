@@ -295,6 +295,13 @@ button {
  * being motion rather than colour it implies no direction - a deduction can use the same cue
  * as an award.
  */
+/* Away today: the desk and everything on it ghosted, so it reads as not here from across the room.
+   Stronger than it was (70%), short of a dimmed desk during a pick (25%). Before .desk-muted, so
+   that during a pick an absent desk dims with the rest rather than standing out brighter than them. */
+.desk-absent {
+  opacity: 0.4;
+}
+
 /* The one dim in the app. The random pickers and the points selection are saying the same
    thing - "these desks are in play, those aren't" - so they say it at the same strength. */
 .desk-muted {

@@ -811,7 +811,7 @@ function Chip({ student, widthEm, tint, plain, lifted, absent, dimmed, won, plac
     // transform, so it and this scale never fight.
     !placeholder && 'transition-[scale,opacity] duration-300',
     !placeholder && (lifted || won) && 'scale-[1.06]',
-    !placeholder && (dimmed ? 'opacity-30' : absent ? 'opacity-55' : undefined),
+    !placeholder && (dimmed ? 'opacity-30' : absent ? 'opacity-40' : undefined),
   )
   const style = { width: `${widthEm}em`, background: plain || !tint ? undefined : `${tint}22` }
   const inner = (

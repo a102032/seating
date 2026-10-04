@@ -88,8 +88,9 @@ export function Desk({
         !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
         (pointsState === 'muted' || highlight === 'dimmed') && 'desk-muted',
-        // Faded, not hidden: the name still has to be read from the back of the room.
-        absent && !empty && 'opacity-70',
+        // Ghosted, not hidden: the name can still be read, but an absent desk must not pass
+        // for a present one at a glance (it was at 70% and did).
+        absent && !empty && 'desk-absent',
         pointsState === 'selected' && (wiggleLoop ? 'desk-wiggle-loop' : 'desk-wiggle'),
         pointsState === 'landed' && (landedTick % 2 === 0 ? 'desk-landed-a' : 'desk-landed-b'),
         pointsState === 'landed' && wiggleLoop && 'desk-wiggle-loop',
