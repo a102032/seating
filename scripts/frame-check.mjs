@@ -174,6 +174,23 @@ await measure('flip 3 cards', async () => {
     await wait(900)
   }
 })
+// Mystery Gifts on and a fresh deal with them in it (not measured), then one gift from wrapped to sent.
+await page.getByTitle('Flip card settings').click()
+await wait(600)
+await page.locator('#bonus-cards').click()
+await page.keyboard.press('Escape')
+await wait(600)
+await page.getByRole('button', { name: 'Shuffle' }).click()
+await wait(4500)
+await measure('a mystery gift: dance, roll, send', async () => {
+  const gift = page.locator('[data-bonus=gift]').first()
+  await gift.click()
+  await wait(1500)
+  await gift.click()
+  await wait(2500)
+  await gift.click()
+  await wait(2000)
+})
 await page.getByTitle('Back to the seating chart').click()
 await wait(1500)
 await measure('group activity: deal 4s', async () => {
