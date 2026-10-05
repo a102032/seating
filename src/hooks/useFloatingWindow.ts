@@ -25,9 +25,10 @@ export const FLOAT_SIZE = { width: 340, height: 180 }
 /**
  * The one-row strip it shrinks to, for when it's covering too much of the lesson. A see-through
  * window was asked for, but Chrome draws this window solid; small is what a web page can do.
- * Chrome won't resize it below 240x62.
+ * Chrome won't resize it below 240x62. It was 240 wide until Get Ready!'s star joined the count,
+ * +1 and Pick in it; at 240 they didn't fit.
  */
-export const FLOAT_STRIP_SIZE = { width: 240, height: 62 }
+export const FLOAT_STRIP_SIZE = { width: 290, height: 62 }
 
 /**
  * Resize the floating window to this much room inside. resizeTo counts the title bar and
@@ -40,6 +41,47 @@ export function resizeFloatingWindow(win: Window, size: { width: number; height:
     win.resizeTo(size.width + frameWidth, size.height + frameHeight)
   } catch {
     // Refused: it has to come straight from a tap. The teacher can still drag its edges.
+  }
+}
+
+/**
+ * The floating window grows for Get Ready!, so the star reads from the back of the room: about
+ * three quarters of the screen's height, and a little wider than tall to fit Ready! and Stop
+ * beside the star. It stays well short of the whole screen, so the lesson's slide - usually the
+ * instruction the class is getting ready for ("page 134") - still shows beside it.
+ *
+ * It grows from where it sits. If that would run off the screen, it is moved in first where the
+ * browser allows it, and put back afterwards. Returns what puts it back.
+ */
+export function growForGetReady(win: Window): () => void {
+  const before = { width: win.innerWidth, height: win.innerHeight, x: win.screenX, y: win.screenY }
+  const screen = win.screen as Screen & { availLeft?: number; availTop?: number }
+  const left = screen.availLeft ?? 0
+  const top = screen.availTop ?? 0
+  const height = Math.round(screen.availHeight * 0.72)
+  const width = Math.round(Math.min(screen.availWidth * 0.55, height * 1.25))
+  const frameWidth = win.outerWidth - win.innerWidth
+  const frameHeight = win.outerHeight - win.innerHeight
+  const x = Math.max(left, Math.min(win.screenX, left + screen.availWidth - width - frameWidth))
+  const y = Math.max(top, Math.min(win.screenY, top + screen.availHeight - height - frameHeight))
+  let moved = false
+  if (x !== win.screenX || y !== win.screenY) {
+    try {
+      win.moveTo(x, y)
+      moved = true
+    } catch {
+      // Not allowed for this window: it grows where it is, and the browser keeps it on the screen.
+    }
+  }
+  resizeFloatingWindow(win, { width, height })
+  return () => {
+    resizeFloatingWindow(win, before)
+    if (!moved) return
+    try {
+      win.moveTo(before.x, before.y)
+    } catch {
+      // Left where it is.
+    }
   }
 }
 

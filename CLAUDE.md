@@ -96,7 +96,9 @@ checks the live URL. Confirm it went green before saying something is live.
   - `GetReady.tsx`: Get Ready! ("How long?", the star with its taiko drum, Ready! and Stop); its drums and prizes are in
     `lib/getReady.ts`, its sounds in `sound.ts` and its stars' flight in `starFlight.ts` (`flyStarsFrom`).
   - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal. `FloatingGoal.tsx`: the goal floating over the lesson
-    (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`). CSS animations only in there.
+    (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`), with +1, Pick and Get Ready!
+    (`FloatGetReady.tsx`, the app's own star in the window grown big). CSS animations only in there, and timers on the
+    floating window's own clock (`win.setTimeout`): the app's page behind the lesson gets about one timer a second.
   - `AttendanceHistoryModal.tsx` (the record, opened from Class Settings) and `AbsentIcon.tsx` (the zzz).
   - `PasteRosterModal.tsx`: a list pasted in from Excel or a Google Sheet. `lib/csv.ts` finds the columns in a paste, a CSV or an
     Excel file (`lib/xlsx.ts` reads an .xlsx in the browser, loaded only when one is chosen).

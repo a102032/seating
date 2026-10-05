@@ -645,6 +645,58 @@ const scenarios = {
     return page
   },
 
+  /** Get Ready! from the floating window, over the lesson: it grows for the star, the stars land in its chest, and it shrinks back. */
+  async 'Get Ready! in the floating window'() {
+    const cls = makeClass('c1', 'Float', 12, { pointsGoal: 50, classPoints: 10 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    const winErrors = []
+    win.on('pageerror', (e) => winErrors.push(e.message))
+    await win.waitForLoadState()
+    // Playwright stretches the floating window to the test's viewport, and gives it a screen
+    // the size of that: set both to what a board would have.
+    await win.setViewportSize({ width: 340, height: 180 })
+    await win.evaluate(() => {
+      for (const [k, v] of Object.entries({ availWidth: 1280, availHeight: 680, availLeft: 0, availTop: 0 })) {
+        Object.defineProperty(screen, k, { get: () => v })
+      }
+      window.__resizes = []
+      const resize = window.resizeTo.bind(window)
+      window.resizeTo = (w, h) => {
+        window.__resizes.push([w, h])
+        resize(w, h)
+      }
+    })
+    await page.waitForTimeout(500)
+    await win.locator('[data-float-get-ready]').click()
+    await win.waitForTimeout(150)
+    const grow = await win.evaluate(() => window.__resizes[0])
+    check('float Get Ready!: the window grows for the star', Boolean(grow) && grow[1] >= 480, JSON.stringify(grow))
+    check("float Get Ready!: the side panel's stands down meanwhile", await panelButton(page, 'Get Ready!').isDisabled())
+    await win.setViewportSize({ width: 613, height: 490 })
+    await win.waitForTimeout(800)
+    await win.locator('[data-drum="10"]').click()
+    await win.waitForTimeout(900)
+    await win.locator('[data-get-ready] button[aria-label="Start"]').click()
+    await win.waitForTimeout(1500)
+    await win.getByRole('button', { name: 'Ready!', exact: true }).click()
+    await win.waitForTimeout(2200)
+    const c = await activeSaved(page)
+    check(
+      'float Get Ready!: a full star lands in the jar, and the window shows it',
+      c.classPoints === 15 && (await win.locator('[data-float-header]').innerText()).includes('15 / 50'),
+      `meter ${c.classPoints}`,
+    )
+    await win.mouse.click(30, 460)
+    await win.waitForTimeout(700)
+    check(
+      'float Get Ready!: a tap ends it and the window goes back',
+      (await win.locator('[data-get-ready]').count()) === 0 && (await win.evaluate(() => window.__resizes.length)) === 2,
+    )
+    check('float Get Ready!: no errors in the floating window', winErrors.length === 0, winErrors.join(' | '))
+    return page
+  },
+
   /** Tiny, empty and full classes through every screen, looking for errors. */
   async 'edge classes'() {
     for (const count of [0, 1, 2, 35]) {

@@ -140,37 +140,56 @@ function HowLong({
 }
 
 /** Where everything sits, from the star's size `s`: the preview's 780px star on a 1280x800 board. */
-interface Layout {
+export interface Layout {
   s: number
   top: number
-  meterBottom: number
+  /** The middle of the star, across. */
+  cx: number
+  /** Where Ready! and Stop start, down from the top. */
+  buttonsTop: number
 }
 
-function measure(): Layout {
-  const meter = document.querySelector('[data-goal-coin]')?.closest('[data-ink="panel"]')
+function measureBoard(view: Window): Layout {
+  const meter = view.document.querySelector('[data-goal-coin]')?.closest('[data-ink="panel"]')
   const meterBottom = meter ? meter.getBoundingClientRect().bottom : 0
   // The star's tip sits just under the meter and "Tap the star to start" just above the bottom
   // edge; on a wide screen it is held to 70% of the width, so it never reaches the buttons.
-  const s = Math.max(200, Math.min((innerHeight - meterBottom + 4) / 0.948, innerWidth * 0.7))
-  return { s, top: meterBottom - 8 - 0.0917 * s, meterBottom }
+  const s = Math.max(200, Math.min((view.innerHeight - meterBottom + 4) / 0.948, view.innerWidth * 0.7))
+  return { s, top: meterBottom - 8 - 0.0917 * s, cx: view.innerWidth / 2, buttonsTop: meterBottom + 28 }
 }
 
 type Ending = { words: string; earned?: number }
 
-function StarMoment({
+/**
+ * The star, the drum and the ending, over the board - or over the floating window, which brings
+ * its own `view` (its clock, its size, its events) and `measure`, since the app's own page is
+ * behind the lesson there, its timers slowed to about one a second and its animation frames
+ * stopped. `fly` sends the stars to the jar and says when they land; with `awardOnLanding` the
+ * points are handed over as they land (the floating window's meter doesn't wait for stars), and
+ * if the window closes first they are handed over then.
+ */
+export function StarMoment({
   seconds,
   prize,
   onAward,
   onLiftMeter,
   onClose,
+  view = window,
+  measure = measureBoard,
+  fly = flyStarsFrom,
+  awardOnLanding = false,
 }: {
   seconds: number
   prize: number
   onAward: (stars: number) => void
   onLiftMeter: (lifted: boolean) => void
   onClose: () => void
+  view?: Window
+  measure?: (view: Window) => Layout
+  fly?: (x: number, y: number, count: number, size: number) => number
+  awardOnLanding?: boolean
 }) {
-  const [layout, setLayout] = useState<Layout>(measure)
+  const [layout, setLayout] = useState<Layout>(() => measure(view))
   const [shown, setShown] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [started, setStarted] = useState(false)
@@ -182,41 +201,56 @@ function StarMoment({
   const [ending, setEnding] = useState<Ending | null>(null)
 
   const run = useRef({ mountedAt: 0, startedAt: 0, beats: 0, over: false, left: prize, endingAt: 0 })
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
-  const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms))
+  const timers = useRef<number[]>([])
+  const later = (fn: () => void, ms: number) => timers.current.push(view.setTimeout(fn, ms))
+  const clearTimers = () => {
+    timers.current.forEach((t) => view.clearTimeout(t))
+    timers.current = []
+  }
+  /** Stars in the air whose points are handed over as they land. */
+  const pendingAward = useRef(0)
   const starRef = useRef<HTMLDivElement>(null)
   const pulseRef = useRef<HTMLDivElement>(null)
   const drumRef = useRef<HTMLDivElement>(null)
   const leftStick = useRef<HTMLDivElement>(null)
   const rightStick = useRef<HTMLDivElement>(null)
-  const reduceMotion = useRef(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+  const reduceMotion = useRef(view.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
   const onLift = useRef(onLiftMeter)
+  const onAwardRef = useRef(onAward)
   useEffect(() => {
     onLift.current = onLiftMeter
+    onAwardRef.current = onAward
   })
 
   useLayoutEffect(() => {
-    run.current.mountedAt = performance.now()
-    const fit = () => setLayout(measure())
-    addEventListener('resize', fit)
-    const frame = requestAnimationFrame(() => setShown(true))
+    run.current.mountedAt = view.performance.now()
+    const fit = () => setLayout(measure(view))
+    view.addEventListener('resize', fit)
+    const frame = view.requestAnimationFrame(() => setShown(true))
     return () => {
-      removeEventListener('resize', fit)
-      cancelAnimationFrame(frame)
+      view.removeEventListener('resize', fit)
+      view.cancelAnimationFrame(frame)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(
     () => () => {
-      timers.current.forEach(clearTimeout)
+      timers.current.forEach((t) => view.clearTimeout(t))
+      // Gone before the stars landed (the floating window closed): the class still gets them.
+      if (pendingAward.current) onAwardRef.current(pendingAward.current)
+      pendingAward.current = 0
       onLift.current(false)
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 
   function close() {
     if (leaving) return
-    timers.current.forEach(clearTimeout)
+    clearTimers()
+    if (pendingAward.current) onAward(pendingAward.current)
+    pendingAward.current = 0
     run.current.over = true
     setLeaving(true)
     onLiftMeter(false)
@@ -300,28 +334,35 @@ function StarMoment({
     const r = run.current
     if (!r.startedAt || e.timeStamp - r.startedAt < READY_AFTER_MS || r.over) return
     r.over = true
-    timers.current.forEach(clearTimeout)
-    timers.current = []
+    clearTimers()
     const n = r.left
     playGetReadyGo()
     const box = starRef.current?.getBoundingClientRect()
     onLiftMeter(true)
-    const lands = box ? flyStarsFrom(box.left + box.width / 2, box.top + box.height * 0.525, n, layout.s * 0.09) : 0
-    onAward(n)
+    const lands = box ? fly(box.left + box.width / 2, box.top + box.height * 0.525, n, layout.s * 0.09) : 0
+    if (awardOnLanding && lands > 0) {
+      pendingAward.current = n
+      later(() => {
+        pendingAward.current = 0
+        onAward(n)
+      }, lands)
+    } else onAward(n)
     setSent(true)
     later(() => showEnding({ words: 'Great Job!', earned: n }), Math.max(500, lands))
   }
 
   /** The last word stays until it is tapped: nothing here ends on a timer. */
   function showEnding(next: Ending) {
-    run.current.endingAt = performance.now()
+    run.current.endingAt = view.performance.now()
     setEnding(next)
   }
 
-  const { s, top, meterBottom } = layout
+  const { s, top, cx, buttonsTop } = layout
   const cue = (f: number) => `${f * s}px`
-  const box: CSSProperties = { position: 'absolute', left: `calc(50% - ${s / 2}px)`, top, width: s, height: s }
+  const box: CSSProperties = { position: 'absolute', left: cx - s / 2, top, width: s, height: s }
   const words: CSSProperties = { fontSize: cue(0.0974), textShadow: '0 3px 12px rgba(0,0,0,0.35)' }
+  // A line under the star, centred on it.
+  const under = (at: number): CSSProperties => ({ left: cx, top: top + at * s, transform: 'translateX(-50%)', whiteSpace: 'nowrap' })
 
   return (
     <div
@@ -331,7 +372,7 @@ function StarMoment({
         shown && !leaving ? 'opacity-100 duration-300' : 'opacity-0 duration-[450ms]',
       )}
       onClick={() => {
-        if (ending && performance.now() - run.current.endingAt > 600) close()
+        if (ending && view.performance.now() - run.current.endingAt > 600) close()
       }}
     >
       {!ending && (
@@ -339,8 +380,8 @@ function StarMoment({
           {/* Ready! and Stop are the teacher's: stacked at the top right, out of a child's reach, the
               same size and look, told apart by a light green and a light red outline. */}
           <div
-            className={clsx('absolute right-7 flex flex-col gap-3 transition-opacity', sent && 'opacity-0')}
-            style={{ top: meterBottom + 28 }}
+            className={clsx('absolute right-7 flex flex-col gap-3 transition-opacity', sent && 'pointer-events-none opacity-0')}
+            style={{ top: buttonsTop }}
           >
             <ControlButton label="Ready!" ring="border-green-300" live={readyLive} onTap={ready} />
             <ControlButton label="Stop" ring="border-red-300" live onTap={() => close()} />
@@ -392,14 +433,14 @@ function StarMoment({
           </button>
 
           <p
-            className={clsx('absolute inset-x-0 m-0 text-center font-bold transition-opacity', sent && 'opacity-0')}
-            style={{ ...words, top: top + 0.864 * s }}
+            className={clsx('absolute m-0 text-center font-bold transition-opacity', sent && 'opacity-0')}
+            style={{ ...words, ...under(0.864) }}
           >
             Get Ready!
           </p>
           <p
-            className={clsx('absolute inset-x-0 m-0 text-center opacity-75', started && 'invisible')}
-            style={{ fontSize: cue(0.0308), top: top + 0.979 * s }}
+            className={clsx('absolute m-0 text-center opacity-75', started && 'invisible')}
+            style={{ fontSize: cue(0.0308), ...under(0.979) }}
           >
             Tap the star to start
           </p>

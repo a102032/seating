@@ -129,23 +129,35 @@ const GET_READY_FLIGHT_MS = 900
  * Returns how long until the last one lands. The meter waits for them, as it does for a desk's.
  * A Mystery Gift's stars fly the same way from its card, with the everyday coin (`loud: false`):
  * the loud one is for Get Ready!, over a faded board.
+ *
+ * Get Ready! in the floating window flies its stars to that window's own chest (`to`), drawn in
+ * that window. The board's meter doesn't wait for those (`tracked: false`): the app is behind
+ * the lesson, where its timers are slowed to about one a second, so the floating window hands
+ * the points over itself as the stars land.
  */
-export function flyStarsFrom(x: number, y: number, count: number, size: number, { loud = true } = {}): number {
-  const coin = document.querySelector<HTMLElement>('[data-goal-coin]')
+export function flyStarsFrom(
+  x: number,
+  y: number,
+  count: number,
+  size: number,
+  { loud = true, to: target, tracked = true }: { loud?: boolean; to?: HTMLElement | null; tracked?: boolean } = {},
+): number {
+  const coin = target ?? document.querySelector<HTMLElement>('[data-goal-coin]')
   if (!coin || count <= 0) return 0
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0
+  const doc = coin.ownerDocument
+  if (doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0
   const to = coin.getBoundingClientRect()
   const tx = to.left + to.width / 2
   const ty = to.top + to.height / 2
 
-  const layer = document.createElement('div')
+  const layer = doc.createElement('div')
   layer.setAttribute('aria-hidden', 'true')
   layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden'
-  document.body.appendChild(layer)
+  doc.body.appendChild(layer)
 
   const stagger = Math.min(90, 500 / Math.max(1, count - 1))
   const lands = (count - 1) * stagger + GET_READY_FLIGHT_MS
-  landingAt = Math.max(landingAt, performance.now() + lands)
+  if (tracked) landingAt = Math.max(landingAt, performance.now() + lands)
   if (loud) loudLandingAt = performance.now() + lands
   const gap = size * 0.85
 
@@ -168,7 +180,7 @@ export function flyStarsFrom(x: number, y: number, count: number, size: number, 
         opacity: s === steps ? 0.3 : 1,
       })
     }
-    const star = document.createElement('div')
+    const star = doc.createElement('div')
     star.style.cssText = `position:absolute;left:0;top:0;width:${size}px;height:${size}px;will-change:transform,opacity;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25))`
     star.innerHTML = STAR_SVG
     layer.appendChild(star)

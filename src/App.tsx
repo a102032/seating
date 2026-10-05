@@ -30,7 +30,7 @@ import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from
 import { pickChances } from './lib/participation'
 import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
-import { studentsAsShown } from './lib/stickers'
+import { resolveAvatarSrc, studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
@@ -189,6 +189,9 @@ export default function App() {
   const appInFront = useAppInFront()
   /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
   const [goalWaiting, setGoalWaiting] = useState(false)
+  /** Get Ready! is running in the floating window, so the side panel's stands down. */
+  const [floatReadying, setFloatReadying] = useState(false)
+  if (!floatWin && floatReadying) setFloatReadying(false)
   const goalLive = activeClass ? goalIsLive(activeClass) : false
   /** Stars wait on the desks for All Stars In!, rather than flying straight to the goal. */
   const desksMode = activeClass ? starsWaitOnDesks(activeClass) : false
@@ -597,7 +600,7 @@ export default function App() {
     <TactileButton
       key="get-ready"
       active={getReadyOpen}
-      disabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking}
+      disabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking || floatReadying}
       onClick={() => setGetReadyOpen(true)}
       className={evenly}
       title="A star for getting ready quickly and quietly"
@@ -1036,10 +1039,15 @@ export default function App() {
           onCelebrate={() => window.focus()}
           pick={
             picker.mode === 'student-flashing' || picker.mode === 'student-result'
-              ? {
-                  name: (picker.shownStudentId && studentsById.get(picker.shownStudentId)?.name) || '',
-                  landed: picker.mode === 'student-result',
-                }
+              ? (() => {
+                  const shown = picker.shownStudentId ? studentsById.get(picker.shownStudentId) : undefined
+                  return {
+                    name: shown?.name ?? '',
+                    // As the desks show them: none when the class's avatars are off.
+                    avatarSrc: shown ? resolveAvatarSrc(shown) : null,
+                    landed: picker.mode === 'student-result',
+                  }
+                })()
               : null
           }
           // Off whenever the side panel's Pick Student would be, or it would pick behind cards.
@@ -1057,6 +1065,16 @@ export default function App() {
             startPick(() => picker.pickStudent(floatWin))
           }}
           onClearPick={picker.dismiss}
+          // The app's own Get Ready!, over the lesson: the same drums and prize, and it stands
+          // down whenever the side panel's would.
+          getReady={{
+            canStart: !getReadyOpen && !picker.isPicking && !swapMode && !attendanceMode && !choosingAvatars,
+            lastDrum: activeClass.getReadyDrum,
+            prize: activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE,
+            onChooseDrum: (seconds) => setGetReady(activeClass.id, { getReadyDrum: seconds }),
+            onAward: (stars) => addToClassGoal(activeClass.id, stars),
+            onActiveChange: setFloatReadying,
+          }}
         />
       )}
     </>
