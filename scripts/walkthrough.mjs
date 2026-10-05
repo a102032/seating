@@ -865,7 +865,15 @@ const scenarios = {
     )
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    // Measured before anyone joins: an unseated newcomer brings up the "not seated" bar, which
+    // makes the desks, and so the names, a little smaller.
+    const alone = await nameSize()
+    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
     // A newcomer to a class of names shows by name like everyone else, with nothing to undo later.
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(500)
     await page.getByPlaceholder('Name').fill('Zoe')
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.waitForTimeout(300)
@@ -876,8 +884,6 @@ const scenarios = {
     )
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
-    const alone = await nameSize()
-    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
     const desks = await page.evaluate(() =>
       [...document.querySelectorAll('[data-ink=desk]')].map((d) => {
         const r = d.getBoundingClientRect()
