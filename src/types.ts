@@ -112,6 +112,12 @@ export interface ClassData {
    */
   pickRound?: { day: string; ids: string[] }
   /**
+   * Get Ready!'s prize: the class points a full star is worth, the same on every drum. Unset is 5.
+   */
+  getReadyPrize?: number
+  /** The drum Get Ready! used last time, in seconds, outlined in "How long?" so the same job is the same tap. */
+  getReadyDrum?: number
+  /**
    * Show every student's homeroom number after their name on the board. Unset is off: the
    * number then shows only where two students share a name (lib/sameNames), which is its job.
    */

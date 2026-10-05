@@ -85,13 +85,15 @@ checks the live URL. Confirm it went green before saying something is live.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
   cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
 - `src/components/`:
-  - `SidePanel.tsx`: the class name (no goal) or the goal's controls (Float, with a goal on), timer, pickers and points.
+  - `SidePanel.tsx`: the class name (no goal) or the goal's controls (Get Ready! and Float, with a goal on), timer, pickers and points.
   - `ClassTitle.tsx`: the class name, switcher and Class Settings gear - at the top of the side panel with no goal, at the
     goal meter's end with one.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
   - `FlipTimer.tsx` / `TimerDial.tsx` / `TimerSettingsModal.tsx`: the side panel's timer, as flip digits or a Time Timer-style dial.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity.
+  - `GetReady.tsx`: Get Ready! ("How long?", the star with its taiko drum, Ready! and Stop); its drums and prizes are in
+    `lib/getReady.ts`, its sounds in `sound.ts` and its stars' flight in `starFlight.ts` (`flyStarsFrom`).
   - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal. `FloatingGoal.tsx`: the goal floating over the lesson
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`). CSS animations only in there.
   - `AttendanceHistoryModal.tsx` (the record, opened from Class Settings) and `AbsentIcon.tsx` (the zzz).

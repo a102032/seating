@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
-import { starsLandingIn } from '../lib/starFlight'
+import { landingIsLoud, starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
 
 interface PointsMeterProps {
@@ -30,6 +30,11 @@ interface PointsMeterProps {
    * the side panel, because buttons beside the meter took the eye from it.
    */
   title: ReactNode
+  /**
+   * Get Ready! is ending with stars on their way: the meter comes up above the faded board, so the
+   * class sees them land in it.
+   */
+  lifted?: boolean
 }
 
 /** How full the meter has to get before the chest starts straining. */
@@ -60,6 +65,7 @@ export function PointsMeter({
   holdCelebration,
   onWaitingChange,
   title,
+  lifted = false,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
@@ -153,7 +159,7 @@ export function PointsMeter({
     // every time; the teacher took it out as one thing more than the moment needed.
     if (classPoints > prev.value) {
       setDisplayPoints(classPoints)
-      playCoinTick()
+      playCoinTick(landingIsLoud())
     }
   }
 
@@ -228,14 +234,19 @@ export function PointsMeter({
       className={clsx(
         'relative flex h-14 shrink-0 items-center gap-2.5 overflow-visible rounded-2xl border border-border bg-card/70 px-3 shadow-sm transition-shadow sm:gap-3 sm:px-4',
         open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
+        // Above Get Ready!'s faded board (z-55), under the stars flying in (z-60). Only to be
+        // seen: a tap on it goes through to the board, where it ends Get Ready!, rather than
+        // opening the class list or a settings window under the faded board.
+        lifted && 'pointer-events-none z-[56]',
       )}
     >
-      {/* Where the voyage starts. It unrolls again when a new run begins. */}
+      {/* Where the voyage starts. It unrolls again when a new run begins. 40px, a third up from
+          30, because the teacher found it hard to see; it still fits the 56px row. */}
       <motion.img
         src={treasure('map')}
         alt=""
         draggable={false}
-        className="h-[30px] w-[30px] shrink-0 select-none"
+        className="h-10 w-10 shrink-0 select-none"
         animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
         transition={{ duration: 0.7 }}
       />

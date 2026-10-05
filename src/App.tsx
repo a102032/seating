@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { PictureInPicture2 } from 'lucide-react'
+import { PictureInPicture2, Star } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { ClassTitle } from './components/ClassTitle'
+import { GetReady } from './components/GetReady'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
@@ -18,6 +19,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { TactileButton } from './components/TactileButton'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
+import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
 import { goalIsLive, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
@@ -85,6 +87,7 @@ export default function App() {
     setGoalSettings,
     setGoalEnabled,
     setShowAllHomerooms,
+    setGetReady,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -118,6 +121,10 @@ export default function App() {
   const openSwitchTeacher = () => setSwitchTeacher({ unsent: cloud.status !== 'saved' && cloud.unsent() })
 
   const [swapMode, setSwapMode] = useState(false)
+  /** Get Ready! is up: "How long?", then the star. */
+  const [getReadyOpen, setGetReadyOpen] = useState(false)
+  /** Get Ready!'s stars are landing: the meter sits above its faded board. */
+  const [meterLifted, setMeterLifted] = useState(false)
   const [attendanceMode, setAttendanceMode] = useState(false)
   /**
    * Today, for the attendance record. Re-read every minute and whenever the app comes back
@@ -558,20 +565,35 @@ export default function App() {
   }
 
   /**
-   * Float, which belonged on the meter because the meter is what floats, sits at the top of the
-   * side panel now, where the class's name was: the teacher found buttons beside the meter took
-   * the eye from it. Get Ready! will join it there. It stays lit while the goal floats.
+   * The goal's controls, at the top of the side panel where the class's name is when there's no
+   * goal: Get Ready!, then Float. Float belonged on the meter, because the meter is what floats,
+   * until the teacher found buttons beside the meter took the eye from it. Get Ready! stands down
+   * with the rest of the panel in Swap Seats and Attendance, and while a pick is flashing. Float
+   * stays lit while the goal floats; where the browser can't float it, Get Ready! is alone.
    */
-  const goalControls = canFloat ? (
-    <TactileButton
-      active={floatWin !== null}
-      onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
-      className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
-      title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
-    >
-      <PictureInPicture2 size={16} /> Float
-    </TactileButton>
-  ) : null
+  const goalControls = (
+    <>
+      <TactileButton
+        active={getReadyOpen}
+        disabled={swapMode || attendanceMode || picker.isPicking}
+        onClick={() => setGetReadyOpen(true)}
+        className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
+        title="A star for getting ready quickly and quietly"
+      >
+        <Star size={16} className="fill-amber-400 text-amber-600" /> Get Ready!
+      </TactileButton>
+      {canFloat && (
+        <TactileButton
+          active={floatWin !== null}
+          onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
+          className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
+          title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
+        >
+          <PictureInPicture2 size={16} /> Float
+        </TactileButton>
+      )}
+    </>
+  )
 
   const sidePanel = (
     <SidePanel
@@ -716,6 +738,7 @@ export default function App() {
               onOpenGoalSettings={() => setPickerSettingsOpen(true)}
               holdCelebration={!appInFront}
               onWaitingChange={setGoalWaiting}
+              lifted={meterLifted}
               title={
                 <ClassTitle
                   place="bar"
@@ -888,6 +911,20 @@ export default function App() {
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
+        getReadyPrize={activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE}
+        onSetGetReadyPrize={(prize) => setGetReady(activeClass.id, { getReadyPrize: prize })}
+      />
+
+      {/* Get Ready! puts class points straight into the jar, so it fits both ways of running
+          points; it is the whole class, so it goes in no one's participation record. */}
+      <GetReady
+        open={getReadyOpen && goalLive}
+        lastDrum={activeClass.getReadyDrum}
+        prize={activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE}
+        onChooseDrum={(seconds) => setGetReady(activeClass.id, { getReadyDrum: seconds })}
+        onAward={(stars) => addToClassGoal(activeClass.id, stars)}
+        onLiftMeter={setMeterLifted}
+        onClose={() => setGetReadyOpen(false)}
       />
 
       <ClassSettingsModal

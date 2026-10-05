@@ -195,6 +195,18 @@ if (await page.getByRole('dialog').count()) {
   await page.keyboard.press('Escape')
   await wait(500)
 }
+await page.getByRole('button', { name: 'Get Ready!' }).click()
+await wait(600)
+await page.locator('[data-drum="10"]').click()
+await wait(900)
+await page.locator('[data-get-ready] button[aria-label="Start"]').click()
+await measure('get ready: drum beating, shrinking', () => wait(7000))
+await measure('get ready: stars into the jar', async () => {
+  await page.getByRole('button', { name: 'Ready!', exact: true }).click()
+  await wait(2500)
+})
+await page.mouse.click(700, 400)
+await wait(800)
 await measure('dial timer running', async () => {
   await page.locator('aside .bg-clock [role=button]').click()
   await wait(400)

@@ -539,6 +539,51 @@ const scenarios = {
     return page
   },
 
+  /**
+   * Get Ready!: "How long?", the star waiting for its tap, five seconds full and then smaller on
+   * every beat, Ready! sending what is left into the jar - and the board's second touch never
+   * closing the window or starting the star. It fits both ways of running points.
+   */
+  async 'Get Ready!: drums, the star, Ready! and the jar'() {
+    const cls = makeClass('c1', 'Get Ready', 12, { pointsGoal: 50, classPoints: 10, starsOnDesks: true })
+    cls.students[0].points = 2 // stars waiting on a desk: Get Ready! leaves them where they are
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const button = panelButton(page, 'Get Ready!')
+    const at = await button.boundingBox()
+    await button.click()
+    await page.mouse.click(at.x + 8, at.y + 8) // the board's second touch, outside the window
+    await page.waitForTimeout(400)
+    check('Get Ready!: How long? stays open through a double touch', await page.getByRole('dialog', { name: 'How long?' }).isVisible())
+    const overflows = []
+    for (const size of SCROLL_SIZES) {
+      await page.setViewportSize({ width: size[0], height: size[1] })
+      await page.waitForTimeout(150)
+      const o = await overflow(page)
+      if (o.page || o.pageX || o.panel || o.dialog || o.rootX) overflows.push(`${size.join('x')} ${JSON.stringify(o)}`)
+    }
+    check('Get Ready!: the drum window fits every screen', overflows.length === 0, overflows.join('; '))
+    await page.setViewportSize({ width: 1280, height: 559 })
+    await page.locator('[data-drum="10"]').click()
+    const star = page.locator('[data-get-ready] button[aria-label="Start"]')
+    await star.click({ force: true }) // the drum tap's second touch, where the star appears
+    await page.waitForTimeout(800)
+    check('Get Ready!: the star waits for its own tap', await page.getByText('Tap the star to start').isVisible())
+    await star.click()
+    await page.waitForTimeout(7200) // five seconds full, then two beats smaller on the 10-second drum
+    await page.getByRole('button', { name: 'Ready!', exact: true }).click()
+    await page.waitForTimeout(2200)
+    let c = await activeSaved(page)
+    check(
+      'Get Ready!: Ready! two beats into the shrinking sends 3 of 5 to the goal, desks untouched',
+      c.classPoints === 13 && c.students[0].points === 2 && /You earned 3 stars!/.test(await page.locator('[data-get-ready]').innerText()),
+      `meter ${c.classPoints}, Amy ${c.students[0].points}`,
+    )
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(700)
+    check('Get Ready!: a tap ends it', (await page.locator('[data-get-ready]').count()) === 0)
+    return page
+  },
+
   /** Tiny, empty and full classes through every screen, looking for errors. */
   async 'edge classes'() {
     for (const count of [0, 1, 2, 35]) {

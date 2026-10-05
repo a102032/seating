@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../lib/celebrationGifs'
 import { assetUrl } from '../lib/assets'
 import type { ClassData } from '../types'
+import { GET_READY_PRIZES } from '../lib/getReady'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
@@ -33,6 +34,9 @@ interface PickersPointsModalProps {
   onSetCelebrationGif: (gifId: string) => void
   onResetClassGoal: () => void
   onSetClassPoints: (points: number) => void
+  /** What a full star in Get Ready! is worth, the same on every drum. */
+  getReadyPrize: number
+  onSetGetReadyPrize: (prize: number) => void
 }
 
 /**
@@ -328,6 +332,8 @@ export function PickersPointsModal({
   onSetCelebrationGif,
   onResetClassGoal,
   onSetClassPoints,
+  getReadyPrize,
+  onSetGetReadyPrize,
 }: PickersPointsModalProps) {
   const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
   const [goal, setGoal] = useState(50)
@@ -444,6 +450,21 @@ export function PickersPointsModal({
               </TactileButton>
               <p className="mt-1 text-center text-xs text-muted-foreground">Everyone can be picked again.</p>
             </div>
+
+            {/* Get Ready!'s one setting. A full star is the same prize on every drum, so a faster
+                class keeps more of it and a shorter drum is harder without being worth less. It
+                only exists with a goal, as the button does. */}
+            {goalOn && (
+              <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+                <ChipRow
+                  label="Get Ready! prize"
+                  hint="Class points for a full star, on every drum."
+                  value={getReadyPrize}
+                  choices={GET_READY_PRIZES}
+                  onChange={onSetGetReadyPrize}
+                />
+              </div>
+            )}
           </section>
 
           <Separator className="lg:hidden" />

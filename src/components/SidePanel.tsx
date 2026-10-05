@@ -20,7 +20,7 @@ interface SidePanelProps {
    * the goal's own controls take its row here.
    */
   nameInBar: boolean
-  /** The goal's controls for that row (Float), or null where the browser can't float the goal. */
+  /** The goal's controls for that row: Get Ready!, and Float where the browser can float the goal. */
   goalControls: ReactNode
   /** Stars waiting on the desks, in a class that puts them there first; null where they go straight to the goal. */
   deskStars: number | null

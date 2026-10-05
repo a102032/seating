@@ -453,6 +453,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setGetReady = useCallback(
+    (classId: string, patch: Pick<ClassData, 'getReadyPrize' | 'getReadyDrum'>) => updateClass(classId, (c) => ({ ...c, ...patch })),
+    [updateClass],
+  )
+
   const setCelebrationGif = useCallback(
     (classId: string, gifId: string) => updateClass(classId, (c) => ({ ...c, celebrationGifId: gifId })),
     [updateClass],
@@ -565,6 +570,7 @@ export function useClasses() {
     setGoalSettings,
     setGoalEnabled,
     setShowAllHomerooms,
+    setGetReady,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,

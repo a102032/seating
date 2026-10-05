@@ -395,14 +395,136 @@ export function playGoalCelebration(): () => void {
  * of four at matched loudness. It is a coin in spirit, not Nintendo's: a console's square wave
  * is buzzy, which is its own kind of jarring, so this is the rounder triangle and sits lower.
  */
-export function playCoinTick() {
+export function playCoinTick(loud = false) {
   const ctx = getContext()
+  // Get Ready!'s stars landing ring it at 2.2 times, through a limiter: the teacher found the win
+  // too quiet after a drum the class had heard every second, and the drum is loud on a board.
+  const master = loud ? limitedMaster(ctx) : ctx.createGain()
+  if (!loud) master.connect(ctx.destination)
+  const k = loud ? 2.2 : 1
+  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.09, type: 'triangle', peakGain: 0.16 * k, attack: 0.004 })
+  playTone(ctx, master, { frequency: 1046.5, start: 0.07, duration: 0.5, type: 'triangle', peakGain: 0.16 * k, attack: 0.004 })
+  playTone(ctx, master, { frequency: 2093, start: 0.07, duration: 0.22, type: 'sine', peakGain: 0.016 * k, attack: 0.004 })
+}
+
+/**
+ * A master through a limiter, for Get Ready!'s endings: turned well up so they stand out over the
+ * drum, without the notes stacked on a double hit clipping into a crackle.
+ */
+function limitedMaster(ctx: AudioContext): GainNode {
+  const limiter = ctx.createDynamicsCompressor()
+  limiter.threshold.value = -6
+  limiter.knee.value = 0
+  limiter.ratio.value = 20
+  limiter.attack.value = 0.002
+  limiter.release.value = 0.2
+  limiter.connect(ctx.destination)
   const master = ctx.createGain()
-  master.gain.value = 1
-  master.connect(ctx.destination)
-  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.09, type: 'triangle', peakGain: 0.16, attack: 0.004 })
-  playTone(ctx, master, { frequency: 1046.5, start: 0.07, duration: 0.5, type: 'triangle', peakGain: 0.16, attack: 0.004 })
-  playTone(ctx, master, { frequency: 2093, start: 0.07, duration: 0.22, type: 'sine', peakGain: 0.016, attack: 0.004 })
+  master.connect(limiter)
+  return master
+}
+
+// --- Get Ready! --------------------------------------------------------------------------------
+
+/**
+ * The drum: the teacher's own taiko recording, reworked for a board's speaker. Almost all of a
+ * taiko is bass (strongest at 60-90Hz), and the part above 400Hz - all a board speaker plays -
+ * was about 16 times quieter, so the bass below 70Hz is cut, the skin lifted 12 dB above 600Hz,
+ * and it is levelled so what a board plays matches the bamboo it replaced; the boom is still
+ * there on speakers that have it. Trimmed from 1.2 s to 0.6 s, so a hit a second stays a hit a
+ * second. Decoded into a buffer rather than played through <audio>, because each stick plays it
+ * at its own pitch and the time-up plays two at once.
+ */
+let taikoBuffer: AudioBuffer | null = null
+let taikoPending: Promise<void> | null = null
+
+/** Fetch and decode the drum ahead, while the teacher is choosing how long. */
+export function primeTaiko(): void {
+  if (taikoBuffer || taikoPending) return
+  taikoPending = fetch(assetUrl('/sounds/taiko-hit.wav'))
+    .then((r) => r.arrayBuffer())
+    .then((buf) => getContext().decodeAudioData(buf))
+    .then((decoded) => {
+      taikoBuffer = decoded
+    })
+    .catch(() => {
+      taikoBuffer = null
+      taikoPending = null
+    })
+}
+
+function playTaikoBuffer(ctx: AudioContext, to: AudioNode, rate: number, at = 0) {
+  if (!taikoBuffer) return false
+  const source = ctx.createBufferSource()
+  source.buffer = taikoBuffer
+  source.playbackRate.value = rate
+  source.connect(to)
+  source.start(ctx.currentTime + at)
+  return true
+}
+
+/** The stick meeting the skin: a short, quiet clack around 1.8kHz, where small speakers are strong, so the hit carries across a room. */
+function playStickClack(ctx: AudioContext, to: AudioNode) {
+  const length = Math.floor(ctx.sampleRate * 0.03)
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3)
+  const source = ctx.createBufferSource()
+  const band = ctx.createBiquadFilter()
+  const gain = ctx.createGain()
+  source.buffer = buffer
+  band.type = 'bandpass'
+  band.frequency.value = 1800
+  band.Q.value = 1.2
+  gain.gain.value = 0.25
+  source.connect(band).connect(gain).connect(to)
+  source.start()
+}
+
+/**
+ * One drum hit, once a second from the tap that starts Get Ready! to the end. The two sticks are
+ * a shade apart in pitch, as two real hits are, so a beat a second doesn't sound like a machine.
+ */
+export function playTaikoHit(rightStick: boolean) {
+  const ctx = getContext()
+  if (!playTaikoBuffer(ctx, ctx.destination, rightStick ? 0.96 : 1)) {
+    // Until the recording is decoded: a short knock.
+    const master = ctx.createGain()
+    master.connect(ctx.destination)
+    playTone(ctx, master, { frequency: 700, endFrequency: 560, start: 0, duration: 0.09, type: 'triangle', peakGain: 0.12, attack: 0.003 })
+  }
+  playStickClack(ctx, ctx.destination)
+}
+
+/**
+ * Time ran out: both sticks at once, deeper, then three notes falling (G, E, C) - a fall, not a
+ * buzzer, so the class hears they missed it rather than that they're in trouble. The teacher
+ * asked twice for it louder: measured for what a board's speaker plays (above 400Hz, loudest
+ * 50ms), the notes are about 10 dB over a drum hit, with a brighter octave a small speaker carries.
+ */
+export function playGetReadyTimeUp() {
+  const ctx = getContext()
+  const master = limitedMaster(ctx)
+  playTaikoBuffer(ctx, master, 0.86)
+  playTaikoBuffer(ctx, master, 0.92, 0.012)
+  playStickClack(ctx, master)
+  ;[
+    [783.99, 0.35, 0.3],
+    [659.25, 0.6, 0.3],
+    [523.25, 0.85, 1.0],
+  ].forEach(([frequency, start, duration]) => {
+    playTone(ctx, master, { frequency, start, duration, type: 'triangle', peakGain: 0.55, attack: 0.01 })
+    playTone(ctx, master, { frequency: frequency * 2, start, duration: duration * 0.6, type: 'triangle', peakGain: 0.16, attack: 0.01 })
+  })
+}
+
+/** Ready!: a rising pair as the stars set off for the jar, well above a drum hit, so it sounds like a win. */
+export function playGetReadyGo() {
+  const ctx = getContext()
+  const master = limitedMaster(ctx)
+  playTone(ctx, master, { frequency: 783.99, start: 0, duration: 0.18, type: 'triangle', peakGain: 0.42, attack: 0.01 })
+  playTone(ctx, master, { frequency: 1174.66, start: 0.1, duration: 0.36, type: 'triangle', peakGain: 0.42, attack: 0.01 })
+  playTone(ctx, master, { frequency: 2349.32, start: 0.1, duration: 0.2, type: 'sine', peakGain: 0.03, attack: 0.01 })
 }
 
 function cardContext(): { ctx: AudioContext; master: GainNode } {

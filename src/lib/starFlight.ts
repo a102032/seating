@@ -112,6 +112,77 @@ export function flyStarsToGoal(studentIds: string[]) {
   })
 }
 
+/** When the last of Get Ready!'s stars lands: the coin rings louder for them. */
+let loudLandingAt = -Infinity
+
+/** Whether the stars landing now are Get Ready!'s, so the meter rings the coin louder for them. */
+export function landingIsLoud(): boolean {
+  return Math.abs(performance.now() - loudLandingAt) < 400
+}
+
+/** How long Get Ready!'s stars take from the big star to the coin: longer than a desk's, as they come further. */
+const GET_READY_FLIGHT_MS = 900
+
+/**
+ * Get Ready!'s stars: `count` of them from one point - the middle of the big star - fanned out
+ * as they rise and gathered into the coin, a little apart, so the class can count them in.
+ * Returns how long until the last one lands. The meter waits for them, as it does for a desk's.
+ */
+export function flyStarsFrom(x: number, y: number, count: number, size: number): number {
+  const coin = document.querySelector<HTMLElement>('[data-goal-coin]')
+  if (!coin || count <= 0) return 0
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0
+  const to = coin.getBoundingClientRect()
+  const tx = to.left + to.width / 2
+  const ty = to.top + to.height / 2
+
+  const layer = document.createElement('div')
+  layer.setAttribute('aria-hidden', 'true')
+  layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden'
+  document.body.appendChild(layer)
+
+  const stagger = Math.min(90, 500 / Math.max(1, count - 1))
+  const lands = (count - 1) * stagger + GET_READY_FLIGHT_MS
+  landingAt = Math.max(landingAt, performance.now() + lands)
+  loudLandingAt = performance.now() + lands
+  const gap = size * 0.85
+
+  let flying = count
+  for (let i = 0; i < count; i++) {
+    const spread = (i - (count - 1) / 2) * gap
+    const cx = (x + tx) / 2 + spread
+    const cy = Math.min(y, ty) - size * 2.3
+    const endScale = to.width / size
+    const keyframes: Keyframe[] = []
+    const steps = 14
+    for (let s = 0; s <= steps; s++) {
+      const t = ease(s / steps)
+      const px = (1 - t) * (1 - t) * (x + spread * 0.6) + 2 * (1 - t) * t * cx + t * t * tx
+      const py = (1 - t) * (1 - t) * y + 2 * (1 - t) * t * cy + t * t * ty
+      const scale = s === 0 ? 0.6 : 1 + (endScale - 1) * t
+      keyframes.push({
+        offset: s / steps,
+        transform: `translate(${px - size / 2}px, ${py - size / 2}px) scale(${scale})`,
+        opacity: s === steps ? 0.3 : 1,
+      })
+    }
+    const star = document.createElement('div')
+    star.style.cssText = `position:absolute;left:0;top:0;width:${size}px;height:${size}px;will-change:transform,opacity;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25))`
+    star.innerHTML = STAR_SVG
+    layer.appendChild(star)
+    const flight = star.animate(keyframes, { duration: GET_READY_FLIGHT_MS, delay: i * stagger, easing: 'linear', fill: 'both' })
+    const done = () => {
+      star.remove()
+      bump(coin)
+      flying -= 1
+      if (flying === 0) layer.remove()
+    }
+    flight.onfinish = done
+    flight.oncancel = done
+  }
+  return lands
+}
+
 let bumping: Animation | null = null
 
 /** The coin swells as a star lands in it, so a star that only banks toward a point still lands somewhere. */
