@@ -586,34 +586,39 @@ export default function App() {
 
   /**
    * The goal's controls, at the top of the side panel where the class's name is when there's no
-   * goal: Get Ready!, then Float. Float belonged on the meter, because the meter is what floats,
+   * goal: Get Ready! and Float. Float belonged on the meter, because the meter is what floats,
    * until the teacher found buttons beside the meter took the eye from it. Get Ready! stands down
    * with the rest of the panel in Swap Seats and Attendance, and while a pick is flashing. Float
    * stays lit while the goal floats; where the browser can't float it, Get Ready! is alone.
+   * The two share the row equally, like Attendance and Swap Seats under them, and Float sits on
+   * the outside, the screen's edge, whichever side the panel is on (2026-10-05, the teacher):
+   * Get Ready! is the one used mid-lesson, so it is the one nearer the board.
    */
-  const goalControls = (
-    <>
-      <TactileButton
-        active={getReadyOpen}
-        disabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking}
-        onClick={() => setGetReadyOpen(true)}
-        className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
-        title="A star for getting ready quickly and quietly"
-      >
-        <Star size={16} className="fill-amber-400 text-amber-600" /> Get Ready!
-      </TactileButton>
-      {canFloat && (
-        <TactileButton
-          active={floatWin !== null}
-          onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
-          className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
-          title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
-        >
-          <PictureInPicture2 size={16} /> Float
-        </TactileButton>
-      )}
-    </>
+  const evenly = '!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)] grow shrink basis-0 justify-center'
+  const getReadyButton = (
+    <TactileButton
+      key="get-ready"
+      active={getReadyOpen}
+      disabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking}
+      onClick={() => setGetReadyOpen(true)}
+      className={evenly}
+      title="A star for getting ready quickly and quietly"
+    >
+      <Star size={16} className="fill-amber-400 text-amber-600" /> Get Ready!
+    </TactileButton>
   )
+  const floatButton = canFloat && (
+    <TactileButton
+      key="float"
+      active={floatWin !== null}
+      onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
+      className={evenly}
+      title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
+    >
+      <PictureInPicture2 size={16} /> Float
+    </TactileButton>
+  )
+  const goalControls = <>{panelSide === 'left' ? [floatButton, getReadyButton] : [getReadyButton, floatButton]}</>
 
   const sidePanel = (
     <SidePanel
