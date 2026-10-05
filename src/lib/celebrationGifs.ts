@@ -3,8 +3,11 @@
  * classroom app makes the teacher responsible for whatever it returns in front of thirty
  * children; a curated set has no such surface.
  *
- * These are hotlinked from GIPHY's own CDN rather than copied into the repo: several are
- * studio-owned, and using the platform's delivery is the licensed path.
+ * These are hotlinked from GIPHY's own CDN rather than copied into the repo, as several are
+ * studio-owned. That is not a licence, though: GIPHY's terms don't allow commercial use without
+ * permission, and nothing from GIPHY grants rights to the characters. Before the app goes out
+ * widely this list gives way to the teacher's own G-rated search through GIPHY's official
+ * service (DECISIONS, "Celebration GIFs").
  */
 export interface CelebrationGif {
   id: string
