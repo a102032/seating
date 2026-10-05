@@ -52,7 +52,7 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
   return (
     // relative and above what is below, so the class list can open over it.
     // On the meter a hairline sets it apart from the count, so "32 / 50" and the name don't run together.
-    <div className={clsx('relative z-30', place === 'panel' ? 'shrink-0' : 'min-w-0 max-w-[40%] shrink border-l border-border pl-2')}>
+    <div className={clsx('relative z-30', place === 'panel' ? 'shrink-0' : 'min-w-0 max-w-[50%] shrink border-l border-border pl-2')}>
       <div className="relative z-30 flex items-center gap-1">
         <span
           ref={nameRef}
@@ -82,6 +82,9 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
           "Grade ...". It stands down when a running activity is underneath, since settings
           rearrange the class, and when the board is locked for students.
         */}
+        {/* On the meter it says what it opens: two gears that look alike, and a "Class Settings"
+            label only a mouse could make appear, sent the teacher to the wrong one first in
+            lesson one. In the panel (no goal) there's no room for the words beside a long name. */}
         <button
           type="button"
           onClick={onOpenSettings}
@@ -89,11 +92,16 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
           title="Class Settings"
           aria-label="Class Settings"
           className={clsx(
-            'shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30',
-            place === 'panel' && 'ml-auto',
+            'flex shrink-0 items-center gap-1 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30',
+            place === 'panel' ? 'ml-auto' : 'pr-2.5',
           )}
         >
           <Settings size={18} />
+          {place === 'bar' && (
+            <span className="whitespace-nowrap font-semibold" style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1rem)' }}>
+              Class Settings
+            </span>
+          )}
         </button>
       </div>
 

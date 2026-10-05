@@ -3,6 +3,7 @@ import {
   Armchair,
   ChevronDown,
   ClipboardCheck,
+  ClipboardPaste,
   Dices,
   FilePlus2,
   FileUp,
@@ -10,6 +11,7 @@ import {
   Hand,
   Pencil,
   Plus,
+  Pointer,
   School,
   Smile,
   Star,
@@ -42,6 +44,7 @@ import { GoogleG } from './Account'
 import { AvatarPickerModal } from './AvatarPickerModal'
 import { GoogleTab } from './GoogleTab'
 import { RosterSheetsModal } from './RosterSheetsModal'
+import { PasteRosterModal } from './PasteRosterModal'
 import { AttendanceHistoryModal } from './AttendanceHistoryModal'
 import { ParticipationModal } from './ParticipationModal'
 import { ClassAvatarsModal } from './ClassAvatarsModal'
@@ -74,6 +77,12 @@ interface ClassSettingsModalProps {
   onMixUpSeats: () => void
   onSetLayout: (layout: RoomLayout) => void
   onSetShowAllHomerooms: (show: boolean) => void
+  /** The class's avatars on or off; each student's own pick is kept either way. */
+  onSetAvatarsOff: (off: boolean) => void
+  /** Students come up to the board and choose their own avatars (Choose Your Avatar). */
+  onStudentsChoose: () => void
+  /** The group cards cover the desks: choosing waits until the activity is over. */
+  studentsChooseBlocked: boolean
   onToggleAbsentInRecord: (studentId: string, day: string) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -178,6 +187,9 @@ export function ClassSettingsModal({
   onMixUpSeats,
   onSetLayout,
   onSetShowAllHomerooms,
+  onSetAvatarsOff,
+  onStudentsChoose,
+  studentsChooseBlocked,
   onToggleAbsentInRecord,
   theme,
   onSetTheme,
@@ -207,6 +219,10 @@ export function ClassSettingsModal({
   const [sheetsOpen, setSheetsOpen] = useState(false)
   const [sheets, setSheets] = useState<DriveFile[] | null>(null)
   const [imported, setImported] = useState<string | null>(null)
+  // A list pasted in: what was pasted, and whether its window is up.
+  const [pasteText, setPasteText] = useState<string | null>(null)
+  // What the last paste or file did ("Added 28 students."), under the roster's heading.
+  const [importNote, setImportNote] = useState<string | null>(null)
   const drive = useDrive(cloud.account?.uid)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
@@ -246,11 +262,60 @@ export function ClassSettingsModal({
     return fresh.length
   }
 
+  /** What an import did, in words: how many were added, and how many were already here. */
+  function describeAdded(found: number, added: number): string {
+    if (found === 0) return 'No names found in that list.'
+    if (added === 0) return 'Everyone in that list is already in the class.'
+    const already = found - added
+    return `Added ${added} ${added === 1 ? 'student' : 'students'}.${already > 0 ? ` ${already} ${already === 1 ? 'was' : 'were'} already in the class.` : ''}`
+  }
+
+  /**
+   * An Excel file as it is, or a CSV. Teachers keep rosters in Excel and few know what a CSV is:
+   * the file window used to show only CSV files, so an Excel roster couldn't even be chosen
+   * (lesson one). The Excel reader is loaded only when one is chosen.
+   */
   async function handleFiles(files: FileList | null) {
     const file = files?.[0]
     if (!file) return
-    addNew(parseRosterCsv(await file.text()))
+    const name = file.name.toLowerCase()
+    try {
+      let students: Omit<Student, 'id'>[]
+      if (name.endsWith('.xlsx')) {
+        const { readXlsxRows } = await import('../lib/xlsx')
+        students = rosterFromRows(await readXlsxRows(await file.arrayBuffer()))
+      } else if (name.endsWith('.xls')) {
+        setImportNote('That is an old Excel file. Save it as .xlsx and try again, or copy the names and paste them.')
+        return
+      } else {
+        students = parseRosterCsv(await file.text())
+      }
+      setImportNote(describeAdded(students.length, addNew(students)))
+    } catch {
+      setImportNote("That file couldn't be read. Copy the names in it and paste them instead.")
+    }
   }
+
+  function addPasted(students: Omit<Student, 'id'>[]) {
+    setImportNote(describeAdded(students.length, addNew(students)))
+    setPasteText(null)
+  }
+
+  // Ctrl+V anywhere on the Students tab (but not in a box being typed in) opens the pasted list,
+  // so "copy it in Excel, paste it here" needs nothing found first.
+  useEffect(() => {
+    if (!open || tab !== 'students' || pasteText !== null) return
+    function onPaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      const text = e.clipboardData?.getData('text/plain') ?? ''
+      if (!text.trim()) return
+      e.preventDefault()
+      setPasteText(text)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [open, tab, pasteText])
 
   // Each of these starts Drive straight from the tap: the first time in an hour it opens
   // Google's window, which a browser only allows right after one.
@@ -311,6 +376,7 @@ export function ClassSettingsModal({
   }
 
   function closeAndReset() {
+    setImportNote(null)
     setConfirmingDelete(false)
     setConfirmingUnseatAll(false)
     setConfirmingMixUp(false)
@@ -339,7 +405,8 @@ export function ClassSettingsModal({
           !assigningAvatars &&
           !attendanceOpen &&
           !participationOpen &&
-          !sheetsOpen
+          !sheetsOpen &&
+          pasteText === null
         }
         onClose={closeAndReset}
         title="Class Settings"
@@ -370,10 +437,12 @@ export function ClassSettingsModal({
 
           {tab === 'students' ? (
             <>
-              {/* Manual add - always one row, side by side */}
+              {/* Manual add - always one row, side by side, its label beside it rather than above
+                  so the roster keeps the height the avatar row below takes. Since a list can be
+                  pasted, this is for a student who joins mid-year. */}
               <section className="shrink-0">
-                <Label className="mb-1.5">Add a Student</Label>
-                <div className="grid grid-cols-[2fr_1fr_1fr_auto] items-center gap-2">
+                <div className="grid grid-cols-[auto_2fr_1fr_1fr_auto] items-center gap-2">
+                  <Label className="whitespace-nowrap">Add a Student</Label>
                   <Input value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Name" className="min-w-0" />
                   <Input
                     value={manualHomeroom}
@@ -386,6 +455,58 @@ export function ClassSettingsModal({
                     <Plus size={18} /> Add
                   </TactileButton>
                 </div>
+              </section>
+
+              {/* Avatars, all in one place and near the top: in lesson one Student Avatars was the
+                  last thing the teacher found, at the bottom left. The switch turns the class's
+                  avatars off without losing them - each student's pick waits for them to come
+                  back on - and says so under it, since a board can't show a tooltip. Both
+                  sentences share one cell, so flipping it doesn't move anything. */}
+              <section className="flex shrink-0 items-center gap-3 pl-1">
+                <Switch id="avatars-on" checked={!activeClass.avatarsOff} onCheckedChange={(on) => onSetAvatarsOff(!on)} />
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor="avatars-on" className="cursor-pointer text-foreground">
+                    Avatars
+                  </Label>
+                  <div className="grid text-sm leading-tight text-muted-foreground">
+                    <p className={clsx('col-start-1 row-start-1', activeClass.avatarsOff && 'invisible')}>
+                      On: each student's avatar is on their desk.
+                    </p>
+                    <p className={clsx('col-start-1 row-start-1', !activeClass.avatarsOff && 'invisible')}>
+                      Off: names only. Each student's avatar is kept.
+                    </p>
+                  </div>
+                </div>
+                <TactileButton
+                  onClick={() => setAssigningAvatars(true)}
+                  disabled={activeClass.students.length === 0}
+                  className={clsx('shrink-0 !py-1.5', activeClass.students.length === 0 && 'opacity-40')}
+                  title="Choose avatars for the whole class at once"
+                >
+                  <Smile size={16} /> Student Avatars
+                </TactileButton>
+                {/* The children come up and choose their own at the board. Not with avatars off:
+                    they would choose one and not see it. */}
+                <TactileButton
+                  onClick={() => {
+                    onStudentsChoose()
+                    closeAndReset()
+                  }}
+                  disabled={seatedIds.size === 0 || activeClass.avatarsOff === true || studentsChooseBlocked}
+                  className={clsx(
+                    'shrink-0 !py-1.5',
+                    (seatedIds.size === 0 || activeClass.avatarsOff || studentsChooseBlocked) && 'opacity-40',
+                  )}
+                  title={
+                    activeClass.avatarsOff
+                      ? 'Turn avatars on first'
+                      : studentsChooseBlocked
+                        ? 'Finish the group activity first'
+                        : 'Students tap their own desk and choose their avatar'
+                  }
+                >
+                  <Pointer size={16} /> Students Choose
+                </TactileButton>
               </section>
 
               {/* The roster is what this tab is for, so it takes all the height that's left. A CSV
@@ -414,55 +535,58 @@ export function ClassSettingsModal({
                     </span>
                   )}
                   <div className="ml-auto flex gap-1.5">
-                    {/* Signed in, Import is a short menu with Google Sheets in it; signed out it
-                        is the CSV import it always was. */}
-                    {cloud.account ? (
-                      <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
-                        <Popover.Trigger asChild>
-                          <TactileButton className="!py-1.5">
-                            <Upload size={16} /> Import <ChevronDown size={14} />
-                          </TactileButton>
-                        </Popover.Trigger>
-                        <Popover.Portal>
-                          <Popover.Content
-                            align="end"
-                            sideOffset={6}
-                            className="z-50 flex w-80 flex-col gap-0.5 rounded-2xl border border-black/5 bg-card p-1.5 text-card-foreground shadow-xl dark:border-white/10"
-                          >
-                            <ImportChoice
-                              icon={<GoogleG size={20} />}
-                              title="From a Google Sheet"
-                              note="A roster sheet in your Drive"
-                              onClick={() => openRosterSheets(false)}
-                            />
-                            <ImportChoice
-                              icon={<FileUp size={20} className="text-muted-foreground" />}
-                              title="From a CSV file"
-                              note="From this computer"
-                              onClick={() => {
-                                setImportOpen(false)
-                                fileInputRef.current?.click()
-                              }}
-                            />
-                            <div className="mx-2 my-1 h-px bg-black/10 dark:bg-white/10" />
-                            <ImportChoice
-                              icon={<FilePlus2 size={20} className="text-emerald-600" />}
-                              title="Make a roster sheet"
-                              note="A ready-made Sheet to fill in, then import"
-                              onClick={() => openRosterSheets(true)}
-                            />
-                          </Popover.Content>
-                        </Popover.Portal>
-                      </Popover.Root>
-                    ) : (
-                      <TactileButton
-                        onClick={() => fileInputRef.current?.click()}
-                        className="!py-1.5"
-                        title="Add students from a CSV file with Name, Homeroom Number and Gender columns"
-                      >
-                        <Upload size={16} /> Import CSV
-                      </TactileButton>
-                    )}
+                    {/* Import is a short menu: a pasted list first (the quickest, with no file to
+                        save), then a file - Excel or CSV - and, signed in, Google Sheets. */}
+                    <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
+                      <Popover.Trigger asChild>
+                        <TactileButton className="!py-1.5">
+                          <Upload size={16} /> Import <ChevronDown size={14} />
+                        </TactileButton>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Content
+                          align="end"
+                          sideOffset={6}
+                          className="z-50 flex w-80 flex-col gap-0.5 rounded-2xl border border-black/5 bg-card p-1.5 text-card-foreground shadow-xl dark:border-white/10"
+                        >
+                          <ImportChoice
+                            icon={<ClipboardPaste size={20} className="text-primary" />}
+                            title="Paste a list"
+                            note="Copied from Excel or Google Sheets"
+                            onClick={() => {
+                              setImportOpen(false)
+                              setPasteText('')
+                            }}
+                          />
+                          <ImportChoice
+                            icon={<FileUp size={20} className="text-muted-foreground" />}
+                            title="From an Excel or CSV file"
+                            note="From this computer"
+                            onClick={() => {
+                              setImportOpen(false)
+                              fileInputRef.current?.click()
+                            }}
+                          />
+                          {cloud.account && (
+                            <>
+                              <ImportChoice
+                                icon={<GoogleG size={20} />}
+                                title="From a Google Sheet"
+                                note="A roster sheet in your Drive"
+                                onClick={() => openRosterSheets(false)}
+                              />
+                              <div className="mx-2 my-1 h-px bg-black/10 dark:bg-white/10" />
+                              <ImportChoice
+                                icon={<FilePlus2 size={20} className="text-emerald-600" />}
+                                title="Make a roster sheet"
+                                note="A ready-made Sheet to fill in, then import"
+                                onClick={() => openRosterSheets(true)}
+                              />
+                            </>
+                          )}
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
                     {/* The record, not the register: attendance is taken on the seating chart,
                         with the side panel's button. This is for looking back, fixing a day, or
                         marking someone away ahead of time. */}
@@ -482,7 +606,7 @@ export function ClassSettingsModal({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                     className="hidden"
                     onChange={(e) => {
                       void handleFiles(e.target.files)
@@ -491,13 +615,25 @@ export function ClassSettingsModal({
                     }}
                   />
                 </div>
+                {importNote && <p className="mb-1.5 shrink-0 text-sm font-semibold text-emerald-700 dark:text-emerald-400">{importNote}</p>}
                 <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
                   {activeClass.students.length === 0 ? (
-                    <p className="p-4 text-center text-muted-foreground">
-                      No students yet. Add them above, or tap {cloud.account ? 'Import' : 'Import CSV'}
-                      <br />
-                      (a file with Name, Homeroom Number and Gender columns).
-                    </p>
+                    // An empty class says how to fill it, where the roster will be: the help where
+                    // it is needed, rather than in a walkthrough read once.
+                    <div className="flex flex-col items-center gap-3 p-5 text-center">
+                      <p className="text-lg font-bold text-foreground">Copy your student list from Excel and paste it here.</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <TactileButton variant="primary" onClick={() => setPasteText('')}>
+                          <ClipboardPaste size={18} /> Paste a List
+                        </TactileButton>
+                        <TactileButton onClick={() => fileInputRef.current?.click()}>
+                          <FileUp size={18} /> Choose a File
+                        </TactileButton>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Names and homeroom numbers. Boy or Girl can wait. A new student who joins later can be added above.
+                      </p>
+                    </div>
                   ) : (
                     activeClass.students.map((s) => (
                       <RosterRow
@@ -521,20 +657,10 @@ export function ClassSettingsModal({
                 </ScrollArea>
               </section>
 
-              {/* The foot, in the order a new class is set up: the roster above, then everyone's
-                  avatars, then seats. Seating, both ways, side by side: they are opposites, and
-                  used to sit at opposite ends of this window. Seat Students seats everyone still
-                  unseated, then closes. */}
-              <section className="flex shrink-0 items-center gap-2">
-                <TactileButton
-                  onClick={() => setAssigningAvatars(true)}
-                  disabled={activeClass.students.length === 0}
-                  className={clsx('shrink-0', activeClass.students.length === 0 && 'opacity-40')}
-                  title="Choose avatars for the whole class at once"
-                >
-                  <Smile size={16} /> Student Avatars
-                </TactileButton>
-                <p className="min-w-0 flex-1 text-sm leading-tight text-muted-foreground">Change every avatar at once</p>
+              {/* The foot is the seats, in the order a new class is set up after its roster.
+                  Seating, both ways, side by side: they are opposites, and used to sit at opposite
+                  ends of this window. Seat Students seats everyone still unseated, then closes. */}
+              <section className="flex shrink-0 items-center justify-end gap-2">
                 {/* A new seating plan in one tap, behind a confirm: the plan it replaces can't be
                     brought back. */}
                 <TactileButton
@@ -707,6 +833,8 @@ export function ClassSettingsModal({
         onToggleAbsent={onToggleAbsentInRecord}
         uid={cloud.account?.uid}
       />
+
+      <PasteRosterModal open={pasteText !== null} initialText={pasteText ?? ''} onClose={() => setPasteText(null)} onAdd={addPasted} />
 
       <RosterSheetsModal
         open={sheetsOpen}

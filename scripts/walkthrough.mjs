@@ -359,6 +359,62 @@ const scenarios = {
     return page
   },
 
+  /**
+   * Setting up a class quickly: an empty class says how; a list copied from Excel and pasted
+   * (Ctrl+V on the Students tab) comes in with its heading row skipped; an Excel file comes in
+   * as it is; neither doubles anyone brought in twice.
+   */
+  async 'excel and a pasted list'() {
+    const cls = makeClass('c1', 'Quick', 0)
+    const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size: [1024, 500] })
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(600)
+    check('empty class: says how to fill it', await page.getByText('Copy your student list from Excel and paste it here.').isVisible())
+    // What Excel puts on the clipboard: tabs between the columns, a heading row, \r\n.
+    const copied = 'English Name\tClass\r\nAmy\t401\r\nTony\t402\r\nKevin\t403\r\n'
+    await page.evaluate((text) => {
+      const data = new DataTransfer()
+      data.setData('text/plain', text)
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
+    }, copied)
+    await page.waitForTimeout(600)
+    const pasteWindow = page.getByRole('dialog').filter({ hasText: 'Paste Your Student List' })
+    check(
+      'pasted list: opens with three students, the heading skipped',
+      await pasteWindow.getByText('3 students', { exact: true }).isVisible(),
+    )
+    const fits = await pasteWindow.evaluate((d) => d.getBoundingClientRect().bottom <= innerHeight)
+    check('pasted list: the window fits at 1024x500', fits)
+    await pasteWindow.getByRole('button', { name: 'Add 3 Students' }).click()
+    await page.waitForTimeout(500)
+    let c = await activeSaved(page)
+    check(
+      'pasted list: added with homerooms',
+      c.students.map((s) => `${s.name} ${s.homeroom}`).join() === 'Amy 401,Tony 402,Kevin 403',
+      JSON.stringify(c.students),
+    )
+    check('pasted list: says what it did', await page.getByText('Added 3 students.').isVisible())
+    // An Excel file as it is: the file window offers it, and its 28 names come in, 3 already here.
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      (async () => {
+        await page.getByRole('button', { name: /^Import/ }).click()
+        await page.getByText('From an Excel or CSV file').click()
+      })(),
+    ])
+    check('excel: the file window offers Excel files', (await chooser.element().getAttribute('accept')).includes('.xlsx'))
+    await chooser.setFiles(`${import.meta.dirname}/fixtures/roster.xlsx`)
+    await page.waitForTimeout(900)
+    c = await activeSaved(page)
+    check(
+      'excel: the roster comes in, nobody twice',
+      c.students.length === 28 && c.students[27].name === 'Nick' && c.students[27].homeroom === '401',
+      `${c.students.length} students`,
+    )
+    check('excel: says what it did', await page.getByText('Added 25 students. 3 were already in the class.').isVisible())
+    return page
+  },
+
   /** Names are sized for Andika. If Andika arrives late, they must be sized again when it does. */
   async 'desk names re-fit when the font arrives late'() {
     if (!FONTS) return check('desk names re-fit when the font arrives late', true, 'skipped: needs FONTS')
@@ -775,13 +831,16 @@ const scenarios = {
   },
 
   /**
-   * No Avatar: chosen for everyone in Student Avatars, the desks show just the name, centred,
-   * bigger than beside a picture, with the homeroom number under a shared name; a newcomer
-   * follows the class; one student can go back to a character; nothing scrolls or spills.
+   * Avatars off: the class's switch gives names only, centred and bigger than beside a picture,
+   * with the homeroom number under a shared name, and keeps every student's own pick for when
+   * they come back on; a newcomer shows by name too. No Avatar is one student's choice now, in
+   * their own picker; a class given it all round before the switch comes in with avatars off.
+   * Nothing scrolls or spills.
    */
   async 'no avatar'() {
     const cls = makeClass('c1', 'Names', 30)
     cls.students[29].name = cls.students[0].name // two students share a name, so a number shows
+    cls.students[0].avatarId = 'frog/superhero'
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
     const nameSize = () =>
       page
@@ -791,39 +850,34 @@ const scenarios = {
     const besidePictures = await nameSize()
     await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(500)
-    await page.getByRole('button', { name: /Student Avatars/ }).click()
-    await page.waitForTimeout(500)
-    await page.getByRole('button', { name: 'No Avatar' }).click()
+    await page.locator('#avatars-on').click()
     await page.waitForTimeout(300)
     let c = await activeSaved(page)
     check(
-      'no avatar: Student Avatars gives everyone No Avatar',
-      c.students.every((s) => s.avatarId === 'none'),
+      "no avatar: the switch turns the class's avatars off, every pick kept",
+      c.avatarsOff === true && c.students[0].avatarId === 'frog/superhero',
+    )
+    await page.getByRole('button', { name: /Student Avatars/ }).click()
+    await page.waitForTimeout(500)
+    check(
+      'no avatar: Student Avatars offers no No Avatar',
+      !(await page.getByRole('dialog').filter({ hasText: 'Tap a character' }).innerText()).includes('No Avatar'),
     )
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
-    await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
-    const alone = await nameSize()
-    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
-    await page.locator('button[aria-label="Class Settings"]').click()
-    await page.waitForTimeout(500)
-    // A newcomer to a class of names gets no avatar too.
+    // A newcomer to a class of names shows by name like everyone else, with nothing to undo later.
     await page.getByPlaceholder('Name').fill('Zoe')
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.waitForTimeout(300)
     c = await activeSaved(page)
-    check('no avatar: a new student follows the class', c.students.find((s) => s.name === 'Zoe')?.avatarId === 'none')
-    // One student back to a character, from their own picker.
-    await page.getByTitle('Choose an avatar').first().click()
-    await page.waitForTimeout(500)
-    await page.getByRole('dialog').getByRole('button', { name: 'Owl' }).click()
-    await page.getByRole('dialog').locator('.grid button').first().click()
-    await page.waitForTimeout(300)
-    c = await activeSaved(page)
-    check('no avatar: one student can go back to a character', c.students.filter((s) => s.avatarId !== 'none').length === 1)
+    check(
+      'no avatar: a new student keeps no avatar of their own',
+      c.students.find((s) => s.name === 'Zoe')?.avatarId === undefined && c.avatarsOff,
+    )
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
+    const alone = await nameSize()
+    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
     const desks = await page.evaluate(() =>
       [...document.querySelectorAll('[data-ink=desk]')].map((d) => {
         const r = d.getBoundingClientRect()
@@ -840,19 +894,102 @@ const scenarios = {
     const named = desks.filter((d) => !d.img)
     check(
       'no avatar: the names sit in the middle of their desks, and nothing spills out',
-      named.length >= 29 && named.every((d) => d.centred) && desks.every((d) => !d.spill),
+      named.length >= 30 && named.every((d) => d.centred) && desks.every((d) => !d.spill),
       JSON.stringify({ named: named.length, offCentre: named.filter((d) => !d.centred).length }),
     )
     check('no avatar: the two students who share a name show their numbers, nobody else does', desks.filter((d) => d.number).length === 2)
+    let over = await overflow(page)
+    check('no avatar: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    // Back on: every character where it was.
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(500)
+    await page.locator('#avatars-on').click()
+    await page.waitForTimeout(300)
+    // One student's family would rather not: No Avatar in their own picker.
+    await page.getByTitle('Choose an avatar').nth(1).click()
+    await page.waitForTimeout(500)
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /No Avatar/ })
+      .first()
+      .click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check(
+      'no avatar: one student can have none',
+      c.students[1].avatarId === 'none' && c.students.filter((s) => s.avatarId === 'none').length === 1,
+    )
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    check(
+      'no avatar: back on, the pictures are back, the frog where it was',
+      (await desk(page, NAMES[0]).locator('img[src*="frog/superhero"]').count()) === 1 &&
+        (await page.locator('[data-ink=desk] img').count()) >= 29,
+    )
     // A mixed class keeps one size for every name, centred or beside a picture.
     const sizes = await page.evaluate(() => [
       ...new Set(
         [...document.querySelectorAll('[data-ink=desk] span.font-bold')].map((e) => parseFloat(getComputedStyle(e).fontSize).toFixed(1)),
       ),
     ])
-    check('no avatar: with one character in the class, every name is one size', sizes.length === 1, sizes.join(', '))
+    check('no avatar: with one student by name only, every name is one size', sizes.length === 1, sizes.join(', '))
+    over = await overflow(page)
+    check('no avatar: mixed, nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    await page.context().close()
+    // A class given No Avatar all round before the switch existed comes in with it off.
+    const old = makeClass('c1', 'Old', 6)
+    old.students.forEach((s) => (s.avatarId = 'none'))
+    const page2 = await open({ state: stateOf(old) })
+    await page2.waitForTimeout(600)
+    c = await activeSaved(page2)
+    check(
+      'no avatar: an old class of names comes in with avatars off',
+      c.avatarsOff === true &&
+        c.students.every((s) => s.avatarId === undefined) &&
+        (await page2.locator('[data-ink=desk] img').count()) === 0,
+    )
+    return page2
+  },
+
+  /**
+   * Choose Your Avatar: the children come up and tap their own desk; a big picker, characters
+   * then poses, ignores the board's second touch as each step opens; Done ends it.
+   */
+  async 'choose your avatar'() {
+    const page = await open({ state: stateOf(makeClass('c1', 'Choose', 12)), size: [1280, 559] })
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'Students Choose' }).click()
+    await page.waitForTimeout(500)
+    check('choose: the board says what to do', await page.getByText('Tap your desk. Choose your avatar!').isVisible())
+    check('choose: the side panel stands down', await panelButton(page, 'Pick Student').isDisabled())
+    await desk(page, 'Kevin').click()
+    await page.waitForTimeout(100)
+    const picker = page.getByRole('dialog')
+    await picker.locator('button:has(img[src*="/owl/"])').click() // the board's second touch
+    await page.waitForTimeout(100)
+    check('choose: a touch straight after it opens is ignored', (await picker.innerText()).includes('Kevin, choose your avatar!'))
+    await page.waitForTimeout(800)
+    await picker.locator('button:has(img[src*="/frog/"])').click()
+    await page.waitForTimeout(800)
+    check('choose: then the poses', (await picker.innerText()).includes('Choose one!'))
+    await picker.locator('button:has(img[src*="frog/superhero"])').click()
+    await page.waitForTimeout(600)
+    const c = await activeSaved(page)
+    check(
+      'choose: saved, and on the desk',
+      c.students[2].avatarId === 'frog/superhero' && (await desk(page, 'Kevin').locator('img[src*="frog/superhero"]').count()) === 1,
+    )
     const over = await overflow(page)
-    check('no avatar: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    check('choose: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await page.waitForTimeout(400)
+    check(
+      'choose: Done ends it',
+      !(await page.getByText('Tap your desk. Choose your avatar!').isVisible()) && (await panelButton(page, 'Pick Student').isEnabled()),
+    )
     return page
   },
 

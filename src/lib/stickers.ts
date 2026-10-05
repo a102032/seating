@@ -1,6 +1,6 @@
 import { STICKER_THEMES, type StickerTheme } from './stickerLibrary'
 import { assetUrl } from './assets'
-import type { Student } from '../types'
+import type { ClassData, Student } from '../types'
 
 export { STICKER_THEMES, type StickerTheme }
 
@@ -47,6 +47,14 @@ export const NO_AVATAR = 'none'
 
 export function hasNoAvatar(student: Pick<Student, 'avatarId'>): boolean {
   return student.avatarId === NO_AVATAR
+}
+
+/**
+ * The students as the board shows them: with the class's avatars switched off, every one by
+ * name only, while their own picks stay in the roster for when avatars come back on.
+ */
+export function studentsAsShown(cls: Pick<ClassData, 'students' | 'avatarsOff'>): Student[] {
+  return cls.avatarsOff ? cls.students.map((s) => ({ ...s, avatarId: NO_AVATAR })) : cls.students
 }
 
 /** The image to show for a student right now, or null for a student with no avatar. */

@@ -412,8 +412,11 @@ try {
       .click()
     const menu = await page.locator('[data-radix-popper-content-wrapper]').innerText()
     check(
-      'import: a menu with Google Sheets, CSV and Make a roster sheet',
-      /From a Google Sheet/.test(menu) && /From a CSV file/.test(menu) && /Make a roster sheet/.test(menu),
+      'import: a menu with a pasted list, Google Sheets, Excel or CSV and Make a roster sheet',
+      /Paste a list/.test(menu) &&
+        /From a Google Sheet/.test(menu) &&
+        /From an Excel or CSV file/.test(menu) &&
+        /Make a roster sheet/.test(menu),
     )
     await shot('03-import-menu')
     await page

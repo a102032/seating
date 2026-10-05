@@ -30,6 +30,8 @@ interface SidePanelProps {
   onToggleSwap: () => void
   /** Attendance is on: a desk tap marks a student absent or back, and nothing else answers. */
   attendanceMode: boolean
+  /** Choose Your Avatar is on: a desk tap opens that student's picker, and the panel stands down as for the desk modes. */
+  choosingAvatars: boolean
   /** Attendance has been taken for this class today, so the button carries a check. */
   attendanceTaken: boolean
   onToggleAttendance: () => void
@@ -115,6 +117,7 @@ export function SidePanel({
   swapMode,
   onToggleSwap,
   attendanceMode,
+  choosingAvatars,
   attendanceTaken,
   onToggleAttendance,
   onPickStudent,
@@ -152,10 +155,11 @@ export function SidePanel({
 }: SidePanelProps) {
   // The group cards carry their own scores, so the board's pickers and +/- stand down
   // while the activity is up - the same way Swap Seats quiets everything else.
-  const busy = swapMode || attendanceMode || groupActivityOpen
+  const busy = swapMode || attendanceMode || choosingAvatars || groupActivityOpen
   // Swap Seats and Attendance both turn a desk tap into something else, so while either is
-  // on it is the only thing on the panel that answers.
-  const deskMode = swapMode || attendanceMode
+  // on it is the only thing on the panel that answers - and so does Choose Your Avatar, which
+  // ends with Done on the board.
+  const deskMode = swapMode || attendanceMode || choosingAvatars
 
   // Fits itself to the screen's height rather than to a list of screens: anything that adds a
   // line to the panel starts the fitting again.
@@ -222,7 +226,7 @@ export function SidePanel({
           <TactileButton
             active={attendanceMode}
             onClick={onToggleAttendance}
-            disabled={swapMode || flipDeckOpen || groupActivityOpen || pickFlashing}
+            disabled={swapMode || choosingAvatars || flipDeckOpen || groupActivityOpen || pickFlashing}
             className={clsx('grow shrink basis-0 !px-2 justify-center', FIT_PY)}
             title={attendanceTaken ? 'Attendance is done for today' : 'Take attendance'}
           >
@@ -238,7 +242,7 @@ export function SidePanel({
             onClick={onToggleSwap}
             // Swap Seats acts on the desks, so it is only for the seating chart: not while the
             // flip cards or the group cards cover them.
-            disabled={flipDeckOpen || groupActivityOpen || attendanceMode}
+            disabled={flipDeckOpen || groupActivityOpen || attendanceMode || choosingAvatars}
             className={clsx('grow shrink basis-0 !px-2 justify-center', FIT_PY)}
             title={flipDeckOpen || groupActivityOpen ? 'Seats can only be swapped on the seating chart' : undefined}
           >

@@ -112,6 +112,12 @@ export interface ClassData {
    */
   pickRound?: { day: string; ids: string[] }
   /**
+   * Avatars off for the whole class: desks, flip cards and the printed chart show names only.
+   * Each student's own pick is kept, for when they are turned back on - a teacher who wants
+   * plain names for a while shouldn't lose the characters the children chose. Unset is on.
+   */
+  avatarsOff?: boolean
+  /**
    * Get Ready!'s prize: the class points a full star is worth, the same on every drum. Unset is 5.
    */
   getReadyPrize?: number

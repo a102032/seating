@@ -1,7 +1,7 @@
 import type { ClassData, Student } from '../types'
 import { dateKey } from './attendance'
 import { planFor, type Gap } from './layouts'
-import { hasNoAvatar, resolveAvatarSrc } from './stickers'
+import { hasNoAvatar, resolveAvatarSrc, studentsAsShown } from './stickers'
 
 /**
  * The seating chart as a picture: the room as it's laid out today, for a substitute or the
@@ -63,7 +63,8 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
   await Promise.all([document.fonts.load(`700 48px Andika`), document.fonts.load(`400 32px Andika`)]).catch(() => undefined)
 
   const plan = planFor(cls)
-  const byId = new Map(cls.students.map((s) => [s.id, s]))
+  // As the board shows them: names only while the class's avatars are switched off.
+  const byId = new Map(studentsAsShown(cls).map((s) => [s.id, s]))
   const seated: (Student | null)[] = plan.seats.map((_, i) => {
     const id = cls.seating[i]
     return (id && byId.get(id)) || null

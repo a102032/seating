@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { PictureInPicture2, Star } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
+import { ChooseAvatarBanner, ChooseAvatarPicker } from './components/ChooseAvatars'
 import { ClassTitle } from './components/ClassTitle'
 import { GetReady } from './components/GetReady'
 import { DeskGrid } from './components/DeskGrid'
@@ -29,6 +30,7 @@ import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from
 import { pickChances } from './lib/participation'
 import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { flyStarsToGoal } from './lib/starFlight'
+import { studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
@@ -87,6 +89,7 @@ export default function App() {
     setGoalSettings,
     setGoalEnabled,
     setShowAllHomerooms,
+    setAvatarsOff,
     setGetReady,
     setCelebrationGif,
     resetClassGoal,
@@ -126,6 +129,12 @@ export default function App() {
   /** Get Ready!'s stars are landing: the meter sits above its faded board. */
   const [meterLifted, setMeterLifted] = useState(false)
   const [attendanceMode, setAttendanceMode] = useState(false)
+  /** Choose Your Avatar: the children come up and tap their own desk to choose. */
+  const [choosingAvatars, setChoosingAvatars] = useState(false)
+  /** Whose picker is open in Choose Your Avatar. */
+  const [choosingFor, setChoosingFor] = useState<string | null>(null)
+  /** When the last picker closed: the board's second touch lands on the desk under it. */
+  const chooseClosedAt = useRef(0)
   /**
    * Today, for the attendance record. Re-read every minute and whenever the app comes back
    * into view, so a board left open overnight starts the morning with everyone present
@@ -268,9 +277,11 @@ export default function App() {
     }
   }, [floatWin, pickMode, dismissPick])
 
+  // As the board shows them: with the class's avatars switched off, names only (each student's
+  // own pick is kept in the roster).
   const studentsById = useMemo(() => {
     const map = new Map<string, Student>()
-    activeClass?.students.forEach((s) => map.set(s.id, s))
+    if (activeClass) studentsAsShown(activeClass).forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
 
@@ -428,6 +439,14 @@ export default function App() {
 
   function handleTapDesk(index: number) {
     if (!activeClassId) return
+    if (choosingAvatars) {
+      const studentId = seating[index]
+      // Away today, they can choose another day; and a picker just closed leaves the board's
+      // second touch on the same desk, which would open it again.
+      if (!studentId || absentIds.has(studentId) || performance.now() - chooseClosedAt.current < 700) return
+      setChoosingFor(studentId)
+      return
+    }
     if (attendanceMode) {
       const studentId = seating[index]
       if (studentId) toggleAbsent(activeClassId, studentId, today)
@@ -575,7 +594,7 @@ export default function App() {
     <>
       <TactileButton
         active={getReadyOpen}
-        disabled={swapMode || attendanceMode || picker.isPicking}
+        disabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking}
         onClick={() => setGetReadyOpen(true)}
         className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
         title="A star for getting ready quickly and quietly"
@@ -612,6 +631,7 @@ export default function App() {
         resetPointsSelection()
       }}
       attendanceMode={attendanceMode}
+      choosingAvatars={choosingAvatars}
       attendanceTaken={attendanceTakenOn(activeClass, today)}
       onToggleAttendance={() => {
         // Switching it off is what records the day, so a class with nobody away gets its
@@ -746,14 +766,23 @@ export default function App() {
                   activeClassId={activeClassId}
                   onSelectClass={setActiveClassId}
                   onOpenSettings={() => openSettings()}
-                  disabled={swapMode || attendanceMode}
+                  disabled={swapMode || attendanceMode || choosingAvatars}
                   settingsDisabled={groupActivityOpen && groupsLocked}
                 />
               }
             />
           )}
 
-          <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
+          {choosingAvatars ? (
+            <ChooseAvatarBanner
+              onDone={() => {
+                setChoosingAvatars(false)
+                setChoosingFor(null)
+              }}
+            />
+          ) : (
+            <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
+          )}
 
           <main className="relative min-h-0 flex-1 overflow-hidden">
             <DeskGrid
@@ -915,6 +944,20 @@ export default function App() {
         onSetGetReadyPrize={(prize) => setGetReady(activeClass.id, { getReadyPrize: prize })}
       />
 
+      {/* Choose Your Avatar: the student whose desk was tapped picks from the characters, then a pose. */}
+      <ChooseAvatarPicker
+        student={choosingFor ? (activeClass.students.find((s) => s.id === choosingFor) ?? null) : null}
+        onChoose={(avatarId) => {
+          if (choosingFor) updateStudent(activeClass.id, choosingFor, { avatarId })
+          chooseClosedAt.current = performance.now()
+          setChoosingFor(null)
+        }}
+        onClose={() => {
+          chooseClosedAt.current = performance.now()
+          setChoosingFor(null)
+        }}
+      />
+
       {/* Get Ready! puts class points straight into the jar, so it fits both ways of running
           points; it is the whole class, so it goes in no one's participation record. */}
       <GetReady
@@ -953,6 +996,16 @@ export default function App() {
         }}
         onSetLayout={(layout) => setLayout(activeClass.id, layout)}
         onSetShowAllHomerooms={(show) => setShowAllHomerooms(activeClass.id, show)}
+        onSetAvatarsOff={(off) => setAvatarsOff(activeClass.id, off)}
+        onStudentsChoose={() => {
+          // The desks have to be in view: the cards come down, and a pick or a selection on the
+          // board goes, as for Attendance.
+          setFlipDeckOpen(false)
+          picker.dismiss()
+          resetPointsSelection()
+          setChoosingAvatars(true)
+        }}
+        studentsChooseBlocked={groupActivityOpen}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         theme={theme}
         onSetTheme={(next) => {
@@ -984,7 +1037,15 @@ export default function App() {
               : null
           }
           // Off whenever the side panel's Pick Student would be, or it would pick behind cards.
-          canPick={!picker.isPicking && !swapMode && !attendanceMode && !flipDeckOpen && !groupActivityOpen && seatedIds.length > 0}
+          canPick={
+            !picker.isPicking &&
+            !swapMode &&
+            !attendanceMode &&
+            !choosingAvatars &&
+            !flipDeckOpen &&
+            !groupActivityOpen &&
+            seatedIds.length > 0
+          }
           onPick={() => {
             pickOnFloatClock.current = true
             startPick(() => picker.pickStudent(floatWin))

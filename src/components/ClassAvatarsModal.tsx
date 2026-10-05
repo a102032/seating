@@ -3,10 +3,9 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { AvatarScope } from '../hooks/useClasses'
-import { NO_AVATAR, STICKER_THEMES, stickerSrc } from '../lib/stickers'
+import { STICKER_THEMES, stickerSrc } from '../lib/stickers'
 import type { Student } from '../types'
 import { Modal } from './Modal'
-import { NoAvatarPicture } from './NoAvatarPicture'
 
 type PoseMode = 'mixed' | 'same'
 
@@ -109,34 +108,13 @@ export function ClassAvatarsModal({ open, students, onClose, onAssign }: ClassAv
         <p className="shrink-0 text-sm text-muted-foreground">
           {affected === 0
             ? 'Nobody in the roster matches that group yet.'
-            : appliedThemeId === NO_AVATAR
-              ? 'Done. Their desks show just the name.'
-              : appliedThemeId
-                ? 'Done. Tap the same character again for a different set of poses.'
-                : `Tap a character to give it to ${affected} student${affected === 1 ? '' : 's'}.`}
+            : appliedThemeId
+              ? 'Done. Tap the same character again for a different set of poses.'
+              : `Tap a character to give it to ${affected} student${affected === 1 ? '' : 's'}.`}
         </p>
 
         <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
           <div className="grid grid-cols-3 gap-3 p-3 sm:grid-cols-4 md:grid-cols-5">
-            {/* First, so a teacher who doesn't want pictures finds it without hunting through twenty packs. */}
-            <button
-              type="button"
-              disabled={affected === 0}
-              onClick={() => choose(NO_AVATAR)}
-              className={clsx(
-                'relative flex flex-col items-center gap-1 rounded-2xl border-2 p-2 transition-colors active:scale-[0.97]',
-                affected === 0 && 'cursor-not-allowed opacity-40',
-                appliedThemeId === NO_AVATAR ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-accent',
-              )}
-            >
-              {appliedThemeId === NO_AVATAR && (
-                <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-primary-foreground">
-                  <Check size={12} strokeWidth={3} />
-                </span>
-              )}
-              <NoAvatarPicture className="h-20 w-20 text-foreground" />
-              <span className="w-full truncate text-center text-xs font-bold text-foreground">No Avatar</span>
-            </button>
             {STICKER_THEMES.map((theme) => (
               <button
                 key={theme.id}

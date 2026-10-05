@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
-import { getTheme, hasNoAvatar, NO_AVATAR, randomPose, stickerId } from '../lib/stickers'
+import { getTheme, hasNoAvatar, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { withoutStudent, withPick, withPoints } from '../lib/participation'
@@ -47,7 +47,18 @@ const firstClass = () => makeClass('Class 1')
 
 /** A class as saved by any version of the app, with everything this version expects. */
 function normalizeClass(c: ClassData): ClassData {
-  return c.seating?.length >= MAX_SEATS ? c : { ...c, seating: withAllDesks(c.seating) }
+  return withAvatarsSwitch(c.seating?.length >= MAX_SEATS ? c : { ...c, seating: withAllDesks(c.seating) })
+}
+
+/**
+ * Before the Avatars switch, a teacher who wanted names only gave the whole class No Avatar. A
+ * class whose students all have it (two or more, so it was the whole class rather than one
+ * family's choice) becomes a class with its avatars switched off, and its students are free to
+ * have a character again when they are switched back on.
+ */
+function withAvatarsSwitch(c: ClassData): ClassData {
+  if (c.avatarsOff !== undefined || c.students.length < 2 || !c.students.every(hasNoAvatar)) return c
+  return { ...c, avatarsOff: true, students: c.students.map((s) => ({ ...s, avatarId: undefined })) }
 }
 
 /**
@@ -194,22 +205,11 @@ export function useClasses() {
     })
   }, [])
 
-  /**
-   * A class whose students all have no avatar keeps it that way for newcomers: they'd otherwise
-   * arrive with a character picked from their id, the one animal on a board of names.
-   */
+  // A newcomer to a class with its avatars switched off shows by name like everyone else; the
+  // switch, not their avatar, is what keeps the board names only.
   const addStudents = useCallback(
     (classId: string, students: Omit<Student, 'id'>[]) =>
-      updateClass(classId, (c) => {
-        const namesOnly = c.students.length > 0 && c.students.every(hasNoAvatar)
-        return {
-          ...c,
-          students: [
-            ...c.students,
-            ...students.map((s) => ({ ...s, ...(namesOnly && !s.avatarId ? { avatarId: NO_AVATAR } : {}), id: genId() })),
-          ],
-        }
-      }),
+      updateClass(classId, (c) => ({ ...c, students: [...c.students, ...students.map((s) => ({ ...s, id: genId() }))] })),
     [updateClass],
   )
 
@@ -230,8 +230,6 @@ export function useClasses() {
     (classId: string, themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) =>
       updateClass(classId, (c) => {
         const targeted = (s: Student) => options.scope === 'all' || s.gender === options.scope
-        // No Avatar is a choice among the characters: the desks show just the name.
-        if (themeId === NO_AVATAR) return { ...c, students: c.students.map((s) => (targeted(s) ? { ...s, avatarId: NO_AVATAR } : s)) }
         const theme = getTheme(themeId)
         if (!theme) return c
 
@@ -453,6 +451,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setAvatarsOff = useCallback(
+    (classId: string, off: boolean) => updateClass(classId, (c) => ({ ...c, avatarsOff: off })),
+    [updateClass],
+  )
+
   const setGetReady = useCallback(
     (classId: string, patch: Pick<ClassData, 'getReadyPrize' | 'getReadyDrum'>) => updateClass(classId, (c) => ({ ...c, ...patch })),
     [updateClass],
@@ -570,6 +573,7 @@ export function useClasses() {
     setGoalSettings,
     setGoalEnabled,
     setShowAllHomerooms,
+    setAvatarsOff,
     setGetReady,
     setCelebrationGif,
     resetClassGoal,
