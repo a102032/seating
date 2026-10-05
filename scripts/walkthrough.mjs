@@ -326,7 +326,7 @@ const scenarios = {
   async 'a student cannot be saved with no name'() {
     const cls = makeClass('c1', 'Roster', 5)
     const page = await open({ state: stateOf(cls) })
-    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(600)
     await page.locator('[role=dialog] button:has(svg.lucide-pencil)').first().click()
     await page.waitForTimeout(300)
@@ -343,7 +343,7 @@ const scenarios = {
     const cls = makeClass('c1', 'CSV', 0)
     // A second class, so the splash offers class cards rather than first-time setup.
     const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)) })
-    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(600)
     const file = `${SHOTS}/roster.csv`
     writeFileSync(file, '﻿Amy,1,girl\r\nTony,2,boy\r\nKevin,3,boy\r\n')
@@ -542,7 +542,9 @@ const scenarios = {
   /** Tiny, empty and full classes through every screen, looking for errors. */
   async 'edge classes'() {
     for (const count of [0, 1, 2, 35]) {
-      const cls = makeClass('c1', `Edge ${count}`, count, { pointsGoal: 10, classPoints: 0 })
+      // A goal the class can't fill here: Pick All + gives the whole class a star, and a filled
+      // goal's celebration would cover the panel (it used to give only the picked row one).
+      const cls = makeClass('c1', `Edge ${count}`, count, { pointsGoal: 100, classPoints: 0 })
       // A second class, so the splash offers class cards rather than first-time setup.
       const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size: [1024, 640] })
       if (count > 0) {
@@ -625,7 +627,7 @@ const scenarios = {
     await page.waitForTimeout(3000)
     await page.locator('[data-flip-card]').first().click()
     await page.waitForTimeout(800)
-    await page.locator('aside button[title="Switch class"]').click()
+    await page.locator('button[title="Switch class"]').click()
     await page.waitForTimeout(400)
     await page.locator('aside').getByRole('button', { name: 'Class B' }).click()
     await page.waitForTimeout(400)
@@ -699,7 +701,7 @@ const scenarios = {
     cls.seating[19] = null
     const page = await open({ state: stateOf(cls) })
     const before = (await activeSaved(page)).seating.slice(0, 30).join()
-    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(600)
     await page.getByRole('button', { name: /Mix Up Seats/ }).click()
     await page.waitForTimeout(400)
@@ -742,7 +744,7 @@ const scenarios = {
         .first()
         .evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
     const besidePictures = await nameSize()
-    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(500)
     await page.getByRole('button', { name: /Student Avatars/ }).click()
     await page.waitForTimeout(500)
@@ -759,7 +761,7 @@ const scenarios = {
     await page.waitForTimeout(500)
     const alone = await nameSize()
     check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
-    await page.locator('aside button[aria-label="Class Settings"]').click()
+    await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(500)
     // A newcomer to a class of names gets no avatar too.
     await page.getByPlaceholder('Name').fill('Zoe')
@@ -835,7 +837,7 @@ const scenarios = {
         const rowsName = await nameSize(page)
         const bad = []
         for (const [id, label, setName, sets] of LAYOUTS) {
-          await page.locator('aside button[aria-label="Class Settings"]').click()
+          await page.locator('button[aria-label="Class Settings"]').click()
           await page.waitForTimeout(500)
           await page.getByRole('tab', { name: 'Class' }).click()
           await page.waitForTimeout(300)
@@ -886,7 +888,7 @@ const scenarios = {
     const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)) })
     const before = (await activeSaved(page)).seating.slice(0, 35).join()
     for (const label of ['Pairs', 'Rows of 3', 'Rows']) {
-      await page.locator('aside button[aria-label="Class Settings"]').click()
+      await page.locator('button[aria-label="Class Settings"]').click()
       await page.waitForTimeout(500)
       await page.getByRole('tab', { name: 'Class' }).click()
       await page.waitForTimeout(300)
@@ -903,7 +905,7 @@ const scenarios = {
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
-        // Stars on the desks: the fuller board (a minus on the panel, All Stars In! on the meter,
+        // Stars on the desks: the fuller board (a minus and All Stars In! on the panel, Float in its top row,
         // a star chip on desks) is the one that has to fit.
         const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20, starsOnDesks: true })
         cls.students.forEach((st, i) => (st.points = i % 3 === 0 ? 12 : 0))
@@ -928,7 +930,7 @@ const scenarios = {
         await page.waitForTimeout(800) // past the timer's double-touch guard
         await page.locator('aside [aria-label="Timer controls"]').click({ position: { x: 10, y: 10 } })
         await page.waitForTimeout(700)
-        await page.locator('aside button[title="Switch class"]').click()
+        await page.locator('button[title="Switch class"]').click()
         await page.waitForTimeout(400)
         await look('class list')
         await page.mouse.click(size[0] / 2, size[1] / 2)
@@ -946,7 +948,7 @@ const scenarios = {
         await look('6 groups')
         await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
         await page.waitForTimeout(800)
-        await page.locator('aside button[aria-label="Class Settings"]').click()
+        await page.locator('button[aria-label="Class Settings"]').click()
         await page.waitForTimeout(600)
         await look('settings students')
         await page.getByRole('tab', { name: 'Class' }).click()

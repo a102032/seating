@@ -1,13 +1,11 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { PictureInPicture2, Star } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
 import { starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
-import { TactileButton } from './TactileButton'
 
 interface PointsMeterProps {
   classId: string
@@ -26,17 +24,12 @@ interface PointsMeterProps {
   holdCelebration: boolean
   /** Whether a filled goal is waiting for the app to come back, so the floating window can say so. */
   onWaitingChange: (waiting: boolean) => void
-  /** Whether the class goal is floating over the lesson right now. */
-  floating: boolean
-  /** Float the goal, or bring it back. Absent where the browser has no floating window. */
-  onToggleFloat?: () => void
   /**
-   * Stars waiting on the desks, in a class that puts its stars there first; null where they go
-   * straight to the goal, and All Stars In! isn't shown.
+   * The class's name, with its switcher and settings gear (ClassTitle), at the meter's end: the
+   * one thing beside the meter, and a quiet one. Float and All Stars In! were here and went to
+   * the side panel, because buttons beside the meter took the eye from it.
    */
-  deskStars: number | null
-  /** Send every desk's stars to the goal. */
-  onAllStarsIn: () => void
+  title: ReactNode
 }
 
 /** How full the meter has to get before the chest starts straining. */
@@ -66,10 +59,7 @@ export function PointsMeter({
   onOpenGoalSettings,
   holdCelebration,
   onWaitingChange,
-  floating,
-  onToggleFloat,
-  deskStars,
-  onAllStarsIn,
+  title,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
@@ -327,42 +317,7 @@ export function PointsMeter({
         {displayPoints} / {goal}
       </span>
 
-      {/*
-        All Stars In! is on the meter because the meter is where the stars go: tapped, a star
-        flies from every desk that has some into the coin. It costs the side panel nothing, as
-        Float doesn't. Always there in a class that puts stars on the desks, greyed with none
-        waiting, so the teacher always knows where it is - and only ever a tap: stars left on the
-        desks wait for next time, with no message about it. The stars on the desks are the
-        reminder, and the count says how many.
-      */}
-      {deskStars !== null && (
-        <TactileButton
-          onClick={onAllStarsIn}
-          disabled={deskStars === 0}
-          className="shrink-0 !gap-1.5 !px-2.5 !py-1.5"
-          title={deskStars === 0 ? 'No stars on the desks yet' : 'Add every star on the desks to the class goal'}
-        >
-          <Star size={16} className="fill-amber-400 text-amber-500" />
-          All Stars In!
-          <span className="rounded-full bg-amber-400/25 px-1.5 text-xs font-bold tabular-nums text-foreground">{deskStars}</span>
-        </TactileButton>
-      )}
-
-      {/*
-        The meter is what floats, so the button to float it is on the meter - and it costs the
-        side panel nothing. It stays lit while the goal is floating, and tapping it again
-        brings it back.
-      */}
-      {onToggleFloat && (
-        <TactileButton
-          active={floating}
-          onClick={onToggleFloat}
-          className="shrink-0 !gap-1.5 !px-2.5 !py-1.5"
-          title={floating ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
-        >
-          <PictureInPicture2 size={16} /> Float
-        </TactileButton>
-      )}
+      {title}
 
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}

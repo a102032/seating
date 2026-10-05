@@ -1,27 +1,13 @@
 import clsx from 'clsx'
-import { AnimatePresence, motion } from 'framer-motion'
-import {
-  ArrowLeftRight,
-  Check,
-  ChevronDown,
-  ClipboardCheck,
-  Layers,
-  Minus,
-  Plus,
-  Settings,
-  Shuffle,
-  TriangleAlert,
-  User,
-} from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { ArrowLeftRight, Check, ClipboardCheck, Layers, Minus, Plus, Settings, Shuffle, Star, TriangleAlert, User } from 'lucide-react'
+import { useRef, type CSSProperties, type ReactNode } from 'react'
 import { useFitToHeight } from '../hooks/useFitToHeight'
 import { GroupActivityIcon, PickGroupIcon, PickRowIcon, PickTableIcon } from './PickerIcons'
-import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData, TimerSettings } from '../types'
 import type { useCloudSync } from '../hooks/useCloudSync'
 import { Badge } from '@/components/ui/badge'
 import { SyncMark } from './Account'
-import { ConfirmModal } from './ConfirmModal'
+import { ClassTitle } from './ClassTitle'
 import { FlipTimer } from './FlipTimer'
 import { TactileButton } from './TactileButton'
 
@@ -29,6 +15,17 @@ interface SidePanelProps {
   classes: ClassData[]
   activeClassId: string | null
   onSelectClass: (id: string) => void
+  /**
+   * A class goal is on, so the class's name sits at the end of the goal meter (ClassTitle) and
+   * the goal's own controls take its row here.
+   */
+  nameInBar: boolean
+  /** The goal's controls for that row (Float), or null where the browser can't float the goal. */
+  goalControls: ReactNode
+  /** Stars waiting on the desks, in a class that puts them there first; null where they go straight to the goal. */
+  deskStars: number | null
+  /** All Stars In!: every desk's stars to the goal. */
+  onAllStarsIn: () => void
   swapMode: boolean
   onToggleSwap: () => void
   /** Attendance is on: a desk tap marks a student absent or back, and nothing else answers. */
@@ -111,6 +108,10 @@ export function SidePanel({
   classes,
   activeClassId,
   onSelectClass,
+  nameInBar,
+  goalControls,
+  deskStars,
+  onAllStarsIn,
   swapMode,
   onToggleSwap,
   attendanceMode,
@@ -155,31 +156,22 @@ export function SidePanel({
   // Swap Seats and Attendance both turn a desk tap into something else, so while either is
   // on it is the only thing on the panel that answers.
   const deskMode = swapMode || attendanceMode
-  const [listOpen, setListOpen] = useState(false)
-  const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
-
-  const activeClass = classes.find((c) => c.id === activeClassId)
-  // The class name shares its row with the class switcher and the settings gear, so a name
-  // that still doesn't fit gives up a little size before it gives up letters.
-  const classNameRef = useShrinkToFit<HTMLSpanElement>(activeClass?.name, 0.75)
 
   // Fits itself to the screen's height rather than to a list of screens: anything that adds a
   // line to the panel starts the fitting again.
   const asideRef = useRef<HTMLElement>(null)
-  const fitKey = [flipDeckOpen, pointsSelectedCount > 0, Boolean(cloud.account), saveError, classes.length > 1, timerSettings.face].join()
+  const fitKey = [
+    flipDeckOpen,
+    pointsSelectedCount > 0,
+    Boolean(cloud.account),
+    saveError,
+    classes.length > 1,
+    timerSettings.face,
+    nameInBar,
+    Boolean(goalControls),
+    deskStars !== null,
+  ].join()
   const fit = useFitToHeight(asideRef, FIT_STEPS.length - 1, fitKey)
-
-  useEffect(() => {
-    if (deskMode) setListOpen(false)
-  }, [deskMode])
-
-  function requestSwitch(cls: ClassData) {
-    if (cls.id === activeClassId) {
-      setListOpen(false)
-      return
-    }
-    setSwitchTarget(cls)
-  }
 
   return (
     <aside
@@ -197,95 +189,24 @@ export function SidePanel({
         'dark:border-white/10 dark:shadow-black/20',
       )}
     >
-      {/* relative and above the panel, so the class list can open over what is below. */}
-      <div className="relative z-30 shrink-0">
-        <div className="relative z-30 flex items-center gap-1">
-          <span
-            ref={classNameRef}
-            data-ink="class-name"
-            className="truncate px-1 font-bold text-foreground"
-            style={{ fontSize: 'calc(clamp(1rem, 1.9vmin, 1.3rem) * var(--fit, 1))' }}
-          >
-            {activeClass?.name}
-          </span>
-          {classes.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setListOpen((v) => !v)}
-              disabled={deskMode}
-              title="Switch class"
-              className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
-            >
-              <motion.span animate={{ rotate: listOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
-                <ChevronDown size={18} />
-              </motion.span>
-            </button>
-          )}
-          {/*
-            Class Settings is a gear beside the class's name, the way the pickers' settings are
-            a gear beside theirs. It was a button with a word on the row below, and Attendance
-            sat here instead, which left a long class name 67px and cut "Grade 4 English" to
-            "Grade ...". It stands down when a running activity is underneath, since settings
-            rearrange the class, and when the board is locked for students.
-          */}
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            disabled={deskMode || groupsLocked}
-            title="Class Settings"
-            aria-label="Class Settings"
-            className="ml-auto shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
-          >
-            <Settings size={18} />
-          </button>
-        </div>
-
-        {/*
-          The class list opens over the panel, like a menu, rather than pushing the timer and the
-          pickers down: on a board that gives the app 1280x559 it pushed Pick All and +/- off
-          the bottom. A tap anywhere else closes it.
-        */}
-        {listOpen && classes.length > 1 && (
-          <button
-            type="button"
-            aria-label="Close the class list"
-            className="fixed inset-0 z-20 cursor-default"
-            onClick={() => setListOpen(false)}
-          />
-        )}
-        <AnimatePresence initial={false}>
-          {listOpen && classes.length > 1 && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              data-ink="menu"
-              className="absolute inset-x-0 top-full z-30 mt-1.5 rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
-            >
-              <div className="flex flex-col gap-1">
-                {' '}
-                {classes.map((cls) => (
-                  <button
-                    key={cls.id}
-                    type="button"
-                    onClick={() => requestSwitch(cls)}
-                    className={clsx(
-                      'w-full truncate rounded-xl px-3 py-2 text-left font-semibold transition-colors active:scale-[0.98]',
-                      cls.id === activeClassId
-                        ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                    )}
-                    style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
-                  >
-                    {cls.name}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/*
+        The top row: the class's name, or - with a class goal on - the goal's own controls, while
+        the name labels the goal meter instead (ClassTitle). The teacher found buttons beside the
+        meter took the eye from it; the quiet name there doesn't.
+      */}
+      {nameInBar ? (
+        goalControls && <div className="flex shrink-0 items-center gap-1.5">{goalControls}</div>
+      ) : (
+        <ClassTitle
+          place="panel"
+          classes={classes}
+          activeClassId={activeClassId}
+          onSelectClass={onSelectClass}
+          onOpenSettings={onOpenSettings}
+          disabled={deskMode}
+          settingsDisabled={groupsLocked}
+        />
+      )}
 
       <FlipTimer settings={timerSettings} onOpenSettings={onOpenTimerSettings} disabled={deskMode} />
 
@@ -449,6 +370,25 @@ export function SidePanel({
               <Plus className="size-[clamp(20px,3.2vh,34px)]" strokeWidth={2.75} />
             </TactileButton>
           </div>
+          {/*
+            All Stars In! finishes what + and - started, so it sits under them, only in a class
+            that puts its stars on the desks first. Greyed with none waiting, so the teacher always
+            knows where it is, and only ever a tap: stars left on the desks wait for next time,
+            with no message about it - the stars on the desks are the reminder, and the count says
+            how many. It was on the goal meter, which took the eye from the meter.
+          */}
+          {deskStars !== null && (
+            <TactileButton
+              onClick={onAllStarsIn}
+              disabled={busy || deskStars === 0}
+              className={clsx('mt-1.5 w-full justify-center', FIT_PY)}
+              title={deskStars === 0 ? 'No stars on the desks yet' : 'Add every star on the desks to the class goal'}
+            >
+              <Star size={18} className="fill-amber-400 text-amber-500" />
+              All Stars In!
+              <span className="rounded-full bg-amber-400/25 px-1.5 text-xs font-bold tabular-nums text-foreground">{deskStars}</span>
+            </TactileButton>
+          )}
           {flipDeckOpen ? (
             // Always one line, name or not, so nothing below it jumps as turns change hands.
             <p className="mt-1 truncate px-1 text-center text-xs font-medium text-muted-foreground">
@@ -512,20 +452,6 @@ export function SidePanel({
           </button>
         </div>
       </div>
-
-      <ConfirmModal
-        open={switchTarget !== null}
-        title={`Switch to "${switchTarget?.name}"?`}
-        message={`You'll now see "${switchTarget?.name}"'s seating chart instead of "${activeClass?.name}". Don't worry - "${activeClass?.name}" stays saved exactly as you left it, and you can switch back anytime.`}
-        confirmLabel="Yes, Switch"
-        cancelLabel="No"
-        onCancel={() => setSwitchTarget(null)}
-        onConfirm={() => {
-          if (switchTarget) onSelectClass(switchTarget.id)
-          setSwitchTarget(null)
-          setListOpen(false)
-        }}
-      />
     </aside>
   )
 }

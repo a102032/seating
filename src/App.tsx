@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { PictureInPicture2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
+import { ClassTitle } from './components/ClassTitle'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
@@ -13,6 +15,7 @@ import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
+import { TactileButton } from './components/TactileButton'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { goalIsLive, starsWaitOnDesks, useClasses } from './hooks/useClasses'
@@ -554,11 +557,32 @@ export default function App() {
     return <div className="flex h-full w-full items-center justify-center text-neutral-400">Loading...</div>
   }
 
+  /**
+   * Float, which belonged on the meter because the meter is what floats, sits at the top of the
+   * side panel now, where the class's name was: the teacher found buttons beside the meter took
+   * the eye from it. Get Ready! will join it there. It stays lit while the goal floats.
+   */
+  const goalControls = canFloat ? (
+    <TactileButton
+      active={floatWin !== null}
+      onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
+      className={'!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)]'}
+      title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
+    >
+      <PictureInPicture2 size={16} /> Float
+    </TactileButton>
+  ) : null
+
   const sidePanel = (
     <SidePanel
       classes={classes}
       activeClassId={activeClassId}
       onSelectClass={setActiveClassId}
+      // With a goal on, the class's name labels the goal meter and the goal's controls take its row.
+      nameInBar={goalLive}
+      goalControls={goalControls}
+      deskStars={desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
+      onAllStarsIn={allStarsIn}
       swapMode={swapMode}
       onToggleSwap={() => {
         setSwapMode((v) => !v)
@@ -692,10 +716,17 @@ export default function App() {
               onOpenGoalSettings={() => setPickerSettingsOpen(true)}
               holdCelebration={!appInFront}
               onWaitingChange={setGoalWaiting}
-              floating={floatWin !== null}
-              onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE)) : undefined}
-              deskStars={desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
-              onAllStarsIn={allStarsIn}
+              title={
+                <ClassTitle
+                  place="bar"
+                  classes={classes}
+                  activeClassId={activeClassId}
+                  onSelectClass={setActiveClassId}
+                  onOpenSettings={() => openSettings()}
+                  disabled={swapMode || attendanceMode}
+                  settingsDisabled={groupActivityOpen && groupsLocked}
+                />
+              }
             />
           )}
 

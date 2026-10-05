@@ -81,11 +81,13 @@ checks the live URL. Confirm it went green before saying something is live.
   board), and `pickChances`, the better chance the pickers give students picked less often. `components/ParticipationModal.tsx`
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
 - Points run one of two ways per class (`starsOnDesks`, `starsWaitOnDesks` in `useClasses.ts`): straight to the goal (the
-  default, no minus) or on the desks first, sent to the goal by All Stars In! on the meter.
+  default, no minus) or on the desks first, sent to the goal by All Stars In! under the side panel's +.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
   cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
 - `src/components/`:
-  - `SidePanel.tsx`: class switcher, timer, pickers and points.
+  - `SidePanel.tsx`: the class name (no goal) or the goal's controls (Float, with a goal on), timer, pickers and points.
+  - `ClassTitle.tsx`: the class name, switcher and Class Settings gear - at the top of the side panel with no goal, at the
+    goal meter's end with one.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
   - `FlipTimer.tsx` / `TimerDial.tsx` / `TimerSettingsModal.tsx`: the side panel's timer, as flip digits or a Time Timer-style dial.

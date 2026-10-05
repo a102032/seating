@@ -308,7 +308,7 @@ const shot = async (name) => {
   await page.screenshot({ path: `${SHOTS}/${name}.png` })
 }
 const settings = async (tab) => {
-  await page.locator('aside button[aria-label="Class Settings"]').click()
+  await page.locator('button[aria-label="Class Settings"]').click()
   await page.getByRole('tab', { name: tab }).click()
   await page.waitForTimeout(300)
 }

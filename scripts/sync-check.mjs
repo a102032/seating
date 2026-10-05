@@ -287,13 +287,13 @@ try {
 
   if (want('delete') && board && laptop) {
     // A new class on the laptop appears on the board; deleting it there takes it off the board.
-    await laptop.locator('aside button[aria-label="Class Settings"]').click()
+    await laptop.locator('button[aria-label="Class Settings"]').click()
     await laptop.getByRole('tab', { name: 'Class' }).click()
     await laptop.getByRole('dialog').getByRole('button', { name: 'New Class' }).click()
     await laptop.keyboard.press('Escape')
     const three = await waitFor(async () => (await boardState(board)).classes.length === 3)
     check('delete: a class made on the laptop appears on the board', Boolean(three))
-    await laptop.locator('aside button[aria-label="Class Settings"]').click()
+    await laptop.locator('button[aria-label="Class Settings"]').click()
     await laptop.getByRole('tab', { name: 'Class' }).click()
     await laptop.locator('button[aria-label="Lift the safety cover to reveal Delete Class"]').click()
     await laptop.getByRole('dialog').getByRole('button', { name: 'Delete Class' }).first().click()
