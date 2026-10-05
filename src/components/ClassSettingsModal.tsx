@@ -7,6 +7,7 @@ import {
   FilePlus2,
   FileUp,
   GraduationCap,
+  Hand,
   Pencil,
   Plus,
   School,
@@ -26,7 +27,7 @@ import { parseRosterCsv, rosterFromRows } from '../lib/csv'
 import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../lib/drive'
 import type { useCloudSync } from '../hooks/useCloudSync'
 import { useDrive } from '../hooks/useDrive'
-import { MAX_CLASSES, type AvatarScope } from '../hooks/useClasses'
+import { MAX_CLASSES, starsWaitOnDesks, type AvatarScope } from '../hooks/useClasses'
 import { hasNoAvatar, resolveAvatarSrc } from '../lib/stickers'
 import { NoAvatarPicture } from './NoAvatarPicture'
 import type { Theme } from '../lib/theme'
@@ -42,6 +43,7 @@ import { AvatarPickerModal } from './AvatarPickerModal'
 import { GoogleTab } from './GoogleTab'
 import { RosterSheetsModal } from './RosterSheetsModal'
 import { AttendanceHistoryModal } from './AttendanceHistoryModal'
+import { ParticipationModal } from './ParticipationModal'
 import { ClassAvatarsModal } from './ClassAvatarsModal'
 import { ConfirmModal } from './ConfirmModal'
 import { DangerCover } from './DangerCover'
@@ -197,6 +199,7 @@ export function ClassSettingsModal({
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
+  const [participationOpen, setParticipationOpen] = useState(false)
   const [guardOpen, setGuardOpen] = useState(false)
   const [tab, setTab] = useState<SettingsTab>(initialTab)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -335,6 +338,7 @@ export function ClassSettingsModal({
           !pickingAvatarFor &&
           !assigningAvatars &&
           !attendanceOpen &&
+          !participationOpen &&
           !sheetsOpen
         }
         onClose={closeAndReset}
@@ -465,6 +469,15 @@ export function ClassSettingsModal({
                     <TactileButton onClick={() => setAttendanceOpen(true)} className="!py-1.5" title="Who was away, day by day">
                       <ClipboardCheck size={16} /> View / Edit Attendance
                     </TactileButton>
+                    {/* Who had a turn, lesson by lesson: for looking back, and only ever here,
+                        never on the board (lib/participation). */}
+                    <TactileButton
+                      onClick={() => setParticipationOpen(true)}
+                      className="!py-1.5"
+                      title="Who was picked and given points, lesson by lesson"
+                    >
+                      <Hand size={16} /> Participation
+                    </TactileButton>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -501,6 +514,7 @@ export function ClassSettingsModal({
                         onDelete={() => setConfirmingDeleteStudent(s)}
                         onUnseat={() => onUnseatStudent(s.id)}
                         onPickAvatar={() => setPickingAvatarFor(s)}
+                        showStars={starsWaitOnDesks(activeClass)}
                       />
                     ))
                   )}
@@ -684,6 +698,8 @@ export function ClassSettingsModal({
         }}
       />
 
+      <ParticipationModal open={participationOpen} onClose={() => setParticipationOpen(false)} activeClass={activeClass} />
+
       <AttendanceHistoryModal
         open={attendanceOpen}
         onClose={() => setAttendanceOpen(false)}
@@ -749,9 +765,25 @@ interface RosterRowProps {
   onDelete: () => void
   onUnseat: () => void
   onPickAvatar: () => void
+  /**
+   * The class puts its stars on the desks first, so the roster shows the stars waiting on each
+   * desk and lets a miscount be fixed. Straight to the goal, a student has no stars of their own.
+   */
+  showStars: boolean
 }
 
-function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onDelete, onUnseat, onPickAvatar }: RosterRowProps) {
+function RosterRow({
+  student,
+  seated,
+  editing,
+  onEdit,
+  onCancelEdit,
+  onSave,
+  onDelete,
+  onUnseat,
+  onPickAvatar,
+  showStars,
+}: RosterRowProps) {
   const [name, setName] = useState(student.name)
   const [homeroom, setHomeroom] = useState(student.homeroom)
   const [gender, setGender] = useState<Gender>(student.gender)
@@ -770,7 +802,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
     // A name wiped out by mistake keeps the old one: a desk with no name on it can't be read.
     const kept = name.trim() || student.name
     setName(kept)
-    onSave({ name: kept, homeroom: homeroom.trim(), gender, points: Math.max(0, Number(points) || 0) })
+    onSave({ name: kept, homeroom: homeroom.trim(), gender, ...(showStars ? { points: Math.max(0, Number(points) || 0) } : {}) })
   }
 
   if (editing) {
@@ -781,16 +813,18 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         <GenderSelect value={gender} onChange={setGender} className="h-8 w-auto" />
         {/* Editable rather than a reset button: correcting a miscount ("that should be 1,
             not 3") is the case that actually comes up, and typing 0 covers the reset. */}
-        <div className="flex items-center gap-1">
-          <Star size={14} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
-          <Input
-            value={points}
-            onChange={(e) => setPoints(e.target.value.replace(/[^0-9]/g, ''))}
-            inputMode="numeric"
-            title="Stars"
-            className="h-8 w-16"
-          />
-        </div>
+        {showStars && (
+          <div className="flex items-center gap-1">
+            <Star size={14} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
+            <Input
+              value={points}
+              onChange={(e) => setPoints(e.target.value.replace(/[^0-9]/g, ''))}
+              inputMode="numeric"
+              title="Stars"
+              className="h-8 w-16"
+            />
+          </div>
+        )}
         <TactileButton variant="primary" onClick={save}>
           Save
         </TactileButton>
@@ -814,7 +848,7 @@ function RosterRow({ student, seated, editing, onEdit, onCancelEdit, onSave, onD
         )}
       </button>
       <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
-      {(student.points ?? 0) > 0 && (
+      {showStars && (student.points ?? 0) > 0 && (
         <Badge variant="secondary" className="gap-1">
           <Star size={11} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
           {student.points}

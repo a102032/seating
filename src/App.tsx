@@ -15,13 +15,14 @@ import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { TimerSettingsModal } from './components/TimerSettingsModal'
-import { goalIsLive, useClasses } from './hooks/useClasses'
+import { goalIsLive, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
-import { playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
+import { pickChances } from './lib/participation'
+import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { flyStarsToGoal } from './lib/starFlight'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
@@ -74,15 +75,17 @@ export default function App() {
     updateStudent,
     assignAvatars,
     adjustPoints,
+    bankDeskStars,
+    setStarsOnDesks,
+    recordPick,
+    startNewRound,
     setGoalSettings,
     setGoalEnabled,
-    setShowDeskStars,
     setShowAllHomerooms,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
     addToClassGoal,
-    resetPoints,
     deleteStudent,
     swapSeats,
     seatClass,
@@ -168,6 +171,8 @@ export default function App() {
   /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
   const [goalWaiting, setGoalWaiting] = useState(false)
   const goalLive = activeClass ? goalIsLive(activeClass) : false
+  /** Stars wait on the desks for All Stars In!, rather than flying straight to the goal. */
+  const desksMode = activeClass ? starsWaitOnDesks(activeClass) : false
 
   useEffect(() => {
     applyTheme(theme)
@@ -217,7 +222,22 @@ export default function App() {
     () => (activeClass?.seating ?? []).map((id) => (id && absentIds.has(id) ? null : id)),
     [activeClass, absentIds],
   )
-  const picker = usePicker(presentSeating, activeClassId, plan)
+  /**
+   * Who has had a turn, for the pickers: the students picked less often lately get a better
+   * chance (lib/participation). Read again as the record grows, which is cheap.
+   */
+  const chances = useMemo(() => (activeClass ? pickChances(activeClass, today) : new Map<string, number>()), [activeClass, today])
+  const chanceOf = useCallback((id: string) => chances.get(id) ?? 1, [chances])
+  /** Pick Student's round, kept with the class so a reload doesn't start it over. A new day is a new round. */
+  const pickRound = activeClass?.pickRound
+  const pickedThisRound = useMemo(() => new Set(pickRound && pickRound.day === today ? pickRound.ids : []), [pickRound, today])
+  const picker = usePicker(presentSeating, activeClassId, plan, {
+    picked: pickedThisRound,
+    chanceOf,
+    onPicked: (id, round) => {
+      if (activeClassId) recordPick(activeClassId, id, today, round)
+    },
+  })
   const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
 
   /**
@@ -246,16 +266,20 @@ export default function App() {
 
   const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen, {
     genderOf: (id) => studentsById.get(id)?.gender ?? 'unspecified',
-    // Bonus points land the way any award does, class meter included.
+    // Bonus points land the way any award does, class meter included. Everyone +1 is the whole
+    // class, so it isn't in the participation record; a jackpot is one student's.
     onEveryone: () => {
       if (!activeClassId) return
-      if (goalLive) flyStarsToGoal(seatedIds)
+      if (goalLive && !desksMode) flyStarsToGoal(seatedIds)
       adjustPoints(activeClassId, seatedIds, 1)
     },
     onJackpot: (id, points) => {
       if (!activeClassId) return
-      if (goalLive) flyStarsToGoal([id])
-      adjustPoints(activeClassId, [id], points)
+      if (goalLive && !desksMode) flyStarsToGoal([id])
+      adjustPoints(activeClassId, [id], points, today)
+    },
+    onTurned: (id) => {
+      if (activeClassId) recordPick(activeClassId, id, today)
     },
   })
 
@@ -274,6 +298,10 @@ export default function App() {
     allowRepeats: picker.settings.allowRepeats,
     soundEnabled: picker.settings.soundEnabled,
     resetKey: dealTick,
+    chanceOf,
+    onStudentPicked: (id) => {
+      if (activeClassId) recordPick(activeClassId, id, today)
+    },
   })
 
   function openGroupActivity() {
@@ -455,6 +483,9 @@ export default function App() {
   }
 
   function toggleSelectAll() {
+    // Pick All takes the board over, as a pick does: a pick still showing would otherwise keep
+    // the points, and + went to the one picked student instead of the class.
+    if (picker.hasResult) picker.dismiss()
     setSpentDelta(null)
     setLandedTick(0)
     const allSelected = seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))
@@ -475,21 +506,28 @@ export default function App() {
     run()
   }
 
-  // Stars are floored at 0, so minus only means something when someone selected has one.
-  const canDeductPoint = Array.from(activeSelection).some((id) => (studentsById.get(id)?.points ?? 0) > 0)
+  // Minus is only for stars waiting on the desks - one already in the jar never comes out - and
+  // stars are floored at 0, so it only means something when someone selected has one.
+  const canDeductPoint = desksMode && Array.from(activeSelection).some((id) => (studentsById.get(id)?.points ?? 0) > 0)
 
   function applyPointsDelta(delta: number) {
     if (!activeClassId || activeSelection.size === 0) return
     // No sound of a point going when there was nothing to take.
     if (delta < 0 && !canDeductPoint) return
-    // A point goes to everyone: a star flies from each desk into the jar, and the meter moves
-    // as it lands. Only while there is a jar on the board to fly to.
-    if (delta > 0 && goalLive) flyStarsToGoal(Array.from(activeSelection))
-    adjustPoints(activeClassId, Array.from(activeSelection), delta)
-    // Awards already sound: the coin ticks when the class meter moves. Taking a point away
-    // never moves the meter by design, so without this the minus button was silent - the
-    // teacher pressed it and nothing said it had landed.
+    const ids = Array.from(activeSelection)
+    // Straight to the goal: a star flies from each desk into the jar, and the meter moves as it
+    // lands. Only while there is a jar on the board to fly to. On the desks, the star stays put.
+    if (delta > 0 && goalLive && !desksMode) flyStarsToGoal(ids)
+    // Everyone selected is the whole class (Pick All), which says nothing about one child, so
+    // only a star given to some students goes in the participation record.
+    const wholeClass = seatedIds.length > 1 && seatedIds.every((id) => activeSelection.has(id))
+    adjustPoints(activeClassId, ids, delta, wholeClass ? undefined : today)
+    // Awards straight to the goal already sound: the coin ticks when the meter moves. A star
+    // that stays on a desk, or lands with no goal on, moves no meter, so it ticks here. Taking
+    // a point away never moves the meter by design, so without this the minus button was
+    // silent - the teacher pressed it and nothing said it had landed.
     if (delta < 0) playPointDeduct()
+    else if (desksMode || !goalLive) playCoinTick()
     // Awarding deliberately changes nothing about what the board is showing: a pick stays a
     // pick, a selection stays selected. Only the desks react, and only for a moment. The
     // dimmed board is the record of what is selected, so it doesn't need a timer to expire -
@@ -497,6 +535,19 @@ export default function App() {
     setStaggerWiggle(false)
     setLandedTick((t) => t + 1)
     setSpentDelta(delta)
+  }
+
+  /**
+   * All Stars In!: every desk's stars fly into the jar at once - one star from each desk that has
+   * some, so a whole class pours in - and the desks start the next lesson empty. Only ever from a
+   * tap: stars left on the desks wait there for next time.
+   */
+  function allStarsIn() {
+    if (!activeClass) return
+    const waiting = activeClass.students.filter((s) => (s.points ?? 0) > 0).map((s) => s.id)
+    if (waiting.length === 0) return
+    flyStarsToGoal(waiting)
+    bankDeskStars(activeClass.id)
   }
 
   if (!activeClass) {
@@ -553,6 +604,7 @@ export default function App() {
       onToggleSelectAll={toggleSelectAll}
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
+      showMinus={desksMode}
       canDeductPoint={canDeductPoint}
       flipDeckOpen={flipDeckOpen}
       pickFlashing={picker.isPicking}
@@ -642,6 +694,8 @@ export default function App() {
               onWaitingChange={setGoalWaiting}
               floating={floatWin !== null}
               onToggleFloat={canFloat ? () => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE)) : undefined}
+              deskStars={desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
+              onAllStarsIn={allStarsIn}
             />
           )}
 
@@ -658,7 +712,7 @@ export default function App() {
               staggerWiggle={staggerWiggle}
               deskHighlights={picker.deskHighlights}
               absentIds={absentIds}
-              showStars={activeClass.showDeskStars === true}
+              showStars={desksMode}
               showAllHomerooms={activeClass.showAllHomerooms === true}
               onTapDesk={handleTapDesk}
             />
@@ -678,7 +732,7 @@ export default function App() {
                   <FlipDeck
                     deck={deck}
                     studentsById={studentsById}
-                    showStars={activeClass.showDeskStars === true}
+                    showStars={desksMode}
                     showAllHomerooms={activeClass.showAllHomerooms === true}
                     onOpenSettings={() => setFlipSettingsOpen(true)}
                     onExit={() => {
@@ -791,18 +845,18 @@ export default function App() {
         onClose={() => setPickerSettingsOpen(false)}
         settings={picker.settings}
         onUpdateSettings={picker.updateSettings}
-        studentPickCounts={picker.studentPickCounts}
-        columnPickCounts={picker.columnPickCounts}
-        studentsById={studentsById}
         activeClass={activeClass}
+        roundStarted={pickedThisRound.size > 0 || picker.rowsPicked > 0}
+        onStartNewRound={() => {
+          startNewRound(activeClass.id)
+          picker.resetRows()
+        }}
         onSaveGoal={(goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer)}
         onSetGoalEnabled={(enabled) => setGoalEnabled(activeClass.id, enabled)}
-        onSetShowDeskStars={(show) => setShowDeskStars(activeClass.id, show)}
+        onSetStarsOnDesks={(on) => setStarsOnDesks(activeClass.id, on)}
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
-        onResetStars={() => resetPoints(activeClass.id)}
-        onReset={picker.resetPickHistory}
       />
 
       <ClassSettingsModal

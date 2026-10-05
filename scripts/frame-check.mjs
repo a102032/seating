@@ -150,7 +150,7 @@ await measure('tap 6 desks', async () => {
 })
 await measure('give +1 three times', async () => {
   for (let i = 0; i < 3; i++) {
-    await page.locator('aside button:has(svg.lucide-plus)').click()
+    await page.locator('aside button[title="Award Point"]').click()
     await wait(500)
     if (i < 2) {
       await desk('Amy').click()

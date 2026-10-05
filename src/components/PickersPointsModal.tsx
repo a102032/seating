@@ -1,15 +1,13 @@
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
-import { Check, Minus, Plus, RotateCcw, StarOff } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Check, Minus, Plus, RotateCcw } from 'lucide-react'
 import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../lib/celebrationGifs'
 import { assetUrl } from '../lib/assets'
-import type { ClassData, Student } from '../types'
+import type { ClassData } from '../types'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
@@ -25,18 +23,16 @@ interface PickersPointsModalProps {
   onClose: () => void
   settings: PickerSettingsValue
   onUpdateSettings: (patch: Partial<PickerSettingsValue>) => void
-  studentPickCounts: Map<string, number>
-  columnPickCounts: Map<number, number>
-  studentsById: Map<string, Student>
   activeClass: ClassData
+  /** Somebody (or some row) has been picked this round, so there is a round to start over. */
+  roundStarted: boolean
+  onStartNewRound: () => void
   onSaveGoal: (goal: number, starsPerClassPoint: number) => void
   onSetGoalEnabled: (enabled: boolean) => void
-  onSetShowDeskStars: (show: boolean) => void
+  onSetStarsOnDesks: (on: boolean) => void
   onSetCelebrationGif: (gifId: string) => void
   onResetClassGoal: () => void
   onSetClassPoints: (points: number) => void
-  onResetStars: () => void
-  onReset: () => void
 }
 
 /**
@@ -81,6 +77,74 @@ function ToggleRow({
         </div>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5 shrink-0" />
+    </div>
+  )
+}
+
+const chestPicture = assetUrl('/treasure/chest-closed.svg')
+
+/** A desk as the board draws it, rounded at the top, for the stars pictures. */
+function MiniDesk({ star }: { star: boolean }) {
+  return (
+    <svg viewBox="0 0 28 24" className="h-6 w-7 shrink-0" aria-hidden>
+      <path d="M2 9 Q2 3 8 3 H20 Q26 3 26 9 V22 H2 Z" fill="var(--card)" stroke="currentColor" strokeOpacity="0.4" strokeWidth="1.6" />
+      {star && (
+        <path
+          d="M20 4.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6-3.2-1.7-3.2 1.7.6-3.6-2.6-2.5 3.6-.5z"
+          fill="#fbbf24"
+          stroke="#b45309"
+          strokeWidth="0.6"
+        />
+      )}
+    </svg>
+  )
+}
+
+/**
+ * How the class runs its points, as two small pictures rather than a switch, because this is one
+ * way or the other, not on and off (the timer's Flip Clock or Dial is chosen the same way). Both
+ * sentences sit in one cell, the other hidden, so choosing doesn't change the window's height.
+ */
+function StarsChoice({ onDesks, onChange }: { onDesks: boolean; onChange: (onDesks: boolean) => void }) {
+  const choice = (selected: boolean, label: string, picture: React.ReactNode, pick: () => void) => (
+    <button
+      type="button"
+      onClick={pick}
+      aria-pressed={selected}
+      className={clsx(
+        'relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-sm font-bold transition-all active:scale-95',
+        selected
+          ? 'bg-primary/15 text-foreground ring-2 ring-primary'
+          : 'bg-black/5 text-muted-foreground hover:bg-black/10 dark:bg-white/10',
+      )}
+    >
+      {picture}
+      <span className="leading-tight">{label}</span>
+      {selected && <SelectedTick />}
+    </button>
+  )
+  return (
+    <div className="flex-[1.35] rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+      <Label className="text-foreground">Stars</Label>
+      <div className="mt-1.5 flex gap-1.5">
+        {choice(
+          !onDesks,
+          'Straight to the goal',
+          <span className="flex shrink-0 items-center gap-0.5">
+            <MiniDesk star={false} />
+            <span className="text-amber-500">→</span>
+            <img src={chestPicture} alt="" className="h-5 w-5" />
+          </span>,
+          () => onChange(false),
+        )}
+        {choice(onDesks, 'On the desks first', <MiniDesk star />, () => onChange(true))}
+      </div>
+      <div className="mt-1 grid text-xs text-muted-foreground">
+        <p className={clsx('col-start-1 row-start-1', onDesks && 'invisible')}>A star flies into the goal the moment you give it.</p>
+        <p className={clsx('col-start-1 row-start-1', !onDesks && 'invisible')}>
+          Stars stay on the desks, and − takes one back. All Stars In! adds them to the goal.
+        </p>
+      </div>
     </div>
   )
 }
@@ -255,22 +319,17 @@ export function PickersPointsModal({
   onClose,
   settings,
   onUpdateSettings,
-  studentPickCounts,
-  columnPickCounts,
-  studentsById,
   activeClass,
+  roundStarted,
+  onStartNewRound,
   onSaveGoal,
   onSetGoalEnabled,
-  onSetShowDeskStars,
+  onSetStarsOnDesks,
   onSetCelebrationGif,
   onResetClassGoal,
   onSetClassPoints,
-  onResetStars,
-  onReset,
 }: PickersPointsModalProps) {
-  const [confirmingReset, setConfirmingReset] = useState(false)
   const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
-  const [confirmingResetStars, setConfirmingResetStars] = useState(false)
   const [goal, setGoal] = useState(50)
   const [starsPer, setStarsPer] = useState(1)
 
@@ -331,7 +390,6 @@ export function PickersPointsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const totalStars = activeClass.students.reduce((sum, st) => sum + (st.points ?? 0), 0)
   // Off means the meter isn't on screen at all - but the goal itself is kept, so switching
   // back on restores the number the teacher chose rather than a default.
   const goalOn = activeClass.goalEnabled !== false && (activeClass.pointsGoal ?? 0) > 0
@@ -342,37 +400,13 @@ export function PickersPointsModal({
     if (on && (activeClass.pointsGoal ?? 0) <= 0) commitNow({ goal: goal || 50, starsPer })
     onSetGoalEnabled(on)
   }
-  const studentEntries = Array.from(studentPickCounts.entries())
-    .map(([id, count]) => ({ id, count, name: studentsById.get(id)?.name }))
-    .filter((e): e is { id: string; count: number; name: string } => Boolean(e.name))
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-
-  /**
-   * Rows are picked, counted and cycled like students, but they are deliberately not listed.
-   *
-   * The grid gives rows no visible label, because teachers disagree about which end of it is
-   * the front of the room - so a badge reading "Row 4" names a row the app invented, and two
-   * teachers reading it would count from opposite ends. A row pick is also a means rather
-   * than an outcome: it exists to narrow the next student pick, and that student is the thing
-   * worth recording. The counts still drive the no-repeat cycle, and resetting still clears
-   * them - they just aren't shown.
-   */
-  const hasHistory = studentEntries.length > 0
-  /** Rows alone are still state a teacher can be stuck with, so reset stays live for them. */
-  const canReset = hasHistory || columnPickCounts.size > 0
-
   // Nothing to build while closed - see useLingerWhileClosing.
   const shown = useLingerWhileClosing(open)
   if (!shown) return null
 
   return (
     <>
-      <Modal
-        open={open && !confirmingReset && !confirmingResetGoal && !confirmingResetStars}
-        onClose={onClose}
-        title="Pickers &amp; Points"
-        size="xl"
-      >
+      <Modal open={open && !confirmingResetGoal} onClose={onClose} title="Pickers &amp; Points" size="xl">
         {/* No h-full here: the dialog body is the scroller, and forcing this to its height
             made the sections fight over the space and spill their text over each other. */}
         {/* Two columns on a wide screen. Stacked, this modal grew past the viewport every
@@ -397,25 +431,19 @@ export function PickersPointsModal({
               />
             </div>
 
-            <Label>Pick History (this session)</Label>
-            {!hasHistory ? (
-              <p className="rounded-2xl border border-black/10 p-3 text-center text-muted-foreground dark:border-white/10">
-                No one&apos;s been picked yet.
-              </p>
-            ) : (
-              <ScrollArea className="max-h-44 rounded-2xl border border-black/10 dark:border-white/10">
-                <div className="flex flex-wrap gap-1.5 p-3">
-                  {studentEntries.map((e) => (
-                    <Badge key={e.id} variant="secondary">
-                      {e.name} &times;{e.count}
-                    </Badge>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-            <TactileButton variant="danger" disabled={!canReset} className="w-full justify-center" onClick={() => setConfirmingReset(true)}>
-              <RotateCcw size={16} /> Reset All Pick Counts
-            </TactileButton>
+            {/*
+              Who has been picked is kept quietly, for the teacher, in Class Settings
+              (Participation) - the list of names that was here showed only the students who HAD
+              been picked, and the ones worth noticing are the ones missing from it. What stays
+              here is the round: with Allow Repeats off, everyone gets a turn before anyone has a
+              second, and this starts that over.
+            */}
+            <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+              <TactileButton disabled={!roundStarted} className="w-full justify-center" onClick={onStartNewRound}>
+                <RotateCcw size={16} /> Start a New Round
+              </TactileButton>
+              <p className="mt-1 text-center text-xs text-muted-foreground">Everyone can be picked again.</p>
+            </div>
           </section>
 
           <Separator className="lg:hidden" />
@@ -430,15 +458,11 @@ export function PickersPointsModal({
                 checked={goalOn}
                 onCheckedChange={toggleGoal}
               />
-              {/* Off by default: the board shows the jar the class fills together, and nothing
-                  for children to compare. The stars are still counted, in the roster. */}
-              <ToggleRow
-                label="Show Stars on Desks"
-                onDescription="Each desk shows how many stars its student has."
-                offDescription="Stars are counted, but only you see them, in the roster."
-                checked={activeClass.showDeskStars === true}
-                onCheckedChange={onSetShowDeskStars}
-              />
+              {/* Straight to the goal by default: the board shows the jar the class fills
+                  together, and nothing for children to compare. Stars on the desks are this
+                  lesson's, on their way to the goal - never a running total. Only with a goal:
+                  without one there is nowhere for the stars to go. */}
+              {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
             </div>
             {goalOn && (
               <div className="flex flex-col gap-2.5">
@@ -522,28 +546,19 @@ export function PickersPointsModal({
               </div>
             )}
 
-            {/* Stars are awarded whether or not a class goal exists, so clearing them stays
-                available even with the goal switched off. Only the meter's own reset hides. */}
-            <div className="flex flex-col gap-1.5 sm:flex-row">
-              {goalOn && (
-                <TactileButton
-                  variant="danger"
-                  disabled={(activeClass.classPoints ?? 0) === 0 && (activeClass.goalRemainder ?? 0) === 0}
-                  className="flex-1 justify-center"
-                  onClick={() => setConfirmingResetGoal(true)}
-                >
-                  <RotateCcw size={16} /> Reset Class Goal
-                </TactileButton>
-              )}
+            {/* Reset All Stars went with the running total it cleared: stars on the desks are
+                this lesson's and empty themselves into the goal, and a miscount is fixed in the
+                roster. */}
+            {goalOn && (
               <TactileButton
                 variant="danger"
-                disabled={totalStars === 0}
-                className="flex-1 justify-center"
-                onClick={() => setConfirmingResetStars(true)}
+                disabled={(activeClass.classPoints ?? 0) === 0 && (activeClass.goalRemainder ?? 0) === 0}
+                className="justify-center sm:self-start"
+                onClick={() => setConfirmingResetGoal(true)}
               >
-                <StarOff size={16} /> Reset All Stars
+                <RotateCcw size={16} /> Reset Class Goal
               </TactileButton>
-            </div>
+            )}
           </section>
         </div>
       </Modal>
@@ -551,39 +566,13 @@ export function PickersPointsModal({
       <ConfirmModal
         open={confirmingResetGoal}
         title="Reset the class goal meter?"
-        message={`This empties "${activeClass.name}"'s shared meter back to 0. Each student keeps their own stars.`}
+        message={`This empties "${activeClass.name}"'s shared meter back to 0.`}
         confirmLabel="Yes, Reset Meter"
         cancelLabel="No"
         onCancel={() => setConfirmingResetGoal(false)}
         onConfirm={() => {
           onResetClassGoal()
           setConfirmingResetGoal(false)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingResetStars}
-        title="Reset everyone's stars?"
-        message={`This sets every student in "${activeClass.name}" back to 0 stars. The class goal meter is left where it is.`}
-        confirmLabel="Yes, Reset Stars"
-        cancelLabel="No"
-        onCancel={() => setConfirmingResetStars(false)}
-        onConfirm={() => {
-          onResetStars()
-          setConfirmingResetStars(false)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingReset}
-        title="Reset All Pick Counts?"
-        message="This puts every student and row back to being picked zero times this session. This can't be undone."
-        confirmLabel="Yes, Reset"
-        cancelLabel="No"
-        onCancel={() => setConfirmingReset(false)}
-        onConfirm={() => {
-          onReset()
-          setConfirmingReset(false)
         }}
       />
     </>

@@ -64,6 +64,11 @@ interface SidePanelProps {
   onToggleSelectAll: () => void
   onAwardPoint: () => void
   onDeductPoint: () => void
+  /**
+   * The class puts its stars on the desks first, so minus has a star still at stake to take
+   * back. Straight to the goal there is no minus: a star in the jar never comes out.
+   */
+  showMinus: boolean
   /** Someone selected has at least one star, so minus has something to take. */
   canDeductPoint: boolean
   flipDeckOpen: boolean
@@ -133,6 +138,7 @@ export function SidePanel({
   onToggleSelectAll,
   onAwardPoint,
   onDeductPoint,
+  showMinus,
   canDeductPoint,
   flipDeckOpen,
   pickFlashing,
@@ -419,15 +425,18 @@ export function SidePanel({
             {/* The word takes what the word needs; +/- share the rest. They're the two
                 buttons a teacher taps most, so the free space is theirs. */}
             {/* Greyed when nobody selected has a star to lose, like a group card's minus at
-                zero: the sound of a point going with nothing going was a small lie. */}
-            <TactileButton
-              disabled={busy || pointsSelectedCount === 0 || !canDeductPoint}
-              onClick={onDeductPoint}
-              title={pointsSelectedCount > 0 && !canDeductPoint ? 'No points to take away' : 'Deduct Point'}
-              className="min-w-9 flex-1 !px-0 justify-center"
-            >
-              <Minus className="size-[clamp(20px,3.2vh,34px)]" strokeWidth={2.75} />
-            </TactileButton>
+                zero: the sound of a point going with nothing going was a small lie. Only where
+                stars wait on the desks; straight to the goal, + has the row to itself. */}
+            {showMinus && (
+              <TactileButton
+                disabled={busy || pointsSelectedCount === 0 || !canDeductPoint}
+                onClick={onDeductPoint}
+                title={pointsSelectedCount > 0 && !canDeductPoint ? 'No points to take away' : 'Deduct Point'}
+                className="min-w-9 flex-1 !px-0 justify-center"
+              >
+                <Minus className="size-[clamp(20px,3.2vh,34px)]" strokeWidth={2.75} />
+              </TactileButton>
+            )}
             {/* data-points: in Elementary, where every other button is pale, + stays yellow so
                 a hand finds it without looking (index.css). */}
             <TactileButton

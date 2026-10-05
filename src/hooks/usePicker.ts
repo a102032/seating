@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DeskHighlight } from '../components/Desk'
 import type { LayoutPlan } from '../lib/layouts'
+import { weightedChoice } from '../lib/participation'
 import { playPickerLand, playPickerTick } from '../lib/sound'
 
 type PickerMode = 'idle' | 'student-flashing' | 'student-result' | 'row-flashing' | 'row-result'
@@ -45,12 +46,27 @@ function saveSettings(settings: PickerSettings) {
   }
 }
 
+interface StudentRound {
+  /** Who has been picked this round (with Allow Repeats off), kept with the class - see pickRound in types.ts. */
+  picked: ReadonlySet<string>
+  /** Each student's chance of being picked, against the rest (lib/participation, pickChances). */
+  chanceOf: (studentId: string) => number
+  /** A student was picked; `round` is the round after this pick, to keep with the class. */
+  onPicked: (studentId: string, round: string[]) => void
+}
+
 /**
  * `plan` is the room's layout: Pick Row chooses between its rows of desks, or its tables. The
  * picker's "row" state (the locked row, the rows already picked this round) is a set of desks
  * in that plan - a row in Rows, Pairs and Rows of 3, a table in the table layouts.
+ *
+ * Who has been picked is kept with the class (`round`), so it survives a reload and a trip to
+ * another class; the rows picked this round are kept here, since nothing records a row.
  */
-export function usePicker(seating: (string | null)[], classId: string | null, plan: LayoutPlan) {
+export function usePicker(seating: (string | null)[], classId: string | null, plan: LayoutPlan, round: StudentRound) {
+  const roundRef = useRef(round)
+  roundRef.current = round
+  const pickedStudentIds = round.picked
   const seatingRef = useRef(seating)
   seatingRef.current = seating
   const columns = plan.setCount
@@ -61,14 +77,9 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
   const [flashColumn, setFlashColumn] = useState<number | null>(null)
   const [winnerDesk, setWinnerDesk] = useState<number | null>(null)
   const [winnerColumn, setWinnerColumn] = useState<number | null>(null)
-  const [pickedStudentIds, setPickedStudentIds] = useState<Set<string>>(new Set())
   const [pickedColumns, setPickedColumns] = useState<Set<number>>(new Set())
   /** A row a teacher has "drilled into" via Pick Row - Pick Student then draws only from here until it's exhausted or the teacher taps to clear it. */
   const [rowLock, setRowLock] = useState<number | null>(null)
-
-  /** How many times each student/row has been picked this session - persists until Reset, independent of the round-based no-repeat tracking above. */
-  const [studentPickCounts, setStudentPickCounts] = useState<Map<string, number>>(new Map())
-  const [columnPickCounts, setColumnPickCounts] = useState<Map<number, number>>(new Map())
 
   const [settings, setSettings] = useState<PickerSettings>(loadSettings)
   const settingsRef = useRef(settings)
@@ -94,7 +105,8 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
 
   useEffect(() => clearTimers, [clearTimers])
 
-  // A different class means a different roster entirely - start the session fresh.
+  // A different class means a different roster entirely: nothing on the board carries over.
+  // Its round of students is its own, kept with it.
   useEffect(() => {
     clearTimers()
     setMode('idle')
@@ -103,10 +115,7 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
     setWinnerDesk(null)
     setWinnerColumn(null)
     setRowLock(null)
-    setPickedStudentIds(new Set())
     setPickedColumns(new Set())
-    setStudentPickCounts(new Map())
-    setColumnPickCounts(new Map())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId])
 
@@ -125,7 +134,6 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
     setWinnerColumn(null)
     setRowLock(null)
     setPickedColumns(new Set())
-    setColumnPickCounts(new Map())
   }, [plan, clearTimers])
 
   const updateSettings = useCallback((patch: Partial<PickerSettings>) => {
@@ -186,15 +194,12 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
       // the landing in the same callback and buried the one under the other.
       if (Date.now() - startedAt >= FLASH_DURATION_MS) {
         clearTimers()
-        const winner = eligible[Math.floor(Math.random() * eligible.length)]
+        // The students picked less often lately get a better chance - never a sure one.
+        const { chanceOf, onPicked } = roundRef.current
+        const winner = weightedChoice(eligible, (d) => chanceOf(d.studentId))
         setFlashDesk(null)
         setWinnerDesk(winner.index)
-        setPickedStudentIds(new Set(usedPicked).add(winner.studentId))
-        setStudentPickCounts((prev) => {
-          const next = new Map(prev)
-          next.set(winner.studentId, (next.get(winner.studentId) ?? 0) + 1)
-          return next
-        })
+        onPicked(winner.studentId, [...new Set([...usedPicked, winner.studentId])])
         setMode('student-result')
         if (soundEnabled) playPickerLand()
         return
@@ -236,11 +241,6 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
         setFlashColumn(null)
         setWinnerColumn(winner)
         setPickedColumns(new Set(usedPicked).add(winner))
-        setColumnPickCounts((prev) => {
-          const next = new Map(prev)
-          next.set(winner, (next.get(winner) ?? 0) + 1)
-          return next
-        })
         setRowLock(winner)
         setMode('row-result')
         if (soundEnabled) playPickerLand()
@@ -264,12 +264,8 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
     setRowLock(null)
   }, [clearTimers])
 
-  const resetPickHistory = useCallback(() => {
-    setPickedStudentIds(new Set())
-    setPickedColumns(new Set())
-    setStudentPickCounts(new Map())
-    setColumnPickCounts(new Map())
-  }, [])
+  /** Start a New Round, for the rows. The students' round is the class's, cleared there. */
+  const resetRows = useCallback(() => setPickedColumns(new Set()), [])
 
   // Memoised so App can depend on it without re-running on every render.
   const winnerStudentIds = useMemo(() => {
@@ -335,8 +331,8 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
     dismiss,
     settings,
     updateSettings,
-    studentPickCounts,
-    columnPickCounts,
-    resetPickHistory,
+    /** Rows picked this round, so Start a New Round knows whether there is a round to start over. */
+    rowsPicked: pickedColumns.size,
+    resetRows,
   }
 }

@@ -37,7 +37,7 @@ interface DeskProps {
   nameHeightCap: number
   /** Another student in the class has the same name, so the homeroom number tells them apart. */
   showHomeroom: boolean
-  /** Show the student's stars in the corner - see showDeskStars in types.ts. */
+  /** Show the stars waiting on the desk, in a class that puts them there first - see starsOnDesks in types.ts. */
   showStars: boolean
   onTap: (index: number) => void
 }
@@ -115,13 +115,18 @@ export function Desk({
               to the name. The homeroom number sat in the other corner on every desk; it is
               after the name now, and only where two students share one (lib/sameNames). */}
           {showStars && points > 0 && (
+            // The stars waiting on this desk for All Stars In! (a class that puts them on the
+            // desks first). A filled amber chip, big enough to count from the back of the room -
+            // the class is meant to see them - and it pops when a star lands or goes. Keyed on
+            // the count, so every change replays the pop.
             <div
-              className="absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full border-[1.5px] border-card-foreground/25 px-[0.45em] py-[0.2em] font-bold leading-none text-card-foreground"
-              style={{ fontSize: 'clamp(0.55rem, 7.5cqi, 1rem)' }}
+              key={points}
+              className="count-pop absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full bg-amber-400 px-[0.45em] py-[0.15em] font-bold leading-none text-amber-950 shadow-sm"
+              style={{ fontSize: 'clamp(0.7rem, 11cqi, 1.5rem)' }}
             >
               {/* Sized in em so the star tracks the number as the desk grows - a fixed
                   pixel size drifts away from it on a smartboard. */}
-              <Star className="h-[0.85em] w-[0.85em] shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
+              <Star className="h-[0.85em] w-[0.85em] shrink-0 fill-amber-950" strokeWidth={0} />
               {points}
             </div>
           )}

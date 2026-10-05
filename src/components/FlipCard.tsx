@@ -15,7 +15,7 @@ interface FlipCardProps {
   bonus?: BonusKind
   back: Gender
   faceUp: boolean
-  /** Show the student's stars on the face - see showDeskStars in types.ts. */
+  /** Show the stars waiting for the student, in a class that puts them on the desks first - see starsOnDesks in types.ts. */
   showStars: boolean
   /** Another student has the same name, so the homeroom number tells them apart (lib/sameNames). */
   showHomeroom: boolean
@@ -135,9 +135,11 @@ function StudentFace({
         <div
           // Keyed on the score so an award from the side panel pops the badge.
           key={points}
-          className="count-pop absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded-full bg-amber-400 px-1.5 py-0.5 text-[0.6rem] font-bold text-amber-950 shadow-sm"
+          // As big as the desks' chip, for the same reason: the class is meant to see them.
+          className="count-pop absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full bg-amber-400 px-[0.45em] py-[0.15em] font-bold leading-none text-amber-950 shadow-sm"
+          style={{ fontSize: 'clamp(0.7rem, 10cqi, 1.4rem)' }}
         >
-          <Star size={9} className="shrink-0 fill-amber-950" strokeWidth={0} />
+          <Star className="h-[0.85em] w-[0.85em] shrink-0 fill-amber-950" strokeWidth={0} />
           {points}
         </div>
       )}

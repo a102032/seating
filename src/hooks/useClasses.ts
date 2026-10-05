@@ -4,6 +4,7 @@ import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures }
 import { getTheme, hasNoAvatar, NO_AVATAR, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
+import { withoutStudent, withPick, withPoints } from '../lib/participation'
 import { type ClassData, type Gender, type GroupStatus, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
 
@@ -50,25 +51,45 @@ function normalizeClass(c: ClassData): ClassData {
 }
 
 /**
- * Give every listed student `delta` stars, and move the class goal meter along with them.
+ * Give every listed student `delta` stars, the way the class runs its points.
  *
- * The meter only ever moves forward - deductions affect a student's own tally but shouldn't
- * undo the whole class's shared progress toward the goal. Stars convert to class points at
- * the teacher's rate, and the leftovers are banked rather than dropped, so awarding one star
- * at a time eventually counts for as much as awarding them all at once.
+ * Straight to the goal (the default): the stars go onto the class goal at once, converted at
+ * the teacher's rate, and nothing stays on the desk. The meter only ever moves forward, so a
+ * minus has nothing to act on - which is why there is no minus button this way.
+ *
+ * Stars on the desks first: they wait on the desks, where the class can see them, and minus
+ * takes one back (floored at 0) - a star still at stake, never one already in the jar. All
+ * Stars In! (bankDeskStars) sends them to the goal.
  *
  * With the goal switched off the meter stays where it is. It used to fill out of sight, so
  * switching the goal back on showed a meter the class had never watched move, and a goal
  * could be passed with no celebration.
  */
 function awardStars(c: ClassData, studentIds: string[], delta: number): ClassData {
-  const ids = new Set(studentIds)
-  const students = c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s))
-  if (delta <= 0 || !goalIsLive(c)) return { ...c, students }
+  if (starsWaitOnDesks(c)) {
+    const ids = new Set(studentIds)
+    return { ...c, students: c.students.map((s) => (ids.has(s.id) ? { ...s, points: Math.max(0, (s.points ?? 0) + delta) } : s)) }
+  }
+  if (delta <= 0 || !goalIsLive(c)) return c
+  return starsToGoal(c, studentIds.length * delta)
+}
 
+/**
+ * Stars onto the meter at the teacher's rate. The leftovers are banked rather than dropped, so
+ * awarding one star at a time eventually counts for as much as awarding them all at once.
+ */
+function starsToGoal(c: ClassData, stars: number): ClassData {
+  if (stars <= 0) return c
   const perClassPoint = Math.max(1, Math.round(c.starsPerClassPoint ?? 1))
-  const banked = (c.goalRemainder ?? 0) + studentIds.length * delta
-  return addClassPoints({ ...c, students, goalRemainder: banked % perClassPoint }, Math.floor(banked / perClassPoint))
+  const banked = (c.goalRemainder ?? 0) + stars
+  return addClassPoints({ ...c, goalRemainder: banked % perClassPoint }, Math.floor(banked / perClassPoint))
+}
+
+/** Every desk's stars onto the goal, and the desks empty for the next lesson. */
+function withDeskStarsBanked(c: ClassData): ClassData {
+  const waiting = c.students.reduce((n, s) => n + (s.points ?? 0), 0)
+  const cleared = { ...c, students: c.students.map((s) => (s.points ? { ...s, points: 0 } : s)) }
+  return goalIsLive(c) ? starsToGoal(cleared, waiting) : cleared
 }
 
 /** Move the goal meter by whole class points, wrapping back down when the goal is hit. */
@@ -112,6 +133,15 @@ function withDayTaken(c: ClassData, day: string): ClassData {
 /** The class goal has to exist and be switched on for group points to have anywhere to go. */
 export function goalIsLive(c: ClassData): boolean {
   return (c.pointsGoal ?? 0) > 0 && c.goalEnabled !== false
+}
+
+/**
+ * Stars wait on the desks for All Stars In!, rather than flying straight to the goal. Only while
+ * there is a goal to send them to: with it off, desks show nothing and there is no minus, as in
+ * the straight-to-the-goal way.
+ */
+export function starsWaitOnDesks(c: ClassData): boolean {
+  return c.starsOnDesks === true && goalIsLive(c)
 }
 
 export function useClasses() {
@@ -221,7 +251,7 @@ export function useClasses() {
 
   /**
    * Gone from the roster means gone from everything: their seat, their team in the last
-   * groups, and the attendance record, where a day they were away would otherwise keep a
+   * groups, the participation record, and the attendance record, where a day they were away would otherwise keep a
    * column in the export with nobody in it. The days themselves stay taken.
    */
   const deleteStudent = useCallback(
@@ -233,6 +263,8 @@ export function useClasses() {
         groups: c.groups?.map((g) => ({ ...g, studentIds: g.studentIds.filter((id) => id !== studentId) })),
         attendance:
           c.attendance && Object.fromEntries(Object.entries(c.attendance).map(([day, ids]) => [day, ids.filter((id) => id !== studentId)])),
+        participation: withoutStudent(c.participation, studentId),
+        pickRound: c.pickRound && { ...c.pickRound, ids: c.pickRound.ids.filter((id) => id !== studentId) },
       })),
     [updateClass],
   )
@@ -347,20 +379,53 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * `day`, when given, puts the award in the participation record: a star given to some
+   * students, as opposed to the whole class at once, which says nothing about one child.
+   */
   const adjustPoints = useCallback(
-    (classId: string, studentIds: string[], delta: number) => updateClass(classId, (c) => awardStars(c, studentIds, delta)),
+    (classId: string, studentIds: string[], delta: number, day?: string) =>
+      updateClass(classId, (c) => {
+        const awarded = awardStars(c, studentIds, delta)
+        return day && delta > 0 ? withPoints(awarded, studentIds, day) : awarded
+      }),
+    [updateClass],
+  )
+
+  /** All Stars In!: every desk's stars fly to the goal, and the desks start the next lesson empty. */
+  const bankDeskStars = useCallback((classId: string) => updateClass(classId, withDeskStarsBanked), [updateClass])
+
+  /**
+   * Straight to the goal, or stars on the desks first. A class starting to put stars on its desks
+   * starts them empty: older saves hold a running total from when every class counted stars all
+   * term, and those stars went to the goal when they were given. Going back the other way, stars
+   * still waiting go to the goal rather than being lost.
+   */
+  const setStarsOnDesks = useCallback(
+    (classId: string, on: boolean) =>
+      updateClass(classId, (c) => {
+        if ((c.starsOnDesks === true) === on) return c
+        if (on) return { ...c, starsOnDesks: true, students: c.students.map((s) => (s.points ? { ...s, points: 0 } : s)) }
+        return { ...withDeskStarsBanked(c), starsOnDesks: false }
+      }),
     [updateClass],
   )
 
   /**
-   * Stars only. Clearing the shared meter is a separate decision - a teacher wiping
-   * individual tallies at the end of a unit usually doesn't want to destroy the class's
-   * progress toward its reward at the same time.
+   * A student was picked, for the participation record. `round` is Pick Student's round after
+   * this pick, for the pickers that keep one with the class (the seating chart's).
    */
-  const resetPoints = useCallback(
-    (classId: string) => updateClass(classId, (c) => ({ ...c, students: c.students.map((s) => ({ ...s, points: 0 })) })),
+  const recordPick = useCallback(
+    (classId: string, studentId: string, day: string, round?: string[]) =>
+      updateClass(classId, (c) => {
+        const next = withPick(c, studentId, day)
+        return round ? { ...next, pickRound: { day, ids: round } } : next
+      }),
     [updateClass],
   )
+
+  /** Start a New Round: everyone can be picked again. The record of who was picked stays. */
+  const startNewRound = useCallback((classId: string) => updateClass(classId, (c) => ({ ...c, pickRound: undefined })), [updateClass])
 
   const setGoalSettings = useCallback(
     (classId: string, goal: number, starsPerClassPoint: number) =>
@@ -380,11 +445,6 @@ export function useClasses() {
 
   const setGoalEnabled = useCallback(
     (classId: string, enabled: boolean) => updateClass(classId, (c) => ({ ...c, goalEnabled: enabled })),
-    [updateClass],
-  )
-
-  const setShowDeskStars = useCallback(
-    (classId: string, show: boolean) => updateClass(classId, (c) => ({ ...c, showDeskStars: show })),
     [updateClass],
   )
 
@@ -422,7 +482,7 @@ export function useClasses() {
     [updateClass],
   )
 
-  /** Clears the shared meter without touching anyone's stars. */
+  /** Clears the shared meter without touching any stars waiting on the desks. */
   const resetClassGoal = useCallback(
     (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
     [updateClass],
@@ -498,15 +558,17 @@ export function useClasses() {
     updateStudent,
     assignAvatars,
     adjustPoints,
+    bankDeskStars,
+    setStarsOnDesks,
+    recordPick,
+    startNewRound,
     setGoalSettings,
     setGoalEnabled,
-    setShowDeskStars,
     setShowAllHomerooms,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
     addToClassGoal,
-    resetPoints,
     deleteStudent,
     swapSeats,
     seatClass,

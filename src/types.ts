@@ -1,4 +1,5 @@
 import type { RoomLayout } from './lib/layouts'
+import type { ParticipationRecord } from './lib/participation'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
@@ -9,7 +10,13 @@ export interface Student {
   gender: Gender
   /** Chosen sticker as "theme/pose" (see lib/stickers.ts) - falls back to a character derived from the student id. */
   avatarId?: string
-  /** Accumulated class points, floored at 0. Unset is treated as 0 - older saved students predate this field. */
+  /**
+   * Stars waiting on the student's desk, floored at 0, in a class whose stars go on the desks
+   * first (starsOnDesks): All Stars In! sends them to the class goal and sets this back to 0.
+   * In a class whose stars go straight to the goal it isn't used. Older saves may hold a
+   * running total from when every class counted stars all term; it is cleared when a class
+   * starts putting stars on the desks, so it is never sent to the goal twice.
+   */
   points?: number
 }
 
@@ -86,11 +93,24 @@ export interface ClassData {
    */
   goalEnabled?: boolean
   /**
-   * Whether each desk (and flip card) shows its student's stars. Unset is off: the board shows
-   * the jar, which the whole class fills, and nothing for children to compare. The stars are
-   * still counted, and the roster shows them to the teacher.
+   * How the class runs points. Unset or false: straight to the goal - a star flies from the desk
+   * into the class goal the moment it is given, desks show nothing, and there is no minus.
+   * True: stars on the desks first - they collect on the desks through the lesson, where the
+   * class can see them, minus takes one back, and All Stars In! sends them all to the goal. Only
+   * while the goal is on: with no goal there is nowhere for desk stars to go.
    */
-  showDeskStars?: boolean
+  starsOnDesks?: boolean
+  // showDeskStars, the switch that showed a running total of stars on every desk all term, is
+  // no longer read: a desk's stars are now this lesson's, on their way to the goal. Older saves
+  // may still carry it.
+  /** Who has been picked and given points, day by day (lib/participation). For the teacher, never on the board. */
+  participation?: ParticipationRecord
+  /**
+   * Pick Student's round, with Allow Repeats off: who has been picked since everyone last had a
+   * turn. Kept with the class rather than in the page, so a reload mid-lesson or a trip to
+   * another class doesn't start it over; a new day starts a new round.
+   */
+  pickRound?: { day: string; ids: string[] }
   /**
    * Show every student's homeroom number after their name on the board. Unset is off: the
    * number then shows only where two students share a name (lib/sameNames), which is its job.

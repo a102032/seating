@@ -11,7 +11,7 @@ import { TactileButton } from './TactileButton'
 interface FlipDeckProps {
   deck: ReturnType<typeof useFlipDeck>
   studentsById: Map<string, Student>
-  /** Cards show their student's stars, as the desks do - see showDeskStars in types.ts. */
+  /** Cards show the stars waiting for their student, as the desks do - see starsOnDesks in types.ts. */
   showStars: boolean
   /** Every card shows its homeroom number, as the desks do. */
   showAllHomerooms: boolean

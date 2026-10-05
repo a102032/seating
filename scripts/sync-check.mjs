@@ -130,9 +130,21 @@ async function computer(name, classes, size = [1280, 800]) {
 const splashText = (page) => page.locator('.splash-board').innerText()
 const uidOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-account-v1') ?? 'null')?.uid)
 const boardState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-state-v1')))
+/**
+ * How many times a student was given a point, from the class's participation record: a star to
+ * one student goes there whichever way the class runs its points (straight to the goal, a
+ * student keeps no stars of their own).
+ */
+function pointsIn(cls, student) {
+  const id = cls?.students.find((x) => x.name === student)?.id
+  return Object.values(cls?.participation ?? {}).reduce((n, day) => n + (day[id]?.[1] ?? 0), 0)
+}
 const pointsOf = async (page, className, student) => {
   const s = await boardState(page)
-  return s.classes.find((c) => c.name === className)?.students.find((x) => x.name === student)?.points ?? 0
+  return pointsIn(
+    s.classes.find((c) => c.name === className),
+    student,
+  )
 }
 const syncMark = (page) => page.locator('aside [data-sync]').getAttribute('data-sync')
 
@@ -491,9 +503,10 @@ try {
     await givePoint(pc, 'Amy')
     const reached = await waitFor(
       async () =>
-        (await accountClasses(derekUid ?? (await uidOf(pc)))).classes
-          .find((c) => c.name === 'Grade 4 English')
-          ?.students.find((x) => x.name === 'Amy')?.points >= 1,
+        pointsIn(
+          (await accountClasses(derekUid ?? (await uidOf(pc)))).classes.find((c) => c.name === 'Grade 4 English'),
+          'Amy',
+        ) >= 1,
     )
     check('reconnect: a star given afterwards reaches the account', Boolean(reached))
     if (pc.errors.length) check('reconnect: no page errors', false, pc.errors.slice(0, 3).join(' | '))
@@ -551,8 +564,10 @@ try {
     check('panel: after switching, a fresh board', /Welcome, Teacher!/.test(t) && /first class/.test(t))
     const brian = await waitFor(
       async () =>
-        (await accountClasses(derekUid)).classes.find((c) => c.name === 'Grade 4 English')?.students.find((s) => s.name === 'Brian')
-          ?.points === 1,
+        pointsIn(
+          (await accountClasses(derekUid)).classes.find((c) => c.name === 'Grade 4 English'),
+          'Brian',
+        ) === 1,
     )
     check('panel: the star given offline reached the account before the switch', Boolean(brian))
   }

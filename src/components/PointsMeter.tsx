@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
-import { PictureInPicture2 } from 'lucide-react'
+import { PictureInPicture2, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
@@ -30,6 +30,13 @@ interface PointsMeterProps {
   floating: boolean
   /** Float the goal, or bring it back. Absent where the browser has no floating window. */
   onToggleFloat?: () => void
+  /**
+   * Stars waiting on the desks, in a class that puts its stars there first; null where they go
+   * straight to the goal, and All Stars In! isn't shown.
+   */
+  deskStars: number | null
+  /** Send every desk's stars to the goal. */
+  onAllStarsIn: () => void
 }
 
 /** How full the meter has to get before the chest starts straining. */
@@ -61,6 +68,8 @@ export function PointsMeter({
   onWaitingChange,
   floating,
   onToggleFloat,
+  deskStars,
+  onAllStarsIn,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
@@ -247,7 +256,8 @@ export function PointsMeter({
         per point: on a 4K board that was a stutter on every +1, so the sparkles went and the
         rest moved to CSS with an ease that overshoots a touch, like the springs did.
       */}
-      <div className="relative h-4 flex-1">
+      {/* Measured as a container, so the coin can travel in widths of the track (cqw). */}
+      <div className="relative h-4 flex-1" style={{ containerType: 'inline-size' }}>
         <div className="absolute inset-0 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full transition-[width] duration-700 ease-[cubic-bezier(0.34,1.25,0.64,1)]"
@@ -261,13 +271,16 @@ export function PointsMeter({
         </div>
 
         {/*
-          The coin hangs off an anchor that travels along the track. The anchor spans the whole
-          track and slides by a percentage of its own width - a transform, which the graphics
-          chip moves on its own - and the coin sits on its left edge.
+          The coin hangs off an anchor that travels along the track by a share of the track's
+          width - a transform, which the graphics chip moves on its own - and the coin sits on
+          it. The anchor has no width of its own. It used to span the whole track and slide by a
+          percentage of itself, so a nearly full meter carried a track-wide box past the edge of
+          the screen; the page could then be pushed sideways (a pick landing did it), cutting the
+          side panel off.
         */}
         <div
-          className="pointer-events-none absolute inset-0 transition-transform duration-700 ease-[cubic-bezier(0.34,1.25,0.64,1)]"
-          style={{ transform: `translateX(${pct}%)` }}
+          className="pointer-events-none absolute inset-y-0 left-0 w-0 transition-transform duration-700 ease-[cubic-bezier(0.34,1.25,0.64,1)]"
+          style={{ transform: `translateX(${pct}cqw)` }}
         >
           <div className="absolute left-0 top-1/2 h-0 w-0">
             {/*
@@ -313,6 +326,27 @@ export function PointsMeter({
       >
         {displayPoints} / {goal}
       </span>
+
+      {/*
+        All Stars In! is on the meter because the meter is where the stars go: tapped, a star
+        flies from every desk that has some into the coin. It costs the side panel nothing, as
+        Float doesn't. Always there in a class that puts stars on the desks, greyed with none
+        waiting, so the teacher always knows where it is - and only ever a tap: stars left on the
+        desks wait for next time, with no message about it. The stars on the desks are the
+        reminder, and the count says how many.
+      */}
+      {deskStars !== null && (
+        <TactileButton
+          onClick={onAllStarsIn}
+          disabled={deskStars === 0}
+          className="shrink-0 !gap-1.5 !px-2.5 !py-1.5"
+          title={deskStars === 0 ? 'No stars on the desks yet' : 'Add every star on the desks to the class goal'}
+        >
+          <Star size={16} className="fill-amber-400 text-amber-500" />
+          All Stars In!
+          <span className="rounded-full bg-amber-400/25 px-1.5 text-xs font-bold tabular-nums text-foreground">{deskStars}</span>
+        </TactileButton>
+      )}
 
       {/*
         The meter is what floats, so the button to float it is on the meter - and it costs the

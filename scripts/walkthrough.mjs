@@ -146,6 +146,12 @@ async function overflow(page) {
     return {
       page: doc.scrollHeight - doc.clientHeight,
       pageX: doc.scrollWidth - doc.clientWidth,
+      // The app's root clips, but can still be pushed sideways by anything wider than the
+      // screen inside it - the goal meter's coin did that once, cutting the side panel off.
+      rootX: (() => {
+        const root = document.getElementById('root')
+        return root ? root.scrollWidth - root.clientWidth + root.scrollLeft : 0
+      })(),
       panel: aside ? aside.scrollHeight - aside.clientHeight : 0,
       dialog: box ? Math.max(0, Math.round(box.bottom - innerHeight), Math.round(-box.top)) : 0,
     }
@@ -394,13 +400,142 @@ const scenarios = {
     await panelButton(page, 'Pick All').click()
     await award(page)
     await page.waitForTimeout(300)
+    await page.waitForTimeout(1200)
     const c = await activeSaved(page)
-    const awayStars = c.students.slice(0, 3).reduce((n, s) => n + (s.points ?? 0), 0)
-    check('absent students get no stars from Pick All', awayStars === 0, `${awayStars}`)
+    check('absent students get no stars from Pick All', c.classPoints === 3, `meter holds ${c.classPoints} for 3 present`)
     await panelButton(page, 'Flip Cards').click()
     await page.waitForTimeout(3000)
     const dealt = await page.locator('[data-flip-card]').count()
     check('absent students are not dealt a flip card', dealt === 3, `${dealt} cards for 3 present`)
+    return page
+  },
+
+  /**
+   * Who had a turn, kept quietly for the teacher: a pick and a star to some students go in the
+   * record, the whole class at once doesn't, and Pick Student's round survives a reload.
+   */
+  async 'participation: picks and points are recorded, and the round survives a reload'() {
+    const cls = makeClass('c1', 'Turns', 6, { pointsGoal: 50, classPoints: 0 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const today = await page.evaluate(() => {
+      const d = new Date()
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    })
+    await desk(page, 'Amy').click()
+    await desk(page, 'Tony').click()
+    await award(page)
+    await page.waitForTimeout(900)
+    await panelButton(page, 'Pick All').click()
+    await award(page)
+    await page.waitForTimeout(900)
+    await panelButton(page, 'Unpick All').click()
+    let c = await activeSaved(page)
+    check(
+      'participation: a star to two students is recorded, the whole class is not',
+      JSON.stringify(c.participation?.[today]) === '{"c1-s0":[0,1],"c1-s1":[0,1]}' && c.classPoints === 8,
+      `${JSON.stringify(c.participation?.[today])}, meter ${c.classPoints}`,
+    )
+    check(
+      'participation: no minus when stars go straight to the goal',
+      (await page.locator('aside button[title="Deduct Point"]').count()) === 0,
+    )
+    for (let i = 0; i < 3; i++) {
+      await panelButton(page, 'Pick Student').click()
+      await page.waitForTimeout(2600)
+      await desk(page, 'Amy').click()
+      if (i === 0) {
+        await page.reload()
+        await page.locator('.splash-board button').first().click()
+        await page.waitForTimeout(800)
+      }
+    }
+    for (let i = 0; i < 3; i++) {
+      await panelButton(page, 'Pick Student').click()
+      await page.waitForTimeout(2600)
+      await desk(page, 'Amy').click()
+    }
+    c = await activeSaved(page)
+    const picks = Object.values(c.participation?.[today] ?? {}).map(([picked]) => picked)
+    check(
+      'participation: six picks across a reload, everyone once',
+      picks.length === 6 && picks.every((n) => n === 1) && c.pickRound?.ids.length === 6,
+      `picks ${JSON.stringify(picks)}, round ${c.pickRound?.ids.length}`,
+    )
+    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'Start a New Round' }).click()
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    c = await activeSaved(page)
+    check('participation: Start a New Round keeps the record', !c.pickRound && Object.keys(c.participation[today]).length === 6)
+    await page.getByTitle('Class Settings').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'Participation' }).click()
+    await page.waitForTimeout(600)
+    const report = await page.getByRole('dialog').last().innerText()
+    check(
+      'participation: the report lists the class',
+      /Amy/.test(report) && /Tony/.test(report) && /Everyone here was picked/.test(report),
+      report.slice(0, 80),
+    )
+    return page
+  },
+
+  /**
+   * Stars on the desks first: they wait on the desks, minus takes one back, and All Stars In!
+   * sends them all to the goal - and they are still there after a reload if it isn't tapped.
+   */
+  async 'stars on the desks: minus, and All Stars In!'() {
+    const cls = makeClass('c1', 'Desk Stars', 6, { pointsGoal: 50, classPoints: 10, starsOnDesks: true })
+    cls.students[3].points = 9 // a running total from before: never sent to the goal again
+    cls.starsOnDesks = undefined
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /On the desks first/ }).click()
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    await desk(page, 'Amy').click()
+    await award(page)
+    await award(page)
+    await page.waitForTimeout(200)
+    await page.locator('aside button[title="Deduct Point"]').click()
+    await desk(page, 'Tony').click()
+    await award(page)
+    await page.waitForTimeout(600)
+    let c = await activeSaved(page)
+    check(
+      'stars on the desks: they wait there, the meter stays',
+      c.students[0].points === 1 && c.students[1].points === 1 && !c.students[3].points && c.classPoints === 10,
+      `Amy ${c.students[0].points}, Tony ${c.students[1].points}, Mulan ${c.students[3].points}, meter ${c.classPoints}`,
+    )
+    await page.reload()
+    await page.locator('.splash-board button').first().click()
+    await page.waitForTimeout(800)
+    const button = page.getByRole('button', { name: /All Stars In/ })
+    check('stars on the desks: still there after a reload', /2/.test(await button.innerText()))
+    await button.click()
+    await page.waitForTimeout(1600)
+    c = await activeSaved(page)
+    check(
+      'All Stars In!: the stars go to the goal and the desks empty',
+      c.classPoints === 12 && c.students.every((s) => !s.points) && (await button.isDisabled()),
+      `meter ${c.classPoints}`,
+    )
+    return page
+  },
+
+  /** A nearly full meter's coin used to reach past the screen, and a pick could push the whole board sideways. */
+  async 'a nearly full meter never pushes the board sideways'() {
+    const cls = makeClass('c1', 'Nearly', 12, { pointsGoal: 50, classPoints: 46 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    for (let i = 0; i < 3; i++) {
+      await panelButton(page, 'Pick Student').click()
+      await page.waitForTimeout(2600)
+      await desk(page, 'Amy').click()
+    }
+    const o = await overflow(page)
+    check('a nearly full meter never pushes the board sideways', o.rootX === 0, JSON.stringify(o))
     return page
   },
 
@@ -768,7 +903,10 @@ const scenarios = {
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
-        const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20 })
+        // Stars on the desks: the fuller board (a minus on the panel, All Stars In! on the meter,
+        // a star chip on desks) is the one that has to fit.
+        const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20, starsOnDesks: true })
+        cls.students.forEach((st, i) => (st.points = i % 3 === 0 ? 12 : 0))
         const page = await open({ state: stateOf(cls, makeClass('c2', 'Kindergarten Phonics', 3)), theme, size })
         const where = `${theme} ${size.join('x')}`
         const bad = []
@@ -776,7 +914,7 @@ const scenarios = {
           const o = await overflow(page)
           // The timer controls and the class list open over the panel now, so there is no
           // accepted exception left: the panel fits itself to the screen (useFitToHeight).
-          if (o.page > 0 || o.pageX > 0 || o.panel > 0 || o.dialog > 0) {
+          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0) {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }

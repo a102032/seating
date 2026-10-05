@@ -75,7 +75,13 @@ checks the live URL. Confirm it went green before saying something is live.
   `lib/chartPicture.ts` (the seating chart picture, drawn on a canvas from the class's plan),
   `components/GoogleTab.tsx` (Class Settings' third tab) and `components/RosterSheetsModal.tsx`. Only Google's
   drive.file permission; every Drive action starts from a tap, because Google's window may need to open.
-- `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks. `useGroupPicker.ts`: the same during Group Activity.
+- `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks (its round of students is kept with the class, `pickRound`).
+  `useGroupPicker.ts`: the same during Group Activity.
+- `src/lib/participation.ts`: who had a turn - the record of picks and points, day by day, for the teacher only (never on the
+  board), and `pickChances`, the better chance the pickers give students picked less often. `components/ParticipationModal.tsx`
+  is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
+- Points run one of two ways per class (`starsOnDesks`, `starsWaitOnDesks` in `useClasses.ts`): straight to the goal (the
+  default, no minus) or on the desks first, sent to the goal by All Stars In! on the meter.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
   cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
 - `src/components/`:

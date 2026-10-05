@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { weightedChoice } from '../lib/participation'
 import { playPickerLand, playPickerTick } from '../lib/sound'
 import type { StudentGroup } from '../types'
 
@@ -21,6 +22,10 @@ interface Options {
   soundEnabled: boolean
   /** Bumped when the groups are re-dealt: a new deal is a new round. */
   resetKey: number
+  /** Each student's chance of being picked, against the rest (lib/participation, pickChances). */
+  chanceOf: (studentId: string) => number
+  /** A student was picked, for the participation record. A group being picked isn't recorded. */
+  onStudentPicked: (studentId: string) => void
 }
 
 /**
@@ -104,10 +109,15 @@ export function useGroupPicker(groups: StudentGroup[], options: Options) {
         // together and bury one another.
         if (Date.now() - startedAt >= FLASH_DURATION_MS) {
           clear()
-          const winner = eligible[Math.floor(Math.random() * eligible.length)]
+          // A student picked less often lately gets a better chance, as on the desks. Groups
+          // are all alike to the record, so they are picked evenly.
+          const { chanceOf, onStudentPicked } = optionsRef.current
+          const winner = kind === 'student' ? weightedChoice(eligible, chanceOf) : eligible[Math.floor(Math.random() * eligible.length)]
           already.add(winner)
-          if (kind === 'student') setPickedStudents(new Set(already))
-          else setLockId(winner)
+          if (kind === 'student') {
+            setPickedStudents(new Set(already))
+            onStudentPicked(winner)
+          } else setLockId(winner)
           setPick({ kind, flashId: null, winnerId: winner })
           if (soundEnabled) playPickerLand()
           return

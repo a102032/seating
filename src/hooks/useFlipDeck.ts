@@ -142,6 +142,8 @@ interface FlipDeckHooks {
   onEveryone: () => void
   /** A student was turned over with a jackpot waiting. */
   onJackpot: (studentId: string, points: number) => void
+  /** A student's card was turned face up by hand: their turn, and a pick for the participation record. */
+  onTurned: (studentId: string) => void
 }
 
 /**
@@ -298,6 +300,8 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
           prev.map((c) => (c.studentId === studentId ? { ...c, faceUp: true, spent: false } : c.faceUp ? { ...c, spent: true } : c)),
         )
         setActiveId(studentId)
+        // Turned over, not handed back: a faded card given its turn again is the same pick.
+        if (!card.faceUp) hooksRef.current.onTurned(studentId)
         const waiting = card.faceUp ? 0 : jackpotRef.current
         if (waiting > 0) {
           hooksRef.current.onJackpot(studentId, waiting)
