@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type Ref } from 'react'
 import { Eye, EyeOff, Layers, Settings, Shuffle, X } from 'lucide-react'
 import { DEAL_STAGGER_MS, type useFlipDeck } from '../hooks/useFlipDeck'
 import type { Student } from '../types'
@@ -20,9 +20,9 @@ interface FlipDeckProps {
 }
 
 export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOpenSettings, onExit }: FlipDeckProps) {
-  const { cards, columns, inPlay, studentsLeft, studentsDone, phase, settings } = deck
+  const { cards, columns, inPlay, studentsLeft, phase, settings } = deck
   const { shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
-  const boardRef = useRef<HTMLDivElement>(null)
+  const pileRef = useRef<HTMLDivElement>(null)
   // As on the desks: a homeroom number only after a name two students share.
   const tagged = useMemo(() => homeroomsToShow(studentsById.values(), showAllHomerooms), [studentsById, showAllHomerooms])
   /** Where each discarded card has to travel to reach the pile, measured when it was tapped. */
@@ -33,15 +33,14 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
 
   function tapCard(studentId: string) {
     const card = cards.find((c) => c.studentId === studentId)
-    const board = boardRef.current?.getBoundingClientRect()
+    const pile = pileRef.current?.getBoundingClientRect()
     const el = document.querySelector(`[data-flip-card="${studentId}"]`)?.getBoundingClientRect()
     // Only a card that this tap can put away: the glowing student, or a face-up gift (which goes
     // once its stars are sent, so its flight is measured at every tap and the last one is used).
     const leaving = card?.faceUp && (card.bonus || studentId === activeId)
-    if (leaving && board && el) {
-      // The pile's own box: bottom-2 right-2, w-20 h-24.
-      const pileX = board.right - 8 - PILE_W / 2
-      const pileY = board.bottom - 8 - PILE_H / 2
+    if (leaving && pile && el) {
+      const pileX = pile.left + pile.width / 2
+      const pileY = pile.top + pile.height / 2
       const flight = { x: pileX - (el.left + el.width / 2), y: pileY - (el.top + el.height / 2), scale: PILE_CARD_W / el.width }
       setFlyTo((prev) => new Map(prev).set(studentId, flight))
     }
@@ -66,11 +65,12 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
           </TactileButton>
         </div>
 
+        <DiscardPile pileRef={pileRef} count={phase === 'shuffling' ? 0 : pileCount} />
+
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
             <Layers size={15} />
             {studentsLeft} left
-            {studentsDone > 0 && <span className="font-medium opacity-60">· {studentsDone} done</span>}
           </span>
           <button
             type="button"
@@ -102,7 +102,6 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
           // space rather than letting the rest close up, so nothing grows, shrinks or moves
           // while the class is looking for the card they meant to pick.
           <div
-            ref={boardRef}
             className="grid h-full w-full auto-rows-fr gap-2 sm:gap-3"
             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
           >
@@ -164,8 +163,6 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
           </div>
         )}
 
-        {pileCount > 0 && phase !== 'shuffling' && <DiscardPile count={pileCount} />}
-
         {studentsLeft === 0 && phase === 'ready' && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -189,9 +186,10 @@ interface FlyTo {
   scale: number
 }
 
-const PILE_W = 80
-const PILE_H = 96
-const PILE_CARD_W = 56
+/** A card on the pile, which is what a put-away card shrinks to as it lands. */
+const PILE_CARD_W = 28
+const PILE_PATTERN =
+  'repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 3px, transparent 3px 6px), linear-gradient(to bottom right, #a78bfa, #7c3aed)'
 
 const CARD_VARIANTS = {
   placed: { opacity: 1, scale: 1, x: 0, y: 0, rotate: 0 },
@@ -206,26 +204,39 @@ const CARD_VARIANTS = {
   }),
 }
 
-/** Where set-aside cards land, stacking up as the round burns down. */
-function DiscardPile({ count }: { count: number }) {
+/**
+ * Where put-away cards land, stacking up as the round burns down. It sits in the middle of the
+ * toolbar: in the board's bottom-right corner it covered the card under it (2026-10-05, the
+ * teacher). Empty, it is a dashed outline, so the first card has somewhere to fly to.
+ */
+function DiscardPile({ count, pileRef }: { count: number; pileRef: Ref<HTMLDivElement> }) {
   return (
-    <div className="pointer-events-none absolute bottom-2 right-2 flex h-24 w-20 items-center justify-center">
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="absolute h-20 w-14 rounded-lg border border-black/10 bg-gradient-to-br from-violet-400 to-violet-600 opacity-90 shadow-lg dark:border-white/10"
-          style={{ transform: `rotate(${(i - 1) * 6}deg) translateY(${i * -2}px)` }}
-        />
-      ))}
-      <motion.span
-        key={count}
-        initial={{ scale: 1.5 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 12 }}
-        className="relative z-10 rounded-full bg-amber-400 px-2.5 py-1 text-sm font-extrabold text-amber-950 shadow-md"
-      >
-        {count}
-      </motion.span>
+    <div
+      ref={pileRef}
+      data-discard-pile={count}
+      className="pointer-events-none relative flex h-9 w-16 shrink-0 items-center justify-center"
+    >
+      {count === 0 ? (
+        <div className="h-9 w-7 rounded-md border-2 border-dashed border-border" />
+      ) : (
+        <>
+          {[0, 1, 2].slice(0, Math.min(3, count)).map((i) => (
+            <div
+              key={i}
+              className="absolute h-9 w-7 rounded-md border border-black/10 shadow-sm dark:border-white/10"
+              // Fanned, with a card back's stripes, so it reads as a pile of cards and not a button.
+              style={{ transform: `rotate(${(i - 1) * 14}deg) translateX(${(i - 1) * 6}px)`, backgroundImage: PILE_PATTERN }}
+            />
+          ))}
+          <span
+            // Keyed on the count so each card landing pops it.
+            key={count}
+            className="count-pop absolute -right-0.5 -top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-xs font-extrabold leading-none text-amber-950 shadow"
+          >
+            {count}
+          </span>
+        </>
+      )}
     </div>
   )
 }

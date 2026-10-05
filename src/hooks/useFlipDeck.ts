@@ -443,7 +443,6 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
   const inPlay = cards.filter((c) => !c.setAside)
   const setAsideCount = cards.length - inPlay.length
   const studentsLeft = inPlay.filter((c) => !c.bonus).length
-  const studentsDone = cards.filter((c) => c.setAside && !c.bonus).length
 
   return {
     cards,
@@ -451,7 +450,6 @@ export function useFlipDeck(seatedIds: string[], classId: string | null, visible
     inPlay,
     setAsideCount,
     studentsLeft,
-    studentsDone,
     roundStarted,
     phase,
     settings,
