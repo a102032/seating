@@ -230,7 +230,6 @@ export default function App() {
   const seating = activeClass?.seating ?? []
   /** Where the desks stand: the class's layout, grown for a big class. */
   const plan = planFor(activeClass)
-  const setOf = useCallback((deskIndex: number) => plan.seats[deskIndex]?.set ?? -1, [plan])
   const absentIds = useMemo(() => absentOn(activeClass, today), [activeClass, today])
   /**
    * The seating chart as the lesson sees it today: an absent student's desk counts as empty
@@ -333,7 +332,7 @@ export default function App() {
 
   function startGroups(scheme: GroupScheme) {
     if (!activeClassId) return
-    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, setOf))
+    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, plan), scheme)
     setGroupScheme(scheme)
     setDealWasShuffle(false)
     setDealTick((t) => t + 1)
@@ -349,14 +348,16 @@ export default function App() {
   function continueGroups() {
     if (!activeClassId) return
     setGroups(activeClassId, groups)
-    setGroupScheme(null)
+    // Remembered with the class, so Shuffle works after Continue too.
+    setGroupScheme(activeClass?.groupsMadeBy ?? null)
     setDealTick(0)
     openGroupActivity()
   }
 
   function shuffleGroups() {
     if (!activeClassId || !groupScheme) return
-    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, setOf))
+    // Shuffle mixes everyone at random, into the same number of cards: the seats made the first deal.
+    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, plan, { mix: true }))
     setDealWasShuffle(true)
     setDealTick((t) => t + 1)
   }
@@ -888,9 +889,10 @@ export default function App() {
         onClose={() => setGroupModalOpen(false)}
         seating={presentSeating}
         studentsById={studentsById}
-        setOf={setOf}
+        plan={plan}
         setName={plan.setName}
         lastGroups={groups}
+        lastMadeBy={activeClass.groupsMadeBy}
         onStart={startGroups}
         onContinue={continueGroups}
         chimes={groupChimes}

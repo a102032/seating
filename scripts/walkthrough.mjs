@@ -749,6 +749,69 @@ const scenarios = {
     return page
   },
 
+  /**
+   * Groups by seats: pairs are the desks side by side, fours are squares, six groups are the
+   * rows; Continue with Last Groups says how they were made, and Shuffle, which mixes everyone,
+   * works after it.
+   */
+  async 'groups by seats'() {
+    const cls = makeClass('c1', 'Seats', 30)
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const deskOf = new Map(cls.seating.map((id, desk) => [id, desk]))
+    const made = async () => (await activeSaved(page)).groups.map((g) => g.studentIds.map((id) => deskOf.get(id)).sort((a, b) => a - b))
+    const deal = async (name) => {
+      if (await page.locator('button', { hasText: 'New Groups' }).count()) {
+        await page.locator('button', { hasText: 'New Groups' }).first().click()
+      } else {
+        await panelButton(page, 'Group Activity').click()
+      }
+      await page.waitForTimeout(500)
+      await page.getByRole('dialog').getByRole('button', { name }).first().click()
+      await page.waitForTimeout(5000)
+    }
+    await deal(/^4s/)
+    let groups = await made()
+    const together = (g) =>
+      g.every((d) => g.some((e) => e !== d && Math.abs((e % 6) - (d % 6)) <= 1 && Math.abs(Math.floor(e / 6) - Math.floor(d / 6)) <= 1))
+    check('by seats: fours are squares, everyone beside their group', groups.length === 7 && groups.every(together), JSON.stringify(groups))
+    await deal(/^6/)
+    groups = await made()
+    check(
+      'by seats: six groups are the six rows',
+      groups.length === 6 && groups.every((g) => g.every((d) => d % 6 === g[0] % 6)),
+      JSON.stringify(groups),
+    )
+    await deal(/^Pairs/)
+    groups = await made()
+    check(
+      'by seats: pairs are the two desks side by side',
+      groups.length === 15 && groups.every(([a, b]) => a % 2 === 0 && b === a + 1),
+      JSON.stringify(groups),
+    )
+    await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
+    await page.waitForTimeout(800)
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    const label = (await page.getByRole('button', { name: /Continue with Last Groups/ }).textContent()).replace(/\s+/g, ' ')
+    check("continue: says how the groups were made, in the buttons' words", /Pairs · 15 groups/.test(label), label)
+    await page.getByRole('button', { name: /Continue with Last Groups/ }).click()
+    await page.waitForTimeout(4500)
+    const shuffle = page.locator('button', { hasText: 'Shuffle' }).first()
+    check('continue: Shuffle works after it', await shuffle.isEnabled())
+    await shuffle.click()
+    await page.waitForTimeout(5000)
+    groups = await made()
+    const sideBySide = groups.filter(([a, b]) => b === a + 1 && a % 2 === 0).length
+    check(
+      'shuffle: mixes everyone, into the same 15 cards',
+      groups.length === 15 && sideBySide < 6,
+      `${sideBySide} pairs still side by side`,
+    )
+    const over = await overflow(page)
+    check('groups by seats: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    return page
+  },
+
   /** Red, amber, green and grey belong to the statuses (Help, Ready, Done, Working), never to a group. */
   async 'group colours never look like a status'() {
     const STATUS = ['#ef4444', '#f59e0b', '#22c55e', '#64748b', '#f43f5e', '#f97316']

@@ -1,21 +1,30 @@
-import { deskColumn, type Gender, type Student, type StudentGroup } from '../types'
+import type { Gender, Student, StudentGroup } from '../types'
+import type { LayoutPlan } from './layouts'
+import { neighbourGroups, neighbourhoods, type Placed } from './seatGroups'
 
 /**
  * How the class gets split. The teacher picks one with a single tap - nothing here is typed.
  *
- * - `count`: this many groups, as even as they can be.
- * - `size`: groups of this many; leftovers are spread across the groups rather than left as
- *   a group of one or two, which is the thing that makes a kid feel left over.
+ * - `count`: this many groups, as even as they can be: the room cut into that many
+ *   neighbourhoods (lib/seatGroups).
+ * - `size`: groups of this many, from the desks side by side and behind (lib/seatGroups);
+ *   nobody is ever left as a group of one, the thing that makes a kid feel left over.
  * - `gender`: boys and girls. Students with no gender set go wherever there's more room.
  * - `rows`: one group per row of desks, or per table in a table layout, in board order.
+ *
+ * Counts and sizes are made from where the students sit, so nobody carries a chair across the
+ * room (2026-10-05, the teacher's call); Shuffle is the way to mix them (`mix`).
  */
 export type GroupScheme = { kind: 'count'; count: number } | { kind: 'size'; size: number } | { kind: 'gender' } | { kind: 'rows' }
 
-/**
- * Which row of desks, or which table, a desk belongs to - the room's layout decides
- * (lib/layouts). In a table layout the `rows` scheme is one group per table.
- */
-export type SetOf = (deskIndex: number) => number
+/** A scheme in the Group Activity window's own words, for Continue with Last Groups: "Pairs · 13 groups". */
+export function schemeLabel(scheme: GroupScheme | undefined, groups: number, setName: 'row' | 'table'): string {
+  const many = `${groups} ${groups === 1 ? 'group' : 'groups'}`
+  if (!scheme || scheme.kind === 'count') return many
+  if (scheme.kind === 'size') return `${scheme.size === 2 ? 'Pairs' : `Groups of ${scheme.size}`} · ${many}`
+  if (scheme.kind === 'gender') return 'Boys / Girls'
+  return `${setName === 'table' ? 'Tables' : 'Rows'} · ${many}`
+}
 
 /**
  * Fixed colours, the same on every theme, ordered so the first six - the counts a class
@@ -94,6 +103,26 @@ interface SeatedStudent {
   deskIndex: number
 }
 
+/** Where each seated student sits in the room. A desk the plan doesn't draw (there shouldn't be one) counts as behind the back row. */
+function placed(seated: SeatedStudent[], plan: LayoutPlan): Placed[] {
+  return seated.map((s) => ({
+    id: s.student.id,
+    seat: plan.seats[s.deskIndex] ?? { column: s.deskIndex % plan.columns, row: plan.rows, set: -1 },
+  }))
+}
+
+/** The groups a count or size makes from the seats, as lists of student ids. */
+function bySeats(
+  scheme: { kind: 'count'; count: number } | { kind: 'size'; size: number },
+  seated: SeatedStudent[],
+  plan: LayoutPlan,
+): string[][] {
+  const where = placed(seated, plan)
+  const groups =
+    scheme.kind === 'count' ? neighbourhoods(where, plan, Math.min(scheme.count, where.length)) : neighbourGroups(where, plan, scheme.size)
+  return groups.map((g) => g.map((p) => p.id))
+}
+
 function seatedStudents(seating: (string | null)[], studentsById: Map<string, Student>): SeatedStudent[] {
   const out: SeatedStudent[] = []
   seating.forEach((id, deskIndex) => {
@@ -101,11 +130,6 @@ function seatedStudents(seating: (string | null)[], studentsById: Map<string, St
     if (student) out.push({ student, deskIndex })
   })
   return out
-}
-
-/** How many groups a `size` scheme makes for `n` students: never a group smaller than the size asked for. */
-function groupsForSize(n: number, size: number): number {
-  return Math.max(1, Math.floor(n / size))
 }
 
 /**
@@ -116,25 +140,28 @@ export function describeScheme(
   scheme: GroupScheme,
   seating: (string | null)[],
   studentsById: Map<string, Student>,
-  setOf: SetOf = deskColumn,
+  plan: LayoutPlan,
 ): { groups: number; caption: string } | null {
   const seated = seatedStudents(seating, studentsById)
   const n = seated.length
   if (n < 2) return null
+  const setOf = (deskIndex: number) => plan.seats[deskIndex]?.set ?? -1
 
   switch (scheme.kind) {
     case 'count': {
       if (scheme.count > n) return null
-      const small = Math.floor(n / scheme.count)
-      const large = Math.ceil(n / scheme.count)
+      // What the seats will actually make, so the caption never promises what the deal won't give.
+      const sizes = bySeats(scheme, seated, plan).map((g) => g.length)
+      const small = Math.min(...sizes)
+      const large = Math.max(...sizes)
       return {
-        groups: scheme.count,
+        groups: sizes.length,
         caption: small === large ? `${small} each` : `${small}–${large} each`,
       }
     }
     case 'size': {
       if (scheme.size > n) return null
-      const groups = groupsForSize(n, scheme.size)
+      const groups = bySeats(scheme, seated, plan).length
       return { groups, caption: `${groups} group${groups === 1 ? '' : 's'}` }
     }
     case 'gender': {
@@ -162,30 +189,34 @@ function makeGroup(index: number, studentIds: string[], name?: string, color?: {
 }
 
 /**
- * Deal the seated class into groups. Random schemes shuffle first; rows and gender are
- * fixed by the board. `previous` keeps each card's identity by position, so a shuffle
- * re-deals the chips without tearing the cards down around them.
+ * Deal the seated class into groups. Counts, sizes and rows come from the seats; boys and girls
+ * from the roster. With `mix` (Shuffle) everyone is dealt at random instead, into as many cards
+ * as are on the board, so Shuffle is the one way to mix a class up. `previous` keeps each card's
+ * identity by position, so a shuffle re-deals the chips without tearing the cards down around them.
  */
 export function buildGroups(
   scheme: GroupScheme,
   seating: (string | null)[],
   studentsById: Map<string, Student>,
-  previous?: StudentGroup[],
-  setOf: SetOf = deskColumn,
+  previous: StudentGroup[] | undefined,
+  plan: LayoutPlan,
+  { mix = false }: { mix?: boolean } = {},
 ): StudentGroup[] {
   const seated = seatedStudents(seating, studentsById)
   const ids = seated.map((s) => s.student.id)
   const keepId = (i: number) => previous?.[i]?.id
+  const setOf = (deskIndex: number) => plan.seats[deskIndex]?.set ?? -1
+  const numbered = (members: string[][]) => members.map((m, i) => makeGroup(i, m, `Group ${i + 1}`, undefined, keepId(i)))
+
+  if (mix && scheme.kind !== 'gender') {
+    const cards = previous && previous.length > 0 ? previous.length : buildGroups(scheme, seating, studentsById, undefined, plan).length
+    return numbered(deal(shuffled(ids), Math.max(1, Math.min(cards, ids.length))))
+  }
 
   switch (scheme.kind) {
     case 'count':
-      return deal(shuffled(ids), Math.min(scheme.count, ids.length)).map((members, i) =>
-        makeGroup(i, members, `Group ${i + 1}`, undefined, keepId(i)),
-      )
     case 'size':
-      return deal(shuffled(ids), groupsForSize(ids.length, scheme.size)).map((members, i) =>
-        makeGroup(i, members, `Group ${i + 1}`, undefined, keepId(i)),
-      )
+      return numbered(bySeats(scheme, seated, plan))
     case 'gender': {
       const byGender: Record<Gender, string[]> = {
         boy: [],

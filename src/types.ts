@@ -1,5 +1,6 @@
 import type { RoomLayout } from './lib/layouts'
 import type { ParticipationRecord } from './lib/participation'
+import type { GroupScheme } from './lib/groups'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
@@ -155,6 +156,11 @@ export interface ClassData {
    * week shouldn't have to re-deal every lesson. Cleared only by making new groups.
    */
   groups?: StudentGroup[]
+  /**
+   * How those groups were made (pairs, four groups, rows...), so Continue with Last Groups can
+   * say so in the Group Activity window's own words, and Shuffle still works after it.
+   */
+  groupsMadeBy?: GroupScheme
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }

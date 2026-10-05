@@ -456,7 +456,7 @@ export function GroupActivity({
             onClick={onShuffle}
             disabled={!canShuffle || dealing || locked}
             className="!px-3 !py-2"
-            title={canShuffle ? 'Deal these groups again' : 'Tap New Groups to shuffle'}
+            title={canShuffle ? 'Mix everyone up' : 'Tap New Groups to shuffle'}
           >
             <Shuffle size={16} /> Shuffle
           </TactileButton>

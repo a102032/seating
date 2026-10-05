@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { Play, Star } from 'lucide-react'
-import { describeScheme, type GroupScheme, type SetOf } from '../lib/groups'
+import { describeScheme, schemeLabel, type GroupScheme } from '../lib/groups'
+import type { LayoutPlan } from '../lib/layouts'
 import type { Student, StudentGroup } from '../types'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -13,11 +14,13 @@ interface GroupActivityModalProps {
   /** The seating as today's lesson sees it: absent students' desks count as empty. */
   seating: (string | null)[]
   studentsById: Map<string, Student>
-  /** Which row of desks, or table, a desk is in: Split By Rows is Split By Tables in a table layout. */
-  setOf: SetOf
+  /** The room: groups are made from where students sit, and Split By Rows is Split By Tables in a table layout. */
+  plan: LayoutPlan
   setName: 'row' | 'table'
   /** The saved groups as they stand now - already pruned to who is seated. */
   lastGroups: StudentGroup[]
+  /** How they were made, for Continue's label; unset for groups saved before it was kept. */
+  lastMadeBy: GroupScheme | undefined
   onStart: (scheme: GroupScheme) => void
   onContinue: () => void
   chimes: boolean
@@ -44,9 +47,10 @@ export function GroupActivityModal({
   onClose,
   seating,
   studentsById,
-  setOf,
+  plan,
   setName,
   lastGroups,
+  lastMadeBy,
   onStart,
   onContinue,
   chimes,
@@ -87,8 +91,9 @@ export function GroupActivityModal({
               <span className="min-w-0">
                 <span className="block font-bold text-foreground">Continue with Last Groups</span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  {lastGroups.length} {lastGroups.length === 1 ? 'group' : 'groups'}
-                  <GroupDots groups={lastGroups} />
+                  {/* In the buttons' own words ("Pairs · 13 groups"). A row of coloured dots, one per
+                      card, used to sit here and said nothing a teacher could choose by. */}
+                  {schemeLabel(lastMadeBy, lastGroups.length, setName)}
                   {lastPoints > 0 && (
                     <span className="flex items-center gap-0.5 font-semibold text-foreground/80">
                       · {lastPoints} <Star size={12} className="fill-amber-500 text-amber-500" strokeWidth={0} /> waiting
@@ -104,13 +109,13 @@ export function GroupActivityModal({
             <div className="grid grid-cols-5 gap-2">
               {COUNT_OPTIONS.map((count) => {
                 const scheme: GroupScheme = { kind: 'count', count }
-                const plan = describeScheme(scheme, seating, studentsById, setOf)
+                const made = describeScheme(scheme, seating, studentsById, plan)
                 return (
                   <SchemeButton
                     key={count}
                     label={String(count)}
-                    caption={plan?.caption ?? 'Too few'}
-                    disabled={!plan}
+                    caption={made?.caption ?? 'Too few'}
+                    disabled={!made}
                     onClick={() => start(scheme)}
                     big
                   />
@@ -124,13 +129,13 @@ export function GroupActivityModal({
             <div className="grid grid-cols-4 gap-2">
               {SIZE_OPTIONS.map(({ size, label }) => {
                 const scheme: GroupScheme = { kind: 'size', size }
-                const plan = describeScheme(scheme, seating, studentsById, setOf)
+                const made = describeScheme(scheme, seating, studentsById, plan)
                 return (
                   <SchemeButton
                     key={size}
                     label={label}
-                    caption={plan?.caption ?? 'Too few'}
-                    disabled={!plan}
+                    caption={made?.caption ?? 'Too few'}
+                    disabled={!made}
                     onClick={() => start(scheme)}
                   />
                 )
@@ -155,13 +160,13 @@ export function GroupActivityModal({
                   },
                 ] as const
               ).map(({ scheme, label, unavailable }) => {
-                const plan = describeScheme(scheme, seating, studentsById, setOf)
+                const made = describeScheme(scheme, seating, studentsById, plan)
                 return (
                   <SchemeButton
                     key={scheme.kind}
                     label={label}
-                    caption={plan?.caption ?? unavailable}
-                    disabled={!plan}
+                    caption={made?.caption ?? unavailable}
+                    disabled={!made}
                     onClick={() => start(scheme)}
                   />
                 )
@@ -216,15 +221,5 @@ function SchemeButton({
       <span className={clsx('font-extrabold leading-none', big ? 'text-2xl' : 'text-base')}>{label}</span>
       <span className="mt-1 text-[0.7rem] font-medium leading-none opacity-70">{caption}</span>
     </button>
-  )
-}
-
-function GroupDots({ groups }: { groups: StudentGroup[] }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {groups.slice(0, 8).map((g) => (
-        <span key={g.id} className="size-2.5 rounded-full" style={{ background: g.color }} />
-      ))}
-    </span>
   )
 }

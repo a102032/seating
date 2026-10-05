@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
 import { getTheme, hasNoAvatar, randomPose, stickerId } from '../lib/stickers'
-import { moveStudent } from '../lib/groups'
+import { moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { withoutStudent, withPick, withPoints } from '../lib/participation'
 import { type ClassData, type Gender, type GroupStatus, type Student, type StudentGroup } from '../types'
@@ -500,7 +500,12 @@ export function useClasses() {
 
   // --- Group Activity -------------------------------------------------------------------
 
-  const setGroups = useCallback((classId: string, groups: StudentGroup[]) => updateClass(classId, (c) => ({ ...c, groups })), [updateClass])
+  // A new deal says how it was made; a shuffle, a move or a prune keeps what made them.
+  const setGroups = useCallback(
+    (classId: string, groups: StudentGroup[], madeBy?: GroupScheme) =>
+      updateClass(classId, (c) => ({ ...c, groups, ...(madeBy ? { groupsMadeBy: madeBy } : {}) })),
+    [updateClass],
+  )
 
   const adjustGroupPoints = useCallback(
     (classId: string, groupId: string, delta: number) =>
