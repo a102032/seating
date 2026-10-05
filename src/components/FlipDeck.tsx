@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useRef, useState } from 'react'
-import { ArrowDownRight, Eye, Gift, EyeOff, Layers, RotateCcw, Settings, Shuffle, X } from 'lucide-react'
-import { DEAL_STAGGER_MS, type FlipMode, type useFlipDeck } from '../hooks/useFlipDeck'
+import { Eye, EyeOff, Layers, Settings, Shuffle, X } from 'lucide-react'
+import { DEAL_STAGGER_MS, type useFlipDeck } from '../hooks/useFlipDeck'
 import type { Student } from '../types'
 import { homeroomsToShow } from '../lib/sameNames'
 import { FlipCard } from './FlipCard'
@@ -20,7 +20,7 @@ interface FlipDeckProps {
 }
 
 export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOpenSettings, onExit }: FlipDeckProps) {
-  const { cards, columns, inPlay, studentsLeft, studentsDone, jackpot, jackpotHit, phase, settings, updateSettings } = deck
+  const { cards, columns, inPlay, studentsLeft, studentsDone, phase, settings } = deck
   const { shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
   const boardRef = useRef<HTMLDivElement>(null)
   // As on the desks: a homeroom number only after a name two students share.
@@ -35,10 +35,10 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
     const card = cards.find((c) => c.studentId === studentId)
     const board = boardRef.current?.getBoundingClientRect()
     const el = document.querySelector(`[data-flip-card="${studentId}"]`)?.getBoundingClientRect()
-    // Only a card that this tap puts away: the glowing student, or any face-up bonus card.
+    // Only a card that this tap can put away: the glowing student, or a face-up gift (which goes
+    // once its stars are sent, so its flight is measured at every tap and the last one is used).
     const leaving = card?.faceUp && (card.bonus || studentId === activeId)
-    // A bonus card goes onto the pile in either mode (useFlipDeck's tap says why).
-    if (leaving && (settings.flipMode === 'discard' || card.bonus) && board && el) {
+    if (leaving && board && el) {
       // The pile's own box: bottom-2 right-2, w-20 h-24.
       const pileX = board.right - 8 - PILE_W / 2
       const pileY = board.bottom - 8 - PILE_H / 2
@@ -66,24 +66,7 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
           </TactileButton>
         </div>
 
-        <FlipModeSwitch mode={settings.flipMode} onChange={(flipMode) => updateSettings({ flipMode })} />
-
         <div className="flex items-center gap-2">
-          <AnimatePresence>
-            {jackpot > 0 && (
-              // Waiting for whoever is flipped next, so the class knows what's riding on it.
-              <motion.span
-                key="jackpot"
-                initial={{ scale: 0.4, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.4, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 18 }}
-                className="flex items-center gap-1.5 rounded-full bg-gradient-to-br from-fuchsia-400 to-violet-500 px-3 py-1.5 text-sm font-extrabold text-white shadow-md"
-              >
-                <Gift size={15} /> Next card +{jackpot}
-              </motion.span>
-            )}
-          </AnimatePresence>
           <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
             <Layers size={15} />
             {studentsLeft} left
@@ -162,8 +145,8 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
                           id={card.studentId}
                           student={student}
                           bonus={card.bonus}
+                          gift={card.gift}
                           back={card.back}
-                          jackpotHit={jackpotHit?.studentId === card.studentId ? jackpotHit : null}
                           faceUp={card.faceUp}
                           showStars={showStars}
                           showHomeroom={tagged.has(card.studentId)}
@@ -195,51 +178,6 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
             </div>
           </motion.div>
         )}
-      </div>
-    </div>
-  )
-}
-
-const FLIP_MODES: { id: FlipMode; label: string; icon: typeof RotateCcw }[] = [
-  { id: 'stay', label: 'Flip Back', icon: RotateCcw },
-  { id: 'discard', label: 'Discard', icon: ArrowDownRight },
-]
-
-/**
- * What tapping a face-up card does. It lives on the toolbar rather than in settings because
- * it changes the meaning of the tap itself - the teacher should never have to remember it.
- */
-function FlipModeSwitch({ mode, onChange }: { mode: FlipMode; onChange: (mode: FlipMode) => void }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="hidden text-sm font-semibold text-muted-foreground xl:inline">Tap a picked card to</span>
-      <div role="radiogroup" aria-label="Tap a picked card to" className="flex rounded-full bg-secondary p-1">
-        {FLIP_MODES.map(({ id, label, icon: Icon }) => {
-          const on = mode === id
-          return (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => onChange(id)}
-              className={clsx(
-                'relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition-colors active:scale-95',
-                on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {on && (
-                <motion.span
-                  layoutId="flip-mode-pill"
-                  className="absolute inset-0 rounded-full bg-card shadow-sm"
-                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                />
-              )}
-              <Icon size={15} className="relative" />
-              <span className="relative">{label}</span>
-            </button>
-          )
-        })}
       </div>
     </div>
   )

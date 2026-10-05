@@ -4,7 +4,7 @@
  * student's point shows on the board, and it shows going into the jar rather than staying with
  * them.
  *
- * Everything here is `element.animate`, run by the graphics chip: thirty stars from Everyone +1
+ * Everything here is `element.animate`, run by the graphics chip: thirty stars from Pick All and +
  * are thirty small transforms, not thirty React renders. The meter waits for the stars
  * (`starsLandingIn`), so the coin moves and its sound plays as they land, not as they leave.
  */
@@ -127,8 +127,10 @@ const GET_READY_FLIGHT_MS = 900
  * Get Ready!'s stars: `count` of them from one point - the middle of the big star - fanned out
  * as they rise and gathered into the coin, a little apart, so the class can count them in.
  * Returns how long until the last one lands. The meter waits for them, as it does for a desk's.
+ * A Mystery Gift's stars fly the same way from its card, with the everyday coin (`loud: false`):
+ * the loud one is for Get Ready!, over a faded board.
  */
-export function flyStarsFrom(x: number, y: number, count: number, size: number): number {
+export function flyStarsFrom(x: number, y: number, count: number, size: number, { loud = true } = {}): number {
   const coin = document.querySelector<HTMLElement>('[data-goal-coin]')
   if (!coin || count <= 0) return 0
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0
@@ -144,7 +146,7 @@ export function flyStarsFrom(x: number, y: number, count: number, size: number):
   const stagger = Math.min(90, 500 / Math.max(1, count - 1))
   const lands = (count - 1) * stagger + GET_READY_FLIGHT_MS
   landingAt = Math.max(landingAt, performance.now() + lands)
-  loudLandingAt = performance.now() + lands
+  if (loud) loudLandingAt = performance.now() + lands
   const gap = size * 0.85
 
   let flying = count

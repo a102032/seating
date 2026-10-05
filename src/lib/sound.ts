@@ -386,7 +386,7 @@ export function playGoalCelebration(): () => void {
 
 /**
  * A point landing: an arcade coin, the one sound for every point - the class goal meter
- * moving up (a point from the desks, +1 in the floating window, Everyone +1) and +1 on a group
+ * moving up (a point from the desks, +1 in the floating window, a Mystery Gift) and +1 on a group
  * card. A short G, then a C that rings, in a triangle wave with a faint octave on top.
  *
  * It replaced two quick sine pings (E6 and B6, and a group card's C6 and G6) that the teacher
@@ -634,9 +634,8 @@ export const ALARM_SOUND_LABELS: Record<AlarmSound, string> = {
 }
 
 /**
- * A bonus card turning over, or a jackpot landing on a student: a quick rising sparkle.
- * Deliberately small - the class goal owns the one big celebration in this app, and a
- * fanfare for every lucky card would wear it down.
+ * A Mystery Gift turning over: a quick rising sparkle. Deliberately small - the class goal owns
+ * the one big celebration in this app, and a fanfare for every lucky card would wear it down.
  */
 export function playBonus() {
   const { ctx, master } = cardContext()
@@ -646,9 +645,14 @@ export function playBonus() {
   playTone(ctx, master, { frequency: 2093, start: 0.21, duration: 0.4, type: 'sine', peakGain: 0.18 })
 }
 
-/** Oops!: a sliding "wah-wah", the dud card's groan. Stays above 400Hz so a tablet speaker still carries it. */
-export function playOops() {
+/**
+ * A gift landing on 5, the rare one, on top of the picker's chime: a longer run up five notes
+ * with a ringing top. Bigger than a 2, 3 or 4 and still far short of the chest's fanfare.
+ */
+export function playGiftGold() {
   const { ctx, master } = cardContext()
-  playTone(ctx, master, { frequency: 740, endFrequency: 620, start: 0, duration: 0.24, type: 'triangle', peakGain: 0.3 })
-  playTone(ctx, master, { frequency: 620, endFrequency: 440, start: 0.26, duration: 0.5, type: 'triangle', peakGain: 0.3 })
+  ;[1046.5, 1318.5, 1567.98, 2093, 2637].forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: 0.12 + i * 0.06, duration: 0.2 + i * 0.04, type: 'triangle', peakGain: 0.24 })
+  })
+  playTone(ctx, master, { frequency: 3136, start: 0.42, duration: 0.7, type: 'sine', peakGain: 0.12 })
 }

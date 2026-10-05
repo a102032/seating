@@ -1,8 +1,7 @@
 import clsx from 'clsx'
-import { motion } from 'framer-motion'
 import { Gift, Star } from 'lucide-react'
-import type { BonusKind } from '../hooks/useFlipDeck'
-import { BONUS_FACES } from '../lib/bonusCards'
+import { useMemo, type CSSProperties } from 'react'
+import { GIFT_REEL_LENGTH, GIFT_ROLL_MS, GIFT_STARS, type BonusKind, type GiftState } from '../hooks/useFlipDeck'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { resolveAvatarSrc } from '../lib/stickers'
 import type { Gender, Student } from '../types'
@@ -13,6 +12,8 @@ interface FlipCardProps {
   /** Exactly one of student or bonus. */
   student?: Student
   bonus?: BonusKind
+  /** A gift a student has turned over, and how far it has got. */
+  gift?: GiftState
   back: Gender
   faceUp: boolean
   /** Show the stars waiting for the student, in a class that puts them on the desks first - see starsOnDesks in types.ts. */
@@ -25,8 +26,6 @@ interface FlipCardProps {
   active: boolean
   /** Face up, but a later card has the turn. */
   dimmed: boolean
-  /** A jackpot that just landed on this student; the tick replays the burst. */
-  jackpotHit?: { points: number; tick: number } | null
   onTap: () => void
 }
 
@@ -46,6 +45,7 @@ export function FlipCard({
   id,
   student,
   bonus,
+  gift,
   back,
   faceUp,
   showStars,
@@ -53,7 +53,6 @@ export function FlipCard({
   genderColors,
   active,
   dimmed,
-  jackpotHit,
   onTap,
 }: FlipCardProps) {
   return (
@@ -62,6 +61,7 @@ export function FlipCard({
       onClick={onTap}
       data-flip-card={id}
       data-bonus={bonus}
+      data-gift-stage={gift?.stage}
       // Where a star flies from when this student gets a point (lib/starFlight). Face down,
       // the class can't see whose card it is, so nothing flies from it.
       data-star-from={student && faceUp ? student.id : undefined}
@@ -94,11 +94,9 @@ export function FlipCard({
 
         {/* Face */}
         {bonus ? (
-          <BonusFace kind={bonus} faceUp={faceUp} />
+          <GiftFace gift={gift} />
         ) : (
-          student && (
-            <StudentFace student={student} active={active} showStars={showStars} showHomeroom={showHomeroom} jackpotHit={jackpotHit} />
-          )
+          student && <StudentFace student={student} active={active} showStars={showStars} showHomeroom={showHomeroom} />
         )}
       </div>
     </button>
@@ -112,13 +110,11 @@ function StudentFace({
   active,
   showStars,
   showHomeroom,
-  jackpotHit,
 }: {
   student: Student
   active: boolean
   showStars: boolean
   showHomeroom: boolean
-  jackpotHit?: { points: number; tick: number } | null
 }) {
   const avatarSrc = resolveAvatarSrc(student)
   const points = student.points ?? 0
@@ -175,56 +171,118 @@ function StudentFace({
           )}
         </span>
       )}
-      {jackpotHit && (
-        // The jackpot rising off the card as it lands, then gone - the badge keeps the score.
-        <motion.span
-          key={jackpotHit.tick}
-          initial={{ y: 10, scale: 0.6, opacity: 0 }}
-          animate={{ y: -18, scale: 1.15, opacity: [0, 1, 1, 0] }}
-          transition={{ delay: 0.35, duration: 1.6, ease: 'easeOut', opacity: { delay: 0.35, duration: 1.6, times: [0, 0.15, 0.7, 1] } }}
-          className="pointer-events-none absolute inset-x-0 top-1/3 z-20 mx-auto flex w-fit items-center gap-1 rounded-full bg-gradient-to-br from-fuchsia-400 to-violet-500 px-2.5 py-1 font-extrabold text-white shadow-lg"
-          style={{ fontSize: 'clamp(0.8rem, 14cqi, 1.6rem)' }}
-        >
-          <Gift className="shrink-0" style={{ width: '1em', height: '1em' }} />+{jackpotHit.points}
-        </motion.span>
-      )}
     </div>
   )
 }
 
 /**
- * A bonus card's face: its colour, one big icon and its label. The icon pops in as the card
- * lands - or, for Oops!, wobbles - and that's the whole show; the class goal keeps the
- * one big celebration.
+ * A Mystery Gift's face, step by step (useFlipDeck's tapGift): wrapped and dancing, "Open!"; the
+ * number rolling; then "+3" and a star, waiting with "Tap!" until a tap sends them to the chest.
+ * A 5 turns the card gold with a bigger burst. Shown by Reveal All, it is a still present that
+ * says "Gift". Every move is CSS (index.css), so nothing re-renders while the number rolls.
  */
-function BonusFace({ kind, faceUp }: { kind: BonusKind; faceUp: boolean }) {
-  const { label, icon: Icon, face, fill } = BONUS_FACES[kind]
-  const reveal =
-    kind === 'oops'
-      ? { initial: { rotate: 0 }, animate: { rotate: [0, -16, 13, -9, 5, 0] }, transition: { delay: 0.35, duration: 0.7 } }
-      : { initial: { scale: 0.3 }, animate: { scale: [0.3, 1.25, 1] }, transition: { delay: 0.3, duration: 0.5 } }
+function GiftFace({ gift }: { gift?: GiftState }) {
+  const landed = gift !== undefined && (gift.stage === 'open' || gift.stage === 'sent')
+  const gold = landed && gift.stars === 5
   return (
     <div
       className={clsx(
-        'absolute inset-0 flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border-2 border-black/10 bg-gradient-to-br p-1.5 shadow-md',
-        face,
+        'absolute inset-0 flex flex-col items-center justify-center gap-[3cqi] overflow-hidden rounded-xl border-2 border-black/10 bg-gradient-to-br p-1.5 shadow-md',
+        gold ? 'from-amber-200 via-yellow-300 to-amber-500 text-amber-950' : 'from-fuchsia-400 to-violet-500 text-white',
       )}
       style={FACE_STYLE}
+      data-gift-stars={landed ? gift.stars : undefined}
     >
-      <motion.span
-        // Keyed on the side it shows, so every reveal replays the icon's entrance.
-        key={faceUp ? 'up' : 'down'}
-        {...reveal}
-        className="flex min-h-0 flex-1 items-center justify-center"
-      >
-        <Icon className={clsx(fill && 'fill-current')} strokeWidth={fill ? 0 : 2.25} style={{ width: '34cqi', height: '34cqi' }} />
-      </motion.span>
-      <span
-        className="w-full shrink-0 truncate text-center font-extrabold leading-tight"
-        style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
-      >
-        {label}
-      </span>
+      {!gift || gift.stage === 'wrapped' ? (
+        <>
+          <span className={clsx('flex min-h-0 flex-1 items-center justify-center', gift && 'gift-dance')}>
+            <Gift strokeWidth={2.25} style={{ width: '34cqi', height: '34cqi' }} />
+          </span>
+          <CardWord>{gift ? 'Open!' : 'Gift'}</CardWord>
+        </>
+      ) : gift.stage === 'rolling' ? (
+        <Reel stars={gift.stars} />
+      ) : (
+        <>
+          <Burst gold={gold} />
+          <span
+            className={clsx('flex items-center gap-[2cqi] font-extrabold leading-none', gift.stage === 'open' ? 'gift-land' : '')}
+            style={{ fontSize: '30cqi' }}
+          >
+            <span className={clsx('flex items-center gap-[2cqi]', gift.stage === 'open' && 'gift-waiting')}>
+              +{gift.stars}
+              <Star className="shrink-0 fill-current" strokeWidth={0} style={{ width: '0.85em', height: '0.85em' }} />
+            </span>
+          </span>
+          {gift.stage === 'open' && <CardWord>Tap!</CardWord>}
+        </>
+      )}
     </div>
+  )
+}
+
+function CardWord({ children }: { children: string }) {
+  return (
+    <span
+      className="w-full shrink-0 truncate text-center font-extrabold leading-tight"
+      style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** The number rolling: a strip of numbers sliding up behind a window, slowing onto the gift's own. */
+function Reel({ stars }: { stars: number }) {
+  const numbers = useMemo(() => {
+    const all = GIFT_STARS.map((g) => g.stars)
+    const from = all.indexOf(stars)
+    // Every number in turn, ending on the gift's: the class sees all four go past before it stops.
+    return Array.from({ length: GIFT_REEL_LENGTH }, (_, i) => all[(from + 1 + i) % all.length]).map((n, i, strip) =>
+      i === strip.length - 1 ? stars : n,
+    )
+  }, [stars])
+  return (
+    <span className="flex items-center gap-[2cqi] font-extrabold leading-none" style={{ fontSize: '30cqi' }}>
+      +
+      <span className="relative block overflow-hidden" style={{ height: '1em', width: '0.62em' }}>
+        <span
+          className="gift-reel absolute inset-x-0 top-0 flex flex-col items-center"
+          style={{ '--roll-ms': `${GIFT_ROLL_MS}ms`, '--reel-end': `-${numbers.length - 1}em` } as CSSProperties}
+        >
+          {numbers.map((n, i) => (
+            <span key={i} className="block" style={{ height: '1em' }}>
+              {n}
+            </span>
+          ))}
+        </span>
+      </span>
+      <Star className="shrink-0 fill-current" strokeWidth={0} style={{ width: '0.85em', height: '0.85em' }} />
+    </span>
+  )
+}
+
+/** The small celebration as the number lands: stars bursting out from the middle - more, and further, for a gold 5. */
+function Burst({ gold }: { gold: boolean }) {
+  const count = gold ? 12 : 7
+  return (
+    <span className="pointer-events-none absolute inset-0" aria-hidden>
+      {Array.from({ length: count }, (_, i) => (
+        <Star
+          key={i}
+          className={clsx('gift-burst absolute left-1/2 top-1/2 fill-current', gold ? 'text-amber-600' : 'text-yellow-200')}
+          strokeWidth={0}
+          style={
+            {
+              width: gold ? '11cqi' : '9cqi',
+              height: gold ? '11cqi' : '9cqi',
+              '--turn': `${(i * 360) / count + (i % 2) * 12}deg`,
+              '--reach': gold ? '-48cqi' : '-34cqi',
+              '--burst-ms': gold ? '0.95s' : '0.7s',
+            } as CSSProperties
+          }
+        />
+      ))}
+    </span>
   )
 }

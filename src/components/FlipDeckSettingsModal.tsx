@@ -1,6 +1,5 @@
-import clsx from 'clsx'
-import { BONUS_KINDS, type BonusKind, type FlipDeckSettings } from '../hooks/useFlipDeck'
-import { BONUS_FACES } from '../lib/bonusCards'
+import { Gift } from 'lucide-react'
+import { type FlipDeckSettings } from '../hooks/useFlipDeck'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
@@ -12,20 +11,13 @@ interface FlipDeckSettingsModalProps {
   onClose: () => void
   settings: FlipDeckSettings
   onChange: (patch: Partial<FlipDeckSettings>) => void
-  /** A card has been turned or discarded this round, so bonus changes wait for the next Shuffle. */
+  /** A card has been turned or discarded this round, so a change to the gifts waits for the next Shuffle. */
   roundStarted: boolean
+  /** The class goal is on: a gift's stars go into its chest, so with no goal there are no gifts. */
+  goalLive: boolean
 }
 
-export function FlipDeckSettingsModal({ open, onClose, settings, onChange, roundStarted }: FlipDeckSettingsModalProps) {
-  function toggleKind(kind: BonusKind) {
-    const on = settings.bonusKinds.includes(kind)
-    onChange({
-      bonusKinds: on
-        ? settings.bonusKinds.filter((k) => k !== kind)
-        : BONUS_KINDS.filter((k) => k === kind || settings.bonusKinds.includes(k)),
-    })
-  }
-
+export function FlipDeckSettingsModal({ open, onClose, settings, onChange, roundStarted, goalLive }: FlipDeckSettingsModalProps) {
   // Nothing to build while closed - see useLingerWhileClosing.
   const shown = useLingerWhileClosing(open)
   if (!shown) return null
@@ -35,46 +27,34 @@ export function FlipDeckSettingsModal({ open, onClose, settings, onChange, round
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <Label htmlFor="bonus-cards" className="text-foreground">
-                Bonus Cards
-              </Label>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                A few surprise cards hidden in the deck. The app picks how many, so the rows stay even.
-              </p>
+            <div className="flex items-center gap-3">
+              {/* The gift as it looks face up, so the teacher knows it when a student turns one. */}
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border-2 border-black/10 bg-gradient-to-br from-fuchsia-400 to-violet-500 text-white shadow-sm">
+                <Gift size={22} strokeWidth={2.25} />
+              </span>
+              <div>
+                <Label htmlFor="bonus-cards" className="text-foreground">
+                  Mystery Gifts
+                </Label>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Three gifts hidden in the deck. A student opens one, and 2, 3, 4 or 5 stars go into the treasure chest.
+                </p>
+              </div>
             </div>
-            <Switch id="bonus-cards" checked={settings.bonusCards} onCheckedChange={(checked) => onChange({ bonusCards: checked })} />
+            <Switch
+              id="bonus-cards"
+              checked={settings.bonusCards && goalLive}
+              disabled={!goalLive}
+              onCheckedChange={(checked) => onChange({ bonusCards: checked })}
+            />
           </div>
-          {settings.bonusCards && (
-            <div className="flex gap-2">
-              {BONUS_KINDS.map((kind) => {
-                const { label, icon: Icon, face, fill } = BONUS_FACES[kind]
-                const on = settings.bonusKinds.includes(kind)
-                // The last one can't be switched off - that's what the Bonus Cards switch is for.
-                const last = on && settings.bonusKinds.length === 1
-                return (
-                  <button
-                    key={kind}
-                    type="button"
-                    aria-pressed={on}
-                    disabled={last}
-                    onClick={() => toggleKind(kind)}
-                    className={clsx(
-                      'flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2 text-sm font-bold transition-all active:scale-95',
-                      on
-                        ? clsx('border-black/10 bg-gradient-to-br shadow-sm', face)
-                        : 'border-dashed border-border bg-transparent text-muted-foreground opacity-70',
-                    )}
-                  >
-                    <Icon size={16} className={clsx('shrink-0', fill && on && 'fill-current')} strokeWidth={fill && on ? 0 : 2.25} />
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
+          {!goalLive && (
+            <p className="text-sm font-medium text-muted-foreground">
+              Turn on the class goal in Pickers &amp; Points first: the stars go into its chest.
+            </p>
           )}
-          {settings.bonusCards && roundStarted && (
-            <p className="text-sm font-medium text-muted-foreground">Changes to bonus cards start at the next Shuffle.</p>
+          {goalLive && roundStarted && (
+            <p className="text-sm font-medium text-muted-foreground">Changes to the gifts start at the next Shuffle.</p>
           )}
         </section>
 

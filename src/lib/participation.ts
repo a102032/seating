@@ -10,7 +10,7 @@ import { dateKey } from './attendance'
  *
  * Picked: Pick Student (and Pick from This Row), the group picker's Pick Student, the floating
  * window's Pick, and a flip card turned over by hand. Points: a star given to some students,
- * not to everyone at once - Pick All and +, Everyone +1, Get Ready! and group points are the
+ * not to everyone at once - Pick All and +, a Mystery Gift, Get Ready! and group points are the
  * whole class, and say nothing about one child. The app only knows what is tapped: a child the
  * teacher calls on who answers without a star leaves no trace.
  */

@@ -82,8 +82,8 @@ checks the live URL. Confirm it went green before saying something is live.
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
 - Points run one of two ways per class (`starsOnDesks`, `starsWaitOnDesks` in `useClasses.ts`): straight to the goal (the
   default, no minus) or on the desks first, sent to the goal by All Stars In! under the side panel's +.
-- `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the Flip Back / Discard modes, bonus
-  cards, and `planDeck` (how many bonus cards and columns). `useCountdown.ts`: the timer.
+- `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
+  step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useCountdown.ts`: the timer.
 - `src/components/`:
   - `SidePanel.tsx`: the class name (no goal) or the goal's controls (Get Ready! and Float, with a goal on), timer, pickers and points.
   - `ClassTitle.tsx`: the class name, switcher and Class Settings gear - at the top of the side panel with no goal, at the
@@ -106,7 +106,7 @@ checks the live URL. Confirm it went green before saying something is live.
   to land (`starsLandingIn`) before the coin moves.
 - `src/lib/greetings.ts`: what the splash says to a signed-in teacher (by the clock, the day, special days and the class goals).
 - `src/lib/`: `sound.ts` (every sound, synthesised with Web Audio), `groups.ts` (building and pruning groups),
-  `bonusCards.ts`, `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV).
+  `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV).
 - Avatars switched off for a class (`avatarsOff`): draw students through `studentsAsShown` (`lib/stickers.ts`), as `App`'s
   `studentsById` and the chart picture do, so anything new that shows a student's avatar shows names only then. The roster keeps
   each student's own pick.

@@ -238,12 +238,13 @@ const scenarios = {
     return page
   },
 
-  /** In Flip Back mode a bonus card goes back over - and must not pay out again. */
-  async 'flip back: a bonus card pays out once'() {
-    const cls = makeClass('c1', 'Bonus', 10, { pointsGoal: 100, classPoints: 0, goalEnabled: true })
+  /** A Mystery Gift: turned, opened, rolled, sent - its stars land in the chest once, and the card goes to the pile. */
+  async 'a mystery gift pays out once'() {
+    const cls = makeClass('c1', 'Gifts', 10, { pointsGoal: 100, classPoints: 0, goalEnabled: true })
     const page = await open({
       state: stateOf(cls),
       storage: {
+        // An older save, with the flip mode and bonus kinds that are gone.
         'seating-chart-flip-deck-settings-v1': {
           bonusCards: true,
           bonusKinds: ['everyone'],
@@ -255,16 +256,20 @@ const scenarios = {
     })
     await panelButton(page, 'Flip Cards').click()
     await page.waitForTimeout(3500)
-    // One card, by name: a deck of only Everyone +1 has several of them.
-    const id = await page.locator('[data-bonus=everyone]').first().getAttribute('data-flip-card')
+    const gifts = await page.locator('[data-bonus=gift]').count()
+    check('gifts: three in the deck (10 students)', gifts === 3, `${gifts} gifts`)
+    const id = await page.locator('[data-bonus=gift]').first().getAttribute('data-flip-card')
     const card = page.locator(`[data-flip-card="${id}"]`)
-    for (let i = 0; i < 3; i++) {
+    // Turn, open, (roll), send - and keep tapping after, as an excited class would.
+    for (let i = 0; i < 6; i++) {
       await card.click({ timeout: 1500 }).catch(() => {})
-      await page.waitForTimeout(1000)
+      await page.waitForTimeout(i === 1 ? 2000 : 900)
     }
+    await page.waitForTimeout(1500)
     const c = await activeSaved(page)
-    check('flip back: a bonus card pays out once', c.classPoints === 10, `meter holds ${c.classPoints} (10 students, one Everyone +1 = 10)`)
-    check('flip back: a used bonus card goes to the pile', (await card.count()) === 0)
+    check('gifts: 2 to 5 stars in the chest, once', c.classPoints >= 2 && c.classPoints <= 5, `meter holds ${c.classPoints}`)
+    check('gifts: a sent gift goes to the pile', (await card.count()) === 0)
+    check('gifts: no Flip Back left on the toolbar', (await page.getByText('Flip Back').count()) === 0)
     return page
   },
 

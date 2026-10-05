@@ -29,7 +29,7 @@ import { usePicker } from './hooks/usePicker'
 import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
 import { pickChances } from './lib/participation'
 import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
-import { flyStarsToGoal } from './lib/starFlight'
+import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
 import { studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
@@ -286,17 +286,15 @@ export default function App() {
 
   const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen, {
     genderOf: (id) => studentsById.get(id)?.gender ?? 'unspecified',
-    // Bonus points land the way any award does, class meter included. Everyone +1 is the whole
-    // class, so it isn't in the participation record; a jackpot is one student's.
-    onEveryone: () => {
+    giftsAllowed: () => goalLive,
+    // A Mystery Gift's stars are the whole class's, straight into the chest in either way of
+    // running points, so they go in no one's participation record. They fly from the card,
+    // one a star, and the meter waits for them to land.
+    onGift: (cardId, stars) => {
       if (!activeClassId) return
-      if (goalLive && !desksMode) flyStarsToGoal(seatedIds)
-      adjustPoints(activeClassId, seatedIds, 1)
-    },
-    onJackpot: (id, points) => {
-      if (!activeClassId) return
-      if (goalLive && !desksMode) flyStarsToGoal([id])
-      adjustPoints(activeClassId, [id], points, today)
+      const box = document.querySelector(`[data-flip-card="${CSS.escape(cardId)}"]`)?.getBoundingClientRect()
+      if (box) flyStarsFrom(box.left + box.width / 2, box.top + box.height / 2, stars, Math.min(56, box.width * 0.3), { loud: false })
+      addToClassGoal(activeClassId, stars)
     },
     onTurned: (id) => {
       if (activeClassId) recordPick(activeClassId, id, today)
@@ -928,6 +926,7 @@ export default function App() {
         settings={deck.settings}
         onChange={deck.updateSettings}
         roundStarted={deck.roundStarted}
+        goalLive={goalLive}
       />
 
       <PickersPointsModal
