@@ -103,6 +103,7 @@ checks the live URL. Confirm it went green before saying something is live.
   - `ui/`: shadcn primitives.
 - `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it
   to land (`starsLandingIn`) before the coin moves.
+- `src/lib/greetings.ts`: what the splash says to a signed-in teacher (by the clock, the day, special days and the class goals).
 - `src/lib/`: `sound.ts` (every sound, synthesised with Web Audio), `groups.ts` (building and pruning groups),
   `bonusCards.ts`, `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV).
 - Avatars switched off for a class (`avatarsOff`): draw students through `studentsAsShown` (`lib/stickers.ts`), as `App`'s

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   Apple,
   Backpack,
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import type { ClassData } from '../types'
 import { loadCloud, type Account } from '../lib/cloud'
+import { greetingFor, rememberGreeting } from '../lib/greetings'
 import { GoogleG, Initial } from './Account'
 import { ClassYesLogo } from './ClassYesLogo'
 
@@ -348,6 +349,17 @@ function ChalkTray() {
 }
 
 /**
+ * A signed-in teacher's greeting (lib/greetings): chosen once when it appears - keyed by teacher,
+ * so a new sign-in chooses again - and remembered, so the next one can say "Welcome back" and
+ * never repeats it.
+ */
+function Greeting({ account, classes }: { account: Account; classes: ClassData[] }) {
+  const [text] = useState(() => greetingFor(account, classes))
+  useEffect(() => rememberGreeting(account.uid, text), [account.uid, text])
+  return text
+}
+
+/**
  * The front door: a chalkboard.
  *
  * Two states, and they turn on whether a teacher is signed in (2026-10-04, the teacher's
@@ -465,7 +477,7 @@ export function SplashScreen({ classes, onOpenClass, account, signingIn, signInE
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
                 >
-                  Welcome, {account?.firstName ?? 'Teacher'}!
+                  {account ? <Greeting key={`${account.uid}|${account.firstName}`} account={account} classes={classes} /> : 'Welcome, Teacher!'}
                 </motion.p>
 
                 <motion.p

@@ -128,6 +128,8 @@ async function computer(name, classes, size = [1280, 800]) {
 }
 
 const splashText = (page) => page.locator('.splash-board').innerText()
+/** The splash greets a signed-in teacher by name, in any of its ways (lib/greetings): "Welcome, Derek!", "Derek returns!"... */
+const greets = (text, name) => new RegExp(`(^|[\\s,])${name}(,| returns!|[!?])`).test(text)
 const uidOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-account-v1') ?? 'null')?.uid)
 const boardState = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-state-v1')))
 /**
@@ -191,7 +193,7 @@ try {
     await shot(board, '01-splash-signed-out')
 
     await signIn(board, DEREK)
-    const welcomed = await waitFor(async () => /Welcome, Derek!/.test(await splashText(board)))
+    const welcomed = await waitFor(async () => greets(await splashText(board), 'Derek'))
     check('first: signed in, the splash greets Derek', Boolean(welcomed))
     const offered = await splashText(board)
     check('first: and offers Switch teacher, in two words', /Switch teacher/.test(offered) && !/Not Derek/.test(offered))
@@ -370,7 +372,7 @@ try {
   if (want('rules') && spare && derekUid) {
     // The next teacher signs in on that board; her classes and Derek's stay apart.
     await signIn(spare, LIN)
-    await waitFor(async () => /Welcome, Mei!/.test(await splashText(spare)))
+    await waitFor(async () => greets(await splashText(spare), 'Mei'))
     const linUid = await uidOf(spare)
     const hers = await waitFor(async () => (await accountClasses(linUid)).classes.length === 1 && true)
     check("rules: the next teacher's account gets the board's class", Boolean(hers))
@@ -435,7 +437,7 @@ try {
     await shot(pc, '11-first-sign-in')
     // The next day: her class and Switch teacher, nothing else.
     await pc.reload()
-    const greeted = await waitFor(async () => /Welcome, Teacher Amy!/.test(await splashText(pc)))
+    const greeted = await waitFor(async () => greets(await splashText(pc), 'Teacher Amy'))
     check(
       'title: "Teacher Amy Chen" is welcomed as Teacher Amy',
       Boolean(greeted),
@@ -456,7 +458,7 @@ try {
       localStorage.setItem('seating-chart-account-v1', JSON.stringify({ ...a, firstName: 'Teacher' }))
     })
     await pc.reload()
-    const fixed = await waitFor(async () => /Welcome, Teacher Amy!/.test(await splashText(pc)))
+    const fixed = await waitFor(async () => greets(await splashText(pc), 'Teacher Amy'))
     check('title: a board that saved "Teacher" greets Teacher Amy once it has checked the sign-in', Boolean(fixed))
     const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-account-v1')).firstName)
     check('title: and keeps the new name for next time', kept === 'Teacher Amy', kept)
@@ -470,7 +472,7 @@ try {
     // it - and tapping a class reconnects, so saving to the account starts again.
     const pc = await computer('pc-reconnect', [makeClass('g4', 'Grade 4 English', 28)])
     await signIn(pc, DEREK)
-    await waitFor(async () => /Welcome, Derek!/.test(await splashText(pc)))
+    await waitFor(async () => greets(await splashText(pc), 'Derek'))
     await pc.evaluate(() => {
       sessionStorage.setItem('drop-firebase-sign-in', '1')
       // Firebase's own copy of the sign-in, in both places it may keep one.
@@ -486,7 +488,7 @@ try {
     const splash = await splashText(pc)
     check(
       'reconnect: a board that lost its link still greets Derek, with no Sign in again beside Switch teacher',
-      /Welcome, Derek!/.test(splash) && /Switch teacher/.test(splash) && !/Sign in/.test(splash),
+      greets(splash, 'Derek') && /Switch teacher/.test(splash) && !/Sign in/.test(splash),
       splash.replace(/\s+/g, ' ').slice(0, 140),
     )
     // Closing Google's window: the class opens anyway, and the Saved mark shows the link is down.

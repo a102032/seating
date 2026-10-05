@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { takenDays } from '../lib/attendance'
+import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
 import { getTheme, hasNoAvatar, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent } from '../lib/groups'
@@ -109,11 +109,13 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
   let classPoints = (c.classPoints ?? 0) + amount
   const goal = c.pointsGoal ?? 0
   let goalsReached = c.goalsReached ?? 0
+  let goalReachedOn = c.goalReachedOn
   if (goal > 0 && classPoints >= goal) {
     goalsReached += Math.floor(classPoints / goal)
     classPoints %= goal
+    goalReachedOn = dateKey()
   }
-  return { ...c, classPoints, goalsReached }
+  return { ...c, classPoints, goalsReached, goalReachedOn }
 }
 
 /**

@@ -147,6 +147,8 @@ export interface ClassData {
    * throw the party.
    */
   goalsReached?: number
+  /** The day the goal was last filled ("2026-10-05"), so the splash can say the class opened the chest. */
+  goalReachedOn?: string
   /**
    * The last groups the teacher made, membership and any points not yet handed out. Kept so
    * "Group Activity" can pick up where it left off - a teacher running the same teams all
