@@ -127,6 +127,21 @@ async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}
 }
 
 const saved = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-state-v1')))
+
+/**
+ * Notes every recorded sound the page starts, and when on the sound card's clock, told apart by
+ * its length: a drum hit (0.62 s), a bamboo tap (0.32 s) or a rim click (0.09 s). Passed as `before`.
+ */
+function countSounds() {
+  window.__sounds = []
+  const start = AudioBufferSourceNode.prototype.start
+  AudioBufferSourceNode.prototype.start = function (when = 0, ...rest) {
+    const d = this.buffer ? this.buffer.duration : 0
+    const kind = d > 0.5 && d < 0.7 ? 'drum' : d > 0.25 && d < 0.4 ? 'bamboo' : d > 0.07 && d < 0.12 ? 'rim' : 'other'
+    window.__sounds.push({ kind, when: when || this.context.currentTime })
+    return start.call(this, when, ...rest)
+  }
+}
 const activeSaved = async (page) => {
   const s = await saved(page)
   return s.classes.find((c) => c.id === s.activeClassId)
@@ -650,12 +665,84 @@ const scenarios = {
   },
 
   /**
+   * Get Ready!'s taps: soft rim clicks and bamboo between the big beats, never on one, in four
+   * rhythms that all take a turn before any comes round again; and the speaker on "How long?",
+   * which makes the class's Get Ready! silent - nothing at all plays, and the stars still land.
+   */
+  async 'Get Ready!: taps between the beats, and the speaker'() {
+    const cls = makeClass('c1', 'Taps', 12, { pointsGoal: 50, classPoints: 0 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559], before: countSounds })
+    const run = async (waitMs) => {
+      await panelButton(page, 'Get Ready!').click()
+      await page.waitForTimeout(900)
+      await page.locator('[data-drum="10"]').click()
+      await page.waitForTimeout(900)
+      await page.evaluate(() => (window.__sounds = []))
+      await page.locator('[data-get-ready] button[aria-label="Start"]').click()
+      await page.waitForTimeout(waitMs)
+      return {
+        rhythm: await page.locator('[data-get-ready]').getAttribute('data-rhythm'),
+        sounds: await page.evaluate(() => window.__sounds),
+      }
+    }
+    const stop = async () => {
+      await page.getByRole('button', { name: 'Stop', exact: true }).click()
+      await page.waitForTimeout(700)
+    }
+    const first = await run(9200)
+    const hits = first.sounds.filter((x) => x.kind === 'drum').map((x) => x.when)
+    const taps = first.sounds.filter((x) => x.kind === 'bamboo' || x.kind === 'rim')
+    check(
+      'taps: the rim and the bamboo both play between the beats',
+      taps.some((t) => t.kind === 'rim') && taps.some((t) => t.kind === 'bamboo') && hits.length >= 8,
+      `${hits.length} hits, ${taps.length} taps, ${first.rhythm}`,
+    )
+    check(
+      'taps: none lands on a big beat, and the beat stays once a second',
+      taps.every((t) => hits.every((w) => Math.abs(t.when - w) > 0.08)) && hits.slice(1).every((w, i) => Math.abs(w - hits[i] - 1) < 0.15),
+    )
+    await stop()
+    const seen = [first.rhythm]
+    for (let i = 0; i < 3; i++) {
+      seen.push((await run(1200)).rhythm)
+      await stop()
+    }
+    check('taps: all four rhythms take a turn before any comes round again', new Set(seen).size === 4, seen.join(', '))
+    // The speaker: off for this class, and then nothing plays at all
+    await panelButton(page, 'Get Ready!').click()
+    await page.waitForTimeout(900)
+    const speaker = page.locator('[data-get-ready-sound]')
+    await speaker.click()
+    await page.waitForTimeout(300)
+    check(
+      'speaker: one tap and the class is silent',
+      (await speaker.getAttribute('data-get-ready-sound')) === 'off' && (await activeSaved(page)).getReadySilent === true,
+    )
+    await page.locator('[data-drum="10"]').click()
+    await page.waitForTimeout(900)
+    await page.evaluate(() => (window.__sounds = []))
+    await page.locator('[data-get-ready] button[aria-label="Start"]').click()
+    await page.waitForTimeout(2300)
+    await page.getByRole('button', { name: 'Ready!', exact: true }).click()
+    await page.waitForTimeout(2500)
+    const c = await activeSaved(page)
+    check(
+      'speaker: silent - no drum, taps, Ready! or coins, and the stars still land',
+      (await page.evaluate(() => window.__sounds.length)) === 0 && c.classPoints === 5,
+      `${await page.evaluate(() => window.__sounds.length)} sounds, meter ${c.classPoints}`,
+    )
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(800)
+    return page
+  },
+
+  /**
    * Get Ready! from the floating window, over the lesson: it grows to a snug rectangle of drums,
    * then to the star (no meter, the chest under Stop), and shrinks back when it is tapped away.
    */
   async 'Get Ready! in the floating window'() {
     const cls = makeClass('c1', 'Float', 12, { pointsGoal: 50, classPoints: 10 })
-    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const page = await open({ state: stateOf(cls), size: [1280, 559], before: countSounds })
     const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
     const winErrors = []
     win.on('pageerror', (e) => winErrors.push(e.message))
@@ -697,6 +784,14 @@ const scenarios = {
     check("float Get Ready!: the side panel's stands down meanwhile", await panelButton(page, 'Get Ready!').isDisabled())
     await win.setViewportSize({ width: drums[0], height: drums[1] })
     await win.waitForTimeout(800)
+    const speaker = win.locator('[data-get-ready-sound]')
+    await speaker.click()
+    await win.waitForTimeout(300)
+    check(
+      'float Get Ready!: the speaker on the drums turns the class silent',
+      (await speaker.getAttribute('data-get-ready-sound')) === 'off' && (await activeSaved(page)).getReadySilent === true,
+    )
+    await page.evaluate(() => (window.__sounds = []))
     await win.locator('[data-drum="10"]').click()
     await win.waitForTimeout(150)
     const star = (await win.evaluate(() => window.__resizes))[1]
@@ -713,6 +808,7 @@ const scenarios = {
     await win.waitForTimeout(2200)
     const c = await activeSaved(page)
     check('float Get Ready!: a full star lands in the jar', c.classPoints === 15, `meter ${c.classPoints}`)
+    check('float Get Ready!: silent, nothing played', (await page.evaluate(() => window.__sounds.length)) === 0)
     await win.mouse.click(30, 460)
     await win.waitForTimeout(700)
     check(

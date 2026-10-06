@@ -1,5 +1,6 @@
 import { assetUrl } from './assets'
 import type { AlarmSound } from '../types'
+import type { Tap, TapVoice } from './getReady'
 
 let sharedContext: AudioContext | null = null
 
@@ -438,8 +439,35 @@ function limitedMaster(ctx: AudioContext): GainNode {
 let taikoBuffer: AudioBuffer | null = null
 let taikoPending: Promise<void> | null = null
 
-/** Fetch and decode the drum ahead, while the teacher is choosing how long. */
+/**
+ * The taps between the beats: the bamboo "tok" the teacher sent and loved (trimmed to land on time,
+ * and taken down a little so its loudest moment doesn't clip) and a light rim click made for it,
+ * a short wooden knock at about 2.1kHz.
+ */
+const tapBuffers: Partial<Record<TapVoice, AudioBuffer>> = {}
+const tapPending: Partial<Record<TapVoice, Promise<void>>> = {}
+const TAP_FILES: Record<TapVoice, string> = { bamboo: '/sounds/bamboo-tok.wav', rim: '/sounds/rim-click.wav' }
+/**
+ * Each tap about 10 dB under a drum hit, measured for what a board's speaker plays (above 400Hz,
+ * loudest 50ms: a hit is -20.8 dB, a tap at these levels -30.8), so the big beat stays the loudest
+ * thing. "Just right" on the listening page.
+ */
+const TAP_GAIN: Record<TapVoice, number> = { bamboo: 0.141, rim: 0.178 }
+
+/** Fetch and decode the drum and the taps ahead, while the teacher is choosing how long. */
 export function primeTaiko(): void {
+  for (const voice of Object.keys(TAP_FILES) as TapVoice[]) {
+    if (tapBuffers[voice] || tapPending[voice]) continue
+    tapPending[voice] = fetch(assetUrl(TAP_FILES[voice]))
+      .then((r) => r.arrayBuffer())
+      .then((buf) => getContext().decodeAudioData(buf))
+      .then((decoded) => {
+        tapBuffers[voice] = decoded
+      })
+      .catch(() => {
+        delete tapPending[voice]
+      })
+  }
   if (taikoBuffer || taikoPending) return
   taikoPending = fetch(assetUrl('/sounds/taiko-hit.wav'))
     .then((r) => r.arrayBuffer())
@@ -451,6 +479,31 @@ export function primeTaiko(): void {
       taikoBuffer = null
       taikoPending = null
     })
+}
+
+/**
+ * One second's taps, played from the big hit just heard. They are set on the sound card's own
+ * clock rather than on page timers, so they stay in time even in the floating window, whose page
+ * gets about one timer a second. Returns a way to stop the ones not yet played, for Ready! or Stop
+ * in the middle of a second.
+ */
+export function playGetReadyTaps(taps: Tap[]): () => void {
+  const ctx = getContext()
+  const out = ctx.createGain()
+  out.connect(ctx.destination)
+  const now = ctx.currentTime
+  for (const [at, voice, rate] of taps) {
+    const buffer = tapBuffers[voice]
+    if (!buffer) continue
+    const source = ctx.createBufferSource()
+    const gain = ctx.createGain()
+    source.buffer = buffer
+    source.playbackRate.value = rate
+    gain.gain.value = TAP_GAIN[voice]
+    source.connect(gain).connect(out)
+    source.start(now + at)
+  }
+  return () => out.disconnect()
 }
 
 function playTaikoBuffer(ctx: AudioContext, to: AudioNode, rate: number, at = 0) {

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
-import { landingIsLoud, starsLandingIn } from '../lib/starFlight'
+import { landingIsLoud, landingIsSilent, starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
 
 interface PointsMeterProps {
@@ -128,7 +128,7 @@ export function PointsMeter({
     // what landed meanwhile is picked up then. A second party on top of the first would play
     // two fanfares at once.
     if (phaseRef.current === 'opening' || phaseRef.current === 'waiting') {
-      if (classPoints > prev.value || goalsReached > prev.reached) playCoinTick()
+      if ((classPoints > prev.value || goalsReached > prev.reached) && !landingIsSilent()) playCoinTick()
       return
     }
 
@@ -138,7 +138,7 @@ export function PointsMeter({
       setDisplayPoints(goal)
       if (holdRef.current) {
         // The last marble still lands with its tick; the party waits for the app.
-        playCoinTick()
+        if (!landingIsSilent()) playCoinTick()
         setPhase('waiting')
         return
       }
@@ -159,7 +159,8 @@ export function PointsMeter({
     // every time; the teacher took it out as one thing more than the moment needed.
     if (classPoints > prev.value) {
       setDisplayPoints(classPoints)
-      playCoinTick(landingIsLoud())
+      // A Get Ready! with its speaker off lands its stars in silence.
+      if (!landingIsSilent()) playCoinTick(landingIsLoud())
     }
   }
 

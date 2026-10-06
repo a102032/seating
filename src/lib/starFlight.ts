@@ -120,6 +120,14 @@ export function landingIsLoud(): boolean {
   return Math.abs(performance.now() - loudLandingAt) < 400
 }
 
+/** When the last of a silent Get Ready!'s stars lands. */
+let silentLandingAt = -Infinity
+
+/** Whether the stars landing now are a silent Get Ready!'s (its speaker off), so the meter doesn't ring the coin for them. */
+export function landingIsSilent(): boolean {
+  return Math.abs(performance.now() - silentLandingAt) < 400
+}
+
 /** How long Get Ready!'s stars take from the big star to the coin: longer than a desk's, as they come further. */
 const GET_READY_FLIGHT_MS = 900
 
@@ -129,6 +137,8 @@ const GET_READY_FLIGHT_MS = 900
  * Returns how long until the last one lands. The meter waits for them, as it does for a desk's.
  * A Mystery Gift's stars fly the same way from its card, with the everyday coin (`loud: false`):
  * the loud one is for Get Ready!, over a faded board.
+ *
+ * A Get Ready! with its speaker off (`silent`) lands its stars with no coin at all.
  *
  * Get Ready! in the floating window flies its stars to that window's own chest (`to`), drawn in
  * that window. The board's meter doesn't wait for those (`tracked: false`): the app is behind
@@ -140,7 +150,12 @@ export function flyStarsFrom(
   y: number,
   count: number,
   size: number,
-  { loud = true, to: target, tracked = true }: { loud?: boolean; to?: HTMLElement | null; tracked?: boolean } = {},
+  {
+    loud = true,
+    silent = false,
+    to: target,
+    tracked = true,
+  }: { loud?: boolean; silent?: boolean; to?: HTMLElement | null; tracked?: boolean } = {},
 ): number {
   const coin = target ?? document.querySelector<HTMLElement>('[data-goal-coin]')
   if (!coin || count <= 0) return 0
@@ -159,6 +174,7 @@ export function flyStarsFrom(
   const lands = (count - 1) * stagger + GET_READY_FLIGHT_MS
   if (tracked) landingAt = Math.max(landingAt, performance.now() + lands)
   if (loud) loudLandingAt = performance.now() + lands
+  if (silent) silentLandingAt = performance.now() + lands
   const gap = size * 0.85
 
   let flying = count

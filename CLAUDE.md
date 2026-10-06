@@ -93,8 +93,9 @@ checks the live URL. Confirm it went green before saying something is live.
   - `FlipTimer.tsx` / `TimerDial.tsx` / `TimerSettingsModal.tsx`: the side panel's timer, as flip digits or a Time Timer-style dial.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity. Groups are made from the seats in
     `lib/seatGroups.ts` (pairs side by side, squares of four, the room cut into patches); `lib/groups.ts` deals them and Shuffle mixes.
-  - `GetReady.tsx`: Get Ready! ("How long?", the star with its taiko drum, Ready! and Stop); its drums and prizes are in
-    `lib/getReady.ts`, its sounds in `sound.ts` and its stars' flight in `starFlight.ts` (`flyStarsFrom`).
+  - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
+    and the four rhythms of taps between the beats are in `lib/getReady.ts`, its sounds in `sound.ts` (`playGetReadyTaps`) and
+    its stars' flight in `starFlight.ts` (`flyStarsFrom`).
   - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal. `FloatingGoal.tsx`: the goal floating over the lesson
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`), with +1, Pick and Get Ready!
     (`FloatGetReady.tsx`, the app's own star in the window grown big). CSS animations only in there, and timers on the

@@ -1032,6 +1032,8 @@ export default function App() {
         open={getReadyOpen && goalLive}
         lastDrum={activeClass.getReadyDrum}
         prize={activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE}
+        silent={activeClass.getReadySilent === true}
+        onSetSilent={(silent) => setGetReady(activeClass.id, { getReadySilent: silent })}
         onChooseDrum={(seconds) => setGetReady(activeClass.id, { getReadyDrum: seconds })}
         onAward={(stars) => addToClassGoal(activeClass.id, stars)}
         onLiftMeter={setMeterLifted}
@@ -1142,6 +1144,8 @@ export default function App() {
             canStart: !getReadyOpen && !picker.isPicking && !swapMode && !attendanceMode && !choosingAvatars,
             lastDrum: activeClass.getReadyDrum,
             prize: activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE,
+            silent: activeClass.getReadySilent === true,
+            onSetSilent: (silent) => setGetReady(activeClass.id, { getReadySilent: silent }),
             onChooseDrum: (seconds) => setGetReady(activeClass.id, { getReadyDrum: seconds }),
             onAward: (stars) => addToClassGoal(activeClass.id, stars),
             onActiveChange: setFloatReadying,

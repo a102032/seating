@@ -125,6 +125,11 @@ export interface ClassData {
   /** The drum Get Ready! used last time, in seconds, outlined in "How long?" so the same job is the same tap. */
   getReadyDrum?: number
   /**
+   * Get Ready! with no sound at all, set by the speaker on "How long?" and kept until it is tapped
+   * back on (a test next door, quiet reading). The star still throbs on every beat. Unset is sound on.
+   */
+  getReadySilent?: boolean
+  /**
    * Show every student's homeroom number after their name on the board. Unset is off: the
    * number then shows only where two students share a name (lib/sameNames), which is its job.
    */

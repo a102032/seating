@@ -1,14 +1,13 @@
 import clsx from 'clsx'
+import { Volume2, VolumeX } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { assetUrl } from '../lib/assets'
-import { playGetReadyGo, playGetReadyTimeUp, playTaikoHit, primeTaiko } from '../lib/sound'
-import { GET_READY_DRUMS } from '../lib/getReady'
+import { playGetReadyGo, playGetReadyTaps, playGetReadyTimeUp, playTaikoHit, primeTaiko } from '../lib/sound'
+import { GET_READY_DRUMS, GET_READY_FULL_SECONDS as FULL_SECONDS, nextRhythm, tapsAfterBeat, type Rhythm } from '../lib/getReady'
 import { flyStarsFrom } from '../lib/starFlight'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
-/** The star stays full this long after the tap on every drum, then shrinks on every beat. */
-const FULL_SECONDS = 5
 /** The board reads one touch as two: a tap that changes what is under the finger ignores the second. */
 const TAP_GUARD_MS = 700
 /** Ready! does nothing for this long after the star is tapped, so the tap that started it can't end it. */
@@ -26,6 +25,9 @@ interface GetReadyProps {
   lastDrum?: number
   /** What a full star is worth. */
   prize: number
+  /** No sound at all: the class's choice, from the speaker on "How long?". */
+  silent: boolean
+  onSetSilent: (silent: boolean) => void
   onChooseDrum: (seconds: number) => void
   /** Ready! was tapped with this many stars left: they are on their way to the jar. */
   onAward: (stars: number) => void
@@ -42,8 +44,10 @@ interface GetReadyProps {
  * seconds, then gets a little smaller on every beat until it is gone at the drum's end. Ready!
  * sends what is left into the jar. A full star is the same prize on every drum, so a faster
  * class keeps more of it, and a job moved to a shorter drum is harder without being worth less.
+ * Soft taps play between the big beats, in one of four Japanese rhythms (lib/getReady), unless
+ * the speaker on "How long?" has turned Get Ready! silent.
  */
-export function GetReady({ open, lastDrum, prize, onChooseDrum, onAward, onLiftMeter, onClose }: GetReadyProps) {
+export function GetReady({ open, lastDrum, prize, silent, onSetSilent, onChooseDrum, onAward, onLiftMeter, onClose }: GetReadyProps) {
   const [seconds, setSeconds] = useState<number | null>(null)
   // Each opening starts at "How long?".
   const [wasOpen, setWasOpen] = useState(open)
@@ -62,6 +66,8 @@ export function GetReady({ open, lastDrum, prize, onChooseDrum, onAward, onLiftM
       <HowLong
         open={open && seconds === null}
         lastDrum={lastDrum}
+        silent={silent}
+        onSetSilent={onSetSilent}
         onChoose={(n) => {
           onChooseDrum(n)
           setSeconds(n)
@@ -69,7 +75,7 @@ export function GetReady({ open, lastDrum, prize, onChooseDrum, onAward, onLiftM
         onClose={onClose}
       />
       {open && seconds !== null && (
-        <StarMoment seconds={seconds} prize={prize} onAward={onAward} onLiftMeter={onLiftMeter} onClose={onClose} />
+        <StarMoment seconds={seconds} prize={prize} silent={silent} onAward={onAward} onLiftMeter={onLiftMeter} onClose={onClose} />
       )}
     </>
   )
@@ -83,11 +89,15 @@ export function GetReady({ open, lastDrum, prize, onChooseDrum, onAward, onLiftM
 function HowLong({
   open,
   lastDrum,
+  silent,
+  onSetSilent,
   onChoose,
   onClose,
 }: {
   open: boolean
   lastDrum?: number
+  silent: boolean
+  onSetSilent: (silent: boolean) => void
   onChoose: (seconds: number) => void
   onClose: () => void
 }) {
@@ -105,7 +115,11 @@ function HowLong({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-w-[min(54rem,calc(100vw-2rem))]" onPointerDownOutside={tooSoon} onInteractOutside={tooSoon}>
         <DialogHeader>
-          <DialogTitle>How long?</DialogTitle>
+          {/* The speaker sits on the title row, just left of the close button: the teacher's corner. */}
+          <div className="flex items-center gap-3 pr-11">
+            <DialogTitle className="flex-1">How long?</DialogTitle>
+            <SoundButton silent={silent} onTap={() => performance.now() - openedAt.current >= TAP_GUARD_MS && onSetSilent(!silent)} />
+          </div>
         </DialogHeader>
         <DialogBody>
           <div className="flex justify-center gap-[clamp(0.5rem,1.4vw,1rem)]">
@@ -172,6 +186,7 @@ type Ending = { words: string; earned?: number }
 export function StarMoment({
   seconds,
   prize,
+  silent = false,
   onAward,
   onLiftMeter,
   onClose,
@@ -184,12 +199,14 @@ export function StarMoment({
 }: {
   seconds: number
   prize: number
+  /** No sound at all: no drum, no taps, no endings, no coins. The star still throbs on every beat. */
+  silent?: boolean
   onAward: (stars: number) => void
   onLiftMeter: (lifted: boolean) => void
   onClose: () => void
   view?: Window
   measure?: (view: Window) => Layout
-  fly?: (x: number, y: number, count: number, size: number) => number
+  fly?: (x: number, y: number, count: number, size: number, options?: { silent?: boolean }) => number
   awardOnLanding?: boolean
   showWords?: boolean
   /** Shown over the faded window the whole time, ending included: the floating window's chest. */
@@ -215,6 +232,14 @@ export function StarMoment({
   }
   /** Stars in the air whose points are handed over as they land. */
   const pendingAward = useRef(0)
+  /** This time's rhythm of taps between the beats, chosen when the star is tapped; none when silent. */
+  const rhythm = useRef<Rhythm | null>(null)
+  /** Stops the taps still to come in this second, for Ready! or Stop in the middle of one. */
+  const stopTaps = useRef<(() => void) | null>(null)
+  const hushTaps = () => {
+    stopTaps.current?.()
+    stopTaps.current = null
+  }
   const starRef = useRef<HTMLDivElement>(null)
   const pulseRef = useRef<HTMLDivElement>(null)
   const drumRef = useRef<HTMLDivElement>(null)
@@ -243,6 +268,7 @@ export function StarMoment({
   useEffect(
     () => () => {
       timers.current.forEach((t) => view.clearTimeout(t))
+      stopTaps.current?.()
       // Gone before the stars landed (the floating window closed): the class still gets them.
       if (pendingAward.current) onAwardRef.current(pendingAward.current)
       pendingAward.current = 0
@@ -255,6 +281,7 @@ export function StarMoment({
   function close() {
     if (leaving) return
     clearTimers()
+    hushTaps()
     if (pendingAward.current) onAward(pendingAward.current)
     pendingAward.current = 0
     run.current.over = true
@@ -263,8 +290,11 @@ export function StarMoment({
     later(onClose, 450)
   }
 
-  /** One beat: a stick swings down, and as it meets the skin the hit sounds, the drum gives a little and the star throbs once. */
-  function beat(onHit?: () => void, both = false) {
+  /**
+   * One beat: a stick swings down, and as it meets the skin the hit sounds, the drum gives a little
+   * and the star throbs once. Beat number `gap` also starts the taps for the second after it.
+   */
+  function beat(gap: number, onHit?: () => void, both = false) {
     const right = run.current.beats % 2 === 1
     run.current.beats += 1
     const sticks = both ? [leftStick, rightStick] : [right ? rightStick : leftStick]
@@ -283,8 +313,11 @@ export function StarMoment({
     later(
       () => {
         if (run.current.over) return
-        if (both) playGetReadyTimeUp()
-        else playTaikoHit(right)
+        if (!silent) {
+          if (both) playGetReadyTimeUp()
+          else playTaikoHit(right)
+        }
+        if (rhythm.current) stopTaps.current = playGetReadyTaps(tapsAfterBeat(rhythm.current, gap, seconds))
         if (!reduceMotion.current) {
           drumRef.current?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.05, 0.92)' }, { transform: 'scale(1)' }], {
             duration: 220,
@@ -318,6 +351,7 @@ export function StarMoment({
   function start(e: MouseEvent) {
     if (started || e.timeStamp - run.current.mountedAt < TAP_GUARD_MS) return
     run.current.startedAt = e.timeStamp
+    rhythm.current = silent ? null : nextRhythm()
     setStarted(true)
     later(() => setReadyLive(true), READY_AFTER_MS)
     const shrinking = seconds - FULL_SECONDS
@@ -326,9 +360,9 @@ export function StarMoment({
       later(
         () => {
           if (run.current.over) return
-          if (k <= 0) beat()
-          else if (k < shrinking) beat(() => shrinkTo(1 - k / shrinking))
-          else beat(() => shrinkTo(0), true)
+          if (k <= 0) beat(b)
+          else if (k < shrinking) beat(b, () => shrinkTo(1 - k / shrinking))
+          else beat(b, () => shrinkTo(0), true)
         },
         Math.max(0, b * 1000 - SWING_MS),
       )
@@ -341,11 +375,12 @@ export function StarMoment({
     if (!r.startedAt || e.timeStamp - r.startedAt < READY_AFTER_MS || r.over) return
     r.over = true
     clearTimers()
+    hushTaps()
     const n = r.left
-    playGetReadyGo()
+    if (!silent) playGetReadyGo()
     const box = starRef.current?.getBoundingClientRect()
     onLiftMeter(true)
-    const lands = box ? fly(box.left + box.width / 2, box.top + box.height * 0.525, n, layout.s * 0.09) : 0
+    const lands = box ? fly(box.left + box.width / 2, box.top + box.height * 0.525, n, layout.s * 0.09, { silent }) : 0
     if (awardOnLanding && lands > 0) {
       pendingAward.current = n
       later(() => {
@@ -373,6 +408,7 @@ export function StarMoment({
   return (
     <div
       data-get-ready=""
+      data-rhythm={started ? (rhythm.current?.name ?? 'silent') : undefined}
       className={clsx(
         // Clipped, not hidden: an overflow-hidden box can still scroll, and tapping the star (whose
         // square box can run past the window's edge) scrolled it to show the whole box.
@@ -476,6 +512,34 @@ export function StarMoment({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * The speaker on "How long?": one tap turns Get Ready! silent for this class, and it stays that way
+ * until tapped back on (2026-10-06, the teacher: a simple way to pick no sound - a test next door,
+ * quiet reading). A picture rather than words: a speaker, or a speaker struck through.
+ */
+export function SoundButton({ silent, onTap, className }: { silent: boolean; onTap: () => void; className?: string }) {
+  const Icon = silent ? VolumeX : Volume2
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      aria-pressed={silent}
+      aria-label={silent ? 'No sound. Tap for sound' : 'Sound on. Tap for no sound'}
+      title={silent ? 'No sound' : 'Sound on'}
+      data-get-ready-sound={silent ? 'off' : 'on'}
+      className={clsx(
+        'flex size-11 shrink-0 items-center justify-center rounded-full transition-[background-color,scale] active:scale-95',
+        // Off is a soft red, so a silent class is plain at a glance.
+        silent ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300' : 'bg-primary/10 text-foreground hover:bg-primary/20',
+        className,
+      )}
+      style={{ touchAction: 'manipulation' }}
+    >
+      <Icon className="size-6" />
+    </button>
   )
 }
 

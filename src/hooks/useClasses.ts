@@ -492,7 +492,8 @@ export function useClasses() {
   )
 
   const setGetReady = useCallback(
-    (classId: string, patch: Pick<ClassData, 'getReadyPrize' | 'getReadyDrum'>) => updateClass(classId, (c) => ({ ...c, ...patch })),
+    (classId: string, patch: Partial<Pick<ClassData, 'getReadyPrize' | 'getReadyDrum' | 'getReadySilent'>>) =>
+      updateClass(classId, (c) => ({ ...c, ...patch })),
     [updateClass],
   )
 

@@ -31,6 +31,9 @@ interface FloatingGoalProps {
     canStart: boolean
     lastDrum?: number
     prize: number
+    /** No sound, from the speaker on the drums. */
+    silent: boolean
+    onSetSilent: (silent: boolean) => void
     onChooseDrum: (seconds: number) => void
     onAward: (stars: number) => void
     /** It started or ended here, so the side panel's Get Ready! stands down meanwhile. */
@@ -340,6 +343,8 @@ export function FloatingGoal({
         win={win}
         lastDrum={getReady.lastDrum}
         prize={getReady.prize}
+        silent={getReady.silent}
+        onSetSilent={getReady.onSetSilent}
         onChooseDrum={getReady.onChooseDrum}
         onStar={() => growth.current?.toStar()}
         onAward={getReady.onAward}

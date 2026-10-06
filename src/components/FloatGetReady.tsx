@@ -5,7 +5,7 @@ import { assetUrl } from '../lib/assets'
 import { FLOAT_DRUMS, GET_READY_DRUMS, controlButtonHeight, controlButtonWidth } from '../lib/getReady'
 import { primeTaiko } from '../lib/sound'
 import { flyStarsFrom } from '../lib/starFlight'
-import { StarMoment, type Layout } from './GetReady'
+import { SoundButton, StarMoment, type Layout } from './GetReady'
 
 /** The board reads one touch as two: the tap that opened the drums lands again on whatever is under it now. */
 const TAP_GUARD_MS = 700
@@ -37,6 +37,8 @@ interface FloatGetReadyProps {
   win: Window
   lastDrum?: number
   prize: number
+  silent: boolean
+  onSetSilent: (silent: boolean) => void
   onChooseDrum: (seconds: number) => void
   /** A drum was chosen: the window grows from the drums to the star. */
   onStar: () => void
@@ -53,7 +55,7 @@ interface FloatGetReadyProps {
  * the window is all star. Every timer and animation here runs on the floating window's clock,
  * because the app's page behind the lesson gets about one timer a second.
  */
-export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onStar, onAward, onClose }: FloatGetReadyProps) {
+export function FloatGetReady({ win, lastDrum, prize, silent, onSetSilent, onChooseDrum, onStar, onAward, onClose }: FloatGetReadyProps) {
   const [seconds, setSeconds] = useState<number | null>(null)
   // The drum is fetched while the teacher chooses, so the first hit isn't a fallback knock.
   useEffect(() => primeTaiko(), [])
@@ -63,6 +65,8 @@ export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onStar, onAw
       <HowLong
         win={win}
         lastDrum={lastDrum}
+        silent={silent}
+        onSetSilent={onSetSilent}
         onChoose={(n) => {
           onStar()
           onChooseDrum(n)
@@ -77,13 +81,14 @@ export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onStar, onAw
       <StarMoment
         seconds={seconds}
         prize={prize}
+        silent={silent}
         onAward={onAward}
         onLiftMeter={() => {}}
         onClose={onClose}
         view={win}
         measure={measureFloat}
-        fly={(x, y, count, size) =>
-          flyStarsFrom(x, y, count, size, { to: win.document.querySelector<HTMLElement>('[data-float-coin]'), tracked: false })
+        fly={(x, y, count, size, options) =>
+          flyStarsFrom(x, y, count, size, { ...options, to: win.document.querySelector<HTMLElement>('[data-float-coin]'), tracked: false })
         }
         awardOnLanding
         showWords={false}
@@ -130,11 +135,15 @@ function Chest({ win }: { win: Window }) {
 function HowLong({
   win,
   lastDrum,
+  silent,
+  onSetSilent,
   onChoose,
   onClose,
 }: {
   win: Window
   lastDrum?: number
+  silent: boolean
+  onSetSilent: (silent: boolean) => void
   onChoose: (seconds: number) => void
   onClose: () => void
 }) {
@@ -146,7 +155,8 @@ function HowLong({
   return (
     <div data-ink="panel" className="flex h-full w-full flex-col justify-center bg-card" style={{ padding: pad }}>
       <div className="flex shrink-0 items-center justify-between gap-2" style={{ height: titleHeight }}>
-        <h2 className="text-xl font-bold text-foreground">How long?</h2>
+        <h2 className="flex-1 text-xl font-bold text-foreground">How long?</h2>
+        <SoundButton silent={silent} onTap={() => settled() && onSetSilent(!silent)} className="size-10" />
         <button
           type="button"
           onClick={() => settled() && onClose()}
