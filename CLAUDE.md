@@ -130,7 +130,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
   `dist/move-extension/class-yes-move.zip`. `scripts/move-extension-check.mjs` loads it into Chromium against a build
   served at localhost (the only other address it answers). Linux has no window frames or screen scaling, so
   `.github/workflows/move-extension.yml` runs `scripts/move-extension-windows.mjs` on GitHub's Windows computers too, at 100%
-  and with Windows set to 150% (where Chrome's moves first grew the window): read its results before saying the grip works.
+  and with Windows set to 125%, 150% and 175% (where Chrome's moves first grew the window, then wobbled it), checking the size
+  Chrome gives back on every move: read its results before saying the grip works.
 - localStorage keys all start with `seating-chart-` and end in `-v1` (the main state is `seating-chart-state-v1`).
 
 ## Conventions
