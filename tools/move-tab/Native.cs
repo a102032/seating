@@ -158,6 +158,8 @@ namespace ClassYesMove
         [DllImport("user32.dll")] public static extern uint SendInput(uint count, INPUT[] inputs, int size);
         [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
         [DllImport("user32.dll")] public static extern IntPtr SetCapture(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern uint GetMessagePos();
+        [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")] public static extern bool ReleaseCapture();
         [DllImport("user32.dll", SetLastError = true)] public static extern bool InitializeTouchInjection(uint maxCount, uint mode);
         [DllImport("user32.dll", SetLastError = true)] public static extern bool InjectTouchInput(uint count, [In] POINTER_TOUCH_INFO[] contacts);

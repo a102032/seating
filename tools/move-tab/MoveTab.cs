@@ -195,18 +195,18 @@ namespace ClassYesMove
                     if (!dragging)
                     {
                         Native.SetCapture(Handle);
-                        BeginDrag(CursorAt(), 0, mouse: true);
+                        BeginDrag(MessageAt(), 0, mouse: true);
                     }
                     m.Result = IntPtr.Zero;
                     return;
                 case Native.WM_MOUSEMOVE:
-                    if (dragging && byMouse) DragTo(CursorAt());
+                    if (dragging && byMouse) DragTo(MessageAt());
                     m.Result = IntPtr.Zero;
                     return;
                 case Native.WM_LBUTTONUP:
                     if (dragging && byMouse)
                     {
-                        DragTo(CursorAt());
+                        DragTo(MessageAt());
                         EndDrag();
                         Native.ReleaseCapture();
                     }
@@ -249,10 +249,14 @@ namespace ClassYesMove
             return true;
         }
 
-        static Native.POINT CursorAt()
+        /// <summary>
+        /// Where the mouse was when this message happened - not where it is now, which a quick flick
+        /// has already left by the time the message is handled.
+        /// </summary>
+        static Native.POINT MessageAt()
         {
-            var p = System.Windows.Forms.Cursor.Position;
-            return new Native.POINT(p.X, p.Y);
+            uint pos = Native.GetMessagePos();
+            return new Native.POINT((short)(pos & 0xFFFF), (short)(pos >> 16));
         }
 
         void BeginDrag(Native.POINT at, uint id, bool mouse)

@@ -84,6 +84,7 @@ namespace ClassYesMove
             Note("Windows " + Environment.OSVersion.Version + ", screen " + Screen.PrimaryScreen.Bounds + ", scale " + Scale());
             double s = Scale();
             stand.Bounds = new Rectangle(300, 220, (int)(340 * s), (int)(180 * s));
+            Note("before the tab, " + Focus());
             helper = new Helper();
             MoveTab tab = helper.Tab;
 
@@ -95,6 +96,7 @@ namespace ClassYesMove
                 return;
             }
             await Task.Delay(300);
+            Note("tab shown, " + Focus());
             Shot("1-attached");
             CheckAttached("the tab sits centred under the window", below: true);
 
@@ -104,6 +106,7 @@ namespace ClassYesMove
             int dx = (int)(180 * s), dy = (int)(-110 * s);
             Native.SetCursorPos(c.X, c.Y);
             await Task.Delay(60);
+            // Pressed and moved straight away, as a quick flick would be.
             Mouse(Native.MOUSEEVENTF_LEFTDOWN);
             for (int i = 1; i <= 12; i++)
             {
@@ -112,6 +115,7 @@ namespace ClassYesMove
             }
             Mouse(Native.MOUSEEVENTF_LEFTUP);
             await Task.Delay(400);
+            Note("mouse up, " + Focus());
             var after = Window();
             Check("a mouse drag on the tab moves the window", Near(after.Left - before.Left, dx) && Near(after.Top - before.Top, dy), $"moved {after.Left - before.Left},{after.Top - before.Top} for {dx},{dy}");
             Shot("2-after-mouse-drag");
@@ -248,7 +252,14 @@ namespace ClassYesMove
             }
         }
 
-        [DllImport("user32.dll")]
-        static extern IntPtr GetForegroundWindow();
+        static IntPtr GetForegroundWindow() => Native.GetForegroundWindow();
+
+        /// <summary>Which window has the focus, by name.</summary>
+        string Focus()
+        {
+            var f = Native.GetForegroundWindow();
+            string who = f == IntPtr.Zero ? "none" : f == stand.Handle ? "the stand-in" : helper != null && f == helper.Tab.Handle ? "THE TAB" : "\"" + Native.TitleOf(f) + "\" (" + Native.ClassOf(f) + ")";
+            return "focus: " + who;
+        }
     }
 }
