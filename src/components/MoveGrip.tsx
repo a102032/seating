@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import type { Mover } from '../lib/moveExtension'
 import { MoveHandIcon } from './MoveHandIcon'
 
-/** A slide under way: where the finger started, and the window's place when it did. */
+/** A slide under way: where the finger started, and the window's place and size when it did. */
 interface Slide {
   pointerId: number
   x: number
@@ -12,22 +12,29 @@ interface Slide {
   id: number | null
   left: number
   top: number
-  /** Its size when the slide began, kept the whole way. */
+  /** Its size by the extension's count, kept the whole way. */
   width: number
   height: number
-  /** How much bigger than asked Chrome made it on the last move, to ask that much smaller next time. */
-  growW: number
-  growH: number
+  /** Its size as its own page measures it, to see afterwards whether Chrome kept it. */
+  outerWidth: number
+  outerHeight: number
   dx: number
   dy: number
+  /** Where the last move put it. */
+  at: [number, number]
   /** The finger has moved since the window last did. */
   pending: boolean
   /** A move is on its way: the next waits for it, so a fast finger never queues up a backlog. */
   busy: boolean
+  /** The finger has lifted. */
+  done: boolean
 }
 
 /** The width the grip takes in the strip, so the strip grows by this when it has one. */
 export const GRIP_ROOM = 44
+
+/** The most the size asked for is ever trimmed by, so a wrong measurement can't shrink the window away. */
+const MOST_TRIM = 60
 
 /**
  * The hand grip: a finger slid on it moves the floating window, through the Class? Yes! Move
@@ -38,6 +45,14 @@ export const GRIP_ROOM = 44
 export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; strip: boolean }) {
   const slide = useRef<Slide | null>(null)
   const [sliding, setSliding] = useState(false)
+  /**
+   * How much smaller than the size it should keep to ask for. On the teacher's laptop Chrome grew
+   * the window a little every time it was moved by its place alone, until it was nearly the whole
+   * screen, so every move now names the size too; if Chrome still adds to it, that is measured once
+   * the window has settled after a slide - never from Chrome's answers mid-slide, which lag behind
+   * and, corrected by, shrank the window instead on GitHub's Windows computer.
+   */
+  const trim = useRef({ w: 0, h: 0 })
 
   /**
    * Kept wholly on the screen: Chrome refuses a move that leaves less than half the window on it,
@@ -53,25 +68,37 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
     ]
   }
 
+  function sizeFor(s: Slide) {
+    return { width: s.width - trim.current.w, height: s.height - trim.current.h }
+  }
+
   function send(s: Slide) {
-    if (s.id === null || s.busy || !s.pending) return
+    if (s.id === null || s.busy) return
+    if (!s.pending) {
+      if (s.done) settle(s)
+      return
+    }
     s.pending = false
     s.busy = true
-    const [left, top] = onScreen(s.left + s.dx, s.top + s.dy)
-    // The size goes with every move: on the teacher's laptop Chrome grew the window a little each
-    // time it was moved by its place alone, until it was nearly the whole screen. Whatever Chrome
-    // still adds is measured from its answer and asked for that much smaller next time.
-    const width = Math.round(s.width / s.growW)
-    const height = Math.round(s.height / s.growH)
-    void mover.move(s.id, { left, top, width, height }).then((got) => {
-      if (got && got.width > 0 && got.height > 0) {
-        s.growW = Math.min(2, Math.max(0.5, got.width / width))
-        s.growH = Math.min(2, Math.max(0.5, got.height / height))
-      }
+    s.at = onScreen(s.left + s.dx, s.top + s.dy)
+    void mover.move(s.id, { left: s.at[0], top: s.at[1], ...sizeFor(s) }).then(() => {
       s.busy = false
       // The finger's last place counts even if it got there while this move was on its way.
       send(s)
     })
+  }
+
+  /** After the slide, once the window has settled: if Chrome grew it, put it back and remember by how much. */
+  function settle(s: Slide) {
+    // The floating window's own clock: the app's page behind the lesson gets about one timer a second.
+    win.setTimeout(() => {
+      const grewW = win.outerWidth - s.outerWidth
+      const grewH = win.outerHeight - s.outerHeight
+      if (s.id === null || (Math.abs(grewW) <= 1 && Math.abs(grewH) <= 1)) return
+      const keep = (n: number) => Math.max(-MOST_TRIM, Math.min(MOST_TRIM, n))
+      trim.current = { w: keep(trim.current.w + grewW), h: keep(trim.current.h + grewH) }
+      void mover.move(s.id, { left: s.at[0], top: s.at[1], ...sizeFor(s) })
+    }, 250)
   }
 
   function follow(e: PointerEvent, s: Slide) {
@@ -92,20 +119,22 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
         if (slide.current) return
         e.currentTarget.setPointerCapture(e.pointerId)
         const s: Slide = {
-          width: 0,
-          height: 0,
-          growW: 1,
-          growH: 1,
           pointerId: e.pointerId,
           x: e.screenX,
           y: e.screenY,
           id: null,
           left: 0,
           top: 0,
+          width: 0,
+          height: 0,
+          outerWidth: win.outerWidth,
+          outerHeight: win.outerHeight,
           dx: 0,
           dy: 0,
+          at: [0, 0],
           pending: false,
           busy: false,
+          done: false,
         }
         slide.current = s
         setSliding(true)
@@ -126,12 +155,16 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
       onPointerUp={(e) => {
         const s = slide.current
         if (!s || e.pointerId !== s.pointerId) return
+        s.done = true
         follow(e, s)
         slide.current = null
         setSliding(false)
       }}
       onPointerCancel={(e) => {
-        if (slide.current?.pointerId !== e.pointerId) return
+        const s = slide.current
+        if (s?.pointerId !== e.pointerId) return
+        s.done = true
+        send(s)
         slide.current = null
         setSliding(false)
       }}

@@ -33,9 +33,12 @@ const STATE = {
 }
 const TEACHER = { uid: 'move-check', firstName: 'Test', email: 'test@example.com', dirty: [], deleted: [] }
 
-/** The whole check at one screen scaling. */
+/**
+ * The whole check at one scaling: 1 is whatever Windows is set to (the workflow runs it again after
+ * setting Windows to 150%); anything else is Chromium told to act as if Windows were set to it.
+ */
 async function run(scale) {
-  at = `${scale * 100}%: `
+  at = scale === 1 ? 'as Windows is: ' : `as if ${scale * 100}%: `
   const context = await chromium.launchPersistentContext(mkdtempSync(`${tmpdir()}/move-win-`), {
     // Shown on the desktop on Windows; HEADLESS=1 runs it here, where a window has no frame.
     headless: process.env.HEADLESS === '1',
@@ -48,7 +51,7 @@ async function run(scale) {
       '--window-size=1000,700',
       '--window-position=0,0',
       // As if Windows' scaling were set this high: the teacher's laptop and board are scaled.
-      `--force-device-scale-factor=${scale}`,
+      ...(scale === 1 ? [] : [`--force-device-scale-factor=${scale}`]),
     ],
   })
   let sw = null
@@ -74,6 +77,24 @@ async function run(scale) {
   await page.goto(URL)
   await page.locator('.splash-board button').first().click()
   await page.waitForTimeout(1200)
+  // Every move the grip asks for, and what came back.
+  await page.evaluate(() => {
+    window.__moves = []
+    const rt = window.chrome.runtime
+    const send = rt.sendMessage.bind(rt)
+    rt.sendMessage = (id, msg, reply) =>
+      send(id, msg, (answer) => {
+        if (msg.move)
+          window.__moves.push([
+            msg.move.left,
+            msg.move.top,
+            msg.move.width,
+            msg.move.height,
+            answer && [answer.left, answer.top, answer.width, answer.height],
+          ])
+        reply(answer)
+      })
+  })
   const [win] = await Promise.all([context.waitForEvent('page'), page.locator('aside button', { hasText: 'Float' }).click()])
   await win.waitForLoadState()
   await win.waitForTimeout(2000)
@@ -95,7 +116,7 @@ async function run(scale) {
       const d = Math.abs(w.left - left) + Math.abs(w.top - top) + Math.abs(w.width - width) + Math.abs(w.height - height)
       if (d < off) [best, off] = [w, d]
     }
-    const log = { found: [best.left, best.top, best.width, best.height], off, leftTopOnly: [], withSize: [] }
+    const log = { id: best.id, found: [best.left, best.top, best.width, best.height], off, leftTopOnly: [], withSize: [] }
     for (let i = 1; i <= 5; i++) {
       const w = await chrome.windows
         .update(best.id, { left: best.left + 10 * i, top: best.top + 5 * i })
@@ -119,6 +140,20 @@ async function run(scale) {
   note(`Chrome's own answer: ${JSON.stringify(probe)}`)
   const afterProbe = await outer()
   note(`after the probe, the page sees: ${JSON.stringify(afterProbe)}`)
+  check(
+    "Chrome's windows API keeps the size when it moves the window by its place alone",
+    probe.leftTopOnly.every((b) => Array.isArray(b) && b[2] === probe.found[2] && b[3] === probe.found[3]),
+    JSON.stringify(probe.leftTopOnly),
+  )
+  // Somewhere in the middle at the app's own size, so a slide can go any way.
+  await sw.evaluate((id) => chrome.windows.update(id, { left: 300, top: 150, width: 360, height: 220 }), probe.id)
+  await win.waitForTimeout(800)
+  note(`set to the middle: ${JSON.stringify(await outer())}`)
+  const moves = async () => {
+    const all = await page.evaluate(() => window.__moves.splice(0))
+    const sizes = [...new Set(all.map((m) => `${m[2]}x${m[3]} -> ${m[4] ? `${m[4][2]}x${m[4][3]}` : 'failed'}`))]
+    return `${all.length} moves; size asked -> size Chrome gave: ${sizes.join(', ')}`
+  }
 
   /** A finger slid on the grip: pointer events with their own screen positions. */
   async function slide(dx, dy, still = 0) {
@@ -165,6 +200,7 @@ async function run(scale) {
   let before = await outer()
   await slide(-120, -60)
   let after = await outer()
+  note(await moves())
   check(
     'sliding the grip moves the window by the slide',
     after.left - before.left === -120 && after.top - before.top === -60,
@@ -179,6 +215,7 @@ async function run(scale) {
   before = after
   await slide(80, 40, 40)
   after = await outer()
+  note(await moves())
   check(
     'held still a while, then slid, it moves by the slide',
     after.left - before.left === 80 && after.top - before.top === 40,
@@ -189,10 +226,26 @@ async function run(scale) {
     after.width === before.width && after.height === before.height,
     `${before.width}x${before.height} to ${after.width}x${after.height}`,
   )
+
+  // A finger held on the grip for a few seconds, as the teacher's was when the window kept growing.
+  before = after
+  await slide(30, 20, 120)
+  after = await outer()
+  note(await moves())
+  check(
+    'held on the grip for seconds, the window moves by the slide',
+    after.left - before.left === 30 && after.top - before.top === 20,
+    `${JSON.stringify(before)} to ${JSON.stringify(after)}`,
+  )
+  check(
+    'and is still the same size',
+    after.width === before.width && after.height === before.height,
+    `${before.width}x${before.height} to ${after.width}x${after.height}`,
+  )
   await win.screenshot({ path: `${tmpdir()}/move-win-after.png` }).catch(() => {})
   await context.close()
 }
 
-for (const scale of [1, 1.5]) await run(scale)
+for (const scale of (process.env.SCALES || '1,1.5').split(',').map(Number)) await run(scale)
 console.log(failures ? `${failures} failed` : 'All passed')
 process.exit(failures ? 1 : 0)
