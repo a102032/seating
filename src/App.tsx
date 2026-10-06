@@ -9,6 +9,8 @@ import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
 import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
 import { FloatingGoal } from './components/FloatingGoal'
+import { SetupGuide } from './components/SetupGuide'
+import { GUIDE_STEPS, nextStep, rememberGuideDone, shouldGuide, type GuideStepId } from './lib/setupGuide'
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
 import { GroupExitModal } from './components/GroupExitModal'
@@ -191,6 +193,10 @@ export default function App() {
   const appInFront = useAppInFront()
   /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
   const [goalWaiting, setGoalWaiting] = useState(false)
+  /** The guided first setup's step, while it runs (lib/setupGuide). */
+  const [guideStep, setGuideStep] = useState<GuideStepId | null>(null)
+  /** How many students the class had as the step began: adding some moves "Add your students" on. */
+  const [guideStudents, setGuideStudents] = useState(0)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
   const [floatReadying, setFloatReadying] = useState(false)
   if (!floatWin && floatReadying) setFloatReadying(false)
@@ -397,6 +403,41 @@ export default function App() {
   }
 
   /**
+   * The guided setup moves the teacher from one step to the next, opening the window each step
+   * happens in: a tab of Class Settings, Pickers & Points, or neither for the last word.
+   */
+  function goToStep(id: GuideStepId | null) {
+    if (id === null) {
+      endGuide()
+      return
+    }
+    const place = GUIDE_STEPS.find((step) => step.id === id)!.place
+    setGuideStep(id)
+    setGuideStudents(activeClass?.students.length ?? 0)
+    if (typeof place === 'object') {
+      setPickerSettingsOpen(false)
+      openSettings(place.settings)
+    } else {
+      setSettingsOpen(false)
+      setPickerSettingsOpen(place === 'pickers')
+    }
+  }
+
+  function startGuide() {
+    if (activeClass) goToStep(nextStep(null, activeClass))
+  }
+
+  function advanceGuide() {
+    if (activeClass) goToStep(nextStep(guideStep, activeClass))
+  }
+
+  /** Done or skipped: not offered by itself again on this board (Guide Me brings it back). */
+  function endGuide() {
+    setGuideStep(null)
+    if (cloud.account) rememberGuideDone(cloud.account.uid)
+  }
+
+  /**
    * A brand-new teacher's first sign-in goes straight to setting up a class: the splash steps
    * aside and Class Settings opens on the Class tab, on the empty class useClasses already made
    * (so not a second one beside it). Only for a sign-in made here and now, onto a fresh board -
@@ -415,6 +456,8 @@ export default function App() {
     if (fresh && splashOpen) {
       setSplashOpen(false)
       openSettings('class')
+      // Their first class: the guided setup walks them through it.
+      if (shouldGuide(cloud.account.uid, classes)) startGuide()
     }
     // Only the moment the account arrives counts; classes and the splash are read as they are then.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -587,6 +630,9 @@ export default function App() {
     return <div className="flex h-full w-full items-center justify-center text-neutral-400">Loading...</div>
   }
 
+  // "Add your students" moves on by itself once a list is in.
+  if (guideStep === 'students' && activeClass.students.length > guideStudents) advanceGuide()
+
   /**
    * The goal's controls, at the top of the side panel where the class's name is when there's no
    * goal: Get Ready! and Float. Float belonged on the meter, because the meter is what floats,
@@ -726,6 +772,7 @@ export default function App() {
               createClass()
               setSplashOpen(false)
               openSettings('class')
+              if (shouldGuide(cloud.account?.uid, classes)) startGuide()
             }}
             account={cloud.account}
             signingIn={cloud.signingIn}
@@ -943,7 +990,10 @@ export default function App() {
 
       <PickersPointsModal
         open={pickerSettingsOpen}
-        onClose={() => setPickerSettingsOpen(false)}
+        onClose={() => {
+          setPickerSettingsOpen(false)
+          if (guideStep === 'goal') advanceGuide()
+        }}
         settings={picker.settings}
         onUpdateSettings={picker.updateSettings}
         activeClass={activeClass}
@@ -991,7 +1041,11 @@ export default function App() {
       <ClassSettingsModal
         open={settingsOpen}
         initialTab={settingsTab}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false)
+          if (guideStep === 'seat') advanceGuide()
+          else if (guideStep && typeof GUIDE_STEPS.find((step) => step.id === guideStep)?.place === 'object') endGuide()
+        }}
         activeClass={activeClass}
         classes={classes}
         classesCount={classes.length}
@@ -1004,7 +1058,11 @@ export default function App() {
         onAssignAvatars={(themeId, options) => assignAvatars(activeClass.id, themeId, options)}
         onDeleteStudent={(studentId) => deleteStudent(activeClass.id, studentId)}
         onUnseatStudent={(studentId) => unseatStudent(activeClass.id, studentId)}
-        onCreateClass={() => createClass()}
+        onCreateClass={() => {
+          createClass()
+          if (shouldGuide(cloud.account?.uid, classes)) startGuide()
+        }}
+        onGuideMe={startGuide}
         onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
@@ -1036,6 +1094,8 @@ export default function App() {
         cloud={cloud}
         onSwitchTeacher={openSwitchTeacher}
       />
+
+      {guideStep && !splashOpen && <SetupGuide step={guideStep} onNext={advanceGuide} onSkip={endGuide} />}
 
       {floatWin && goalLive && (
         <FloatingGoal

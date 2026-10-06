@@ -13,6 +13,7 @@ import {
   Plus,
   Pointer,
   School,
+  Signpost,
   Smile,
   Star,
   Trash2,
@@ -86,6 +87,8 @@ interface ClassSettingsModalProps {
   onDeleteStudent: (studentId: string) => void
   onUnseatStudent: (studentId: string) => void
   onCreateClass: () => void
+  /** Start the guided setup for this class. */
+  onGuideMe: () => void
   onDeleteClass: () => void
   onUnseatAll: () => void
   onSeatClass: () => void
@@ -198,6 +201,7 @@ export function ClassSettingsModal({
   onDeleteStudent,
   onUnseatStudent,
   onCreateClass,
+  onGuideMe,
   onDeleteClass,
   onUnseatAll,
   onSeatClass,
@@ -430,6 +434,12 @@ export function ClassSettingsModal({
     setWasOpen(open)
     if (open) setTab(initialTab)
   }
+  // The guided setup moves from the Class tab to the Students tab with the window open.
+  const [askedTab, setAskedTab] = useState(initialTab)
+  if (initialTab !== askedTab) {
+    setAskedTab(initialTab)
+    if (open) setTab(initialTab)
+  }
 
   function closeAndReset() {
     setImportNote(null)
@@ -474,17 +484,24 @@ export function ClassSettingsModal({
         // so it lands on the Class tab, as from the splash. Pulled in top and bottom so the
         // header is no taller than the title.
         headerAction={
-          <TactileButton
-            onClick={() => {
-              onCreateClass()
-              setTab('class')
-            }}
-            disabled={classesCount >= MAX_CLASSES}
-            className={clsx('-my-1.5 !py-1.5', classesCount >= MAX_CLASSES && 'opacity-40')}
-            title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
-          >
-            <Plus size={16} /> New Class
-          </TactileButton>
+          <div className="flex items-center gap-2">
+            <TactileButton
+              onClick={() => {
+                onCreateClass()
+                setTab('class')
+              }}
+              disabled={classesCount >= MAX_CLASSES}
+              className={clsx('-my-1.5 !py-1.5', classesCount >= MAX_CLASSES && 'opacity-40')}
+              title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
+            >
+              <Plus size={16} /> New Class
+            </TactileButton>
+            {/* The guided setup again, for this class, any time (it runs by itself once, for a
+                teacher's first class). */}
+            <TactileButton onClick={onGuideMe} className="-my-1.5 !py-1.5" data-guide-me="">
+              <Signpost size={16} /> Guide Me
+            </TactileButton>
+          </div>
         }
       >
         {/* Closer on a short screen, so the Class tab's room layouts fit on the teacher's own
@@ -519,7 +536,7 @@ export function ClassSettingsModal({
                   avatars off without losing them - each student's pick waits for them to come
                   back on - and says so under it, since a board can't show a tooltip. Both
                   sentences share one cell, so flipping it doesn't move anything. */}
-              <section className="flex shrink-0 items-center gap-3 pl-1">
+              <section className="flex shrink-0 items-center gap-3 pl-1" data-guide="avatars">
                 <Switch id="avatars-on" checked={!activeClass.avatarsOff} onCheckedChange={(on) => onSetAvatarsOff(!on)} />
                 <div className="min-w-0 flex-1">
                   <Label htmlFor="avatars-on" className="cursor-pointer text-foreground">
@@ -596,7 +613,7 @@ export function ClassSettingsModal({
                         save), then a file - Excel or CSV - and, signed in, Google Sheets. */}
                     <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
                       <Popover.Trigger asChild>
-                        <TactileButton className="!py-1.5">
+                        <TactileButton className="!py-1.5" data-guide="import">
                           <Upload size={16} /> Import <ChevronDown size={14} />
                         </TactileButton>
                       </Popover.Trigger>
@@ -688,7 +705,7 @@ export function ClassSettingsModal({
                   {activeClass.students.length === 0 ? (
                     // An empty class says how to fill it, where the roster will be: the help where
                     // it is needed, rather than in a walkthrough read once.
-                    <div className="flex flex-col items-center gap-3 p-5 text-center">
+                    <div className="flex flex-col items-center gap-3 p-5 text-center" data-guide="students-empty">
                       <p className="text-lg font-bold text-foreground">Copy your student list from Excel and paste it here.</p>
                       <div className="flex flex-wrap justify-center gap-2">
                         <TactileButton variant="primary" onClick={() => setPasteText('')}>
@@ -749,6 +766,7 @@ export function ClassSettingsModal({
                 </TactileButton>
                 <TactileButton
                   variant="primary"
+                  data-guide="seat"
                   disabled={unseatedCount === 0}
                   className={clsx('shrink-0', unseatedCount === 0 && 'opacity-40')}
                   title="Put every student without a desk into an empty one"
@@ -808,7 +826,7 @@ export function ClassSettingsModal({
                   switch shares the heading row, so it costs the tab no height: at 1024x640 a row
                   of its own fell below the window's edge. Off, a number shows only after a name
                   two students share - the app finds them (lib/sameNames). */}
-              <section className="shrink-0">
+              <section className="shrink-0" data-guide="layout">
                 <div className="mb-1.5 flex items-center gap-3">
                   <Label>
                     Room Layout <span className="font-normal">(this class)</span>

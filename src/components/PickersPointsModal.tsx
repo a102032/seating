@@ -470,56 +470,59 @@ export function PickersPointsModal({
           <Separator className="lg:hidden" />
 
           <section className="flex min-w-0 flex-1 flex-col gap-2.5">
-            {/* Side by side, so the second switch costs the modal no height. */}
-            <div className="flex flex-col gap-2.5 sm:flex-row">
-              <ToggleRow
-                label="Class Goal"
-                onDescription="The goal meter shows at the top of the board."
-                offDescription="No meter on the board at all, and nothing for the class to ask about."
-                checked={goalOn}
-                onCheckedChange={toggleGoal}
-              />
-              {/* Straight to the goal by default: the board shows the jar the class fills
+            {/* The guided setup lights the switch and the goal, not the celebrations under them. */}
+            <div className="flex flex-col gap-2.5" data-guide="goal">
+              {/* Side by side, so the second switch costs the modal no height. */}
+              <div className="flex flex-col gap-2.5 sm:flex-row">
+                <ToggleRow
+                  label="Class Goal"
+                  onDescription="The goal meter shows at the top of the board."
+                  offDescription="No meter on the board at all, and nothing for the class to ask about."
+                  checked={goalOn}
+                  onCheckedChange={toggleGoal}
+                />
+                {/* Straight to the goal by default: the board shows the jar the class fills
                   together, and nothing for children to compare. Stars on the desks are this
                   lesson's, on their way to the goal - never a running total. Only with a goal:
                   without one there is nowhere for the stars to go. */}
-              {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
-            </div>
-            {goalOn && (
-              <div className="flex flex-col gap-2.5">
-                <ChipRow
-                  label="Stars for 1 class point"
-                  hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
-                  value={starsPer}
-                  choices={STARS_PER_CHOICES}
-                  onChange={changeStarsPer}
-                />
-                {/* Side by side, so the second stepper costs the modal no height - it was
-                  sized to fit the screen without scrolling, and it should stay that way. */}
-                <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-4">
-                  <Stepper
-                    id="goal"
-                    label="Class points to fill the goal"
-                    hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
-                    value={goal}
-                    min={1}
-                    max={999}
-                    onChange={changeGoal}
-                  />
-                  {/* The one place the meter can be corrected. A point that landed by mistake
-                    had no way back before this, short of resetting the whole run. */}
-                  <Stepper
-                    id="class-points"
-                    label="Class points on the meter now"
-                    hint="Fix a point that landed by mistake. Never opens the chest."
-                    value={Math.min(goal, activeClass.classPoints ?? 0)}
-                    min={0}
-                    max={goal}
-                    onChange={onSetClassPoints}
-                  />
-                </div>
+                {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
               </div>
-            )}
+              {goalOn && (
+                <div className="flex flex-col gap-2.5">
+                  <ChipRow
+                    label="Stars for 1 class point"
+                    hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
+                    value={starsPer}
+                    choices={STARS_PER_CHOICES}
+                    onChange={changeStarsPer}
+                  />
+                  {/* Side by side, so the second stepper costs the modal no height - it was
+                  sized to fit the screen without scrolling, and it should stay that way. */}
+                  <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-4">
+                    <Stepper
+                      id="goal"
+                      label="Class points to fill the goal"
+                      hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
+                      value={goal}
+                      min={1}
+                      max={999}
+                      onChange={changeGoal}
+                    />
+                    {/* The one place the meter can be corrected. A point that landed by mistake
+                    had no way back before this, short of resetting the whole run. */}
+                    <Stepper
+                      id="class-points"
+                      label="Class points on the meter now"
+                      hint="Fix a point that landed by mistake. Never opens the chest."
+                      value={Math.min(goal, activeClass.classPoints ?? 0)}
+                      min={0}
+                      max={goal}
+                      onChange={onSetClassPoints}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             {goalOn && (
               <div>
                 <Label className="text-foreground">Celebration</Label>

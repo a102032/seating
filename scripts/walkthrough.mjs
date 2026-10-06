@@ -1145,6 +1145,63 @@ const scenarios = {
   },
 
   /**
+   * The guided first setup: a teacher with no students yet taps New Class on the splash and is
+   * walked through it, each bubble on the screen at the floor size; doing the thing moves it on,
+   * and finishing is remembered, so the next class starts without it.
+   */
+  async 'guided first setup'() {
+    const page = await open({ state: stateOf(makeClass('c1', 'Class 1', 0)), size: [1024, 500], splash: false })
+    await page.locator('.splash-board button', { hasText: 'New Class' }).click()
+    await page.waitForTimeout(1200)
+    const bubble = page.locator('[data-guide-bubble]')
+    const title = async () => ((await bubble.count()) ? bubble.locator('p.text-lg').innerText() : '')
+    const onScreen = () =>
+      bubble.evaluate((b) => {
+        const r = b.getBoundingClientRect()
+        return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5
+      })
+    const next = async () => {
+      await page.locator('[data-guide-next]').click()
+      await page.waitForTimeout(800)
+    }
+    check('guide: New Class starts it, on the class name', (await title()) === 'Name your class' && (await onScreen()))
+    await page.locator('#class-name').fill('4B English')
+    await next()
+    check('guide: then the room', (await title()) === 'Pick your room' && (await onScreen()))
+    await next()
+    check('guide: then the students', (await title()) === 'Add your students' && (await onScreen()))
+    await page.evaluate((text) => {
+      const data = new DataTransfer()
+      data.setData('text/plain', text)
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
+    }, 'Amy\t401\nTony\t402\nKevin\t403')
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: 'Add 3 Students' }).click()
+    await page.waitForTimeout(900)
+    check('guide: a list in moves it on to avatars', (await title()) === 'Avatars' && (await onScreen()))
+    await next()
+    check('guide: then seats', (await title()) === 'Seat your students' && (await onScreen()))
+    await page.locator('[data-guide="seat"]').click()
+    await page.waitForTimeout(1200)
+    const c = await activeSaved(page)
+    check(
+      'guide: Seat Students seats them and moves on to the goal, which is on',
+      c.seating.filter(Boolean).length === 3 && c.goalEnabled === true && (await title()) === 'The class goal' && (await onScreen()),
+    )
+    await next()
+    check("guide: then You're ready!, over the board", (await title()) === "You're ready!" && (await page.getByRole('tab').count()) === 0)
+    const over = await overflow(page)
+    check('guide: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    await next()
+    check(
+      'guide: Done ends it, remembered',
+      (await bubble.count()) === 0 &&
+        (await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-guide-v1') || '{}')['walkthrough-teacher'] === true)),
+    )
+    return page
+  },
+
+  /**
    * Room layouts: each one chosen in Class Settings, for a class of 30 and a class of 35, at the
    * three sizes - everyone seated once, nothing scrolls, the names as big as in Rows (the
    * layouts keep six desks across), and Pick Row/Table and Split by Rows/Tables use the room.

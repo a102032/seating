@@ -103,6 +103,8 @@ checks the live URL. Confirm it went green before saying something is live.
   - `PasteRosterModal.tsx`: a list pasted in from Excel or a Google Sheet. `lib/csv.ts` finds the columns in a paste, a CSV or an
     Excel file (`lib/xlsx.ts` reads an .xlsx in the browser, loaded only when one is chosen).
   - `ChooseAvatars.tsx`: Choose Your Avatar, the bar over the board and the big two-step picker a child uses at their desk.
+  - `SetupGuide.tsx`: the guided first setup, a faded screen with a lit hole and a bubble; its steps, and when it starts, are in
+    `lib/setupGuide.ts`. Anything new it points at carries a `data-guide` mark.
   - `ui/`: shadcn primitives.
 - `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it
   to land (`starsLandingIn`) before the coin moves.
