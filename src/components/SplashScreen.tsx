@@ -56,6 +56,8 @@ const CHALK = {
   mint: '#a8e6cf',
   sky: '#a9d8f0',
   lavender: '#c9b8f0',
+  /** The greeting's: fuller than the cards' pale yellow, so it reads across a room. */
+  sunshine: '#ffe066',
 } as const
 
 const FLAGS = ['#ef8a7a', '#f6c65b', '#6cc4a1', '#5fb3d9', '#b48fe0', '#f29bb4', '#f0a35e']
@@ -485,10 +487,13 @@ export function SplashScreen({
                   <ClassYesLogo className="h-auto" style={{ width: 'clamp(15rem, 54vmin, 36rem)' }} />
                 </motion.h1>
 
+                {/* Bigger and brighter (2026-10-06, the teacher: it was muted and easy to miss). It grows
+                    with the screen's height but never past 2.6rem, the size its 46-letter limit was
+                    measured at, so every greeting still fits on one line. */}
                 <motion.p
                   data-keep-clear
                   className="splash-chalk relative mt-3"
-                  style={{ color: CHALK.yellow, fontSize: 'clamp(1.6rem, 4.6vmin, 2.6rem)', lineHeight: 1.1 }}
+                  style={{ color: CHALK.sunshine, fontSize: 'clamp(2.4rem, 7.4vmin, 2.6rem)', lineHeight: 1.1 }}
                   initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
