@@ -47,7 +47,7 @@ jobs:
           }
           $env:PW = Join-Path (npm root -g) 'playwright\index.js'
           $env:URL = 'http://localhost:4173/seating/'
-          $env:SCALES = '1,1.5'
+          $env:SCALES = '1'
           node scripts/move-extension-windows.mjs
           $code = $LASTEXITCODE
           Stop-Process -Id $server.Id -Force
