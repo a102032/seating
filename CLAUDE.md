@@ -54,7 +54,8 @@ npx prettier --single-quote --no-semi --print-width 140 --trailing-comma all --w
 ```
 
 Deploy: commit and push to `main`. The GitHub Pages workflow (`.github/workflows/deploy.yml`) builds and then
-checks the live URL. Confirm it went green before saying something is live.
+checks the live URL. Confirm it went green before saying something is live. It also builds the Move tab helper
+(below) into `dist/move-tab/ClassYesMove.exe`.
 
 ## Where things are
 
@@ -119,6 +120,11 @@ checks the live URL. Confirm it went green before saying something is live.
 - Absent students: `App.tsx` builds `presentSeating` (absent desks as empty) for everything that chooses students.
   Anything new that picks, deals or awards should use it, not the raw `seating`.
 - `src/index.css`: the five themes as CSS custom properties, plus the keyframe classes.
+- `tools/move-tab/`: the Move tab helper, a small Windows program (C#, Windows Forms, .NET Framework 4.8) that hangs a
+  finger-sized Move tab off the floating class goal and moves that window, which a page may never do. It builds here
+  with `dotnet build tools/move-tab -c Release` (the .NET 8 SDK and Microsoft's reference assemblies) but only runs on
+  Windows: `.github/workflows/move-tab.yml` runs its `--self-test` on GitHub's Windows computers whenever it changes, with
+  results and screenshots kept as the run's artifact. Read the run's results before saying it works.
 - localStorage keys all start with `seating-chart-` and end in `-v1` (the main state is `seating-chart-state-v1`).
 
 ## Conventions
