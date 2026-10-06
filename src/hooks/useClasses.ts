@@ -4,7 +4,7 @@ import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures }
 import { getTheme, hasNoAvatar, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
-import { withoutStudent, withPick, withPoints } from '../lib/participation'
+import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { type ClassData, type Gender, type GroupStatus, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
 
@@ -460,6 +460,44 @@ export function useClasses() {
   /** Start a New Round: everyone can be picked again. The record of who was picked stays. */
   const startNewRound = useCallback((classId: string) => updateClass(classId, (c) => ({ ...c, pickRound: undefined })), [updateClass])
 
+  // --- Fixing the participation record (the report in Class Settings) ---------------------
+  // The teacher tries things out in real lessons, and a test pick or point counts as much as a
+  // real one: in the report, and in the picker's better chance for the students picked less
+  // often. The round is only ever today's, so whatever takes today's picks back out gives the
+  // turns back too: a student whose pick is undone hasn't had their turn.
+
+  /** One student's day, set by hand. */
+  const setParticipation = useCallback(
+    (classId: string, day: string, studentId: string, count: DayCount) =>
+      updateClass(classId, (c) => {
+        const round = c.pickRound
+        const turnBack = round?.day === day && count[0] <= 0
+        return {
+          ...c,
+          participation: withCount(c.participation, day, studentId, count),
+          pickRound: turnBack ? { ...round, ids: round.ids.filter((id) => id !== studentId) } : round,
+        }
+      }),
+    [updateClass],
+  )
+
+  /** A whole lesson out of the record. */
+  const clearParticipationDay = useCallback(
+    (classId: string, day: string) =>
+      updateClass(classId, (c) => ({
+        ...c,
+        participation: withoutDay(c.participation, day),
+        pickRound: c.pickRound?.day === day ? undefined : c.pickRound,
+      })),
+    [updateClass],
+  )
+
+  /** The whole record back to nothing, and everyone's turn with it. */
+  const clearParticipation = useCallback(
+    (classId: string) => updateClass(classId, (c) => ({ ...c, participation: {}, pickRound: undefined })),
+    [updateClass],
+  )
+
   const setGoalSettings = useCallback(
     (classId: string, goal: number, starsPerClassPoint: number) =>
       updateClass(classId, (c) => {
@@ -613,6 +651,9 @@ export function useClasses() {
     setStarsOnDesks,
     recordPick,
     startNewRound,
+    setParticipation,
+    clearParticipationDay,
+    clearParticipation,
     setGoalSettings,
     setGoalEnabled,
     setShowAllHomerooms,

@@ -558,6 +558,27 @@ const scenarios = {
       /Amy/.test(report) && /Tony/.test(report) && /Everyone here was picked/.test(report),
       report.slice(0, 80),
     )
+    // A pick made while trying something out, taken back out of the record; then the whole lesson.
+    const amyId = c.students.find((s) => s.name === 'Amy').id
+    const amy = page.getByRole('dialog').last().locator('div.break-inside-avoid', { hasText: 'Amy' })
+    await amy.getByTitle('Tap to fix these numbers').click()
+    await page.waitForTimeout(300)
+    await amy.getByTitle('Picked: one fewer').click()
+    await page.waitForTimeout(400)
+    c = await activeSaved(page)
+    check(
+      'participation: a pick taken back out',
+      // Her star earlier in the scenario stays: only the pick goes.
+      c.participation[today][amyId]?.join() === '0,1' &&
+        Object.values(c.participation[today]).filter(([picked]) => picked === 1).length === 5,
+      JSON.stringify(c.participation[today]),
+    )
+    await page.getByRole('button', { name: 'Clear This Lesson' }).click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'Yes, Clear It' }).click()
+    await page.waitForTimeout(500)
+    c = await activeSaved(page)
+    check('participation: Clear This Lesson empties the day', !c.participation[today], JSON.stringify(c.participation))
     return page
   },
 

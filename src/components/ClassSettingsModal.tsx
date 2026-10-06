@@ -58,6 +58,7 @@ import { RosterSheetsModal } from './RosterSheetsModal'
 import { PasteRosterModal } from './PasteRosterModal'
 import { AttendanceHistoryModal } from './AttendanceHistoryModal'
 import { ParticipationModal } from './ParticipationModal'
+import type { DayCount } from '../lib/participation'
 import { ClassAvatarsModal } from './ClassAvatarsModal'
 import { ConfirmModal } from './ConfirmModal'
 import { DangerCover } from './DangerCover'
@@ -102,6 +103,10 @@ interface ClassSettingsModalProps {
   /** The group cards cover the desks: choosing waits until the activity is over. */
   studentsChooseBlocked: boolean
   onToggleAbsentInRecord: (studentId: string, day: string) => void
+  /** Fixing the participation record: one student's day, a whole lesson, or all of it. */
+  onSetParticipation: (day: string, studentId: string, count: DayCount) => void
+  onClearParticipationDay: (day: string) => void
+  onClearParticipation: () => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
   /** Which tab it opens on. A class just made from the splash needs its name first, so the Class tab. */
@@ -212,6 +217,9 @@ export function ClassSettingsModal({
   onStudentsChoose,
   studentsChooseBlocked,
   onToggleAbsentInRecord,
+  onSetParticipation,
+  onClearParticipationDay,
+  onClearParticipation,
   theme,
   onSetTheme,
   initialTab = 'students',
@@ -917,7 +925,14 @@ export function ClassSettingsModal({
         }}
       />
 
-      <ParticipationModal open={participationOpen} onClose={() => setParticipationOpen(false)} activeClass={activeClass} />
+      <ParticipationModal
+        open={participationOpen}
+        onClose={() => setParticipationOpen(false)}
+        activeClass={activeClass}
+        onSetCount={onSetParticipation}
+        onClearDay={onClearParticipationDay}
+        onClearAll={onClearParticipation}
+      />
 
       <AttendanceHistoryModal
         open={attendanceOpen}

@@ -50,6 +50,29 @@ export function participationDates(c: ClassData): string[] {
     .sort()
 }
 
+/**
+ * One student's day set by hand, from the report: a pick or a point the teacher made while trying
+ * something out in a real lesson, taken back out (2026-10-06), or one that wasn't tapped put in.
+ * A day left with nothing in it goes from the record, so the report's arrows pass it by.
+ */
+export function withCount(record: ParticipationRecord | undefined, day: string, studentId: string, count: DayCount): ParticipationRecord {
+  const counts = { ...record?.[day] }
+  const [picked, points] = count.map((n) => Math.max(0, Math.round(n)))
+  if (picked + points > 0) counts[studentId] = [picked, points]
+  else delete counts[studentId]
+  const next = { ...record }
+  if (Object.keys(counts).length > 0) next[day] = counts
+  else delete next[day]
+  return next
+}
+
+/** A whole lesson out of the record: a day that was all trying things out. */
+export function withoutDay(record: ParticipationRecord | undefined, day: string): ParticipationRecord {
+  const next = { ...record }
+  delete next[day]
+  return next
+}
+
 /** A student gone from the roster is gone from the record too. */
 export function withoutStudent(record: ParticipationRecord | undefined, studentId: string): ParticipationRecord | undefined {
   if (!record) return record

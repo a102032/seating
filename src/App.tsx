@@ -90,6 +90,9 @@ export default function App() {
     setStarsOnDesks,
     recordPick,
     startNewRound,
+    setParticipation,
+    clearParticipationDay,
+    clearParticipation,
     setGoalSettings,
     setGoalEnabled,
     setShowAllHomerooms,
@@ -1087,6 +1090,9 @@ export default function App() {
         }}
         studentsChooseBlocked={groupActivityOpen}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
+        onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}
+        onClearParticipationDay={(day) => clearParticipationDay(activeClass.id, day)}
+        onClearParticipation={() => clearParticipation(activeClass.id)}
         theme={theme}
         onSetTheme={(next) => {
           // A pick from the picker is the only thing that gets remembered - see chooseTheme.
