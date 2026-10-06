@@ -31,6 +31,19 @@ jobs:
 
       - run: npm run build
 
+      # The Move tab helper (tools/move-tab), served beside the app so the teacher downloads it from
+      # the app's own address. Windows-only, but it builds here: .NET Framework's reference
+      # assemblies come from NuGet. Its own workflow checks it on a Windows desktop.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build the Move tab helper
+        run: |
+          dotnet build tools/move-tab -c Release -o move-tab-bin
+          mkdir -p dist/move-tab
+          cp move-tab-bin/ClassYesMove.exe dist/move-tab/ClassYesMove.exe
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

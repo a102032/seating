@@ -1,0 +1,39 @@
+name: Move tab helper
+
+# The Move tab helper is a small Windows program, and nothing here runs Windows, so every change to
+# it is built and checked on GitHub's Windows computers: a stand-in floating window, the tab found
+# and hung off it, then dragged by mouse and by a finger held still first.
+on:
+  push:
+    paths:
+      - 'tools/move-tab/**'
+      - '.github/workflows/move-tab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: dotnet build tools/move-tab -c Release -o move-tab-bin
+
+      - name: Self-test on a Windows desktop
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath move-tab-bin\ClassYesMove.exe -ArgumentList '--self-test','self-test' -PassThru -Wait
+          Get-Content self-test\results.txt
+          if ($p.ExitCode -ne 0) { Write-Error "$($p.ExitCode) check(s) failed"; exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: move-tab-self-test
+          path: |
+            self-test
+            move-tab-bin/ClassYesMove.exe
