@@ -45,7 +45,8 @@ namespace ClassYesMove
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
-            TopMost = true;
+            // On top through its window style (CreateParams) and SetWindowPos, never Form.TopMost:
+            // Windows Forms gives a TopMost form the focus every time it is shown.
             AutoScaleMode = AutoScaleMode.None;
             DoubleBuffered = true;
             BackColor = Purple;
