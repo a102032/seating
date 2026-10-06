@@ -15,9 +15,6 @@ interface Slide {
   /** Its size by the extension's count, kept the whole way. */
   width: number
   height: number
-  /** Its size as its own page measures it, to see afterwards whether Chrome kept it. */
-  outerWidth: number
-  outerHeight: number
   dx: number
   dy: number
   /** Where the last move put it. */
@@ -138,8 +135,11 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
     // The floating window's own clock: the app's page behind the lesson gets about one timer a second.
     win.setTimeout(() => {
       letGo()
-      const grewW = win.outerWidth - s.outerWidth
-      const grewH = win.outerHeight - s.outerHeight
+      // Against the size the slide asked for, which may be a point or two off the size it began
+      // with, so that its first move landed on the pixel grid: that is meant, not growth.
+      const asked = sizeFor(s)
+      const grewW = win.outerWidth - asked.width
+      const grewH = win.outerHeight - asked.height
       if (s.id === null || (Math.abs(grewW) <= 1 && Math.abs(grewH) <= 1)) return
       const keep = (n: number) => Math.max(-MOST_TRIM, Math.min(MOST_TRIM, n))
       trim.current = { w: keep(trim.current.w + grewW), h: keep(trim.current.h + grewH) }
@@ -173,8 +173,6 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
           top: 0,
           width: 0,
           height: 0,
-          outerWidth: win.outerWidth,
-          outerHeight: win.outerHeight,
           dx: 0,
           dy: 0,
           at: [0, 0],
