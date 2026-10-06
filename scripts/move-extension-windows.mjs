@@ -252,7 +252,7 @@ async function run(scale) {
       const r = grip.getBoundingClientRect()
       const side = (outerWidth - innerWidth) / 2
       const top = outerHeight - innerHeight - side
-      const log = { events: [], places: [], menus: 0 }
+      const log = { events: [], places: [], menus: 0, presses: 0 }
       window.__finger = log
       const types = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']
       const onEvent = (e) =>
@@ -268,14 +268,20 @@ async function run(scale) {
           Math.round(performance.now()),
           Math.round(e.timeStamp),
         ])
-      const onMenu = () => log.menus++
+      // Chrome calls a finger that stays put in the window a long press, and one sliding the window
+      // with it does (the window follows the finger): fine, so long as the app keeps the menu out.
+      const onMenu = (e) => {
+        log.presses++
+        if (!e.defaultPrevented) log.menus++
+      }
       for (const t of types) document.addEventListener(t, onEvent, true)
-      document.addEventListener('contextmenu', onMenu, true)
+      // On the window, after the app's own on the page, to see whether it kept the menu out.
+      window.addEventListener('contextmenu', onMenu)
       const timer = setInterval(() => log.places.push([screenX, screenY, outerWidth, outerHeight]), 8)
       window.__fingerStop = () => {
         clearInterval(timer)
         for (const t of types) document.removeEventListener(t, onEvent, true)
-        document.removeEventListener('contextmenu', onMenu, true)
+        window.removeEventListener('contextmenu', onMenu)
       }
       return {
         x: screenX + side + r.x + r.width / 2,
@@ -341,7 +347,7 @@ async function run(scale) {
       Math.abs(after.width - before.width) <= 3 && Math.abs(after.height - before.height) <= 3,
       `${before.width}x${before.height} to ${after.width}x${after.height}`,
     )
-    check(`${name}: and opens no menu`, log.menus === 0, `${log.menus} menus`)
+    check(`${name}: and opens no menu`, log.menus === 0, `${log.presses} long presses, ${log.menus} not kept out`)
   }
 
   if (process.platform === 'win32') {

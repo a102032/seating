@@ -39,7 +39,7 @@ interface PointsMeterProps {
 
 /** How full the meter has to get before the chest starts straining. */
 const RATTLE_FROM = 0.85
-/** Start fetching the celebration gif here, so it's decoded before the chest opens. */
+/** From here the celebration gif is asked for again, in case the first try was made offline. */
 const PRELOAD_FROM = 0.7
 const CLOSE_UP_MS = 900
 
@@ -186,11 +186,16 @@ export function PointsMeter({
     if (goal > 0) primeGoalFanfare()
   }, [goal])
 
-  // Fetch the gif on approach rather than when the chest opens - starting the download at
-  // the moment it's needed means it arrives halfway through, which looks broken.
-  const approaching = goal > 0 && classPoints / goal >= PRELOAD_FROM
+  // Fetch the gif as soon as the meter is up, never when the chest opens: started then, it
+  // arrives halfway through, which looks broken. It used to wait until the meter was 70% full,
+  // so a goal filled from further back in one go - Pick All and + with a whole class, a Get
+  // Ready! prize, a Mystery Gift, All Stars In! - opened on the chest every time (the teacher,
+  // 2026-10-06). It is one gif, and the browser keeps it once it has it. Asked again on the
+  // way to the goal, in case the first try was made with no internet.
+  const hasGoal = goal > 0
+  const approaching = hasGoal && classPoints / goal >= PRELOAD_FROM
   useEffect(() => {
-    if (!celebrationGifId || !approaching) return
+    if (!celebrationGifId || !hasGoal) return
     const url = giphyUrl(celebrationGifId)
     const img = new Image()
     let cancelled = false
@@ -198,13 +203,14 @@ export function PointsMeter({
       if (!cancelled) setReadyGif({ id: celebrationGifId, url })
     }
     img.onerror = () => {
-      if (!cancelled) setReadyGif(null)
+      // A failed second try leaves a first one that worked alone.
+      if (!cancelled) setReadyGif((ready) => (ready?.id === celebrationGifId ? ready : null))
     }
     img.src = url
     return () => {
       cancelled = true
     }
-  }, [celebrationGifId, approaching])
+  }, [celebrationGifId, hasGoal, approaching])
 
   /**
    * The celebration is over: shut the lid, send the coin home, then pick up the new total -
