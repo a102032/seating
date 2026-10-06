@@ -1,4 +1,5 @@
 import { createRequire } from 'module'
+import { execFile } from 'child_process'
 import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { fileURLToPath } from 'url'
@@ -14,6 +15,7 @@ const require = createRequire(import.meta.url)
 const { chromium } = require(process.env.PW || '/opt/node22/lib/node_modules/playwright/index.js')
 const URL = process.env.URL || 'http://localhost:4173/seating/'
 const EXT = fileURLToPath(new globalThis.URL('../tools/move-extension', import.meta.url))
+const INJECT = fileURLToPath(new globalThis.URL('./inject-touch.ps1', import.meta.url))
 
 let failures = 0
 /** The scaling being checked, before each check's name. */
@@ -234,6 +236,115 @@ async function run(scale) {
   await checkSlide('held still, then slid', 80, 40, 40)
   // A finger held on the grip for a few seconds, as the teacher's was when the window kept growing.
   await checkSlide('held for seconds', 30, 20, 120)
+
+  /**
+   * A real finger, through Windows' own touch input (`inject-touch.ps1`): the made-up pointer events
+   * above never go through Chrome's touch path, which is where the grip stuttered on the teacher's
+   * touch laptop while a mouse on it was smooth. dx, dy are in the page's points.
+   */
+  async function realFinger(name, dx, dy, holdMs) {
+    const at = await win.evaluate(() => {
+      const grip = document.querySelector('[data-move-grip]')
+      const r = grip.getBoundingClientRect()
+      const side = (outerWidth - innerWidth) / 2
+      const top = outerHeight - innerHeight - side
+      const log = { events: [], places: [], menus: 0 }
+      window.__finger = log
+      const types = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']
+      const onEvent = (e) =>
+        log.events.push([
+          e.type,
+          e.pointerType,
+          e.clientX,
+          e.clientY,
+          e.screenX,
+          e.screenY,
+          screenX,
+          screenY,
+          Math.round(performance.now()),
+        ])
+      const onMenu = () => log.menus++
+      for (const t of types) document.addEventListener(t, onEvent, true)
+      document.addEventListener('contextmenu', onMenu, true)
+      const timer = setInterval(() => log.places.push([screenX, screenY, outerWidth, outerHeight]), 8)
+      window.__fingerStop = () => {
+        clearInterval(timer)
+        for (const t of types) document.removeEventListener(t, onEvent, true)
+        document.removeEventListener('contextmenu', onMenu, true)
+      }
+      return {
+        x: screenX + side + r.x + r.width / 2,
+        y: screenY + top + r.y + r.height / 2,
+        gx: r.x + r.width / 2,
+        gy: r.y + r.height / 2,
+        side,
+        top,
+        dpr: devicePixelRatio,
+      }
+    })
+    const before = await outer()
+    const px = (n) => String(Math.round(n * at.dpr))
+    const args = ['-X', px(at.x), '-Y', px(at.y), '-DX', px(dx), '-DY', px(dy), '-HoldMs', String(holdMs), '-Steps', '40', '-StepMs', '16']
+    const out = await new Promise((resolve) =>
+      execFile('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', INJECT, ...args], (err, stdout, stderr) =>
+        resolve(`${stdout}${stderr}${err ? ` (${err.message})` : ''}`.trim()),
+      ),
+    )
+    await win.waitForTimeout(1000)
+    const log = await win.evaluate(() => {
+      window.__fingerStop()
+      return window.__finger
+    })
+    const after = await outer()
+    const asked = await moves()
+    note(`${name}: finger at ${args.join(' ')} -> ${out}; frame ${at.side} at the side, ${at.top} on top`)
+    const down = log.events.find((e) => e[0] === 'pointerdown')
+    check(
+      `${name}: the finger lands on the grip`,
+      down && down[1] === 'touch' && Math.abs(down[2] - at.gx) <= 20 && Math.abs(down[3] - at.gy) <= 20,
+      down ? `${down[1]} at ${down[2]},${down[3]}, the grip's middle ${at.gx},${at.gy}` : 'no pointerdown',
+    )
+    // How far each event's screen position is from the window's place plus the frame plus its
+    // position in the window: if Chrome's screen positions for a finger are wrong, it shows here.
+    const off = {}
+    for (const e of log.events.filter((e) => e[0] === 'pointermove')) {
+      const k = `${Math.round(e[4] - (e[6] + at.side + e[2]))},${Math.round(e[5] - (e[7] + at.top + e[3]))}`
+      off[k] = (off[k] || 0) + 1
+    }
+    note(`${name}: ${log.events.length} events; screen position minus (window + frame + client): ${JSON.stringify(off)}`)
+    note(
+      `${name}: first events [type, client x, y, screen x, y, window x, y]: ${JSON.stringify(log.events.slice(0, 24).map((e) => [e[0].slice(7), ...e.slice(2, 8).map(Math.round)]))}`,
+    )
+    note(`${name}: places asked: ${JSON.stringify(asked.slice(0, 40).map((m) => [m[0], m[1]]))}`)
+    // A stutter is the window going back against the finger: any move the wrong way is one.
+    const back = (i, d) => asked.filter((m, j) => j > 0 && (m[i] - asked[j - 1][i]) * Math.sign(d) < -2).length
+    check(
+      `${name}: the window never goes back against the finger`,
+      asked.length > 3 && back(0, dx) === 0 && back(1, dy) === 0,
+      `${asked.length} moves, ${back(0, dx)} back in x, ${back(1, dy)} back in y`,
+    )
+    const seen = (i, d) => log.places.filter((p, j) => j > 0 && (p[i] - log.places[j - 1][i]) * Math.sign(d) < -2).length
+    note(`${name}: as the window's page saw it, ${seen(0, dx)} steps back in x and ${seen(1, dy)} in y over ${log.places.length} samples`)
+    check(
+      `${name}: and ends where the finger went`,
+      Math.abs(after.left - before.left - dx) <= 6 && Math.abs(after.top - before.top - dy) <= 6,
+      `${before.left},${before.top} to ${after.left},${after.top}, the finger ${dx},${dy}`,
+    )
+    check(
+      `${name}: and keeps its size`,
+      Math.abs(after.width - before.width) <= 2 && Math.abs(after.height - before.height) <= 2,
+      `${before.width}x${before.height} to ${after.width}x${after.height}`,
+    )
+    check(`${name}: and opens no menu`, log.menus === 0, `${log.menus} menus`)
+  }
+
+  if (process.platform === 'win32') {
+    await sw.evaluate((id) => chrome.windows.update(id, { left: 300, top: 150, width: 360, height: 220 }), probe.id)
+    await win.waitForTimeout(800)
+    await moves()
+    await realFinger('a real finger', 160, 90, 0)
+    await realFinger('a real finger held still first', -160, -90, 1500)
+  }
   await win.screenshot({ path: `${tmpdir()}/move-win-after.png` }).catch(() => {})
   await context.close()
 }

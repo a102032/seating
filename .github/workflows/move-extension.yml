@@ -10,6 +10,7 @@ on:
       - 'src/components/MoveGrip.tsx'
       - 'src/lib/moveExtension.ts'
       - 'scripts/move-extension-windows.mjs'
+      - 'scripts/inject-touch.ps1'
       - '.github/workflows/move-extension.yml'
   workflow_dispatch:
 
