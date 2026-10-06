@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { GUIDE_STEPS, type GuideStepId } from '../lib/setupGuide'
-import { TactileButton } from './TactileButton'
 
 interface SetupGuideProps {
   step: GuideStepId
@@ -15,6 +14,8 @@ type Box = { left: number; top: number; width: number; height: number }
 const PAD = 8
 const BUBBLE_WIDTH = 340
 const GAP = 14
+/** The helper's own colour, the same in every theme; white on it is about 5:1. */
+const GUIDE_BLUE = '#2563eb'
 /** The bubble keeps this far from the screen's edges. */
 const EDGE = 12
 /** The narrowest the bubble goes to fit beside the lit thing. */
@@ -178,18 +179,20 @@ export function SetupGuide({ step, onNext, onSkip }: SetupGuideProps) {
           />
         )
       )}
+      {/* The bubble is blue in every theme (2026-10-06, the teacher): the windows are white, so a
+          white bubble read as one more place to do something. Blue says it is the helper. */}
       <div
         data-guide-bubble=""
         role="dialog"
         aria-label={def.title}
         ref={bubbleRef}
-        className="pointer-events-auto absolute rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-2xl"
-        style={{ ...bubble, width }}
+        className="pointer-events-auto absolute rounded-2xl p-4 text-white shadow-2xl"
+        style={{ ...bubble, width, background: GUIDE_BLUE }}
       >
-        {arrow && <span className="absolute size-[18px] rotate-45 border-border bg-card" style={arrow} aria-hidden />}
-        {!centred && <p className="text-xs font-bold text-muted-foreground">{`Step ${number} of ${shown.length}`}</p>}
+        {arrow && <span className="absolute size-[18px] rotate-45" style={{ ...arrow, background: GUIDE_BLUE }} aria-hidden />}
+        {!centred && <p className="text-xs font-bold text-blue-100">{`Step ${number} of ${shown.length}`}</p>}
         <p className="mt-0.5 text-lg font-bold">{def.title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{def.text}</p>
+        <p className="mt-1 text-sm text-white/90">{def.text}</p>
         <div className="mt-3 flex items-center justify-between gap-2">
           {centred ? (
             <span />
@@ -198,14 +201,21 @@ export function SetupGuide({ step, onNext, onSkip }: SetupGuideProps) {
               type="button"
               onClick={onSkip}
               data-guide-skip=""
-              className="rounded-lg px-2 py-1.5 text-sm font-semibold text-muted-foreground hover:bg-accent"
+              className="rounded-lg px-2 py-1.5 text-sm font-semibold text-blue-100 hover:bg-white/10"
             >
               Skip
             </button>
           )}
-          <TactileButton variant="primary" onClick={centred ? onSkip : onNext} data-guide-next="" className="!px-4 !py-2">
+          {/* White on the blue, and a plain button so no theme restyles it. */}
+          <button
+            type="button"
+            onClick={centred ? onSkip : onNext}
+            data-guide-next=""
+            className="rounded-xl bg-white px-4 py-2 font-bold shadow-sm transition-[scale] duration-150 active:scale-[0.96]"
+            style={{ color: GUIDE_BLUE, touchAction: 'manipulation' }}
+          >
             {centred ? 'Done' : 'Next'}
-          </TactileButton>
+          </button>
         </div>
       </div>
     </div>,
