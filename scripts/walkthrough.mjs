@@ -410,6 +410,10 @@ const scenarios = {
     check('excel: the file window offers Excel files', (await chooser.element().getAttribute('accept')).includes('.xlsx'))
     await chooser.setFiles(`${import.meta.dirname}/fixtures/roster.xlsx`)
     await page.waitForTimeout(900)
+    // The class has students now, so it asks first: Replace them, or Add to them.
+    check('excel: a class with students asks first', await page.getByText('This class has 3 students').isVisible())
+    await page.locator('[data-import-add]').click()
+    await page.waitForTimeout(600)
     c = await activeSaved(page)
     check(
       'excel: the roster comes in, nobody twice',
