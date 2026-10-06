@@ -152,11 +152,8 @@ async function run(scale) {
   await sw.evaluate((id) => chrome.windows.update(id, { left: 300, top: 150, width: 360, height: 220 }), probe.id)
   await win.waitForTimeout(800)
   note(`set to the middle: ${JSON.stringify(await outer())}`)
-  const moves = async () => {
-    const all = await page.evaluate(() => window.__moves.splice(0))
-    const sizes = [...new Set(all.map((m) => `${m[2]}x${m[3]} -> ${m[4] ? `${m[4][2]}x${m[4][3]}` : 'failed'}`))]
-    return `${all.length} moves; size asked -> size Chrome gave: ${sizes.join(', ')}`
-  }
+  const moves = () => page.evaluate(() => window.__moves.splice(0))
+  const sizesOf = (all) => [...new Set(all.map((m) => `${m[2]}x${m[3]} -> ${m[4] ? `${m[4][2]}x${m[4][3]}` : 'failed'}`))].join(', ')
 
   /** A finger slid on the grip: pointer events with their own screen positions. */
   async function slide(dx, dy, still = 0) {
@@ -200,51 +197,39 @@ async function run(scale) {
     )
   }
 
-  let before = await outer()
-  await slide(-120, -60)
-  let after = await outer()
-  note(await moves())
-  check(
-    'sliding the grip moves the window by the slide',
-    after.left - before.left === -120 && after.top - before.top === -60,
-    `${JSON.stringify(before)} to ${JSON.stringify(after)}`,
-  )
-  check(
-    'and keeps its size',
-    after.width === before.width && after.height === before.height,
-    `${before.width}x${before.height} to ${after.width}x${after.height}`,
-  )
+  /**
+   * One slide and what it must do: move the window with the finger (to within the few pixels the
+   * grip rounds its place by, to land on whole screen pixels), keep its size, and never let Chrome
+   * give back a size other than the one asked for on any move - the wobble the teacher saw at 150%.
+   */
+  async function checkSlide(name, dx, dy, still) {
+    const before = await outer()
+    await slide(dx, dy, still)
+    const after = await outer()
+    const all = await moves()
+    note(`${name}: ${all.length} moves; size asked -> size Chrome gave: ${sizesOf(all)}`)
+    check(
+      `${name}: the window moves with the finger`,
+      Math.abs(after.left - before.left - dx) <= 3 && Math.abs(after.top - before.top - dy) <= 3,
+      `${JSON.stringify(before)} to ${JSON.stringify(after)}`,
+    )
+    check(
+      `${name}: and keeps its size`,
+      after.width === before.width && after.height === before.height,
+      `${before.width}x${before.height} to ${after.width}x${after.height}`,
+    )
+    const wobbles = all.filter((m) => !m[4] || m[4][2] !== m[2] || m[4][3] !== m[3]).length
+    check(
+      `${name}: and never wobbles on the way`,
+      all.length > 0 && wobbles === 0,
+      `${wobbles} of ${all.length} moves came back another size`,
+    )
+  }
 
-  before = after
-  await slide(80, 40, 40)
-  after = await outer()
-  note(await moves())
-  check(
-    'held still a while, then slid, it moves by the slide',
-    after.left - before.left === 80 && after.top - before.top === 40,
-    `${JSON.stringify(before)} to ${JSON.stringify(after)}`,
-  )
-  check(
-    'and still keeps its size',
-    after.width === before.width && after.height === before.height,
-    `${before.width}x${before.height} to ${after.width}x${after.height}`,
-  )
-
+  await checkSlide('a quick slide', -120, -60, 0)
+  await checkSlide('held still, then slid', 80, 40, 40)
   // A finger held on the grip for a few seconds, as the teacher's was when the window kept growing.
-  before = after
-  await slide(30, 20, 120)
-  after = await outer()
-  note(await moves())
-  check(
-    'held on the grip for seconds, the window moves by the slide',
-    after.left - before.left === 30 && after.top - before.top === 20,
-    `${JSON.stringify(before)} to ${JSON.stringify(after)}`,
-  )
-  check(
-    'and is still the same size',
-    after.width === before.width && after.height === before.height,
-    `${before.width}x${before.height} to ${after.width}x${after.height}`,
-  )
+  await checkSlide('held for seconds', 30, 20, 120)
   await win.screenshot({ path: `${tmpdir()}/move-win-after.png` }).catch(() => {})
   await context.close()
 }

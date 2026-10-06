@@ -53,20 +53,18 @@ jobs:
           Stop-Process -Id $server.Id -Force
           exit $code
 
-      # The teacher's laptop is scaled by Windows itself, which Chromium's own setting doesn't fully
-      # copy: a bigger screen, Windows set to 150% (as its Settings app does, no sign-out needed),
-      # and the check again.
-      - name: Again with Windows set to 150%
+      # The teacher's laptop is scaled by Windows itself (150%), which Chromium's own setting doesn't
+      # fully copy: a bigger screen, then Windows set to 125%, 150% and 175% in turn (as its Settings
+      # app does, no sign-out needed), and the check at each.
+      - name: Again with Windows scaled
         if: always()
         shell: pwsh
         run: |
-          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force; 'Screen set to 1920x1080' } catch { "Screen size unchanged: $_" }
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force | Out-Null; 'Screen set to 1920x1080' } catch { "Screen size unchanged: $_" }
           Add-Type -TypeDefinition @'
           using System; using System.Runtime.InteropServices;
           public static class Dpi { [DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint action, int param, IntPtr vparam, uint winini); }
           '@
-          # SPI_SETLOGICALDPIOVERRIDE: two steps above the scaling Windows recommends for the screen.
-          'Scaling set: ' + [Dpi]::SystemParametersInfo(0x9F, 2, [IntPtr]::Zero, 1)
           $server = Start-Process -FilePath node -ArgumentList 'node_modules/vite/bin/vite.js', 'preview', '--port', '4173' -PassThru
           for ($i = 0; $i -lt 30; $i++) {
             try { Invoke-WebRequest -UseBasicParsing http://localhost:4173/seating/ | Out-Null; break } catch { Start-Sleep -Seconds 1 }
@@ -74,7 +72,13 @@ jobs:
           $env:PW = Join-Path (npm root -g) 'playwright\index.js'
           $env:URL = 'http://localhost:4173/seating/'
           $env:SCALES = '1'
-          node scripts/move-extension-windows.mjs
-          $code = $LASTEXITCODE
+          $failed = 0
+          # SPI_SETLOGICALDPIOVERRIDE: steps above the scaling Windows recommends for the screen (100% here).
+          foreach ($steps in 1, 2, 3) {
+            "Scaling $($steps * 25 + 100)%: " + [Dpi]::SystemParametersInfo(0x9F, $steps, [IntPtr]::Zero, 1)
+            Start-Sleep -Seconds 2
+            node scripts/move-extension-windows.mjs
+            if ($LASTEXITCODE -ne 0) { $failed++ }
+          }
           Stop-Process -Id $server.Id -Force
-          exit $code
+          exit $failed

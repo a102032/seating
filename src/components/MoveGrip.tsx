@@ -22,6 +22,8 @@ interface Slide {
   dy: number
   /** Where the last move put it. */
   at: [number, number]
+  /** Every place and size is a multiple of this, so it lands exactly on the screen's pixels. */
+  step: number
   /** The finger has moved since the window last did. */
   pending: boolean
   /** A move is on its way: the next waits for it, so a fast finger never queues up a backlog. */
@@ -35,6 +37,20 @@ export const GRIP_ROOM = 44
 
 /** The most the size asked for is ever trimmed by, so a wrong measurement can't shrink the window away. */
 const MOST_TRIM = 60
+
+/**
+ * The smallest step that lands on whole screen pixels at this scaling: 1 at 100%, 200% or the
+ * teacher's board's 300%, 2 at 150%, 4 at 125% or 175%. On a scaled screen Chrome rounds a window's
+ * edges to whole pixels, so a window placed between them came out a pixel or two wider at one place
+ * than the next: named on every move, the size made the window wobble as it slid (the teacher's
+ * laptop at 150%, 2026-10-06), and its buttons shifted with it. On the grid there is nothing to round.
+ */
+function pixelStep(scale: number) {
+  for (let k = 1; k <= 8; k++) if (Math.abs(k * scale - Math.round(k * scale)) < 0.01) return k
+  return 1
+}
+
+const onStep = (n: number, step: number) => Math.round(n / step) * step
 
 /**
  * The hand grip: a finger slid on it moves the floating window, through the Class? Yes! Move
@@ -69,7 +85,36 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
   }
 
   function sizeFor(s: Slide) {
-    return { width: s.width - trim.current.w, height: s.height - trim.current.h }
+    return { width: onStep(s.width - trim.current.w, s.step), height: onStep(s.height - trim.current.h, s.step) }
+  }
+
+  /** On the pixel grid and wholly on the screen. */
+  function placeFor(s: Slide): [number, number] {
+    const [left, top] = onScreen(s.left + s.dx, s.top + s.dy)
+    const [maxLeft, maxTop] = onScreen(Infinity, Infinity)
+    const fit = (n: number, most: number) => {
+      const on = onStep(n, s.step)
+      return on > most ? on - s.step : on
+    }
+    return [fit(left, maxLeft), fit(top, maxTop)]
+  }
+
+  /**
+   * The window's contents are held at their size while it slides, so that if Chrome still makes it
+   * a pixel bigger or smaller for a moment, nothing inside shifts with it.
+   */
+  function hold() {
+    const root = win.document.documentElement.style
+    root.width = `${win.innerWidth}px`
+    root.height = `${win.innerHeight}px`
+    root.overflow = 'hidden'
+  }
+
+  function letGo() {
+    const root = win.document.documentElement.style
+    root.width = ''
+    root.height = ''
+    root.overflow = ''
   }
 
   function send(s: Slide) {
@@ -80,7 +125,7 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
     }
     s.pending = false
     s.busy = true
-    s.at = onScreen(s.left + s.dx, s.top + s.dy)
+    s.at = placeFor(s)
     void mover.move(s.id, { left: s.at[0], top: s.at[1], ...sizeFor(s) }).then(() => {
       s.busy = false
       // The finger's last place counts even if it got there while this move was on its way.
@@ -92,6 +137,7 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
   function settle(s: Slide) {
     // The floating window's own clock: the app's page behind the lesson gets about one timer a second.
     win.setTimeout(() => {
+      letGo()
       const grewW = win.outerWidth - s.outerWidth
       const grewH = win.outerHeight - s.outerHeight
       if (s.id === null || (Math.abs(grewW) <= 1 && Math.abs(grewH) <= 1)) return
@@ -132,14 +178,19 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
           dx: 0,
           dy: 0,
           at: [0, 0],
+          step: pixelStep(win.devicePixelRatio || 1),
           pending: false,
           busy: false,
           done: false,
         }
         slide.current = s
         setSliding(true)
+        hold()
         void mover.find(win).then((w) => {
-          if (!w) return
+          if (!w) {
+            letGo()
+            return
+          }
           s.id = w.id
           s.left = w.left
           s.top = w.top
@@ -164,6 +215,7 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
         const s = slide.current
         if (s?.pointerId !== e.pointerId) return
         s.done = true
+        if (s.id === null) letGo()
         send(s)
         slide.current = null
         setSliding(false)
