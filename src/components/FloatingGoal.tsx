@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Maximize2, Minimize2, PartyPopper, Star, User } from 'lucide-react'
+import { Maximize2, Minimize2, PartyPopper, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { buttonVariants } from '@/components/ui/button'
@@ -118,8 +118,8 @@ export function FloatingGoal({
 
   /** Get Ready! is running here, in the window grown big. */
   const [readying, setReadying] = useState(false)
-  /** Puts the window back as it was before Get Ready! grew it. */
-  const restoreSize = useRef<(() => void) | null>(null)
+  /** Grows the window from the drums to the star, and puts it back as it was before Get Ready!. */
+  const growth = useRef<ReturnType<typeof growForGetReady> | null>(null)
   const onReadyChange = useRef(getReady.onActiveChange)
   useEffect(() => {
     onReadyChange.current = getReady.onActiveChange
@@ -128,14 +128,14 @@ export function FloatingGoal({
   useEffect(() => () => onReadyChange.current(false), [])
 
   function startGetReady() {
-    restoreSize.current = growForGetReady(win)
+    growth.current = growForGetReady(win)
     setReadying(true)
     getReady.onActiveChange(true)
   }
 
   function endGetReady() {
-    restoreSize.current?.()
-    restoreSize.current = null
+    growth.current?.restore()
+    growth.current = null
     setReadying(false)
     getReady.onActiveChange(false)
   }
@@ -257,16 +257,23 @@ export function FloatingGoal({
       // button; it went with the one on the board's goal bar, as more than the moment needed.
       onClick={() => tap(onAdd, true)}
       title="Add a point to the class goal"
+      // The star coin alone, no "+1" (2026-10-06, the teacher): the coin is the point.
+      aria-label="+1"
       className={cn(
         buttonVariants({ variant: 'default' }),
-        'relative h-auto min-h-0 min-w-0 font-extrabold shadow-sm',
-        strip ? 'h-full flex-[1.4] gap-1 rounded-xl px-2' : 'flex-[1.6] gap-2 rounded-2xl',
+        'relative h-auto min-h-0 min-w-0 flex-1 shadow-sm',
+        strip ? 'h-full rounded-xl px-1' : 'rounded-2xl px-1.5',
         pressable,
       )}
-      style={{ touchAction: 'manipulation', fontSize: strip ? '1.3rem' : 'clamp(1.25rem, 24vh, 3rem)' }}
+      style={{ touchAction: 'manipulation' }}
     >
-      <img src={treasure('star-coin')} alt="" draggable={false} className="size-[1em] max-w-none" />
-      +1
+      <img
+        src={treasure('star-coin')}
+        alt=""
+        draggable={false}
+        className="max-w-none select-none"
+        style={{ width: strip ? '2.25rem' : 'min(4.5rem, 32vh)', height: strip ? '2.25rem' : 'min(4.5rem, 32vh)' }}
+      />
     </button>
   )
 
@@ -282,7 +289,7 @@ export function FloatingGoal({
       className={cn(
         buttonVariants({ variant: 'secondary' }),
         'h-auto min-h-0 min-w-0 flex-1 font-extrabold shadow-sm',
-        strip ? 'h-full rounded-xl px-2' : 'flex-col gap-1 rounded-2xl',
+        strip ? 'h-full rounded-xl px-1' : 'flex-col gap-1 rounded-2xl px-1.5',
         !canPick && 'opacity-40',
         pressable,
       )}
@@ -295,7 +302,8 @@ export function FloatingGoal({
   )
 
   // Get Ready!, the app's own, for the moment after an instruction. It grows the window into
-  // the big star, so in the strip it is just the star.
+  // the big star. Its picture is the drum the class hears (2026-10-06, the teacher), and in the
+  // strip the drum alone.
   const getReadyButton = (
     <button
       type="button"
@@ -307,14 +315,19 @@ export function FloatingGoal({
       aria-label="Get Ready!"
       className={cn(
         buttonVariants({ variant: 'secondary' }),
-        'h-auto min-h-0 min-w-0 font-extrabold leading-tight whitespace-normal shadow-sm',
-        strip ? 'aspect-square h-full shrink-0 rounded-xl px-0' : 'flex-[1.15] flex-col gap-1 rounded-2xl px-1.5',
+        'h-auto min-h-0 min-w-0 flex-1 font-extrabold leading-tight whitespace-normal shadow-sm',
+        strip ? 'h-full rounded-xl px-1' : 'flex-col gap-1 rounded-2xl px-1.5',
         !getReady.canStart && 'opacity-40',
         pressable,
       )}
       style={{ touchAction: 'manipulation', fontSize: strip ? '1rem' : 'clamp(1rem, 11vh, 1.5rem)' }}
     >
-      <Star className={cn('shrink-0 fill-amber-400 text-amber-600', strip ? 'size-7' : 'size-[1.2em]')} />
+      <img
+        src={assetUrl('/get-ready/taiko-drum.svg')}
+        alt=""
+        draggable={false}
+        className={cn('w-auto max-w-none shrink-0 select-none', strip ? 'h-9' : 'h-[1.5em]')}
+      />
       {!strip && 'Get Ready!'}
     </button>
   )
@@ -322,7 +335,17 @@ export function FloatingGoal({
   const canvas = 'flex h-full w-full select-none bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]'
 
   return createPortal(
-    strip && !readying ? (
+    readying ? (
+      <FloatGetReady
+        win={win}
+        lastDrum={getReady.lastDrum}
+        prize={getReady.prize}
+        onChooseDrum={getReady.onChooseDrum}
+        onStar={() => growth.current?.toStar()}
+        onAward={getReady.onAward}
+        onClose={endGetReady}
+      />
+    ) : strip ? (
       <div data-ink="canvas" className={cn(canvas, 'items-center gap-1 p-1.5')}>
         {waiting ? (
           celebrateButton
@@ -342,12 +365,7 @@ export function FloatingGoal({
       <div data-ink="canvas" className={cn(canvas, 'flex-col gap-2 p-2.5')}>
         <div
           data-ink="panel"
-          data-float-header=""
-          // Over Get Ready!'s faded window, so the class sees its stars land, as the board's meter is.
-          className={cn(
-            'flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm',
-            readying && 'relative z-[60] bg-card',
-          )}
+          className="flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm"
         >
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-bold text-muted-foreground">{className}</div>
@@ -362,28 +380,19 @@ export function FloatingGoal({
             src={treasure('chest-closed')}
             alt=""
             draggable={false}
-            data-float-coin=""
             className={clsx('h-8 w-8 shrink-0', waiting && 'float-chest-rattle')}
           />
           {count}
-          {!readying && sizeButton}
+          {sizeButton}
         </div>
 
-        {readying ? (
-          <FloatGetReady
-            win={win}
-            lastDrum={getReady.lastDrum}
-            prize={getReady.prize}
-            onChooseDrum={getReady.onChooseDrum}
-            onAward={getReady.onAward}
-            onClose={endGetReady}
-          />
-        ) : waiting ? (
+        {waiting ? (
           celebrateButton
         ) : pick ? (
           pickName
         ) : (
-          <div className="flex min-h-0 flex-1 gap-2">
+          // Three equal columns, whatever each button's padding (2026-10-06, the teacher: the same size).
+          <div className="grid min-h-0 flex-1 grid-cols-3 gap-2">
             {addButton}
             {pickButton}
             {getReadyButton}

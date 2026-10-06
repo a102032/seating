@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { floatDrumsHeight } from '../lib/getReady'
 
 /**
  * Chrome and Edge's always-on-top window (Document Picture-in-Picture): a small window of our
@@ -45,43 +46,51 @@ export function resizeFloatingWindow(win: Window, size: { width: number; height:
 }
 
 /**
- * The floating window grows for Get Ready!, so the star reads from the back of the room: about
- * three quarters of the screen's height, and a little wider than tall to fit Ready! and Stop
- * beside the star. It stays well short of the whole screen, so the lesson's slide - usually the
- * instruction the class is getting ready for ("page 134") - still shows beside it.
+ * The floating window grows for Get Ready!, in two steps, each from a tap: first a snug
+ * rectangle of drums ("How long?"), then, once a drum is chosen, tall enough for the star to
+ * read from the back of the room - about three quarters of the screen's height, and wide enough
+ * for the star to sit in the middle with Ready!, Stop and the chest beside it. It stays well short
+ * of the whole screen, so the lesson's slide - usually the instruction the class is getting ready
+ * for ("page 134") - still shows beside it.
  *
  * It grows from where it sits. If that would run off the screen, it is moved in first where the
- * browser allows it, and put back afterwards. Returns what puts it back.
+ * browser allows it, and put back afterwards. `restore` puts it back as it was.
  */
-export function growForGetReady(win: Window): () => void {
+export function growForGetReady(win: Window): { toStar: () => void; restore: () => void } {
   const before = { width: win.innerWidth, height: win.innerHeight, x: win.screenX, y: win.screenY }
   const screen = win.screen as Screen & { availLeft?: number; availTop?: number }
   const left = screen.availLeft ?? 0
   const top = screen.availTop ?? 0
-  const height = Math.round(screen.availHeight * 0.72)
-  const width = Math.round(Math.min(screen.availWidth * 0.55, height * 1.25))
-  const frameWidth = win.outerWidth - win.innerWidth
-  const frameHeight = win.outerHeight - win.innerHeight
-  const x = Math.max(left, Math.min(win.screenX, left + screen.availWidth - width - frameWidth))
-  const y = Math.max(top, Math.min(win.screenY, top + screen.availHeight - height - frameHeight))
+  const starHeight = Math.round(screen.availHeight * 0.72)
+  const width = Math.round(Math.min(screen.availWidth * 0.58, starHeight * 1.45))
   let moved = false
-  if (x !== win.screenX || y !== win.screenY) {
-    try {
-      win.moveTo(x, y)
-      moved = true
-    } catch {
-      // Not allowed for this window: it grows where it is, and the browser keeps it on the screen.
+  const place = (size: { width: number; height: number }) => {
+    const frameWidth = win.outerWidth - win.innerWidth
+    const frameHeight = win.outerHeight - win.innerHeight
+    const x = Math.max(left, Math.min(win.screenX, left + screen.availWidth - size.width - frameWidth))
+    const y = Math.max(top, Math.min(win.screenY, top + screen.availHeight - size.height - frameHeight))
+    if (x !== win.screenX || y !== win.screenY) {
+      try {
+        win.moveTo(x, y)
+        moved = true
+      } catch {
+        // Not allowed for this window: it grows where it is, and the browser keeps it on the screen.
+      }
     }
+    resizeFloatingWindow(win, size)
   }
-  resizeFloatingWindow(win, { width, height })
-  return () => {
-    resizeFloatingWindow(win, before)
-    if (!moved) return
-    try {
-      win.moveTo(before.x, before.y)
-    } catch {
-      // Left where it is.
-    }
+  place({ width, height: floatDrumsHeight(width) })
+  return {
+    toStar: () => place({ width, height: starHeight }),
+    restore: () => {
+      resizeFloatingWindow(win, before)
+      if (!moved) return
+      try {
+        win.moveTo(before.x, before.y)
+      } catch {
+        // Left where it is.
+      }
+    },
   }
 }
 

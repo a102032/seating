@@ -2,34 +2,35 @@ import clsx from 'clsx'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { assetUrl } from '../lib/assets'
-import { GET_READY_DRUMS, controlButtonWidth } from '../lib/getReady'
+import { FLOAT_DRUMS, GET_READY_DRUMS, controlButtonHeight, controlButtonWidth } from '../lib/getReady'
 import { primeTaiko } from '../lib/sound'
 import { flyStarsFrom } from '../lib/starFlight'
 import { StarMoment, type Layout } from './GetReady'
 
 /** The board reads one touch as two: the tap that opened the drums lands again on whatever is under it now. */
 const TAP_GUARD_MS = 700
+/** Room kept clear round the star, and between the star and the column of Ready!, Stop and the chest. */
+const MARGIN = 16
+/** Ready! and Stop sit this far in from the window's right edge (their own `right-7`). */
+const COLUMN_RIGHT = 28
 
 /**
- * Where the star sits in the floating window: under the meter (the window's own, which stays
- * on top so the class sees the stars land), left of Ready! and Stop, and as big as the room
- * between them allows.
+ * Where the star sits in the floating window. The star's points span about 0.81 of its box across
+ * and 0.77 down (the tip at 0.09, the feet at 0.86). It is as big as the window's height allows,
+ * in the middle of the window (2026-10-06, the teacher: it sat off to the left), and only when
+ * that would run into Ready! and Stop does it shift left and get as big as the room there allows.
  */
 function measureFloat(view: Window): Layout {
-  const header = view.document.querySelector('[data-float-header]')
-  const headerBottom = header ? header.getBoundingClientRect().bottom : 0
-  const areaLeft = 12
-  const areaWidth = Math.max(0, view.innerWidth - 28 - controlButtonWidth(view) - 16 - areaLeft)
-  const areaHeight = Math.max(0, view.innerHeight - headerBottom - 12)
-  // From the star's tip to the bottom of "Tap the star to start" is about 0.95 of its box.
-  const s = Math.max(120, Math.min(areaHeight / 0.95, areaWidth))
-  const spare = Math.max(0, areaHeight - 0.95 * s)
-  return {
-    s,
-    top: headerBottom + 6 + spare / 2 - 0.0917 * s,
-    cx: areaLeft + areaWidth / 2,
-    buttonsTop: headerBottom + 16,
-  }
+  const width = view.innerWidth
+  const height = view.innerHeight
+  const columnLeft = width - COLUMN_RIGHT - controlButtonWidth(height)
+  const byHeight = (height - 2 * MARGIN) / 0.77
+  const centred = Math.min(byHeight, (columnLeft - MARGIN - width / 2) / 0.406)
+  const shifted = Math.min(byHeight, (columnLeft - 2 * MARGIN) / 0.812)
+  // Centred unless that costs the star more than a quarter of its size.
+  const s = Math.max(100, centred >= 0.75 * shifted ? centred : shifted)
+  const cx = centred >= 0.75 * shifted ? width / 2 : Math.max(MARGIN + 0.406 * s, columnLeft - MARGIN - 0.406 * s)
+  return { s, top: height / 2 - 0.477 * s, cx, buttonsTop: MARGIN }
 }
 
 interface FloatGetReadyProps {
@@ -37,6 +38,8 @@ interface FloatGetReadyProps {
   lastDrum?: number
   prize: number
   onChooseDrum: (seconds: number) => void
+  /** A drum was chosen: the window grows from the drums to the star. */
+  onStar: () => void
   onAward: (stars: number) => void
   /** Get Ready! is over (or was stopped): the window goes back to its own size. */
   onClose: () => void
@@ -44,11 +47,13 @@ interface FloatGetReadyProps {
 
 /**
  * Get Ready! in the floating window, for the moment after an instruction while the lesson is up:
- * "How long?" and then the app's own star, drum, prize and sounds, in the window grown big. Its
- * stars land in the window's chest. Every timer and animation here runs on the floating
- * window's clock, because the app's page behind the lesson gets about one timer a second.
+ * "How long?" as a snug rectangle of drums, then the app's own star, drum, prize and sounds in
+ * the window grown big, with a treasure chest under Stop for its stars to land in. No class goal
+ * meter and no words under the star (2026-10-06, the teacher): the star touched the meter, and
+ * the window is all star. Every timer and animation here runs on the floating window's clock,
+ * because the app's page behind the lesson gets about one timer a second.
  */
-export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onAward, onClose }: FloatGetReadyProps) {
+export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onStar, onAward, onClose }: FloatGetReadyProps) {
   const [seconds, setSeconds] = useState<number | null>(null)
   // The drum is fetched while the teacher chooses, so the first hit isn't a fallback knock.
   useEffect(() => primeTaiko(), [])
@@ -59,6 +64,7 @@ export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onAward, onC
         win={win}
         lastDrum={lastDrum}
         onChoose={(n) => {
+          onStar()
           onChooseDrum(n)
           setSeconds(n)
         }}
@@ -67,23 +73,60 @@ export function FloatGetReady({ win, lastDrum, prize, onChooseDrum, onAward, onC
     )
   }
   return (
-    <StarMoment
-      seconds={seconds}
-      prize={prize}
-      onAward={onAward}
-      onLiftMeter={() => {}}
-      onClose={onClose}
-      view={win}
-      measure={measureFloat}
-      fly={(x, y, count, size) =>
-        flyStarsFrom(x, y, count, size, { to: win.document.querySelector<HTMLElement>('[data-float-coin]'), tracked: false })
-      }
-      awardOnLanding
+    <div data-ink="canvas" className="h-full w-full bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]">
+      <StarMoment
+        seconds={seconds}
+        prize={prize}
+        onAward={onAward}
+        onLiftMeter={() => {}}
+        onClose={onClose}
+        view={win}
+        measure={measureFloat}
+        fly={(x, y, count, size) =>
+          flyStarsFrom(x, y, count, size, { to: win.document.querySelector<HTMLElement>('[data-float-coin]'), tracked: false })
+        }
+        awardOnLanding
+        showWords={false}
+        beside={<Chest win={win} />}
+      />
+    </div>
+  )
+}
+
+/** The treasure chest under Stop, where the stars fly when Ready! is tapped; it swells as each lands. */
+function Chest({ win }: { win: Window }) {
+  // Laid out from the window's height the way Ready! and Stop are, and kept in step as it grows.
+  const [height, setHeight] = useState(win.innerHeight)
+  useEffect(() => {
+    const update = () => setHeight(win.innerHeight)
+    win.addEventListener('resize', update)
+    return () => win.removeEventListener('resize', update)
+  }, [win])
+  const column = controlButtonWidth(height)
+  const size = Math.round(column * 0.62)
+  return (
+    <img
+      src={assetUrl('/treasure/chest-closed.svg')}
+      alt=""
+      draggable={false}
+      data-float-coin=""
+      className="pointer-events-none absolute select-none"
+      style={{
+        width: size,
+        height: size,
+        right: COLUMN_RIGHT + (column - size) / 2,
+        top: MARGIN + 2 * controlButtonHeight(height) + 12 + 18,
+        filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.35))',
+      }}
     />
   )
 }
 
-/** The five drums, filling the grown window under its meter, with a way back out. */
+/**
+ * The five drums as a snug rectangle filling the window, which is made exactly tall enough for
+ * them (`floatDrumsHeight` measures with the same `FLOAT_DRUMS` numbers), with a way back out.
+ * Sizes come from the window's width, so they follow it as it grows.
+ */
 function HowLong({
   win,
   lastDrum,
@@ -97,10 +140,12 @@ function HowLong({
 }) {
   const [openedAt] = useState(() => win.performance.now())
   const settled = () => win.performance.now() - openedAt >= TAP_GUARD_MS
+  const { pad, gap, titleHeight, imageRatio, imageMax, numberRatio, numberMax } = FLOAT_DRUMS
+  const drum = `calc((100vw - ${2 * pad + 4 * gap}px) / 5)`
 
   return (
-    <div data-ink="panel" className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border bg-card p-3 shadow-sm">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+    <div data-ink="panel" className="flex h-full w-full flex-col justify-center bg-card" style={{ padding: pad }}>
+      <div className="flex shrink-0 items-center justify-between gap-2" style={{ height: titleHeight }}>
         <h2 className="text-xl font-bold text-foreground">How long?</h2>
         <button
           type="button"
@@ -113,7 +158,7 @@ function HowLong({
           <X className="size-6" />
         </button>
       </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center gap-[2vw]">
+      <div className="mt-2 flex shrink-0" style={{ gap }}>
         {GET_READY_DRUMS.map((n) => (
           <button
             key={n}
@@ -121,22 +166,25 @@ function HowLong({
             data-drum={n}
             onClick={() => settled() && onChoose(n)}
             className={clsx(
-              'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border-[3px] px-1 pt-3 pb-2.5 transition-transform active:scale-95',
+              'flex min-w-0 flex-1 flex-col items-center rounded-2xl border-[3px] pt-3 pb-2.5 transition-transform active:scale-95',
               n === lastDrum ? 'border-primary bg-primary/15' : 'border-transparent bg-primary/5 dark:bg-white/10',
             )}
-            style={{ touchAction: 'manipulation', maxWidth: '9.5rem' }}
+            style={{ touchAction: 'manipulation' }}
           >
             <img
               src={assetUrl('/get-ready/taiko-drum.svg')}
               alt=""
               draggable={false}
-              className="mb-1 w-auto select-none"
-              style={{ height: 'min(14vh, 6rem)' }}
+              className="block w-auto select-none"
+              style={{ height: `min(${imageMax}px, calc(${drum} * ${imageRatio}))` }}
             />
-            <span className="font-bold leading-none text-foreground" style={{ fontSize: 'clamp(1.3rem, 6vh, 2.25rem)' }}>
+            <span
+              className="mt-1.5 block font-bold text-foreground"
+              style={{ fontSize: `min(${numberMax}px, calc(${drum} * ${numberRatio}))`, lineHeight: 1 }}
+            >
               {n}
             </span>
-            <span className="text-sm font-bold text-muted-foreground">seconds</span>
+            <span className="mt-1 block text-sm leading-[18px] font-bold text-muted-foreground">seconds</span>
           </button>
         ))}
       </div>

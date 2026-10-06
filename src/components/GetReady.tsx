@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type Ref } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { assetUrl } from '../lib/assets'
 import { playGetReadyGo, playGetReadyTimeUp, playTaikoHit, primeTaiko } from '../lib/sound'
@@ -166,7 +166,8 @@ type Ending = { words: string; earned?: number }
  * behind the lesson there, its timers slowed to about one a second and its animation frames
  * stopped. `fly` sends the stars to the jar and says when they land; with `awardOnLanding` the
  * points are handed over as they land (the floating window's meter doesn't wait for stars), and
- * if the window closes first they are handed over then.
+ * if the window closes first they are handed over then. The floating window also leaves out the
+ * words under the star (`showWords`) and puts its own chest beside Ready! and Stop (`beside`).
  */
 export function StarMoment({
   seconds,
@@ -178,6 +179,8 @@ export function StarMoment({
   measure = measureBoard,
   fly = flyStarsFrom,
   awardOnLanding = false,
+  showWords = true,
+  beside,
 }: {
   seconds: number
   prize: number
@@ -188,6 +191,9 @@ export function StarMoment({
   measure?: (view: Window) => Layout
   fly?: (x: number, y: number, count: number, size: number) => number
   awardOnLanding?: boolean
+  showWords?: boolean
+  /** Shown over the faded window the whole time, ending included: the floating window's chest. */
+  beside?: ReactNode
 }) {
   const [layout, setLayout] = useState<Layout>(() => measure(view))
   const [shown, setShown] = useState(false)
@@ -368,7 +374,9 @@ export function StarMoment({
     <div
       data-get-ready=""
       className={clsx(
-        'fixed inset-0 z-[55] overflow-hidden bg-slate-900/80 text-white transition-opacity',
+        // Clipped, not hidden: an overflow-hidden box can still scroll, and tapping the star (whose
+        // square box can run past the window's edge) scrolled it to show the whole box.
+        'fixed inset-0 z-[55] overflow-clip bg-slate-900/80 text-white transition-opacity',
         shown && !leaving ? 'opacity-100 duration-300' : 'opacity-0 duration-[450ms]',
       )}
       onClick={() => {
@@ -432,20 +440,26 @@ export function StarMoment({
             </div>
           </button>
 
-          <p
-            className={clsx('absolute m-0 text-center font-bold transition-opacity', sent && 'opacity-0')}
-            style={{ ...words, ...under(0.864) }}
-          >
-            Get Ready!
-          </p>
-          <p
-            className={clsx('absolute m-0 text-center opacity-75', started && 'invisible')}
-            style={{ fontSize: cue(0.0308), ...under(0.979) }}
-          >
-            Tap the star to start
-          </p>
+          {showWords && (
+            <>
+              <p
+                className={clsx('absolute m-0 text-center font-bold transition-opacity', sent && 'opacity-0')}
+                style={{ ...words, ...under(0.864) }}
+              >
+                Get Ready!
+              </p>
+              <p
+                className={clsx('absolute m-0 text-center opacity-75', started && 'invisible')}
+                style={{ fontSize: cue(0.0308), ...under(0.979) }}
+              >
+                Tap the star to start
+              </p>
+            </>
+          )}
         </>
       )}
+
+      {beside}
 
       {ending && (
         <div

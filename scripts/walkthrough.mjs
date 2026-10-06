@@ -645,7 +645,10 @@ const scenarios = {
     return page
   },
 
-  /** Get Ready! from the floating window, over the lesson: it grows for the star, the stars land in its chest, and it shrinks back. */
+  /**
+   * Get Ready! from the floating window, over the lesson: it grows to a snug rectangle of drums,
+   * then to the star (no meter, the chest under Stop), and shrinks back when it is tapped away.
+   */
   async 'Get Ready! in the floating window'() {
     const cls = makeClass('c1', 'Float', 12, { pointsGoal: 50, classPoints: 10 })
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
@@ -653,13 +656,16 @@ const scenarios = {
     const winErrors = []
     win.on('pageerror', (e) => winErrors.push(e.message))
     await win.waitForLoadState()
-    // Playwright stretches the floating window to the test's viewport, and gives it a screen
-    // the size of that: set both to what a board would have.
+    // Playwright stretches the floating window to the test's viewport, gives it a screen the
+    // size of that, and leaves its outer size behind when the viewport changes: set all three to
+    // what a board would have.
     await win.setViewportSize({ width: 340, height: 180 })
     await win.evaluate(() => {
       for (const [k, v] of Object.entries({ availWidth: 1280, availHeight: 680, availLeft: 0, availTop: 0 })) {
         Object.defineProperty(screen, k, { get: () => v })
       }
+      Object.defineProperty(window, 'outerWidth', { get: () => window.innerWidth })
+      Object.defineProperty(window, 'outerHeight', { get: () => window.innerHeight })
       window.__resizes = []
       const resize = window.resizeTo.bind(window)
       window.resizeTo = (w, h) => {
@@ -668,31 +674,50 @@ const scenarios = {
       }
     })
     await page.waitForTimeout(500)
+    const buttons = await win
+      .locator('[data-ink=canvas] > div.grid > button')
+      .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width))
+    check(
+      'float: +1, Pick and Get Ready! are the same size',
+      buttons.length === 3 && Math.max(...buttons) - Math.min(...buttons) < 1,
+      buttons.join(', '),
+    )
     await win.locator('[data-float-get-ready]').click()
     await win.waitForTimeout(150)
-    const grow = await win.evaluate(() => window.__resizes[0])
-    check('float Get Ready!: the window grows for the star', Boolean(grow) && grow[1] >= 480, JSON.stringify(grow))
+    const [drums] = await win.evaluate(() => window.__resizes)
+    check(
+      'float Get Ready!: the window grows to a snug rectangle of drums',
+      Boolean(drums) && drums[0] > 600 && drums[1] < 300,
+      JSON.stringify(drums),
+    )
     check("float Get Ready!: the side panel's stands down meanwhile", await panelButton(page, 'Get Ready!').isDisabled())
-    await win.setViewportSize({ width: 613, height: 490 })
+    await win.setViewportSize({ width: drums[0], height: drums[1] })
     await win.waitForTimeout(800)
     await win.locator('[data-drum="10"]').click()
+    await win.waitForTimeout(150)
+    const star = (await win.evaluate(() => window.__resizes))[1]
+    check('float Get Ready!: a drum grows the window for the star', Boolean(star) && star[1] >= 480, JSON.stringify(star))
+    await win.setViewportSize({ width: star[0], height: star[1] })
     await win.waitForTimeout(900)
+    check(
+      'float Get Ready!: no meter over the star, and a chest to fly to',
+      (await win.locator('[data-float-coin]').count()) === 1 && (await win.locator('[data-ink=panel]').count()) === 0,
+    )
     await win.locator('[data-get-ready] button[aria-label="Start"]').click()
     await win.waitForTimeout(1500)
     await win.getByRole('button', { name: 'Ready!', exact: true }).click()
     await win.waitForTimeout(2200)
     const c = await activeSaved(page)
-    check(
-      'float Get Ready!: a full star lands in the jar, and the window shows it',
-      c.classPoints === 15 && (await win.locator('[data-float-header]').innerText()).includes('15 / 50'),
-      `meter ${c.classPoints}`,
-    )
+    check('float Get Ready!: a full star lands in the jar', c.classPoints === 15, `meter ${c.classPoints}`)
     await win.mouse.click(30, 460)
     await win.waitForTimeout(700)
     check(
       'float Get Ready!: a tap ends it and the window goes back',
-      (await win.locator('[data-get-ready]').count()) === 0 && (await win.evaluate(() => window.__resizes.length)) === 2,
+      (await win.locator('[data-get-ready]').count()) === 0 && (await win.evaluate(() => window.__resizes.length)) === 3,
     )
+    await win.setViewportSize({ width: 340, height: 180 })
+    await win.waitForTimeout(300)
+    check('float Get Ready!: the meter shows the stars', (await win.locator('[data-ink=panel]').innerText()).includes('15 / 50'))
     check('float Get Ready!: no errors in the floating window', winErrors.length === 0, winErrors.join(' | '))
     return page
   },
