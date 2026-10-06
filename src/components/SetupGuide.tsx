@@ -14,8 +14,12 @@ type Box = { left: number; top: number; width: number; height: number }
 const PAD = 8
 const BUBBLE_WIDTH = 340
 const GAP = 14
-/** The helper's own colour, the same in every theme; white on it is about 5:1. */
-const GUIDE_BLUE = '#2563eb'
+/**
+ * The helper's own colours, the same in every theme: a soft sky blue with navy words (about 10:1),
+ * and the stronger blue only on Next, the one thing to tap to go on. A full-strength blue bubble
+ * was too loud on the board (2026-10-06, the teacher).
+ */
+const GUIDE = { sky: '#dbeafe', navy: '#1e3a8a', ink: '#1e40af', blue: '#2563eb' }
 /** The bubble keeps this far from the screen's edges. */
 const EDGE = 12
 /** The narrowest the bubble goes to fit beside the lit thing. */
@@ -180,19 +184,21 @@ export function SetupGuide({ step, onNext, onSkip }: SetupGuideProps) {
         )
       )}
       {/* The bubble is blue in every theme (2026-10-06, the teacher): the windows are white, so a
-          white bubble read as one more place to do something. Blue says it is the helper. */}
+          white bubble read as one more place to do something. Sky blue says it is the helper. */}
       <div
         data-guide-bubble=""
         role="dialog"
         aria-label={def.title}
         ref={bubbleRef}
-        className="pointer-events-auto absolute rounded-2xl p-4 text-white shadow-2xl"
-        style={{ ...bubble, width, background: GUIDE_BLUE }}
+        className="pointer-events-auto absolute rounded-2xl p-4 shadow-2xl"
+        style={{ ...bubble, width, background: GUIDE.sky, color: GUIDE.navy }}
       >
-        {arrow && <span className="absolute size-[18px] rotate-45" style={{ ...arrow, background: GUIDE_BLUE }} aria-hidden />}
-        {!centred && <p className="text-xs font-bold text-blue-100">{`Step ${number} of ${shown.length}`}</p>}
+        {arrow && <span className="absolute size-[18px] rotate-45" style={{ ...arrow, background: GUIDE.sky }} aria-hidden />}
+        {!centred && <p className="text-xs font-bold" style={{ color: GUIDE.blue }}>{`Step ${number} of ${shown.length}`}</p>}
         <p className="mt-0.5 text-lg font-bold">{def.title}</p>
-        <p className="mt-1 text-sm text-white/90">{def.text}</p>
+        <p className="mt-1 text-sm" style={{ color: GUIDE.ink }}>
+          {def.text}
+        </p>
         <div className="mt-3 flex items-center justify-between gap-2">
           {centred ? (
             <span />
@@ -201,18 +207,19 @@ export function SetupGuide({ step, onNext, onSkip }: SetupGuideProps) {
               type="button"
               onClick={onSkip}
               data-guide-skip=""
-              className="rounded-lg px-2 py-1.5 text-sm font-semibold text-blue-100 hover:bg-white/10"
+              className="rounded-lg px-2 py-1.5 text-sm font-semibold hover:bg-blue-200/60"
+              style={{ color: GUIDE.ink }}
             >
               Skip
             </button>
           )}
-          {/* White on the blue, and a plain button so no theme restyles it. */}
+          {/* A plain button, so no theme restyles it. */}
           <button
             type="button"
             onClick={centred ? onSkip : onNext}
             data-guide-next=""
-            className="rounded-xl bg-white px-4 py-2 font-bold shadow-sm transition-[scale] duration-150 active:scale-[0.96]"
-            style={{ color: GUIDE_BLUE, touchAction: 'manipulation' }}
+            className="rounded-xl px-4 py-2 font-bold text-white shadow-sm transition-[scale] duration-150 active:scale-[0.96]"
+            style={{ background: GUIDE.blue, touchAction: 'manipulation' }}
           >
             {centred ? 'Done' : 'Next'}
           </button>
