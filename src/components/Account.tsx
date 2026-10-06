@@ -45,7 +45,7 @@ export function Initial({ name, className }: { name: string; className?: string 
 const ABOVE_SPLASH = 'z-[90]'
 
 /**
- * Switch teacher asks first, and says what happens: the classes are safe in the account, and the
+ * Switch Teacher asks first, and says what happens: the classes are safe in the account, and the
  * board forgets them. If this board has changes the account hasn't got yet (no internet), it
  * says so, because switching now would lose them.
  */
@@ -69,7 +69,7 @@ export function SwitchTeacherModal({
         <div className="flex items-start gap-3">
           <Initial name={account.firstName} className="mt-0.5 size-9" />
           <div className="flex flex-col gap-2 pt-1">
-            <AlertDialogTitle>Switch teacher?</AlertDialogTitle>
+            <AlertDialogTitle>Switch Teacher?</AlertDialogTitle>
             <AlertDialogDescription>
               {account.firstName}'s classes are safe in the Google account. This board forgets them until {account.firstName} signs in
               again, so the next teacher sees only their own.
@@ -213,7 +213,7 @@ function statusSentence(status: SyncStatus, needsSignIn: boolean): string {
 
 /**
  * Where "Not saving" sits at the foot of the side panel: Saved, or catching up. A tap shows whose
- * account the classes are in, and Switch teacher. Nothing else on the panel moves for it.
+ * account the classes are in, and Switch Teacher. Nothing else on the panel moves for it.
  */
 export function SyncMark({
   account,
@@ -289,7 +289,7 @@ export function SyncMark({
               onSwitchTeacher()
             }}
           >
-            Switch teacher
+            Switch Teacher
           </Button>
         </Popover.Content>
       </Popover.Portal>

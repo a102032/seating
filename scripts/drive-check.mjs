@@ -375,8 +375,8 @@ try {
   if (want('picture')) {
     const text = await dialog().innerText()
     check(
-      'signed in: the account, Saved and Switch teacher',
-      /Derek/.test(text) && /Switch teacher/.test(text) && /Saved|Connecting/.test(text),
+      'signed in: the account, Saved and Switch Teacher',
+      /Derek/.test(text) && /Switch Teacher/.test(text) && /Saved|Connecting/.test(text),
     )
     await dialog()
       .getByRole('button', { name: /Save to Google Drive/ })

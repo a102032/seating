@@ -74,7 +74,7 @@ export function GoogleTab({ activeClass, cloud, onSwitchTeacher }: GoogleTabProp
             </div>
             <SyncBadge status={cloud.status} needsSignIn={cloud.needsSignIn} />
             <TactileButton className="ml-auto" onClick={onSwitchTeacher}>
-              Switch teacher
+              Switch Teacher
             </TactileButton>
           </div>
         ) : (

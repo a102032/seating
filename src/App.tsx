@@ -79,6 +79,8 @@ export default function App() {
     renameClass,
     deleteClass,
     addStudents,
+    deleteStudents,
+    replaceStudents,
     updateStudent,
     assignAvatars,
     adjustPoints,
@@ -117,7 +119,7 @@ export default function App() {
   } = useClasses()
 
   /**
-   * Switch teacher, from the splash or the side panel's Saved mark. Whether the board has changes
+   * Switch Teacher, from the splash or the side panel's Saved mark. Whether the board has changes
    * the account hasn't got is read as it opens, since switching would lose them.
    */
   const [switchTeacher, setSwitchTeacher] = useState<{ unsent: boolean } | null>(null)
@@ -718,6 +720,13 @@ export default function App() {
               setActiveClassId(id)
               setSplashOpen(false)
             }}
+            onNewClass={() => {
+              if (cloud.needsSignIn) void cloud.signIn()
+              // Made, opened, and straight to its name, as New Class in Class Settings does.
+              createClass()
+              setSplashOpen(false)
+              openSettings('class')
+            }}
             account={cloud.account}
             signingIn={cloud.signingIn}
             signInError={cloud.signInError}
@@ -989,6 +998,8 @@ export default function App() {
         unseatedCount={unseatedStudents.length}
         onRename={(name) => renameClass(activeClass.id, name)}
         onAddStudents={(students) => addStudents(activeClass.id, students)}
+        onRemoveStudents={(studentIds) => deleteStudents(activeClass.id, studentIds)}
+        onReplaceStudents={(students) => replaceStudents(activeClass.id, students)}
         onUpdateStudent={(studentId, patch) => updateStudent(activeClass.id, studentId, patch)}
         onAssignAvatars={(themeId, options) => assignAvatars(activeClass.id, themeId, options)}
         onDeleteStudent={(studentId) => deleteStudent(activeClass.id, studentId)}

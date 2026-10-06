@@ -31,6 +31,9 @@ function withAllDesks(seating: (string | null)[] | undefined): (string | null)[]
   return [...seating, ...Array.from({ length: MAX_SEATS - seating.length }, () => null)]
 }
 
+/** A new class's goal: on, so the treasure chest is there from the first lesson (2026-10-06, the teacher's call). */
+const NEW_CLASS_GOAL = 50
+
 function makeClass(name: string): ClassData {
   const now = new Date().toISOString()
   return {
@@ -38,6 +41,9 @@ function makeClass(name: string): ClassData {
     name,
     students: [],
     seating: emptySeating(),
+    pointsGoal: NEW_CLASS_GOAL,
+    goalEnabled: true,
+    classPoints: 0,
     updatedAt: now,
     createdAt: now,
   }
@@ -209,9 +215,13 @@ export function useClasses() {
 
   // A newcomer to a class with its avatars switched off shows by name like everyone else; the
   // switch, not their avatar, is what keeps the board names only.
+  /** Returns the new students' ids, so an import can be taken back out again exactly. */
   const addStudents = useCallback(
-    (classId: string, students: Omit<Student, 'id'>[]) =>
-      updateClass(classId, (c) => ({ ...c, students: [...c.students, ...students.map((s) => ({ ...s, id: genId() }))] })),
+    (classId: string, students: Omit<Student, 'id'>[]): string[] => {
+      const added = students.map((s) => ({ ...s, id: genId() }))
+      updateClass(classId, (c) => ({ ...c, students: [...c.students, ...added] }))
+      return added.map((s) => s.id)
+    },
     [updateClass],
   )
 
@@ -254,19 +264,42 @@ export function useClasses() {
    * groups, the participation record, and the attendance record, where a day they were away would otherwise keep a
    * column in the export with nobody in it. The days themselves stay taken.
    */
-  const deleteStudent = useCallback(
-    (classId: string, studentId: string) =>
+  /** Students out of the class, and out of everything that remembers them: seats, groups, attendance, who had a turn. */
+  const deleteStudents = useCallback(
+    (classId: string, studentIds: string[]) => {
+      const gone = new Set(studentIds)
       updateClass(classId, (c) => ({
         ...c,
-        students: c.students.filter((s) => s.id !== studentId),
-        seating: c.seating.map((seat) => (seat === studentId ? null : seat)),
-        groups: c.groups?.map((g) => ({ ...g, studentIds: g.studentIds.filter((id) => id !== studentId) })),
+        students: c.students.filter((s) => !gone.has(s.id)),
+        seating: c.seating.map((seat) => (seat && gone.has(seat) ? null : seat)),
+        groups: c.groups?.map((g) => ({ ...g, studentIds: g.studentIds.filter((id) => !gone.has(id)) })),
         attendance:
-          c.attendance && Object.fromEntries(Object.entries(c.attendance).map(([day, ids]) => [day, ids.filter((id) => id !== studentId)])),
-        participation: withoutStudent(c.participation, studentId),
-        pickRound: c.pickRound && { ...c.pickRound, ids: c.pickRound.ids.filter((id) => id !== studentId) },
-      })),
+          c.attendance && Object.fromEntries(Object.entries(c.attendance).map(([day, ids]) => [day, ids.filter((id) => !gone.has(id))])),
+        participation: studentIds.reduce((record, id) => withoutStudent(record, id), c.participation),
+        pickRound: c.pickRound && { ...c.pickRound, ids: c.pickRound.ids.filter((id) => !gone.has(id)) },
+      }))
+    },
     [updateClass],
+  )
+
+  const deleteStudent = useCallback((classId: string, studentId: string) => deleteStudents(classId, [studentId]), [deleteStudents])
+
+  /**
+   * A new list in place of the class's students (2026-10-06, the teacher): what a teacher does
+   * after importing the wrong roster is import the right one, and adding it to the wrong one
+   * helped nobody. Everyone on the old list goes, with their seats and records, as if deleted.
+   */
+  const replaceStudents = useCallback(
+    (classId: string, students: Omit<Student, 'id'>[]) => {
+      const cls = classes.find((c) => c.id === classId)
+      if (cls)
+        deleteStudents(
+          classId,
+          cls.students.map((s) => s.id),
+        )
+      return addStudents(classId, students)
+    },
+    [classes, deleteStudents, addStudents],
   )
 
   const swapSeats = useCallback(
@@ -570,6 +603,8 @@ export function useClasses() {
     renameClass,
     deleteClass,
     addStudents,
+    deleteStudents,
+    replaceStudents,
     updateStudent,
     assignAvatars,
     adjustPoints,

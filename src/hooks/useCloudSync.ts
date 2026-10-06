@@ -414,7 +414,7 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
           setStatus('connecting')
         } else {
           await api.signOutOnly()
-          setSignInError(`This board has ${r.firstName}'s classes. Use Switch teacher first.`)
+          setSignInError(`This board has ${r.firstName}'s classes. Use Switch Teacher first.`)
         }
         return
       }

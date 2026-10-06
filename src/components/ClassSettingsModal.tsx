@@ -17,6 +17,7 @@ import {
   Star,
   Trash2,
   TriangleAlert,
+  Undo2,
   Upload,
   Users,
   UserX,
@@ -24,6 +25,15 @@ import {
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
 import { Popover } from 'radix-ui'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { ComponentType, ReactNode } from 'react'
 import { parseRosterCsv, rosterFromRows } from '../lib/csv'
 import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../lib/drive'
@@ -65,7 +75,12 @@ interface ClassSettingsModalProps {
   classesCount: number
   unseatedCount: number
   onRename: (name: string) => void
-  onAddStudents: (students: Omit<Student, 'id'>[]) => void
+  /** Returns the new students' ids. */
+  onAddStudents: (students: Omit<Student, 'id'>[]) => string[]
+  /** An import taken back out: exactly the students it added. */
+  onRemoveStudents: (studentIds: string[]) => void
+  /** A new list in place of the class's students. */
+  onReplaceStudents: (students: Omit<Student, 'id'>[]) => string[]
   onUpdateStudent: (studentId: string, patch: Partial<Omit<Student, 'id'>>) => void
   onAssignAvatars: (themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) => void
   onDeleteStudent: (studentId: string) => void
@@ -176,6 +191,8 @@ export function ClassSettingsModal({
   unseatedCount,
   onRename,
   onAddStudents,
+  onRemoveStudents,
+  onReplaceStudents,
   onUpdateStudent,
   onAssignAvatars,
   onDeleteStudent,
@@ -221,8 +238,11 @@ export function ClassSettingsModal({
   const [imported, setImported] = useState<string | null>(null)
   // A list pasted in: what was pasted, and whether its window is up.
   const [pasteText, setPasteText] = useState<string | null>(null)
-  // What the last paste or file did ("Added 28 students."), under the roster's heading.
-  const [importNote, setImportNote] = useState<string | null>(null)
+  // What the last paste, file or sheet did ("Added 28 students."), under the roster's heading,
+  // with the students it added, so the import can be taken back out.
+  const [importNote, setImportNote] = useState<{ text: string; added?: string[] } | null>(null)
+  // A list waiting on Replace them / Add to them, because the class already has students.
+  const [pending, setPending] = useState<{ students: Omit<Student, 'id'>[]; report: (text: string) => void } | null>(null)
   const drive = useDrive(cloud.account?.uid)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
@@ -250,24 +270,67 @@ export function ClassSettingsModal({
   }
 
   /**
-   * Anyone already on the roster (same name and homeroom) is skipped, so importing a file a
-   * second time - after fixing a line in it, say - adds only who is new rather than doubling
-   * the class.
+   * Who in a list isn't on the roster yet (same name and homeroom), so importing a file a second
+   * time - after fixing a line in it, say - adds only who is new rather than doubling the class.
    */
-  function addNew(students: Omit<Student, 'id'>[]): number {
+  function newcomers(students: Omit<Student, 'id'>[]) {
     const key = (s: { name: string; homeroom: string }) => `${s.name.trim().toLowerCase()}|${s.homeroom.trim()}`
     const known = new Set(activeClass.students.map(key))
-    const fresh = students.filter((s) => !known.has(key(s)) && known.add(key(s)))
-    if (fresh.length > 0) onAddStudents(fresh)
-    return fresh.length
+    return students.filter((s) => !known.has(key(s)) && known.add(key(s)))
   }
 
   /** What an import did, in words: how many were added, and how many were already here. */
   function describeAdded(found: number, added: number): string {
-    if (found === 0) return 'No names found in that list.'
-    if (added === 0) return 'Everyone in that list is already in the class.'
     const already = found - added
     return `Added ${added} ${added === 1 ? 'student' : 'students'}.${already > 0 ? ` ${already} ${already === 1 ? 'was' : 'were'} already in the class.` : ''}`
+  }
+
+  /**
+   * Every import comes in here: a paste, a file or a sheet. Into a class that already has
+   * students it asks first, Replace them or Add to them (2026-10-06, the teacher: a second roster
+   * only ever added, so a wrong one could only be fixed a student at a time). `report` says what
+   * happened where the import was made (the sheets window has its own line).
+   */
+  function bringIn(students: Omit<Student, 'id'>[], report: (text: string) => void = () => {}) {
+    const fresh = newcomers(students)
+    const say = (text: string, added?: string[]) => {
+      setImportNote({ text, added })
+      report(text)
+    }
+    if (students.length === 0) return say('No names found in that list.')
+    if (fresh.length === 0) return say('Everyone in that list is already in the class.')
+    if (activeClass.students.length > 0) {
+      setPending({ students, report })
+      return
+    }
+    say(describeAdded(students.length, fresh.length), onAddStudents(fresh))
+  }
+
+  function answerPending(choice: 'replace' | 'add' | 'cancel') {
+    if (!pending) return
+    const { students, report } = pending
+    setPending(null)
+    if (choice === 'cancel') return
+    const say = (text: string, added?: string[]) => {
+      setImportNote({ text, added })
+      report(text)
+    }
+    if (choice === 'replace') {
+      onReplaceStudents(students)
+      // Replacing isn't taken back with a tap: the question before it is the safeguard.
+      say(`The class list is now these ${students.length} ${students.length === 1 ? 'student' : 'students'}.`)
+      return
+    }
+    const fresh = newcomers(students)
+    say(describeAdded(students.length, fresh.length), onAddStudents(fresh))
+  }
+
+  /** The last import taken back out: exactly who it added, nobody who was here before. */
+  function takeOut() {
+    const added = importNote?.added
+    if (!added?.length) return
+    onRemoveStudents(added)
+    setImportNote({ text: `Took out the ${added.length} ${added.length === 1 ? 'student' : 'students'} just added.` })
   }
 
   /**
@@ -285,20 +348,20 @@ export function ClassSettingsModal({
         const { readXlsxRows } = await import('../lib/xlsx')
         students = rosterFromRows(await readXlsxRows(await file.arrayBuffer()))
       } else if (name.endsWith('.xls')) {
-        setImportNote('That is an old Excel file. Save it as .xlsx and try again, or copy the names and paste them.')
+        setImportNote({ text: 'That is an old Excel file. Save it as .xlsx and try again, or copy the names and paste them.' })
         return
       } else {
         students = parseRosterCsv(await file.text())
       }
-      setImportNote(describeAdded(students.length, addNew(students)))
+      bringIn(students)
     } catch {
-      setImportNote("That file couldn't be read. Copy the names in it and paste them instead.")
+      setImportNote({ text: "That file couldn't be read. Copy the names in it and paste them instead." })
     }
   }
 
   function addPasted(students: Omit<Student, 'id'>[]) {
-    setImportNote(describeAdded(students.length, addNew(students)))
     setPasteText(null)
+    bringIn(students)
   }
 
   // Ctrl+V anywhere on the Students tab (but not in a box being typed in) opens the pasted list,
@@ -343,18 +406,11 @@ export function ClassSettingsModal({
       .then((rows) => {
         if (!rows) return
         const students = rosterFromRows(rows)
-        const added = addNew(students)
-        setImported(
-          students.length === 0
-            ? 'This sheet has no students yet. Fill it in first.'
-            : added === 0
-              ? 'Everyone on this sheet is already in the class.'
-              : `Added ${added} ${added === 1 ? 'student' : 'students'}.${
-                  students.length > added
-                    ? ` ${students.length - added} ${students.length - added === 1 ? 'was' : 'were'} already in the class.`
-                    : ''
-                }`,
-        )
+        if (students.length === 0) {
+          setImported('This sheet has no students yet. Fill it in first.')
+          return
+        }
+        bringIn(students, setImported)
       })
   }
 
@@ -406,6 +462,7 @@ export function ClassSettingsModal({
           !attendanceOpen &&
           !participationOpen &&
           !sheetsOpen &&
+          !pending &&
           pasteText === null
         }
         onClose={closeAndReset}
@@ -615,7 +672,18 @@ export function ClassSettingsModal({
                     }}
                   />
                 </div>
-                {importNote && <p className="mb-1.5 shrink-0 text-sm font-semibold text-emerald-700 dark:text-emerald-400">{importNote}</p>}
+                {importNote && (
+                  <div className="mb-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{importNote.text}</p>
+                    {/* The wrong list? One tap takes back exactly what it added. It stays until the
+                        window closes or the next import - nothing on a timer. */}
+                    {importNote.added && importNote.added.length > 0 && (
+                      <TactileButton onClick={takeOut} className="!px-3 !py-1 text-sm" data-take-out="">
+                        <Undo2 size={15} /> Take them out
+                      </TactileButton>
+                    )}
+                  </div>
+                )}
                 <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
                   {activeClass.students.length === 0 ? (
                     // An empty class says how to fill it, where the roster will be: the help where
@@ -767,6 +835,13 @@ export function ClassSettingsModal({
           )}
         </div>
       </Modal>
+
+      <ReplaceOrAdd
+        pending={pending}
+        current={activeClass.students.length}
+        newcomers={pending ? newcomers(pending.students).length : 0}
+        onAnswer={answerPending}
+      />
 
       <ConfirmModal
         open={confirmingUnseatAll}
@@ -1002,5 +1077,47 @@ function RosterRow({
         <Trash2 size={16} />
       </button>
     </div>
+  )
+}
+
+/**
+ * A list brought into a class that already has students: replace them with it, or add the new
+ * names to them. Replace is what a teacher means after importing the wrong roster; Add is what
+ * they mean after fixing a line in the right one. Tapping outside, or Cancel, changes nothing.
+ */
+function ReplaceOrAdd({
+  pending,
+  current,
+  newcomers,
+  onAnswer,
+}: {
+  pending: { students: Omit<Student, 'id'>[] } | null
+  current: number
+  newcomers: number
+  onAnswer: (choice: 'replace' | 'add' | 'cancel') => void
+}) {
+  const listed = pending?.students.length ?? 0
+  return (
+    <AlertDialog open={pending !== null} onOpenChange={(next) => !next && onAnswer('cancel')}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            This class has {current} {current === 1 ? 'student' : 'students'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Replace them with the {listed} in your list, or add the {newcomers} new {newcomers === 1 ? 'one' : 'ones'} to them?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-wrap gap-2">
+          <AlertDialogCancel onClick={() => onAnswer('cancel')}>Cancel</AlertDialogCancel>
+          <TactileButton onClick={() => onAnswer('add')} data-import-add="">
+            <Plus size={16} /> Add to them
+          </TactileButton>
+          <TactileButton variant="primary" onClick={() => onAnswer('replace')} data-import-replace="">
+            <Upload size={16} /> Replace them
+          </TactileButton>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

@@ -68,7 +68,7 @@ checks the live URL. Confirm it went green before saying something is live.
 - `src/hooks/useCloudSync.ts`: signing in and sync (the first-sign-in question, live sync, offline catch-up, Switch
   teacher). It watches `classes` and sends whatever changed, so class changes need nothing extra to sync.
   `lib/firebase.ts` is Firebase itself, loaded only when needed; `lib/cloud.ts` loads it and keeps the account record,
-  the put-aside board classes and the sign-in error words. `components/Account.tsx`: the Saved mark, Switch teacher
+  the put-aside board classes and the sign-in error words. `components/Account.tsx`: the Saved mark, Switch Teacher
   and the question. `firestore.rules` is a copy of the rules in the Firebase console.
 - Google Drive and Sheets: `lib/drive.ts` (the folder, the roster sheet, reading a sheet, the attendance Sheet, the
   picture upload, error words), `hooks/useDrive.ts` (one action at a time, with its link or its problem),

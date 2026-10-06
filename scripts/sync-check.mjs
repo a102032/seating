@@ -15,7 +15,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright/index.js')
 //
 // Google's own sign-in window can't be driven from a test, so the test copy signs in as whichever
 // Google account a scenario names (window.__testGoogle, see lib/firebase.ts). Everything after
-// that - the question about a board's own classes, sync, going offline, Switch teacher - is the
+// that - the question about a board's own classes, sync, going offline, Switch Teacher - is the
 // app's real code. The emulators are wiped at the start.
 const URL = process.env.URL || 'http://localhost:4174/seating/'
 const only = process.argv[2] || ''
@@ -196,7 +196,7 @@ try {
     const welcomed = await waitFor(async () => greets(await splashText(board), 'Derek'))
     check('first: signed in, the splash greets Derek', Boolean(welcomed))
     const offered = await splashText(board)
-    check('first: and offers Switch teacher, in two words', /Switch teacher/.test(offered) && !/Not Derek/.test(offered))
+    check('first: and offers Switch Teacher, in two words', /Switch Teacher/.test(offered) && !/Not Derek/.test(offered))
     check('first: no question, since the account was empty', (await board.getByText("Add this board's classes").count()) === 0)
     await shot(board, '02-splash-signed-in')
     derekUid = await uidOf(board)
@@ -341,7 +341,7 @@ try {
     check("question: No shows only the account's classes", Boolean(mine))
     check('question: and leaves the account as it was', (await accountClasses(derekUid)).classes.length === 3)
 
-    await spare.getByRole('button', { name: /Switch teacher/ }).click()
+    await spare.getByRole('button', { name: /Switch Teacher/ }).click()
     const confirm = spare.getByRole('alertdialog')
     check('switch: it asks first, and says the classes are safe', /safe in the Google account/.test(await confirm.innerText()))
     await shot(spare, '06-switch-teacher')
@@ -435,7 +435,7 @@ try {
     const setUp = await waitFor(async () => (await pc.getByRole('tab', { name: 'Class', selected: true }).count()) === 1)
     check('first sign-in: a brand-new teacher goes straight to Class Settings, on the Class tab', Boolean(setUp))
     await shot(pc, '11-first-sign-in')
-    // The next day: her class and Switch teacher, nothing else.
+    // The next day: her class, New Class and Switch Teacher, nothing else.
     await pc.reload()
     const greeted = await waitFor(async () => greets(await splashText(pc), 'Teacher Amy'))
     check(
@@ -443,12 +443,12 @@ try {
       Boolean(greeted),
       (await splashText(pc)).replace(/\s+/g, ' ').slice(0, 80),
     )
-    const circle = (await pc.getByRole('button', { name: /Switch teacher/ }).innerText()).trim()
-    check("title: the circle on Switch teacher is her letter, A, not the title's", /^A\s+Switch teacher$/.test(circle), circle)
+    const circle = (await pc.getByRole('button', { name: /Switch Teacher/ }).innerText()).trim()
+    check("title: the circle on Switch Teacher is her letter, A, not the title's", /^A\s+Switch Teacher$/.test(circle), circle)
     const buttons = await pc.locator('.splash-board button').allInnerTexts()
     check(
-      'next day: the splash is her class and Switch teacher, nothing else',
-      buttons.length === 2 && /Class 1/.test(buttons[0]) && /Switch teacher/.test(buttons[1]),
+      'next day: the splash is her class, New Class and Switch Teacher, nothing else',
+      buttons.length === 3 && /Class 1/.test(buttons[0]) && /New Class/.test(buttons[1]) && /Switch Teacher/.test(buttons[2]),
       buttons.map((b) => b.replace(/\s+/g, ' ')).join(' | '),
     )
     await shot(pc, '12-next-day')
@@ -468,7 +468,7 @@ try {
 
   if (want('reconnect')) {
     // The board remembers the teacher, but its own link to Google has gone (Firebase's sign-in on
-    // this computer was cleared). The splash shows only Switch teacher - no Sign in again beside
+    // this computer was cleared). The splash shows only Switch Teacher - no Sign in again beside
     // it - and tapping a class reconnects, so saving to the account starts again.
     const pc = await computer('pc-reconnect', [makeClass('g4', 'Grade 4 English', 28)])
     await signIn(pc, DEREK)
@@ -487,8 +487,8 @@ try {
     await pc.waitForTimeout(2500)
     const splash = await splashText(pc)
     check(
-      'reconnect: a board that lost its link still greets Derek, with no Sign in again beside Switch teacher',
-      greets(splash, 'Derek') && /Switch teacher/.test(splash) && !/Sign in/.test(splash),
+      'reconnect: a board that lost its link still greets Derek, with no Sign in again beside Switch Teacher',
+      greets(splash, 'Derek') && /Switch Teacher/.test(splash) && !/Sign in/.test(splash),
       splash.replace(/\s+/g, ' ').slice(0, 140),
     )
     // Closing Google's window: the class opens anyway, and the Saved mark shows the link is down.
@@ -516,7 +516,7 @@ try {
   }
 
   if (want('panel') && board) {
-    // The side panel: the Saved mark doesn't push anything off the screen, and it holds Switch teacher.
+    // The side panel: the Saved mark doesn't push anything off the screen, and it holds Switch Teacher.
     for (const [w, h] of [
       [1024, 640],
       [1280, 800],
@@ -537,28 +537,28 @@ try {
     await board.locator('aside [data-sync]').click()
     const pop = await board.locator('[data-radix-popper-content-wrapper]').innerText()
     check(
-      'panel: a tap on Saved shows whose account, and Switch teacher',
-      /Derek/.test(pop) && /derek@yuteh/.test(pop) && /Switch teacher/.test(pop),
+      'panel: a tap on Saved shows whose account, and Switch Teacher',
+      /Derek/.test(pop) && /derek@yuteh/.test(pop) && /Switch Teacher/.test(pop),
       pop.replace(/\s+/g, ' '),
     )
     await shot(board, '09-saved-popover')
 
-    // Offline, Switch teacher warns that changes would be lost.
+    // Offline, Switch Teacher warns that changes would be lost.
     await board.keyboard.press('Escape')
     await board.context().setOffline(true)
     await waitFor(async () => (await syncMark(board)) === 'offline')
     await givePoint(board, 'Brian')
     await board.locator('aside [data-sync]').click()
-    await board.locator('[data-radix-popper-content-wrapper]').getByRole('button', { name: 'Switch teacher' }).click()
+    await board.locator('[data-radix-popper-content-wrapper]').getByRole('button', { name: 'Switch Teacher' }).click()
     const warn = await board.getByRole('alertdialog').innerText()
-    check('panel: offline with changes waiting, Switch teacher warns', /haven't reached the account/.test(warn))
+    check('panel: offline with changes waiting, Switch Teacher warns', /haven't reached the account/.test(warn))
     await shot(board, '10-switch-offline')
     await board.getByRole('alertdialog').getByRole('button', { name: 'No' }).click()
     await board.context().setOffline(false)
     await waitFor(async () => (await syncMark(board)) === 'saved', 20000)
 
     await board.locator('aside [data-sync]').click()
-    await board.locator('[data-radix-popper-content-wrapper]').getByRole('button', { name: 'Switch teacher' }).click()
+    await board.locator('[data-radix-popper-content-wrapper]').getByRole('button', { name: 'Switch Teacher' }).click()
     check('panel: online, no warning', !/haven't reached/.test(await board.getByRole('alertdialog').innerText()))
     await Promise.all([board.waitForEvent('load'), board.getByRole('alertdialog').getByRole('button', { name: 'Yes, Switch' }).click()])
     await board.waitForTimeout(800)

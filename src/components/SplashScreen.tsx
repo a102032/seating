@@ -15,12 +15,14 @@ import {
   Paperclip,
   Palette,
   Pencil,
+  Plus,
   Ruler,
   Scissors,
   Star,
   type LucideIcon,
 } from 'lucide-react'
 import type { ClassData } from '../types'
+import { MAX_CLASSES } from '../hooks/useClasses'
 import { loadCloud, type Account } from '../lib/cloud'
 import { greetingFor, rememberGreeting } from '../lib/greetings'
 import { GoogleG, Initial } from './Account'
@@ -30,6 +32,8 @@ interface SplashScreenProps {
   classes: ClassData[]
   /** Tap a class card: make it active and hand the board over, in one go. */
   onOpenClass: (id: string) => void
+  /** Make another class and go to setting it up. */
+  onNewClass: () => void
   /** Whose classes are on the board, when a teacher has signed in. */
   account: Account | null
   /** Google's window is open. */
@@ -366,15 +370,27 @@ function Greeting({ account, classes }: { account: Account; classes: ClassData[]
  * call). Signed out, it is "Welcome, Teacher!" and one button, Sign in with Google: classes
  * are made by signed-in teachers only, so none is ever made that isn't kept in an account.
  * A brand-new teacher's first sign-in goes straight into Class Settings to set up a class
- * (App). Signed in, it is the teacher's classes as cards, rosters full or not, and Switch
- * teacher - nothing else. New Class lives in Class Settings, beside the title.
+ * (App). Signed in, it is the teacher's classes as cards, rosters full or not, and below them
+ * New Class and Switch Teacher, both quiet - nothing else. New Class came back to the splash
+ * (2026-10-06, the teacher's call) after living only in Class Settings: a teacher looking for
+ * where to start another class looks here first. It shows only signed in, and not once the
+ * teacher has as many classes as the app keeps.
  */
-export function SplashScreen({ classes, onOpenClass, account, signingIn, signInError, onSignIn, onSwitchTeacher }: SplashScreenProps) {
+export function SplashScreen({
+  classes,
+  onOpenClass,
+  onNewClass,
+  account,
+  signingIn,
+  signInError,
+  onSignIn,
+  onSwitchTeacher,
+}: SplashScreenProps) {
   // A fresh board: the one empty class useClasses seeds (and re-seeds if the last is deleted).
   const firstRun = classes.length === 1 && classes[0].students.length === 0
   // Only a board nobody is signed in on offers Sign in. A signed-in board whose link to Google
   // has dropped reconnects when a class is tapped (App), so it never shows Sign in again beside
-  // Switch teacher: side by side, the two read as two ways of doing one thing.
+  // Switch Teacher: side by side, the two read as two ways of doing one thing.
   const offerSignIn = !account
 
   // Fetch the sign-in code while the splash is up, so a tap on Sign in opens Google's window at
@@ -524,11 +540,22 @@ export function SplashScreen({ classes, onOpenClass, account, signingIn, signInE
                       <GoogleG size={22} /> {signingIn ? 'Signing in…' : 'Sign in with Google'}
                     </ChalkButton>
                   )}
-                  {/* Just "Switch teacher": the welcome above already says whose classes these are. */}
+                  {/* Another class: quiet, like Switch Teacher beside it, since the classes above are
+                      what a teacher taps most days. A plus in a circle, as Switch Teacher has the
+                      teacher's letter, so the two match. */}
+                  {account && classes.length < MAX_CLASSES && (
+                    <ChalkButton quiet onClick={onNewClass} disabled={signingIn}>
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
+                        <Plus className="size-5" strokeWidth={3} />
+                      </span>
+                      New Class
+                    </ChalkButton>
+                  )}
+                  {/* Just "Switch Teacher": the welcome above already says whose classes these are. */}
                   {account && (
                     <ChalkButton quiet onClick={onSwitchTeacher} disabled={signingIn}>
                       <Initial name={account.firstName} className="size-7 text-base" />
-                      Switch teacher
+                      Switch Teacher
                     </ChalkButton>
                   )}
                 </motion.div>
@@ -661,7 +688,7 @@ function ClassCard({
 
 /**
  * primary: the one thing to do next, in yellow chalk. google: white, with Google's G, the way
- * Google asks a sign-in button to look. quiet: Switch teacher, which is for the next teacher and
+ * Google asks a sign-in button to look. quiet: Switch Teacher, which is for the next teacher and
  * shouldn't compete with the classes.
  */
 function ChalkButton({
