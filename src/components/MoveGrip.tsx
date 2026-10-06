@@ -3,28 +3,28 @@ import { cn } from '@/lib/utils'
 import type { Mover } from '../lib/moveExtension'
 import { MoveHandIcon } from './MoveHandIcon'
 
-/** A slide under way: where the finger started, and the window's place and size when it did. */
+/** A slide under way: where the finger took hold, and the window's place and size. */
 interface Slide {
   pointerId: number
-  x: number
-  y: number
+  /** Where the finger took hold, in the window's own page: the grip keeps that spot under the finger. */
+  grab: [number, number]
   /** The window, by the extension's count, once it has answered. */
   id: number | null
-  left: number
-  top: number
   /** Its size by the extension's count, kept the whole way. */
   width: number
   height: number
-  dx: number
-  dy: number
-  /** Where the last move put it. */
+  /** Where the window is: where it was found, then where each move put it. */
   at: [number, number]
+  /** The finger's latest place in the window that can be trusted, not yet acted on. */
+  finger: [number, number] | null
+  /** Readings from before this, on the floating window's clock, may be from where the window was. */
+  since: number
   /** Every place and size is a multiple of this, so it lands exactly on the screen's pixels. */
   step: number
-  /** The finger has moved since the window last did. */
-  pending: boolean
   /** A move is on its way: the next waits for it, so a fast finger never queues up a backlog. */
   busy: boolean
+  /** The window has been moved at all: a tap on the grip moves nothing, so has nothing to settle. */
+  moved: boolean
   /** The finger has lifted. */
   done: boolean
 }
@@ -86,14 +86,14 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
   }
 
   /** On the pixel grid and wholly on the screen. */
-  function placeFor(s: Slide): [number, number] {
-    const [left, top] = onScreen(s.left + s.dx, s.top + s.dy)
+  function placeFor(s: Slide, left: number, top: number): [number, number] {
+    const [onLeft, onTop] = onScreen(left, top)
     const [maxLeft, maxTop] = onScreen(Infinity, Infinity)
     const fit = (n: number, most: number) => {
       const on = onStep(n, s.step)
       return on > most ? on - s.step : on
     }
-    return [fit(left, maxLeft), fit(top, maxTop)]
+    return [fit(onLeft, maxLeft), fit(onTop, maxTop)]
   }
 
   /**
@@ -116,16 +116,22 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
 
   function send(s: Slide) {
     if (s.id === null || s.busy) return
-    if (!s.pending) {
-      if (s.done) settle(s)
+    const to = s.finger && placeFor(s, s.at[0] + s.finger[0] - s.grab[0], s.at[1] + s.finger[1] - s.grab[1])
+    s.finger = null
+    if (!to || (to[0] === s.at[0] && to[1] === s.at[1])) {
+      if (s.done) {
+        if (s.moved) settle(s)
+        else letGo()
+      }
       return
     }
-    s.pending = false
     s.busy = true
-    s.at = placeFor(s)
-    void mover.move(s.id, { left: s.at[0], top: s.at[1], ...sizeFor(s) }).then(() => {
+    s.moved = true
+    void mover.move(s.id, { left: to[0], top: to[1], ...sizeFor(s) }).then((got) => {
       s.busy = false
-      // The finger's last place counts even if it got there while this move was on its way.
+      if (got) s.at = [got.left, got.top]
+      s.since = win.performance.now()
+      // The finger's latest place counts even if it got there while this move was on its way.
       send(s)
     })
   }
@@ -147,11 +153,16 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
     }, 250)
   }
 
+  /**
+   * Where the finger is in the window's own page, measured from where it took hold: the window
+   * goes by that much from where it is. Chrome's screen position for a finger can't be used: on
+   * a touch screen, with the window moving under the finger, it jumped back and forth by about
+   * the height of the window's title bar, and the window with it (the teacher's laptop,
+   * 2026-10-06; a mouse was smooth). A reading taken while a move was on its way may be from
+   * where the window was, so only readings made after the last move landed are used.
+   */
   function follow(e: PointerEvent, s: Slide) {
-    // Screen positions, not the window's own: the window moves under the finger.
-    s.dx = e.screenX - s.x
-    s.dy = e.screenY - s.y
-    s.pending = true
+    if (!s.busy && e.timeStamp >= s.since) s.finger = [e.clientX, e.clientY]
     send(s)
   }
 
@@ -163,22 +174,24 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
       data-move-grip=""
       onPointerDown={(e) => {
         if (slide.current) return
-        e.currentTarget.setPointerCapture(e.pointerId)
+        // A made-up finger in a test can't be captured; a real one always is.
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId)
+        } catch {
+          // Then it follows only while the finger stays on the grip.
+        }
         const s: Slide = {
           pointerId: e.pointerId,
-          x: e.screenX,
-          y: e.screenY,
+          grab: [e.clientX, e.clientY],
           id: null,
-          left: 0,
-          top: 0,
           width: 0,
           height: 0,
-          dx: 0,
-          dy: 0,
           at: [0, 0],
+          finger: null,
+          since: 0,
           step: pixelStep(win.devicePixelRatio || 1),
-          pending: false,
           busy: false,
+          moved: false,
           done: false,
         }
         slide.current = s
@@ -190,8 +203,7 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
             return
           }
           s.id = w.id
-          s.left = w.left
-          s.top = w.top
+          s.at = [w.left, w.top]
           s.width = w.width
           s.height = w.height
           send(s)

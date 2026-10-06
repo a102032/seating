@@ -10,8 +10,8 @@ const require = createRequire(import.meta.url)
 // Chromium shown on the desktop and a build of the app served at localhost:
 //   PW=<path to playwright/index.js> URL=http://localhost:4173/seating/ node scripts/move-extension-windows.mjs
 // It asks Chrome's windows API directly how it treats the floating window, then slides the hand grip
-// with pointer events that carry their own screen positions (a test's mouse is placed by the page,
-// which moves under it), and checks the window moved by the slide and kept its size.
+// with made-up pointer events, and then with a real finger through Windows' own touch input
+// (inject-touch.ps1), and checks the window went with the finger, never back, and kept its size.
 const { chromium } = require(process.env.PW || '/opt/node22/lib/node_modules/playwright/index.js')
 const URL = process.env.URL || 'http://localhost:4173/seating/'
 const EXT = fileURLToPath(new globalThis.URL('../tools/move-extension', import.meta.url))
@@ -157,15 +157,21 @@ async function run(scale) {
   const moves = () => page.evaluate(() => window.__moves.splice(0))
   const sizesOf = (all) => [...new Set(all.map((m) => `${m[2]}x${m[3]} -> ${m[4] ? `${m[4][2]}x${m[4][3]}` : 'failed'}`))].join(', ')
 
-  /** A finger slid on the grip: pointer events with their own screen positions. */
+  /**
+   * A finger slid on the grip, as pointer events. A real finger stays put on the screen while the
+   * window moves under it, so each event's place in the window is where the finger is less how far
+   * the window has come; its screen position is given wrong on every other event, by a title bar's
+   * height, as Chrome gave it for a finger on the teacher's touch laptop.
+   */
   async function slide(dx, dy, still = 0) {
     return win.evaluate(
       async ([dx, dy, still]) => {
         const grip = document.querySelector('[data-move-grip]')
-        // A made-up finger can't be captured; a real one is.
-        grip.setPointerCapture = () => {}
         const box = grip.getBoundingClientRect()
-        const fire = (type, sx, sy) =>
+        const left = screenX
+        const top = screenY
+        let n = 0
+        const fire = (type, fx, fy) =>
           grip.dispatchEvent(
             new PointerEvent(type, {
               bubbles: true,
@@ -173,26 +179,24 @@ async function run(scale) {
               pointerId: 7,
               pointerType: 'touch',
               isPrimary: true,
-              clientX: box.x + box.width / 2,
-              clientY: box.y + box.height / 2,
-              screenX: sx,
-              screenY: sy,
+              clientX: box.x + box.width / 2 + fx - (screenX - left),
+              clientY: box.y + box.height / 2 + fy - (screenY - top),
+              screenX: 600 + fx,
+              screenY: 600 + fy + (n++ % 2) * 30,
             }),
           )
         const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-        const x = 600
-        const y = 600
-        fire('pointerdown', x, y)
+        fire('pointerdown', 0, 0)
         // Held still first, as a finger on a board jitters: the same place over and over.
         for (let i = 0; i < still; i++) {
-          fire('pointermove', x + (i % 2), y)
+          fire('pointermove', i % 2, 0)
           await wait(30)
         }
         for (let i = 1; i <= 20; i++) {
-          fire('pointermove', x + (dx * i) / 20, y + (dy * i) / 20)
+          fire('pointermove', (dx * i) / 20, (dy * i) / 20)
           await wait(30)
         }
-        fire('pointerup', x + dx, y + dy)
+        fire('pointerup', dx, dy)
         await wait(800)
       },
       [dx, dy, still],
@@ -262,6 +266,7 @@ async function run(scale) {
           screenX,
           screenY,
           Math.round(performance.now()),
+          Math.round(e.timeStamp),
         ])
       const onMenu = () => log.menus++
       for (const t of types) document.addEventListener(t, onEvent, true)
@@ -313,7 +318,7 @@ async function run(scale) {
     }
     note(`${name}: ${log.events.length} events; screen position minus (window + frame + client): ${JSON.stringify(off)}`)
     note(
-      `${name}: first events [type, client x, y, screen x, y, window x, y]: ${JSON.stringify(log.events.slice(0, 24).map((e) => [e[0].slice(7), ...e.slice(2, 8).map(Math.round)]))}`,
+      `${name}: first events [type, client x, y, screen x, y, window x, y, ms since the event]: ${JSON.stringify(log.events.slice(0, 24).map((e) => [e[0].slice(7), ...e.slice(2, 8).map(Math.round), e[8] - e[9]]))}`,
     )
     note(`${name}: places asked: ${JSON.stringify(asked.slice(0, 40).map((m) => [m[0], m[1]]))}`)
     // A stutter is the window going back against the finger: any move the wrong way is one.
@@ -330,9 +335,10 @@ async function run(scale) {
       Math.abs(after.left - before.left - dx) <= 6 && Math.abs(after.top - before.top - dy) <= 6,
       `${before.left},${before.top} to ${after.left},${after.top}, the finger ${dx},${dy}`,
     )
+    // Onto the pixel grid once (up to 2 points at 175%), and the one point Chrome adds there now and then.
     check(
       `${name}: and keeps its size`,
-      Math.abs(after.width - before.width) <= 2 && Math.abs(after.height - before.height) <= 2,
+      Math.abs(after.width - before.width) <= 3 && Math.abs(after.height - before.height) <= 3,
       `${before.width}x${before.height} to ${after.width}x${after.height}`,
     )
     check(`${name}: and opens no menu`, log.menus === 0, `${log.menus} menus`)
@@ -349,6 +355,11 @@ async function run(scale) {
   await context.close()
 }
 
+// Something stuck (a window that never opens, a finger that never lifts) fails the check rather than the whole run.
+setTimeout(() => {
+  console.log('FAIL timed out after 3 minutes')
+  process.exit(1)
+}, 180000)
 for (const scale of (process.env.SCALES || '1').split(',').map(Number)) await run(scale)
 console.log(failures ? `${failures} failed` : 'All passed')
 process.exit(failures ? 1 : 0)

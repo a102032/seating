@@ -67,17 +67,28 @@ async function floatIn(context) {
 
 const where = (win) => win.evaluate(() => [window.screenX, window.screenY])
 
-/** A finger (the mouse, here) held on the grip, then slid by dx, dy. */
+/**
+ * A finger (the mouse, here) held on the grip, then slid by dx, dy. A real finger stays put on the
+ * screen while the window moves under it, so each place is given in the window's page as it is now:
+ * where the finger is on the screen, less how far the window has come.
+ */
 async function slide(win, dx, dy, holdMs = 0) {
   const box = await win.locator('[data-move-grip]').boundingBox()
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
+  const [left, top] = await where(win)
   await win.mouse.move(x, y)
   await win.mouse.down()
   await win.waitForTimeout(holdMs)
-  // Positions in the window's own page: Playwright moves the pointer there, and the grip reads the screen.
   for (let i = 1; i <= 10; i++) {
-    await win.mouse.move(x + (dx * i) / 10, y + (dy * i) / 10)
+    const [nowLeft, nowTop] = await where(win)
+    await win.mouse.move(x + (dx * i) / 10 - (nowLeft - left), y + (dy * i) / 10 - (nowTop - top))
+    await win.waitForTimeout(30)
+  }
+  // Until the window has caught up with where the finger stopped, as it does under a real one.
+  for (let i = 0; i < 10; i++) {
+    const [nowLeft, nowTop] = await where(win)
+    await win.mouse.move(x + dx - (nowLeft - left), y + dy - (nowTop - top))
     await win.waitForTimeout(30)
   }
   await win.mouse.up()
