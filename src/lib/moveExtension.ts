@@ -39,10 +39,19 @@ function ask<T>(id: string, message: unknown): Promise<T | null> {
   })
 }
 
+/** A window's place and size, in Chrome's own count (the screen's scaling taken off). */
+export interface Bounds {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
 export interface Mover {
-  /** Where the floating window is, by the extension's count, with its id to move it by. */
-  find(win: Window): Promise<{ id: number; left: number; top: number } | null>
-  move(id: number, left: number, top: number): Promise<boolean>
+  /** Where the floating window is and its size, by the extension's count, with its id to move it by. */
+  find(win: Window): Promise<(Bounds & { id: number }) | null>
+  /** Put it here, at this size; what Chrome made of it comes back, or null if the move failed. */
+  move(id: number, to: Bounds): Promise<Bounds | null>
 }
 
 let found: Promise<Mover | null> | null = null
@@ -55,7 +64,7 @@ export function findMover(): Promise<Mover | null> {
       if (!(await ask<{ version: string }>(id, { hello: true }))) continue
       return {
         find: (win) => ask(id, { find: { left: win.screenX, top: win.screenY, width: win.outerWidth, height: win.outerHeight } }),
-        move: async (windowId, left, top) => (await ask(id, { move: { id: windowId, left, top } })) !== null,
+        move: (windowId, to) => ask<Bounds>(id, { move: { id: windowId, ...to } }),
       }
     }
     return null

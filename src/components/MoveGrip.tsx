@@ -12,6 +12,12 @@ interface Slide {
   id: number | null
   left: number
   top: number
+  /** Its size when the slide began, kept the whole way. */
+  width: number
+  height: number
+  /** How much bigger than asked Chrome made it on the last move, to ask that much smaller next time. */
+  growW: number
+  growH: number
   dx: number
   dy: number
   /** The finger has moved since the window last did. */
@@ -52,7 +58,16 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
     s.pending = false
     s.busy = true
     const [left, top] = onScreen(s.left + s.dx, s.top + s.dy)
-    void mover.move(s.id, left, top).then(() => {
+    // The size goes with every move: on the teacher's laptop Chrome grew the window a little each
+    // time it was moved by its place alone, until it was nearly the whole screen. Whatever Chrome
+    // still adds is measured from its answer and asked for that much smaller next time.
+    const width = Math.round(s.width / s.growW)
+    const height = Math.round(s.height / s.growH)
+    void mover.move(s.id, { left, top, width, height }).then((got) => {
+      if (got && got.width > 0 && got.height > 0) {
+        s.growW = Math.min(2, Math.max(0.5, got.width / width))
+        s.growH = Math.min(2, Math.max(0.5, got.height / height))
+      }
       s.busy = false
       // The finger's last place counts even if it got there while this move was on its way.
       send(s)
@@ -77,6 +92,10 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
         if (slide.current) return
         e.currentTarget.setPointerCapture(e.pointerId)
         const s: Slide = {
+          width: 0,
+          height: 0,
+          growW: 1,
+          growH: 1,
           pointerId: e.pointerId,
           x: e.screenX,
           y: e.screenY,
@@ -95,6 +114,8 @@ export function MoveGrip({ win, mover, strip }: { win: Window; mover: Mover; str
           s.id = w.id
           s.left = w.left
           s.top = w.top
+          s.width = w.width
+          s.height = w.height
           send(s)
         })
       }}

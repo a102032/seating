@@ -33,14 +33,19 @@ async function answer(msg) {
     }
     if (!best || off > 8) return { error: 'not found' }
     pointedOut.add(best.id)
-    return { id: best.id, left: best.left, top: best.top }
+    return { id: best.id, left: best.left, top: best.top, width: best.width, height: best.height }
   }
 
   if (msg.move) {
-    const { id, left, top } = msg.move
+    const { id, left, top, width, height } = msg.move
     if (!pointedOut.has(id)) return { error: 'not found' }
-    const w = await chrome.windows.update(id, { left: Math.round(left), top: Math.round(top) })
-    return { left: w.left, top: w.top }
+    // On Windows, Chrome grew the floating window a little on every move by its place alone, until
+    // it reached the biggest it may be (on the teacher's laptop, 2026-10-06), so the app sends the
+    // size to keep as well, and gets back what Chrome made of it to correct the next move by.
+    const bounds = { left: Math.round(left), top: Math.round(top) }
+    if (width > 0 && height > 0) Object.assign(bounds, { width: Math.round(width), height: Math.round(height) })
+    const w = await chrome.windows.update(id, bounds)
+    return { left: w.left, top: w.top, width: w.width, height: w.height }
   }
 
   return { error: 'unknown' }

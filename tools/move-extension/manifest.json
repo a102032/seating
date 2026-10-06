@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Class? Yes! Move",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Move the Class? Yes! floating class goal by touch: slide the hand grip inside the window.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkRnK33vgg402tnzmvHdvP4duKkOY22BtVAg/ymfrRHbiDd2affZCPQsC2Qy8lwPutxbicZ7m3AZ1sPKT541HeAZfdoyghkS+zdyqmlk05xdoTcLO6Bfqp0ge1lBydHWpbBnUvof+EBxf07TiGswtr+olMTamjzbZYTUZ3Keeb19Y0EikS2DFsxkP4IKOAHbqWaNSg/g7Eav8P6Y8IkMEE99jW93dyKoK0oGjWgUzAJArPCZGCcSYxKaw9A0AZex90kufHmhg8tZ922ljspCCbwOpxu8WqditOtJMapjMDy+yq8SozuELHhWyprDmFZgTMVbY0Ei3tKo7YIusW+7dQQIDAQAB",
   "background": { "service_worker": "background.js" },

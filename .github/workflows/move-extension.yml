@@ -1,0 +1,53 @@
+name: Move extension
+
+# The Move extension moves Chrome's floating window, and on Windows Chrome's windows have frames
+# that the Linux checks don't, so every change to it or to the grip is checked on GitHub's Windows
+# computers too: Playwright's own Chromium on the desktop, the extension loaded, the app served.
+on:
+  push:
+    paths:
+      - 'tools/move-extension/**'
+      - 'src/components/MoveGrip.tsx'
+      - 'src/lib/moveExtension.ts'
+      - 'scripts/move-extension-windows.mjs'
+      - '.github/workflows/move-extension.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Playwright and its Chromium
+        shell: pwsh
+        run: |
+          npm install -g playwright@1.56.1
+          npx -y playwright@1.56.1 install chromium
+
+      - name: Slide the grip on a Windows desktop
+        shell: pwsh
+        run: |
+          $server = Start-Process -FilePath node -ArgumentList 'node_modules/vite/bin/vite.js', 'preview', '--port', '4173' -PassThru
+          for ($i = 0; $i -lt 30; $i++) {
+            try { Invoke-WebRequest -UseBasicParsing http://localhost:4173/seating/ | Out-Null; break } catch { Start-Sleep -Seconds 1 }
+          }
+          $env:PW = Join-Path (npm root -g) 'playwright\index.js'
+          $env:URL = 'http://localhost:4173/seating/'
+          node scripts/move-extension-windows.mjs
+          $code = $LASTEXITCODE
+          Stop-Process -Id $server.Id -Force
+          exit $code
