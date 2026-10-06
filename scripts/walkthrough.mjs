@@ -573,12 +573,12 @@ const scenarios = {
         Object.values(c.participation[today]).filter(([picked]) => picked === 1).length === 5,
       JSON.stringify(c.participation[today]),
     )
-    await page.getByRole('button', { name: 'Clear This Lesson' }).click()
+    await page.getByRole('button', { name: 'Clear This Day' }).click()
     await page.waitForTimeout(400)
     await page.getByRole('button', { name: 'Yes, Clear It' }).click()
     await page.waitForTimeout(500)
     c = await activeSaved(page)
-    check('participation: Clear This Lesson empties the day', !c.participation[today], JSON.stringify(c.participation))
+    check('participation: Clear This Day empties the day', !c.participation[today], JSON.stringify(c.participation))
     return page
   },
 

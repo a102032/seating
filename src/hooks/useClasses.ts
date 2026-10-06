@@ -481,7 +481,7 @@ export function useClasses() {
     [updateClass],
   )
 
-  /** A whole lesson out of the record. */
+  /** A whole day out of the record. */
   const clearParticipationDay = useCallback(
     (classId: string, day: string) =>
       updateClass(classId, (c) => ({

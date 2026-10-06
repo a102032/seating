@@ -16,7 +16,7 @@ interface ParticipationModalProps {
   activeClass: ClassData
   /** One student's day, set by hand. */
   onSetCount: (day: string, studentId: string, count: DayCount) => void
-  /** A whole lesson out of the record. */
+  /** A whole day out of the record. */
   onClearDay: (day: string) => void
   /** The whole record back to nothing. */
   onClearAll: () => void
@@ -257,11 +257,11 @@ export function ParticipationModal({ open, onClose, activeClass, onSetCount, onC
                 Picked by Pick Student, the group picker or a flip card. A point given to a few students, not the whole class. A student you
                 call on yourself shows here only if you give them a point. Tap a student's numbers to fix them.
               </p>
-              {/* Taking things back out of the record: a lesson that was all trying things out,
+              {/* Taking things back out of the record: a day that was all trying things out,
                 or the whole record, at the end of testing or the start of a term. */}
               <div className="flex flex-wrap justify-end gap-2">
                 <TactileButton onClick={() => setConfirming('day')} disabled={!dayHasRecord}>
-                  <Eraser size={16} /> Clear This Lesson
+                  <Eraser size={16} /> Clear This Day
                 </TactileButton>
                 <TactileButton onClick={() => setConfirming('all')} disabled={!anyRecord}>
                   <RotateCcw size={16} /> Start Over
@@ -274,17 +274,17 @@ export function ParticipationModal({ open, onClose, activeClass, onSetCount, onC
 
       <ConfirmModal
         open={confirming === 'day'}
-        title="Clear this lesson?"
+        title="Clear this day?"
         message={`Who was picked and given a point on ${dayLabel(day)} goes from "${activeClass.name}"'s record.${
           day === today ? ' Everyone picked today gets their turn back.' : ''
-        } Other lessons stay. This can't be undone.`}
+        } Other days stay. This can't be undone.`}
         confirmLabel="Yes, Clear It"
         cancelLabel="No"
         onCancel={() => setConfirming(null)}
         onConfirm={() => {
           onClearDay(day)
           setConfirming(null)
-          // On to the lesson before it, or today when there is none.
+          // On to the day before it with a record, or today when there is none.
           const before = dates.filter((d) => d < day)
           showDay(before.length > 0 ? before[before.length - 1] : today)
         }}
