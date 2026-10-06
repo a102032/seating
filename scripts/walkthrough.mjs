@@ -737,6 +737,40 @@ const scenarios = {
   },
 
   /**
+   * A long press is a right-click on a Windows touch board: anywhere in the app it opens no menu -
+   * the desks, the side panel, the splash and the floating window - but a text box keeps its menu,
+   * for pasting a name.
+   */
+  async 'a long press opens no menu'() {
+    const page = await open({ state: stateOf(makeClass('c1', 'Menus', 12, { pointsGoal: 50 })), size: [1280, 559], splash: false })
+    // Whether the menu would open: the browser shows it unless the page cancels the event.
+    const menuOpens = (target) =>
+      target.evaluate((el) => {
+        const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+        return el.dispatchEvent(e)
+      })
+    check('long press: none on the splash', !(await menuOpens(page.locator('.splash-board button').first())))
+    await page.locator('.splash-board button').first().click()
+    await page.waitForTimeout(900)
+    check('long press: none on a desk', !(await menuOpens(desk(page, 'Kevin'))))
+    check('long press: none on the side panel', !(await menuOpens(panelButton(page, 'Pick Student'))))
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(600)
+    await page.getByRole('tab', { name: 'Class', exact: true }).click()
+    await page.waitForTimeout(300)
+    check('long press: a text box keeps its menu, for pasting', await menuOpens(page.locator('#class-name')))
+    check("long press: none on a window's buttons", !(await menuOpens(page.getByRole('tab', { name: 'Students' }))))
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await win.waitForTimeout(500)
+    check("long press: none on the floating window's +1", !(await menuOpens(win.locator('[data-ink=canvas] > div.grid > button').first())))
+    return page
+  },
+
+  /**
    * Get Ready! from the floating window, over the lesson: it grows to a snug rectangle of drums,
    * then to the star (no meter, the chest under Stop), and shrinks back when it is tapped away.
    */

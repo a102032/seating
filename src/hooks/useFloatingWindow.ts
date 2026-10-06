@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { floatDrumsHeight } from '../lib/getReady'
+import { keepLongPressMenuOut } from '../lib/noLongPressMenu'
 
 /**
  * Chrome and Edge's always-on-top window (Document Picture-in-Picture): a small window of our
@@ -53,44 +54,18 @@ export function resizeFloatingWindow(win: Window, size: { width: number; height:
  * of the whole screen, so the lesson's slide - usually the instruction the class is getting ready
  * for ("page 134") - still shows beside it.
  *
- * It grows from where it sits. If that would run off the screen, it is moved in first where the
- * browser allows it, and put back afterwards. `restore` puts it back as it was.
+ * It grows from where it sits: a page is never allowed to move this kind of window (the browsers'
+ * rule, so a site can't park an always-on-top window where it passes for another program's), so
+ * only the teacher can, by its title bar. `restore` puts its size back as it was.
  */
 export function growForGetReady(win: Window): { toStar: () => void; restore: () => void } {
-  const before = { width: win.innerWidth, height: win.innerHeight, x: win.screenX, y: win.screenY }
-  const screen = win.screen as Screen & { availLeft?: number; availTop?: number }
-  const left = screen.availLeft ?? 0
-  const top = screen.availTop ?? 0
-  const starHeight = Math.round(screen.availHeight * 0.72)
-  const width = Math.round(Math.min(screen.availWidth * 0.58, starHeight * 1.45))
-  let moved = false
-  const place = (size: { width: number; height: number }) => {
-    const frameWidth = win.outerWidth - win.innerWidth
-    const frameHeight = win.outerHeight - win.innerHeight
-    const x = Math.max(left, Math.min(win.screenX, left + screen.availWidth - size.width - frameWidth))
-    const y = Math.max(top, Math.min(win.screenY, top + screen.availHeight - size.height - frameHeight))
-    if (x !== win.screenX || y !== win.screenY) {
-      try {
-        win.moveTo(x, y)
-        moved = true
-      } catch {
-        // Not allowed for this window: it grows where it is, and the browser keeps it on the screen.
-      }
-    }
-    resizeFloatingWindow(win, size)
-  }
-  place({ width, height: floatDrumsHeight(width) })
+  const before = { width: win.innerWidth, height: win.innerHeight }
+  const starHeight = Math.round(win.screen.availHeight * 0.72)
+  const width = Math.round(Math.min(win.screen.availWidth * 0.58, starHeight * 1.45))
+  resizeFloatingWindow(win, { width, height: floatDrumsHeight(width) })
   return {
-    toStar: () => place({ width, height: starHeight }),
-    restore: () => {
-      resizeFloatingWindow(win, before)
-      if (!moved) return
-      try {
-        win.moveTo(before.x, before.y)
-      } catch {
-        // Left where it is.
-      }
-    },
+    toStar: () => resizeFloatingWindow(win, { width, height: starHeight }),
+    restore: () => resizeFloatingWindow(win, before),
   }
 }
 
@@ -138,6 +113,8 @@ export function useFloatingWindow(theme: string) {
     next.document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') ?? '')
     next.document.title = 'Class Goal'
     copyStyles(next.document)
+    // A finger held on +1 or Pick is a right-click on a touch board: no menu over the lesson.
+    keepLongPressMenuOut(next.document)
     // However it closes - its own close button, its back-to-tab button, or ours - this is the
     // one place that hears about it.
     next.addEventListener('pagehide', () => setWin((current) => (current === next ? null : current)))

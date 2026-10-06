@@ -111,7 +111,8 @@ checks the live URL. Confirm it went green before saying something is live.
   to land (`starsLandingIn`) before the coin moves.
 - `src/lib/greetings.ts`: what the splash says to a signed-in teacher (by the clock, the day, special days and the class goals).
 - `src/lib/`: `sound.ts` (every sound, synthesised with Web Audio), `groups.ts` (building and pruning groups),
-  `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV).
+  `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV),
+  `noLongPressMenu.ts` (a long press, which a touch board makes a right-click, opens no menu - set on the page and the floating window).
 - Avatars switched off for a class (`avatarsOff`): draw students through `studentsAsShown` (`lib/stickers.ts`), as `App`'s
   `studentsById` and the chart picture do, so anything new that shows a student's avatar shows names only then. The roster keeps
   each student's own pick.
