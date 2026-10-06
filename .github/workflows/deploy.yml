@@ -79,3 +79,11 @@ jobs:
             exit 1
           fi
           echo "Served HTML references the built bundle."
+
+          # The Move tab helper is downloaded from the live site, so check it is there and is a program.
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -o helper.exe "${url%/}/move-tab/ClassYesMove.exe"
+          if [ "$(head -c 2 helper.exe)" != "MZ" ] || [ "$(stat -c %s helper.exe)" -lt 10000 ]; then
+            echo "::error::The Move tab helper isn't served at move-tab/ClassYesMove.exe."
+            exit 1
+          fi
+          echo "Serves the Move tab helper ($(stat -c %s helper.exe) bytes)."
