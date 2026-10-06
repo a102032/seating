@@ -17,11 +17,15 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <Product>Class? Yes! Move tab</Product>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The tab's hand, kept as the SVG it came as (HandIcon.cs draws it). -->
+    <EmbeddedResource Include="..\..\design\move-hand.svg" LogicalName="move-hand.svg" />
   </ItemGroup>
 </Project>

@@ -84,6 +84,8 @@ namespace ClassYesMove
             Note("Windows " + Environment.OSVersion.Version + ", screen " + Screen.PrimaryScreen.Bounds + ", scale " + Scale());
             double s = Scale();
             stand.Bounds = new Rectangle(300, 220, (int)(340 * s), (int)(180 * s));
+            Check("the hand picture is built in", HandIcon.Points > 100, HandIcon.Points + " points");
+            Pictures();
             Note("before the tab, " + Focus());
             helper = new Helper();
             MoveTab tab = helper.Tab;
@@ -183,6 +185,18 @@ namespace ClassYesMove
             bool gone = await WaitFor(() => !tab.Visible, 2000);
             Check("when the window closes, the tab goes", gone);
             Note(FloatFinder.Report(IntPtr.Zero, tab.Handle));
+        }
+
+        /// <summary>The tab at 100% and at the teacher's board's 300%, on a dark slide, to look at.</summary>
+        void Pictures()
+        {
+            foreach (var (name, k) in new[] { ("tab-100", 1.0), ("tab-300", 3.0) })
+                using (var t = new MoveTab())
+                {
+                    t.SetScale(k);
+                    using (var bmp = t.Picture(Color.FromArgb(52, 53, 55)))
+                        bmp.Save(Path.Combine(dir, name + ".png"), ImageFormat.Png);
+                }
         }
 
         void CheckAttached(string name, bool below)

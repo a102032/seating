@@ -7,6 +7,7 @@ on:
   push:
     paths:
       - 'tools/move-tab/**'
+      - 'design/move-hand.svg'
       - '.github/workflows/move-tab.yml'
   workflow_dispatch:
 
@@ -28,6 +29,15 @@ jobs:
         run: |
           $p = Start-Process -FilePath move-tab-bin\ClassYesMove.exe -ArgumentList '--self-test','self-test' -PassThru -Wait
           Get-Content self-test\results.txt
+          # The tab's pictures, readable from the log where the artifact can't be fetched.
+          foreach ($name in 'tab-100', 'tab-300') {
+            $file = "self-test\$name.png"
+            if (Test-Path $file) {
+              $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
+              Write-Output "PICTURE $name $($b64.Length)"
+              for ($i = 0; $i -lt $b64.Length; $i += 2000) { Write-Output ("B64 $name " + $b64.Substring($i, [Math]::Min(2000, $b64.Length - $i))) }
+            }
+          }
           if ($p.ExitCode -ne 0) { Write-Error "$($p.ExitCode) check(s) failed"; exit 1 }
 
       - uses: actions/upload-artifact@v4

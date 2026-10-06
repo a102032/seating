@@ -126,23 +126,17 @@ namespace ClassYesMove
             MessageBox.Show(report + "\n(This is copied, so it can be pasted into a message.)", "What the helper sees");
         }
 
-        /// <summary>The tab's own picture, purple with the four-way arrow, drawn rather than shipped as a file.</summary>
+        /// <summary>The tab's own picture, the white hand on purple, drawn rather than shipped as a file.</summary>
         static Icon MakeIcon()
         {
             using (var bmp = new Bitmap(32, 32))
             using (var g = Graphics.FromImage(bmp))
             using (var fill = new SolidBrush(Color.FromArgb(124, 58, 237)))
-            using (var pen = new Pen(Color.White, 2.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (var white = new SolidBrush(Color.White))
             {
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.FillEllipse(fill, 1, 1, 30, 30);
-                g.DrawLine(pen, 8, 16, 24, 16);
-                g.DrawLine(pen, 16, 8, 16, 24);
-                foreach (var (x, y, dx, dy) in new[] { (24, 16, -1, 0), (8, 16, 1, 0), (16, 24, 0, -1), (16, 8, 0, 1) })
-                {
-                    g.DrawLine(pen, x, y, x + dx * 4 + dy * 4, y + dy * 4 + dx * 4);
-                    g.DrawLine(pen, x, y, x + dx * 4 - dy * 4, y + dy * 4 - dx * 4);
-                }
+                HandIcon.Draw(g, new RectangleF(6, 6, 20, 20), white);
                 return Icon.FromHandle(bmp.GetHicon());
             }
         }

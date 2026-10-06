@@ -131,9 +131,24 @@ namespace ClassYesMove
             return p;
         }
 
-        protected override void OnPaint(PaintEventArgs e)
+        protected override void OnPaint(PaintEventArgs e) => Render(e.Graphics);
+
+        /// <summary>The tab as it would show on the screen, for the self-test to look at.</summary>
+        public Bitmap Picture(Color behind)
         {
-            var g = e.Graphics;
+            var bmp = new Bitmap(Width, Height);
+            using (var g = Graphics.FromImage(bmp))
+            using (var path = TabPath(new Rectangle(0, 0, Width, Height)))
+            {
+                g.Clear(behind);
+                g.SetClip(path);
+                Render(g);
+            }
+            return bmp;
+        }
+
+        void Render(Graphics g)
+        {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             g.Clear(dragging ? PurpleDown : Purple);
@@ -142,35 +157,19 @@ namespace ClassYesMove
             using (var path = TabPath(new Rectangle(0, 0, Width - 1, Height - 1)))
                 g.DrawPath(edge, path);
 
-            // The four-way arrow, then the word.
+            // The hand, then the word.
             float s = (float)scale;
-            float icon = 22 * s;
-            float gap = 8 * s;
+            float icon = 30 * s;
+            float gap = 7 * s;
             using (var font = new Font("Segoe UI Semibold", 17 * s, FontStyle.Bold, GraphicsUnit.Pixel))
+            using (var white = new SolidBrush(Color.White))
             {
                 SizeF word = g.MeasureString("Move", font);
                 float total = icon + gap + word.Width;
                 float x = (Width - total) / 2;
                 float cy = Height / 2f;
-                DrawArrows(g, x + icon / 2, cy, icon / 2, s);
-                using (var white = new SolidBrush(Color.White))
-                    g.DrawString("Move", font, white, x + icon + gap, cy - word.Height / 2);
-            }
-        }
-
-        static void DrawArrows(Graphics g, float cx, float cy, float r, float s)
-        {
-            using (var pen = new Pen(Color.White, Math.Max(1.5f, 2.6f * s)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
-            {
-                g.DrawLine(pen, cx - r, cy, cx + r, cy);
-                g.DrawLine(pen, cx, cy - r, cx, cy + r);
-                float h = r * 0.42f;
-                foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
-                {
-                    float tx = cx + dx * r, ty = cy + dy * r;
-                    g.DrawLine(pen, tx, ty, tx - dx * h + dy * h, ty - dy * h + dx * h);
-                    g.DrawLine(pen, tx, ty, tx - dx * h - dy * h, ty - dy * h - dx * h);
-                }
+                HandIcon.Draw(g, new RectangleF(x, cy - icon / 2, icon, icon), white);
+                g.DrawString("Move", font, white, x + icon + gap, cy - word.Height / 2);
             }
         }
 
