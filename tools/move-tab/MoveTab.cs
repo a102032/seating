@@ -50,6 +50,8 @@ namespace ClassYesMove
             DoubleBuffered = true;
             BackColor = Purple;
             Cursor = Cursors.SizeAll;
+            // Nothing here can hold the focus (see WndProc).
+            SetStyle(ControlStyles.Selectable, false);
             SetScale(1);
         }
 
@@ -186,6 +188,33 @@ namespace ClassYesMove
                 case Native.WM_POINTERCAPTURECHANGED:
                     if (dragging && !byMouse) EndDrag();
                     break;
+                // The mouse is handled here too, not by Windows Forms, which focuses what it is
+                // clicked on: the tab must never take the focus, or a slide clicker's "next slide"
+                // would go to it instead of the slideshow.
+                case Native.WM_LBUTTONDOWN:
+                    if (!dragging)
+                    {
+                        Native.SetCapture(Handle);
+                        BeginDrag(CursorAt(), 0, mouse: true);
+                    }
+                    m.Result = IntPtr.Zero;
+                    return;
+                case Native.WM_MOUSEMOVE:
+                    if (dragging && byMouse) DragTo(CursorAt());
+                    m.Result = IntPtr.Zero;
+                    return;
+                case Native.WM_LBUTTONUP:
+                    if (dragging && byMouse)
+                    {
+                        DragTo(CursorAt());
+                        EndDrag();
+                        Native.ReleaseCapture();
+                    }
+                    m.Result = IntPtr.Zero;
+                    return;
+                case Native.WM_CAPTURECHANGED:
+                    if (dragging && byMouse) EndDrag();
+                    break;
                 case Native.WM_CONTEXTMENU:
                 case Native.WM_RBUTTONDOWN:
                 case Native.WM_RBUTTONUP:
@@ -212,35 +241,12 @@ namespace ClassYesMove
             }
             else if (dragging && !byMouse && id == pointerId)
             {
-                if (m.Msg == Native.WM_POINTERUPDATE) DragTo(at);
-                else EndDrag();
+                // The finger's last place counts too, even if its last move hadn't been heard yet.
+                DragTo(at);
+                if (m.Msg == Native.WM_POINTERUP) EndDrag();
             }
             m.Result = IntPtr.Zero;
             return true;
-        }
-
-        protected override void OnMouseDown(MouseEventArgs e)
-        {
-            base.OnMouseDown(e);
-            if (e.Button == MouseButtons.Left && !dragging) BeginDrag(CursorAt(), 0, mouse: true);
-        }
-
-        protected override void OnMouseMove(MouseEventArgs e)
-        {
-            base.OnMouseMove(e);
-            if (dragging && byMouse) DragTo(CursorAt());
-        }
-
-        protected override void OnMouseUp(MouseEventArgs e)
-        {
-            base.OnMouseUp(e);
-            if (dragging && byMouse && e.Button == MouseButtons.Left) EndDrag();
-        }
-
-        protected override void OnMouseCaptureChanged(EventArgs e)
-        {
-            base.OnMouseCaptureChanged(e);
-            if (dragging && byMouse && !Capture) EndDrag();
         }
 
         static Native.POINT CursorAt()

@@ -105,6 +105,10 @@ namespace ClassYesMove
         public const int WM_RBUTTONDOWN = 0x0204;
         public const int WM_RBUTTONUP = 0x0205;
         public const int WM_MOUSEACTIVATE = 0x0021;
+        public const int WM_MOUSEMOVE = 0x0200;
+        public const int WM_LBUTTONDOWN = 0x0201;
+        public const int WM_LBUTTONUP = 0x0202;
+        public const int WM_CAPTURECHANGED = 0x0215;
         public const int MA_NOACTIVATE = 3;
 
         public const int PT_TOUCH = 2;
@@ -153,6 +157,8 @@ namespace ClassYesMove
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
         [DllImport("user32.dll")] public static extern uint SendInput(uint count, INPUT[] inputs, int size);
         [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+        [DllImport("user32.dll")] public static extern IntPtr SetCapture(IntPtr hWnd);
+        [DllImport("user32.dll")] public static extern bool ReleaseCapture();
         [DllImport("user32.dll", SetLastError = true)] public static extern bool InitializeTouchInjection(uint maxCount, uint mode);
         [DllImport("user32.dll", SetLastError = true)] public static extern bool InjectTouchInput(uint count, [In] POINTER_TOUCH_INFO[] contacts);
         [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out RECT value, int size);

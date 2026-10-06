@@ -149,6 +149,7 @@ namespace ClassYesMove
                     after = Window();
                     Check("a finger held still, then slid, moves the window", Near(after.Left - before.Left, tx) && Near(after.Top - before.Top, ty), $"moved {after.Left - before.Left},{after.Top - before.Top} for {tx},{ty}");
                     Check("a held finger gives the tab no right-click or menu", tab.RightClicks == 0, $"{tab.RightClicks} right-clicks");
+                    Check("and the tab still hasn't taken the focus", GetForegroundWindow() != tab.Handle);
                     Shot("3-after-touch-drag");
                     await Task.Delay(1200);
                     later = Window();
