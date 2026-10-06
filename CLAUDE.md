@@ -125,6 +125,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
   with `dotnet build tools/move-tab -c Release` (the .NET 8 SDK and Microsoft's reference assemblies) but only runs on
   Windows: `.github/workflows/move-tab.yml` runs its `--self-test` on GitHub's Windows computers whenever it changes, with
   results and screenshots kept as the run's artifact. Read the run's results before saying it works.
+- `tools/move-extension/`: the Class? Yes! Move extension, which moves the floating window as the teacher slides the hand grip
+  in it (`components/MoveGrip.tsx`, `lib/moveExtension.ts`, which knows the extension's id). The deploy zips it into
+  `dist/move-extension/class-yes-move.zip`. `scripts/move-extension-check.mjs` loads it into Chromium against a build
+  served at localhost (the only other address it answers).
 - localStorage keys all start with `seating-chart-` and end in `-v1` (the main state is `seating-chart-state-v1`).
 
 ## Conventions

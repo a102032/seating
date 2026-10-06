@@ -6,7 +6,9 @@ import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { FLOAT_SIZE, FLOAT_STRIP_SIZE, growForGetReady, resizeFloatingWindow } from '../hooks/useFloatingWindow'
 import { assetUrl } from '../lib/assets'
+import { findMover, type Mover } from '../lib/moveExtension'
 import { FloatGetReady } from './FloatGetReady'
+import { GRIP_ROOM, MoveGrip } from './MoveGrip'
 
 interface FloatingGoalProps {
   /** The floating window to draw into. */
@@ -119,6 +121,17 @@ export function FloatingGoal({
   /** The size to grow back to: whatever the full window was before it shrank. */
   const fullSize = useRef(FLOAT_SIZE)
 
+  /** The Move extension, if this Chrome has it: then a hand grip moves the window by finger. */
+  const [mover, setMover] = useState<Mover | null>(null)
+  useEffect(() => {
+    let live = true
+    void findMover().then((m) => live && setMover(m))
+    return () => {
+      live = false
+    }
+  }, [])
+  const grip = mover && <MoveGrip win={win} mover={mover} strip={strip} />
+
   /** Get Ready! is running here, in the window grown big. */
   const [readying, setReadying] = useState(false)
   /** Grows the window from the drums to the star, and puts it back as it was before Get Ready!. */
@@ -166,7 +179,7 @@ export function FloatingGoal({
 
   function shrink() {
     fullSize.current = { width: win.innerWidth, height: win.innerHeight }
-    resizeFloatingWindow(win, FLOAT_STRIP_SIZE)
+    resizeFloatingWindow(win, { ...FLOAT_STRIP_SIZE, width: FLOAT_STRIP_SIZE.width + (mover ? GRIP_ROOM : 0) })
   }
 
   function grow() {
@@ -352,6 +365,7 @@ export function FloatingGoal({
       />
     ) : strip ? (
       <div data-ink="canvas" className={cn(canvas, 'items-center gap-1 p-1.5')}>
+        {grip}
         {waiting ? (
           celebrateButton
         ) : pick ? (
@@ -370,8 +384,12 @@ export function FloatingGoal({
       <div data-ink="canvas" className={cn(canvas, 'flex-col gap-2 p-2.5')}>
         <div
           data-ink="panel"
-          className="flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm"
+          className={cn(
+            'flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-card/70 py-2 pr-3 shadow-sm',
+            grip ? 'pl-1.5' : 'pl-3',
+          )}
         >
+          {grip}
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-bold text-muted-foreground">{className}</div>
             <div className="mt-1 h-3.5 overflow-hidden rounded-full bg-muted">

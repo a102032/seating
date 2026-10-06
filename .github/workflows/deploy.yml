@@ -44,6 +44,14 @@ jobs:
           mkdir -p dist/move-tab
           cp move-tab-bin/ClassYesMove.exe dist/move-tab/ClassYesMove.exe
 
+      # The Move extension (tools/move-extension), zipped in a folder of its own name for Chrome's
+      # Load unpacked: the test copy a teacher adds by hand, before it is in the Chrome Web Store.
+      - name: Pack the Move extension
+        run: |
+          mkdir -p dist/move-extension "$RUNNER_TEMP/pack"
+          cp -r tools/move-extension "$RUNNER_TEMP/pack/class-yes-move"
+          (cd "$RUNNER_TEMP/pack" && zip -qr "$GITHUB_WORKSPACE/dist/move-extension/class-yes-move.zip" class-yes-move)
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
@@ -87,3 +95,10 @@ jobs:
             exit 1
           fi
           echo "Serves the Move tab helper ($(stat -c %s helper.exe) bytes)."
+
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -o move.zip "${url%/}/move-extension/class-yes-move.zip"
+          if [ "$(head -c 2 move.zip)" != "PK" ]; then
+            echo "::error::The Move extension isn't served at move-extension/class-yes-move.zip."
+            exit 1
+          fi
+          echo "Serves the Move extension ($(stat -c %s move.zip) bytes)."
