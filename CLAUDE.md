@@ -19,6 +19,9 @@ that were built and deliberately taken out. It is imported at the bottom of this
   sparkle), so the big one keeps its meaning.
 - On-screen words are for young EFL readers: short, plain, and one idea per label.
 - Plain-language replies. Say what was verified and how. Send a screenshot after visual changes.
+- **Before the app goes to other teachers** there is a checklist at the top of DECISIONS' Next up, the Move extension on the
+  Chrome Web Store first. The teacher asked not to be allowed to forget it: whenever he talks about sharing the app, giving it
+  to colleagues or going public, bring the list up before anything else.
 
 ## Hard rules
 
