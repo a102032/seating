@@ -1,3 +1,4 @@
+import { MOCKUP } from '../mockup/mockup'
 import type { ClassData } from '../types'
 import type { Account } from './firebase'
 
@@ -11,6 +12,8 @@ export type { Account }
 let loading: Promise<typeof import('./firebase')> | null = null
 
 export function loadCloud(): Promise<typeof import('./firebase')> {
+  // The layout preview has no Google behind it: its example class stays on the page.
+  if (MOCKUP) return Promise.reject(new Error('The layout preview has no account'))
   loading ??= import('./firebase').catch((error: unknown) => {
     loading = null
     throw error

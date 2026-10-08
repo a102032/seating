@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo, useRef, useState, type Ref } from 'react'
+import { createPortal } from 'react-dom'
 import { Eye, EyeOff, Layers, Settings, Shuffle, X } from 'lucide-react'
 import { DEAL_STAGGER_MS, type useFlipDeck } from '../hooks/useFlipDeck'
 import type { Student } from '../types'
@@ -17,9 +18,14 @@ interface FlipDeckProps {
   showAllHomerooms: boolean
   onOpenSettings: () => void
   onExit: () => void
+  /**
+   * The layout mock-ups' Teacher's Shelf: the deck's controls go there, out of the children's
+   * reach, instead of across the top of the cards. Absent in the app as it is.
+   */
+  toolbarSlot?: HTMLElement | null
 }
 
-export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOpenSettings, onExit }: FlipDeckProps) {
+export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOpenSettings, onExit, toolbarSlot }: FlipDeckProps) {
   const { cards, columns, inPlay, studentsLeft, phase, settings } = deck
   const { shuffle, tap, activeId, revealAll, hideAll, anyFaceUp } = deck
   const pileRef = useRef<HTMLDivElement>(null)
@@ -52,34 +58,41 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
     shuffle()
   }
 
-  return (
-    <div className="flex h-full w-full min-h-0 flex-col gap-2">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm">
-        <div className="flex items-center gap-1.5">
-          <TactileButton onClick={reshuffle} disabled={phase !== 'ready'} className="!px-3 !py-2">
-            <Shuffle size={16} /> Shuffle
-          </TactileButton>
-          <TactileButton onClick={anyFaceUp ? hideAll : revealAll} disabled={phase !== 'ready'} className="!px-3 !py-2">
-            {anyFaceUp ? <EyeOff size={16} /> : <Eye size={16} />}
-            {anyFaceUp ? 'Hide All' : 'Reveal All'}
-          </TactileButton>
-        </div>
+  const toolbar = (
+    <div
+      className={
+        toolbarSlot
+          ? 'flex h-full items-center gap-2'
+          : 'flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm'
+      }
+    >
+      <div className="flex items-center gap-1.5">
+        <TactileButton onClick={reshuffle} disabled={phase !== 'ready'} className="!px-3 !py-2">
+          <Shuffle size={16} /> Shuffle
+        </TactileButton>
+        <TactileButton onClick={anyFaceUp ? hideAll : revealAll} disabled={phase !== 'ready'} className="!px-3 !py-2">
+          {anyFaceUp ? <EyeOff size={16} /> : <Eye size={16} />}
+          {anyFaceUp ? 'Hide All' : 'Reveal All'}
+        </TactileButton>
+      </div>
 
-        <DiscardPile pileRef={pileRef} count={phase === 'shuffling' ? 0 : pileCount} />
+      <DiscardPile pileRef={pileRef} count={phase === 'shuffling' ? 0 : pileCount} />
 
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
-            <Layers size={15} />
-            {studentsLeft} left
-          </span>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            title="Flip card settings"
-            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent active:scale-95"
-          >
-            <Settings size={17} />
-          </button>
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-sm font-bold text-secondary-foreground">
+          <Layers size={15} />
+          {studentsLeft} left
+        </span>
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          title="Flip card settings"
+          className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent active:scale-95"
+        >
+          <Settings size={17} />
+        </button>
+        {/* In the shelf, its Seats button is the way back. */}
+        {!toolbarSlot && (
           <button
             type="button"
             onClick={onExit}
@@ -88,8 +101,14 @@ export function FlipDeck({ deck, studentsById, showStars, showAllHomerooms, onOp
           >
             <X size={18} />
           </button>
-        </div>
+        )}
       </div>
+    </div>
+  )
+
+  return (
+    <div className="flex h-full w-full min-h-0 flex-col gap-2">
+      {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
 
       {/* A little room on the sides and bottom: the glowing card's outline is drawn outside the
           card, and the board sits in a clipped frame (so it can slide over the desks), which cut

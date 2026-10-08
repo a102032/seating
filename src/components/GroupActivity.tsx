@@ -19,6 +19,7 @@ import { GroupStatusPicker, statusStyle } from './GroupStatusPicker'
 import { AbsentIcon } from './AbsentIcon'
 import { ConfirmModal } from './ConfirmModal'
 import { TactileButton } from './TactileButton'
+import { createPortal } from 'react-dom'
 
 interface GroupActivityProps {
   groups: StudentGroup[]
@@ -58,6 +59,11 @@ interface GroupActivityProps {
   /** The group Pick Student is staying in after Pick Group (useGroupPicker), if any. */
   lockedGroupId: string | null
   onDismissPick: () => void
+  /**
+   * The layout mock-ups' Teacher's Shelf: the groups' controls go there, out of the children's
+   * reach, instead of across the top of the cards. Absent in the app as it is.
+   */
+  toolbarSlot?: HTMLElement | null
 }
 
 /** Chips sit in the stack this long before the first one is dealt. */
@@ -255,6 +261,7 @@ export function GroupActivity({
   pick,
   lockedGroupId,
   onDismissPick,
+  toolbarSlot,
 }: GroupActivityProps) {
   /** The chip that's been picked up and is waiting for a card to be tapped. */
   const [lifted, setLifted] = useState<string | null>(null)
@@ -445,52 +452,65 @@ export function GroupActivity({
         ? { width: 'max-w-11', score: 'min-w-[3rem]', star: 18, sign: 18 }
         : { width: 'max-w-9', score: 'min-w-[2.25rem]', star: 15, sign: 16 }
 
-  return (
-    <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm">
-        <div className="flex items-center gap-1.5">
-          <TactileButton onClick={onNewGroups} disabled={dealing || locked} className="!px-3 !py-2">
-            <Users size={16} /> New Groups
-          </TactileButton>
-          <TactileButton
-            onClick={onShuffle}
-            disabled={!canShuffle || dealing || locked}
-            className="!px-3 !py-2"
-            title={canShuffle ? 'Mix everyone up' : 'Tap New Groups to shuffle'}
-          >
-            <Shuffle size={16} /> Shuffle
-          </TactileButton>
-          <TactileButton
-            onClick={() => setConfirmingReset(true)}
-            disabled={dealing || locked || groups.every((g) => g.points === 0)}
-            className="!px-3 !py-2"
-            title="Set every group's score back to 0"
-          >
-            <RotateCcw size={16} /> Reset Points
-          </TactileButton>
-        </div>
+  const toolbar = (
+    <div
+      className={
+        toolbarSlot
+          ? 'flex h-full items-center gap-2'
+          : 'flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm'
+      }
+    >
+      <div className="flex items-center gap-1.5">
+        <TactileButton onClick={onNewGroups} disabled={dealing || locked} className="!px-3 !py-2">
+          <Users size={16} /> New Groups
+        </TactileButton>
+        <TactileButton
+          onClick={onShuffle}
+          disabled={!canShuffle || dealing || locked}
+          className="!px-3 !py-2"
+          title={canShuffle ? 'Mix everyone up' : 'Tap New Groups to shuffle'}
+        >
+          <Shuffle size={16} /> Shuffle
+        </TactileButton>
+        <TactileButton
+          onClick={() => setConfirmingReset(true)}
+          disabled={dealing || locked || groups.every((g) => g.points === 0)}
+          className="!px-3 !py-2"
+          title="Set every group's score back to 0"
+        >
+          <RotateCcw size={16} /> Reset Points
+        </TactileButton>
+      </div>
 
-        <div className="flex items-center gap-2">
-          {/* For when students come up to the board to change their own light: nothing else
+      <div className="flex items-center gap-2">
+        {/* For when students come up to the board to change their own light: nothing else
               answers to a tap until the teacher unlocks. */}
-          <TactileButton
-            active={locked}
-            onClick={onToggleLock}
-            disabled={dealing}
-            className="!px-3 !py-2"
-            title={
-              locked
-                ? 'Names are frozen so students can tap their own status. Points still work. Tap to unlock.'
-                : 'Freeze the names so students can come up and tap their own status'
-            }
-          >
-            {locked ? <Lock size={16} /> : <LockOpen size={16} />} {locked ? 'Locked' : 'Lock'}
-          </TactileButton>
+        <TactileButton
+          active={locked}
+          onClick={onToggleLock}
+          disabled={dealing}
+          className="!px-3 !py-2"
+          title={
+            locked
+              ? 'Names are frozen so students can tap their own status. Points still work. Tap to unlock.'
+              : 'Freeze the names so students can come up and tap their own status'
+          }
+        >
+          {locked ? <Lock size={16} /> : <LockOpen size={16} />} {locked ? 'Locked' : 'Lock'}
+        </TactileButton>
+        {/* In the shelf, its Seats button is the way out. */}
+        {!toolbarSlot && (
           <TactileButton onClick={onExit} disabled={dealing || locked} className="!px-3 !py-2">
             <LogOut size={16} /> Exit Group Activity
           </TactileButton>
-        </div>
+        )}
       </div>
+    </div>
+  )
+
+  return (
+    <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
+      {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
 
       <div ref={boardRef} className="relative min-h-0 flex-1" style={{ fontSize: 'var(--chip-font)' }}>
         {/* Never scrolls: planLayout picks columns and chip size so the cards fit. They sit

@@ -11,6 +11,7 @@ import {
 } from '../lib/cloud'
 import type { Snapshot } from '../lib/firebase'
 import { replaceLocalState } from '../lib/localStore'
+import { MOCKUP } from '../mockup/mockup'
 import type { ClassData } from '../types'
 
 /**
@@ -69,7 +70,7 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
   const [account, setAccount] = useState<Account | null>(saved && { uid: saved.uid, firstName: saved.firstName, email: saved.email })
   /** Firebase agrees this browser is signed in as `account`. */
   const [verified, setVerified] = useState(false)
-  const [status, setStatus] = useState<SyncStatus>('connecting')
+  const [status, setStatus] = useState<SyncStatus>(MOCKUP ? 'saved' : 'connecting')
   const [needsSignIn, setNeedsSignIn] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
   const [signInError, setSignInError] = useState<string | null>(null)
@@ -274,6 +275,8 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
   // no internet this waits, and tries again when the connection comes back.
   useEffect(() => {
     if (!record.current) return
+    // The layout preview's example class has no account to reach (its mark starts at Saved).
+    if (MOCKUP) return
     let cancelled = false
     const start = async () => {
       try {
