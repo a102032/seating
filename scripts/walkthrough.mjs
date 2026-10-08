@@ -576,6 +576,8 @@ const scenarios = {
     await desk(page, 'Tony').click()
     await award(page)
     await page.waitForTimeout(900)
+    // With anyone picked by hand Pick All reads Unpick All, so from two picked the whole class is two taps.
+    await panelButton(page, 'Unpick All').click()
     await panelButton(page, 'Pick All').click()
     await award(page)
     await page.waitForTimeout(900)
