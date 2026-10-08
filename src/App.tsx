@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { PictureInPicture2, Star } from 'lucide-react'
+import { PictureInPicture2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { ChooseAvatarBanner, ChooseAvatarPicker } from './components/ChooseAvatars'
@@ -37,6 +37,7 @@ import { studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
+import { assetUrl } from './lib/assets'
 import { type Student, type TimerSettings } from './types'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding', face: 'flip' }
@@ -691,7 +692,10 @@ export default function App() {
       className={evenly}
       title="A star for getting ready quickly and quietly"
     >
-      <Star size={16} className="fill-amber-400 text-amber-600" /> Get Ready!
+      {/* The taiko drum, as on the floating window's Get Ready! (2026-10-08, the teacher): a star said
+          "point", where the drum is what Get Ready! sounds and looks like. */}
+      <img src={assetUrl('/get-ready/taiko-drum.svg')} alt="" draggable={false} className="h-[1.35em] w-auto shrink-0 select-none" />
+      Get Ready!
     </TactileButton>
   )
   const floatButton = canFloat && (
