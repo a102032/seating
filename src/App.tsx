@@ -566,16 +566,47 @@ export default function App() {
   }
 
   function toggleSelectAll() {
+    // Unpick All whenever anyone is picked by hand, not only everyone (2026-10-08, the teacher):
+    // a few students tapped all over the board took a tap each to let go of.
+    if (pointsSelection.size > 0) {
+      resetPointsSelection()
+      return
+    }
     // Pick All takes the board over, as a pick does: a pick still showing would otherwise keep
     // the points, and + went to the one picked student instead of the class.
     if (picker.hasResult) picker.dismiss()
     setSpentDelta(null)
     setLandedTick(0)
-    const allSelected = seatedIds.length > 0 && seatedIds.every((id) => pointsSelection.has(id))
     // Selecting everyone is the one case where nothing dims, so the ripple is the only
     // confirmation the board gives. Deselecting needs none - the dimming lifts.
-    setStaggerWiggle(!allSelected)
-    setPointsSelection(allSelected ? new Set() : new Set(seatedIds))
+    setStaggerWiggle(true)
+    setPointsSelection(new Set(seatedIds))
+  }
+
+  /**
+   * Pick Whole Row: everyone here today in the rows (or at the tables) of the students picked by
+   * hand, so a row that did a good job is one desk and one tap rather than a tap a desk
+   * (2026-10-08, the teacher). The rows are Pick Row's, from the room's plan. Null when nobody
+   * is picked by hand, or the desks are covered.
+   */
+  function wholeSetsOfSelection() {
+    if (flipDeckOpen || groupActivityOpen || picker.hasResult || pointsSelection.size === 0) return null
+    const sets = new Set<number>()
+    presentSeating.forEach((id, i) => {
+      const seat = plan.seats[i]
+      if (id && seat && pointsSelection.has(id)) sets.add(seat.set)
+    })
+    const ids = presentSeating.filter((id, i): id is string => Boolean(id) && plan.seats[i] !== undefined && sets.has(plan.seats[i].set))
+    return { ids, count: sets.size, whole: ids.every((id) => pointsSelection.has(id)) }
+  }
+  const wholeSets = wholeSetsOfSelection()
+
+  function pickWholeSets() {
+    if (!wholeSets || wholeSets.whole) return
+    setSpentDelta(null)
+    setLandedTick(0)
+    setStaggerWiggle(false)
+    setPointsSelection(new Set(wholeSets.ids))
   }
 
   /**
@@ -729,7 +760,9 @@ export default function App() {
       onSwitchTeacher={openSwitchTeacher}
       pointsSelectedCount={activeSelection.size}
       allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id))}
+      anyPickedByHand={pointsSelection.size > 0}
       onToggleSelectAll={toggleSelectAll}
+      wholeSets={wholeSets && { count: wholeSets.count, whole: wholeSets.whole, onPick: pickWholeSets }}
       onAwardPoint={() => applyPointsDelta(1)}
       onDeductPoint={() => applyPointsDelta(-1)}
       showMinus={desksMode}

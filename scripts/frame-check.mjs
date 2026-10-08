@@ -159,7 +159,7 @@ await measure('give +1 three times', async () => {
   }
 })
 await measure('pick student', async () => {
-  await page.getByRole('button', { name: 'Pick Student' }).click()
+  await page.getByRole('button', { name: 'Pick a Random Student' }).click()
   await wait(3500)
 })
 await page.mouse.click(700, 400)

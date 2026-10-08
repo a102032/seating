@@ -60,7 +60,14 @@ interface SidePanelProps {
   onSwitchTeacher: () => void
   pointsSelectedCount: number
   allSeatedSelected: boolean
+  /** Some students are picked by hand, so Pick All reads Unpick All and lets them all go. */
+  anyPickedByHand: boolean
   onToggleSelectAll: () => void
+  /**
+   * Pick Whole Row (or Table): the rows of the students picked by hand. Null when nobody is
+   * picked by hand; `whole` when everyone in those rows already is.
+   */
+  wholeSets: { count: number; whole: boolean; onPick: () => void } | null
   onAwardPoint: () => void
   onDeductPoint: () => void
   /**
@@ -139,7 +146,9 @@ export function SidePanel({
   onSwitchTeacher,
   pointsSelectedCount,
   allSeatedSelected,
+  anyPickedByHand,
   onToggleSelectAll,
+  wholeSets,
   onAwardPoint,
   onDeductPoint,
   showMinus,
@@ -167,6 +176,7 @@ export function SidePanel({
   const fitKey = [
     flipDeckOpen,
     pointsSelectedCount > 0,
+    Boolean(wholeSets),
     Boolean(cloud.account),
     saveError,
     classes.length > 1,
@@ -286,7 +296,9 @@ export function SidePanel({
                   : setName === 'table'
                     ? 'Pick from This Table'
                     : 'Pick from This Row'
-                : 'Pick Student'}
+                : // "Random" is the point (2026-10-08, the teacher): without it a teacher may think
+                  // this is how to pick a student by hand, which is a tap on their desk.
+                  'Pick a Random Student'}
             </TactileButton>
             {/* A row and a group are both "a set of students", so the button keeps its
                 meaning and only what counts as a set changes with the screen. */}
@@ -304,7 +316,7 @@ export function SidePanel({
               }
             >
               {groupMode ? <PickGroupIcon size={18} /> : setName === 'table' ? <PickTableIcon size={18} /> : <PickRowIcon size={18} />}{' '}
-              {groupMode ? 'Pick Group' : setName === 'table' ? 'Pick Table' : 'Pick Row'}
+              {groupMode ? 'Pick a Random Group' : setName === 'table' ? 'Pick a Random Table' : 'Pick a Random Row'}
             </TactileButton>
             <TactileButton
               active={flipDeckOpen}
@@ -341,11 +353,13 @@ export function SidePanel({
               // On the flip cards +/- always mean "the student named below", never the room.
               disabled={busy || flipDeckOpen}
               onClick={onToggleSelectAll}
-              title={allSeatedSelected ? 'Unpick All' : 'Pick All'}
+              // Lit only with everyone picked; Unpick All whenever anyone is picked by hand, so one
+              // tap lets go of students tapped all over the board (2026-10-08, the teacher).
+              title={anyPickedByHand ? 'Unpick All' : 'Pick All'}
               // Wide enough for "Unpick All", so +/- don't change width when the label does.
               className="w-[6.1em] shrink-0 !px-0 !text-[clamp(0.8rem,2vmin,1.3rem)] justify-center"
             >
-              {allSeatedSelected ? 'Unpick All' : 'Pick All'}
+              {anyPickedByHand ? 'Unpick All' : 'Pick All'}
             </TactileButton>
             {/* The word takes what the word needs; +/- share the rest. They're the two
                 buttons a teacher taps most, so the free space is theirs. */}
@@ -404,6 +418,19 @@ export function SidePanel({
                 'Flip a card to give points'
               )}
             </p>
+          ) : wholeSets ? (
+            // Where "3 students selected" was: tap one student in a row that did well, then this,
+            // and the whole row is picked. Greyed once it is, so the panel doesn't jump.
+            <TactileButton
+              onClick={wholeSets.onPick}
+              disabled={busy || wholeSets.whole}
+              className={clsx('mt-1.5 w-full justify-center', FIT_PY)}
+              title={wholeSets.whole ? `The whole ${setName} is picked` : `Pick everyone in the ${setName}`}
+            >
+              {setName === 'table' ? <PickTableIcon size={18} /> : <PickRowIcon size={18} />}
+              Pick Whole {setName === 'table' ? 'Table' : 'Row'}
+              {wholeSets.count > 1 ? 's' : ''}
+            </TactileButton>
           ) : (
             pointsSelectedCount > 0 && (
               <p className="mt-1 px-1 text-center text-xs font-medium text-muted-foreground">

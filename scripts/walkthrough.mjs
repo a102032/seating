@@ -192,6 +192,77 @@ const scenarios = {
     return page
   },
 
+  /**
+   * A row that did a good job: one desk, Pick Whole Row, +, and Unpick All lets everyone go - where it
+   * was a tap on every desk, twice (2026-10-08, the teacher). Unpick All shows whenever anyone is picked
+   * by hand, not only the whole class.
+   */
+  async 'Pick Whole Row and Unpick All'() {
+    const cls = makeClass('c1', 'Rows', 30, { pointsGoal: 100, classPoints: 0 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const named = (n) => page.locator('[data-ink=desk]').filter({ hasText: new RegExp(`^\\s*${n}\\s*$`) })
+    const picked = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-ink=desk].desk-wiggle, [data-ink=desk].desk-wiggle-loop')]
+          .map((d) => d.textContent.trim())
+          .sort()
+          .join(','),
+      )
+    // Andy is away today, in Kevin's row.
+    await panelButton(page, 'Attendance').click()
+    await named('Andy').click()
+    await panelButton(page, 'Attendance').click()
+    await page.waitForTimeout(400)
+    check('whole row: no button with nobody picked', (await panelButton(page, 'Pick Whole Row').count()) === 0)
+    await named('Kevin').click()
+    check('one desk picked: Pick All reads Unpick All', (await panelButton(page, 'Unpick All').count()) === 1)
+    await panelButton(page, 'Pick Whole Row').click()
+    await page.waitForTimeout(300)
+    check('whole row: everyone here in that row, the student away left out', (await picked()) === 'Gary,Grace,Kevin,Mandy', await picked())
+    check('whole row: greyed once the row is whole', await panelButton(page, 'Pick Whole Row').isDisabled())
+    const over = await overflow(page)
+    check(
+      'whole row: nothing scrolls on the board 1280x559',
+      Object.values(over).every((v) => v <= 0),
+      JSON.stringify(over),
+    )
+    await award(page)
+    await page.waitForTimeout(1500)
+    const c = await activeSaved(page)
+    check('whole row: the row gets the stars', c.classPoints === 4, `meter ${c.classPoints}`)
+    await panelButton(page, 'Unpick All').click()
+    await page.waitForTimeout(300)
+    check(
+      'Unpick All lets them all go in one tap',
+      (await picked()) === '' && (await panelButton(page, 'Pick All').count()) === 1,
+      await picked(),
+    )
+    await named('Amy').click()
+    await named('Tony').click()
+    await panelButton(page, 'Pick Whole Rows').click()
+    await page.waitForTimeout(300)
+    check(
+      'whole rows: a desk in each of two rows picks both rows',
+      (await picked()) === 'Amy,Daniel,Emma,Eric,Fiona,Kelly,Leo,Louis,Sophia,Tony',
+      await picked(),
+    )
+    await panelButton(page, 'Unpick All').click()
+    // At tables it is the table.
+    const tables = await open({ state: stateOf(makeClass('c2', 'Tables', 30, { layout: 'tables4' })), size: [1024, 500] })
+    await tables.locator('[data-ink=desk]', { hasText: 'Kevin' }).first().click()
+    await panelButton(tables, 'Pick Whole Table').click()
+    await tables.waitForTimeout(300)
+    const atTable = await tables.locator('[data-ink=desk].desk-wiggle, [data-ink=desk].desk-wiggle-loop').count()
+    check('whole table: at tables it picks the table', atTable >= 2 && atTable <= 4, `${atTable} picked`)
+    const overTables = await overflow(tables)
+    check(
+      'whole table: nothing scrolls at 1024x500',
+      Object.values(overTables).every((v) => v <= 0),
+      JSON.stringify(overTables),
+    )
+    return page
+  },
+
   /** Points past the goal carry into the next run, and the meter should show them once the chest shuts. */
   async 'meter shows the carried-over points after a celebration'() {
     const cls = makeClass('c1', 'Overflow', 5, { pointsGoal: 10, classPoints: 8, goalEnabled: true })
@@ -470,7 +541,7 @@ const scenarios = {
     await page.waitForTimeout(400)
     const landed = new Set()
     for (let i = 0; i < 8; i++) {
-      await panelButton(page, 'Pick Student').click()
+      await panelButton(page, 'Pick a Random Student').click()
       await page.waitForTimeout(3200)
       landed.add(await page.evaluate(() => document.querySelector('[data-ink=desk].desk-picked')?.textContent ?? ''))
       await page.mouse.click(5, 5)
@@ -520,7 +591,7 @@ const scenarios = {
       (await page.locator('aside button[title="Deduct Point"]').count()) === 0,
     )
     for (let i = 0; i < 3; i++) {
-      await panelButton(page, 'Pick Student').click()
+      await panelButton(page, 'Pick a Random Student').click()
       await page.waitForTimeout(2600)
       await desk(page, 'Amy').click()
       if (i === 0) {
@@ -530,7 +601,7 @@ const scenarios = {
       }
     }
     for (let i = 0; i < 3; i++) {
-      await panelButton(page, 'Pick Student').click()
+      await panelButton(page, 'Pick a Random Student').click()
       await page.waitForTimeout(2600)
       await desk(page, 'Amy').click()
     }
@@ -631,7 +702,7 @@ const scenarios = {
     const cls = makeClass('c1', 'Nearly', 12, { pointsGoal: 50, classPoints: 46 })
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
     for (let i = 0; i < 3; i++) {
-      await panelButton(page, 'Pick Student').click()
+      await panelButton(page, 'Pick a Random Student').click()
       await page.waitForTimeout(2600)
       await desk(page, 'Amy').click()
     }
@@ -774,7 +845,7 @@ const scenarios = {
     await page.locator('.splash-board button').first().click()
     await page.waitForTimeout(900)
     check('long press: none on a desk', !(await menuOpens(desk(page, 'Kevin'))))
-    check('long press: none on the side panel', !(await menuOpens(panelButton(page, 'Pick Student'))))
+    check('long press: none on the side panel', !(await menuOpens(panelButton(page, 'Pick a Random Student'))))
     await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(600)
     await page.getByRole('tab', { name: 'Class', exact: true }).click()
@@ -926,10 +997,10 @@ const scenarios = {
       // A second class, so the splash offers class cards rather than first-time setup.
       const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size: [1024, 640] })
       if (count > 0) {
-        await panelButton(page, 'Pick Student').click()
+        await panelButton(page, 'Pick a Random Student').click()
         await page.waitForTimeout(3200)
         await page.mouse.click(5, 5)
-        await panelButton(page, 'Pick Row').click()
+        await panelButton(page, 'Pick a Random Row').click()
         await page.waitForTimeout(3200)
         const rowPicked = await page.evaluate(() => document.querySelectorAll('[data-ink=desk].desk-picked').length)
         check(
@@ -1310,7 +1381,7 @@ const scenarios = {
     await page.getByRole('button', { name: 'Students Choose' }).click()
     await page.waitForTimeout(500)
     check('choose: the board says what to do', await page.getByText('Tap your desk. Choose your avatar!').isVisible())
-    check('choose: the side panel stands down', await panelButton(page, 'Pick Student').isDisabled())
+    check('choose: the side panel stands down', await panelButton(page, 'Pick a Random Student').isDisabled())
     await desk(page, 'Kevin').click()
     await page.waitForTimeout(100)
     const picker = page.getByRole('dialog')
@@ -1334,7 +1405,8 @@ const scenarios = {
     await page.waitForTimeout(400)
     check(
       'choose: Done ends it',
-      !(await page.getByText('Tap your desk. Choose your avatar!').isVisible()) && (await panelButton(page, 'Pick Student').isEnabled()),
+      !(await page.getByText('Tap your desk. Choose your avatar!').isVisible()) &&
+        (await panelButton(page, 'Pick a Random Student').isEnabled()),
     )
     return page
   },
@@ -1445,7 +1517,7 @@ const scenarios = {
           if (!(id === 'tables5-top' || id === 'tables5-bottom') || count <= 30) {
             if (ratio < 0.97) bad.push(`${id}: names ${Math.round(ratio * 100)}% of Rows`)
           }
-          const pickLabel = setName === 'table' ? 'Pick Table' : 'Pick Row'
+          const pickLabel = setName === 'table' ? 'Pick a Random Table' : 'Pick a Random Row'
           await panelButton(page, pickLabel).click()
           await page.waitForTimeout(3200)
           const lit = await page.locator('[data-ink=desk].desk-picked').count()
@@ -1505,6 +1577,13 @@ const scenarios = {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }
+          // And no button on the panel has words running past its edge ("Pick a Random Student").
+          const spill = await page.evaluate(() =>
+            [...document.querySelectorAll('aside button')]
+              .filter((b) => b.offsetParent && b.scrollWidth > b.clientWidth + 1)
+              .map((b) => `${b.textContent.trim() || b.title} (${b.scrollWidth - b.clientWidth}px)`),
+          )
+          if (spill.length) bad.push(`${label}: cut off ${spill.join(' | ')}`)
         }
         await look('board')
         await desk(page, 'Amy').click()

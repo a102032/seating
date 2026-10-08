@@ -254,8 +254,8 @@ export function ParticipationModal({ open, onClose, activeClass, onSetCount, onC
                 })}
               </div>
               <p className="text-xs text-muted-foreground">
-                Picked by Pick Student, the group picker or a flip card. A point given to a few students, not the whole class. A student you
-                call on yourself shows here only if you give them a point. Tap a student's numbers to fix them.
+                Picked by Pick a Random Student, the group picker or a flip card. A point given to a few students, not the whole class. A
+                student you call on yourself shows here only if you give them a point. Tap a student's numbers to fix them.
               </p>
               {/* Taking things back out of the record: a day that was all trying things out,
                 or the whole record, at the end of testing or the start of a term. */}
