@@ -122,12 +122,7 @@ export function FlipTimer({ settings, onOpenSettings, disabled = false }: FlipTi
         for a moment first, which looked broken). A tap on the timer shuts it, as before.
       */}
       <div
-        className={clsx(
-          'absolute inset-x-0 top-full z-[1] -mt-4 overflow-hidden',
-          // Wider than the clock only while open (the layout mock-ups' narrow frame): shut, its
-          // shadow would show beside the clock.
-          menuOpen ? 'min-w-[var(--timer-drawer-min,0px)]' : 'pointer-events-none',
-        )}
+        className={clsx('absolute inset-x-0 top-full z-[1] -mt-4 overflow-hidden', !menuOpen && 'pointer-events-none')}
         aria-hidden={!menuOpen}
         inert={!menuOpen}
       >

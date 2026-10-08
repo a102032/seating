@@ -11,7 +11,7 @@ import { ClassTitle } from './ClassTitle'
 import { FlipTimer } from './FlipTimer'
 import { TactileButton } from './TactileButton'
 
-export interface SidePanelProps {
+interface SidePanelProps {
   classes: ClassData[]
   activeClassId: string | null
   onSelectClass: (id: string) => void

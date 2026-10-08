@@ -17,7 +17,7 @@ import { GroupExitModal } from './components/GroupExitModal'
 import { PickersPointsModal } from './components/PickersPointsModal'
 import { PointsMeter } from './components/PointsMeter'
 import { SeatClassBanner } from './components/SeatClassBanner'
-import { SidePanel, type SidePanelProps } from './components/SidePanel'
+import { SidePanel } from './components/SidePanel'
 import { SplashScreen } from './components/SplashScreen'
 import { TactileButton } from './components/TactileButton'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
@@ -38,11 +38,6 @@ import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
 import { type Student, type TimerSettings } from './types'
-import { loadMockLayout, loadReachLine, MOCKUP, saveMockLayout, saveReachLine, type MockLayout } from './mockup/mockup'
-import { MockupSwitcher } from './mockup/MockupSwitcher'
-import type { LayoutProps } from './mockup/parts'
-import { RailFrame } from './mockup/RailFrame'
-import { TeacherShelf } from './mockup/TeacherShelf'
 
 const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding', face: 'flip' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
@@ -197,12 +192,6 @@ export default function App() {
    * "start" is the moment they're already having - and it costs one tap to get past.
    */
   const [splashOpen, setSplashOpen] = useState(true)
-  // The layout mock-ups (a VITE_MOCKUP build only): the same controls arranged another way, and
-  // the line a 2nd grader can reach up to. The live app is always 'today'.
-  const [mockLayout, setMockLayout] = useState<MockLayout>(() => (MOCKUP ? loadMockLayout() : 'today'))
-  const [reachLine, setReachLine] = useState(() => MOCKUP && loadReachLine())
-  /** Where the Teacher's Shelf takes the flip cards' and group cards' own controls. */
-  const [toolbarSlot, setToolbarSlot] = useState<HTMLDivElement | null>(null)
   /** The class goal in its own small window over the lesson, so a point doesn't mean switching apps. */
   const { win: floatWin, open: openFloat, close: closeFloat } = useFloatingWindow(theme)
   const appInFront = useAppInFront()
@@ -692,10 +681,6 @@ export default function App() {
    * the outside, the screen's edge, whichever side the panel is on (2026-10-05, the teacher):
    * Get Ready! is the one used mid-lesson, so it is the one nearer the board.
    */
-  // The layout preview runs inside another page, which may not open a window of its own.
-  const toggleFloat = MOCKUP
-    ? () => setToast({ id: Date.now(), text: 'Float opens over your slides in the real app. The preview cannot open it.' })
-    : () => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))
   const evenly = '!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)] grow shrink basis-0 justify-center'
   const getReadyButton = (
     <TactileButton
@@ -713,7 +698,7 @@ export default function App() {
     <TactileButton
       key="float"
       active={floatWin !== null}
-      onClick={toggleFloat}
+      onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
       className={evenly}
       title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
     >
@@ -722,125 +707,89 @@ export default function App() {
   )
   const goalControls = <>{panelSide === 'left' ? [floatButton, getReadyButton] : [getReadyButton, floatButton]}</>
 
-  const panelProps: SidePanelProps = {
-    classes,
-    activeClassId,
-    onSelectClass: setActiveClassId,
-    // With a goal on, the class's name labels the goal meter and the goal's controls take its row.
-    nameInBar: goalLive,
-    goalControls,
-    deskStars: desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null,
-    onAllStarsIn: allStarsIn,
-    swapMode,
-    onToggleSwap: () => {
-      setSwapMode((v) => !v)
-      setSelectedDesk(null)
-      resetPointsSelection()
-    },
-    attendanceMode,
-    choosingAvatars,
-    attendanceTaken: attendanceTakenOn(activeClass, today),
-    onToggleAttendance: () => {
-      // Switching it off is what records the day, so a class with nobody away gets its
-      // check from on-then-off, with no separate button to find.
-      if (attendanceMode) markAttendanceTaken(activeClass.id, today)
-      else {
-        picker.dismiss()
+  const sidePanel = (
+    <SidePanel
+      classes={classes}
+      activeClassId={activeClassId}
+      onSelectClass={setActiveClassId}
+      // With a goal on, the class's name labels the goal meter and the goal's controls take its row.
+      nameInBar={goalLive}
+      goalControls={goalControls}
+      deskStars={desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
+      onAllStarsIn={allStarsIn}
+      swapMode={swapMode}
+      onToggleSwap={() => {
+        setSwapMode((v) => !v)
+        setSelectedDesk(null)
         resetPointsSelection()
+      }}
+      attendanceMode={attendanceMode}
+      choosingAvatars={choosingAvatars}
+      attendanceTaken={attendanceTakenOn(activeClass, today)}
+      onToggleAttendance={() => {
+        // Switching it off is what records the day, so a class with nobody away gets its
+        // check from on-then-off, with no separate button to find.
+        if (attendanceMode) markAttendanceTaken(activeClass.id, today)
+        else {
+          picker.dismiss()
+          resetPointsSelection()
+        }
+        setAttendanceMode(!attendanceMode)
+      }}
+      onPickStudent={() => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent))}
+      onPickRow={() => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow))}
+      groupMode={groupActivityOpen}
+      // During a group activity the "set" Pick Student can stay inside is the picked group.
+      rowLocked={groupActivityOpen ? groupPicker.lockedGroupId !== null : picker.rowLocked}
+      rowLockBinds={groupActivityOpen ? groupPicker.lockBinds : picker.rowLockBinds}
+      setName={plan.setName}
+      studentPickActive={
+        groupActivityOpen ? groupPicker.pick?.kind === 'student' : picker.mode === 'student-flashing' || picker.mode === 'student-result'
       }
-      setAttendanceMode(!attendanceMode)
-    },
-    onPickStudent: () => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent)),
-    onPickRow: () => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow)),
-    groupMode: groupActivityOpen,
-    // During a group activity the "set" Pick Student can stay inside is the picked group.
-    rowLocked: groupActivityOpen ? groupPicker.lockedGroupId !== null : picker.rowLocked,
-    rowLockBinds: groupActivityOpen ? groupPicker.lockBinds : picker.rowLockBinds,
-    setName: plan.setName,
-    studentPickActive: groupActivityOpen
-      ? groupPicker.pick?.kind === 'student'
-      : picker.mode === 'student-flashing' || picker.mode === 'student-result',
-    rowPickActive: groupActivityOpen ? groupPicker.pick?.kind === 'group' : picker.mode === 'row-flashing' || picker.mode === 'row-result',
-    onOpenSettings: () => openSettings(),
-    onOpenPickerSettings: () => setPickerSettingsOpen(true),
-    timerSettings,
-    onOpenTimerSettings: () => setTimerSettingsOpen(true),
-    side: panelSide,
-    onToggleSide: togglePanelSide,
-    saveError,
-    cloud,
-    onSwitchTeacher: openSwitchTeacher,
-    pointsSelectedCount: activeSelection.size,
-    allSeatedSelected: seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id)),
-    anyPickedByHand: pointsSelection.size > 0,
-    onToggleSelectAll: toggleSelectAll,
-    wholeSets: wholeSets && { count: wholeSets.count, whole: wholeSets.whole, onPick: pickWholeSets },
-    onAwardPoint: () => applyPointsDelta(1),
-    onDeductPoint: () => applyPointsDelta(-1),
-    showMinus: desksMode,
-    canDeductPoint,
-    flipDeckOpen,
-    pickFlashing: picker.isPicking,
-    flipActiveName: deck.activeId ? (studentsById.get(deck.activeId)?.name ?? null) : null,
-    onToggleFlipDeck: () => {
-      // Deal outside the state updater - React may run an updater more than once, which
-      // would deal (and sound) twice.
-      const opening = !flipDeckOpen
-      // A finished pick would otherwise still be lit up behind the deck, and waiting there
-      // for the teacher when the cards go away.
-      if (opening) picker.dismiss()
-      setFlipDeckOpen(opening)
-      if (opening) deck.deal()
-      resetPointsSelection()
-    },
-    groupActivityOpen,
-    groupActivityLocked: groupActivityOpen && groupsLocked,
-    groupsLocked: groupActivityOpen && groupsLocked,
-    onToggleGroupActivity: () => {
-      if (groupActivityOpen) requestExitGroups()
-      else setGroupModalOpen(true)
-    },
-  }
-  const sidePanel = <SidePanel {...panelProps} />
-  const layoutProps: LayoutProps = {
-    ...panelProps,
-    getReady: goalLive
-      ? {
-          onClick: () => setGetReadyOpen(true),
-          disabled: swapMode || attendanceMode || choosingAvatars || picker.isPicking || floatReadying,
-          active: getReadyOpen,
-        }
-      : null,
-    float: goalLive && canFloat ? { onClick: toggleFloat, active: floatWin !== null } : null,
-  }
-
-  // Hidden entirely until a goal exists - a meter on screen is a meter the class will ask
-  // about every lesson, whether or not the teacher wanted one.
-  const meter =
-    (activeClass.pointsGoal ?? 0) > 0 && activeClass.goalEnabled !== false ? (
-      <PointsMeter
-        classId={activeClass.id}
-        classPoints={activeClass.classPoints ?? 0}
-        goalsReached={activeClass.goalsReached ?? 0}
-        goal={activeClass.pointsGoal ?? 0}
-        celebrationGifId={activeClass.celebrationGifId}
-        onOpenGoalSettings={() => setPickerSettingsOpen(true)}
-        holdCelebration={!appInFront}
-        onWaitingChange={setGoalWaiting}
-        lifted={meterLifted}
-        title={
-          <ClassTitle
-            place="bar"
-            classes={classes}
-            activeClassId={activeClassId}
-            onSelectClass={setActiveClassId}
-            onOpenSettings={() => openSettings()}
-            disabled={swapMode || attendanceMode || choosingAvatars}
-            settingsDisabled={groupActivityOpen && groupsLocked}
-          />
-        }
-      />
-    ) : null
+      rowPickActive={
+        groupActivityOpen ? groupPicker.pick?.kind === 'group' : picker.mode === 'row-flashing' || picker.mode === 'row-result'
+      }
+      onOpenSettings={() => openSettings()}
+      onOpenPickerSettings={() => setPickerSettingsOpen(true)}
+      timerSettings={timerSettings}
+      onOpenTimerSettings={() => setTimerSettingsOpen(true)}
+      side={panelSide}
+      onToggleSide={togglePanelSide}
+      saveError={saveError}
+      cloud={cloud}
+      onSwitchTeacher={openSwitchTeacher}
+      pointsSelectedCount={activeSelection.size}
+      allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id))}
+      anyPickedByHand={pointsSelection.size > 0}
+      onToggleSelectAll={toggleSelectAll}
+      wholeSets={wholeSets && { count: wholeSets.count, whole: wholeSets.whole, onPick: pickWholeSets }}
+      onAwardPoint={() => applyPointsDelta(1)}
+      onDeductPoint={() => applyPointsDelta(-1)}
+      showMinus={desksMode}
+      canDeductPoint={canDeductPoint}
+      flipDeckOpen={flipDeckOpen}
+      pickFlashing={picker.isPicking}
+      flipActiveName={deck.activeId ? (studentsById.get(deck.activeId)?.name ?? null) : null}
+      onToggleFlipDeck={() => {
+        // Deal outside the state updater - React may run an updater more than once, which
+        // would deal (and sound) twice.
+        const opening = !flipDeckOpen
+        // A finished pick would otherwise still be lit up behind the deck, and waiting there
+        // for the teacher when the cards go away.
+        if (opening) picker.dismiss()
+        setFlipDeckOpen(opening)
+        if (opening) deck.deal()
+        resetPointsSelection()
+      }}
+      groupActivityOpen={groupActivityOpen}
+      groupActivityLocked={groupActivityOpen && groupsLocked}
+      groupsLocked={groupActivityOpen && groupsLocked}
+      onToggleGroupActivity={() => {
+        if (groupActivityOpen) requestExitGroups()
+        else setGroupModalOpen(true)
+      }}
+    />
+  )
 
   return (
     <>
@@ -897,15 +846,35 @@ export default function App() {
         {/* Plain boxes, deliberately. They were framer layout boxes so the panel glided when it
             moved to the other side - a once-a-term change - and that made framer measure the
             page on every render: every desk tap, every point, every picker flash. */}
-        {mockLayout === 'today' && <div className="flex shrink-0">{sidePanel}</div>}
-        {mockLayout === 'rail' && (
-          <div className="flex shrink-0">
-            <RailFrame {...layoutProps} />
-          </div>
-        )}
+        <div className="flex shrink-0">{sidePanel}</div>
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-          {mockLayout === 'shelf' ? <TeacherShelf {...layoutProps} meter={meter} onShelfSlot={setToolbarSlot} /> : meter}
+          {/* Hidden entirely until a goal exists - a meter on screen is a meter the class
+              will ask about every lesson, whether or not the teacher wanted one. */}
+          {(activeClass.pointsGoal ?? 0) > 0 && activeClass.goalEnabled !== false && (
+            <PointsMeter
+              classId={activeClass.id}
+              classPoints={activeClass.classPoints ?? 0}
+              goalsReached={activeClass.goalsReached ?? 0}
+              goal={activeClass.pointsGoal ?? 0}
+              celebrationGifId={activeClass.celebrationGifId}
+              onOpenGoalSettings={() => setPickerSettingsOpen(true)}
+              holdCelebration={!appInFront}
+              onWaitingChange={setGoalWaiting}
+              lifted={meterLifted}
+              title={
+                <ClassTitle
+                  place="bar"
+                  classes={classes}
+                  activeClassId={activeClassId}
+                  onSelectClass={setActiveClassId}
+                  onOpenSettings={() => openSettings()}
+                  disabled={swapMode || attendanceMode || choosingAvatars}
+                  settingsDisabled={groupActivityOpen && groupsLocked}
+                />
+              }
+            />
+          )}
 
           {choosingAvatars ? (
             <ChooseAvatarBanner
@@ -952,7 +921,6 @@ export default function App() {
                     showStars={desksMode}
                     showAllHomerooms={activeClass.showAllHomerooms === true}
                     onOpenSettings={() => setFlipSettingsOpen(true)}
-                    toolbarSlot={mockLayout === 'shelf' ? toolbarSlot : null}
                     onExit={() => {
                       setFlipDeckOpen(false)
                       resetPointsSelection()
@@ -994,7 +962,6 @@ export default function App() {
                     pick={groupPicker.pick}
                     lockedGroupId={groupPicker.lockedGroupId}
                     onDismissPick={groupPicker.dismiss}
-                    toolbarSlot={mockLayout === 'shelf' ? toolbarSlot : null}
                   />
                 </motion.div>
               )}
@@ -1174,20 +1141,6 @@ export default function App() {
       />
 
       {guideStep && !splashOpen && <SetupGuide step={guideStep} onNext={advanceGuide} onSkip={endGuide} />}
-      {MOCKUP && (
-        <MockupSwitcher
-          layout={mockLayout}
-          onLayout={(l) => {
-            setMockLayout(l)
-            saveMockLayout(l)
-          }}
-          reachLine={reachLine}
-          onReachLine={(on) => {
-            setReachLine(on)
-            saveReachLine(on)
-          }}
-        />
-      )}
 
       {floatWin && goalLive && (
         <FloatingGoal
