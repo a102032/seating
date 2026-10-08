@@ -32,7 +32,8 @@ import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from
 import { pickChances } from './lib/participation'
 import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
-import { resolveAvatarSrc, studentsAsShown } from './lib/stickers'
+import { homeroomsToShow } from './lib/sameNames'
+import { studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
@@ -297,6 +298,9 @@ export default function App() {
     if (activeClass) studentsAsShown(activeClass).forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
+  // Whose homeroom number shows after their name: two students sharing a name, as on the desks.
+  const showAllHomerooms = activeClass?.showAllHomerooms === true
+  const homeroomTagged = useMemo(() => homeroomsToShow(studentsById.values(), showAllHomerooms), [studentsById, showAllHomerooms])
 
   const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen, {
     genderOf: (id) => studentsById.get(id)?.gender ?? 'unspecified',
@@ -1122,8 +1126,10 @@ export default function App() {
                   const shown = picker.shownStudentId ? studentsById.get(picker.shownStudentId) : undefined
                   return {
                     name: shown?.name ?? '',
-                    // As the desks show them: none when the class's avatars are off.
-                    avatarSrc: shown ? resolveAvatarSrc(shown) : null,
+                    // The name alone (2026-10-08, the teacher), with the homeroom number after it
+                    // where two students share the name, as on the desks: the float is the only
+                    // place the class sees who was picked, so it must tell two Amys apart.
+                    homeroom: shown && homeroomTagged.has(shown.id) ? shown.homeroom.trim() : '',
                     landed: picker.mode === 'student-result',
                   }
                 })()

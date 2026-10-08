@@ -877,6 +877,46 @@ const scenarios = {
     return page
   },
 
+  /**
+   * Pick in the floating window is the one place the class sees who was picked, so it says it as
+   * the desks do: the name alone, no avatar, and the homeroom number after it only where two
+   * students share the name (2026-10-08, from a lesson: two Amys couldn't be told apart).
+   */
+  async 'Pick in the floating window'() {
+    const pickInFloat = async (cls) => {
+      const page = await open({ state: stateOf(cls), size: [1280, 559] })
+      const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+      await win.waitForLoadState()
+      await win.setViewportSize({ width: 340, height: 180 })
+      await win.waitForTimeout(500)
+      await win.locator('button[title="Pick a student"]').click()
+      const landed = win.locator('button[title="Tap to go back"]')
+      await landed.waitFor({ timeout: 10000 })
+      await win.waitForTimeout(500)
+      return { page, win, landed, text: (await landed.innerText()).replace(/\s+/g, ' ').trim() }
+    }
+    const twins = makeClass('c1', 'Float', 2, { pointsGoal: 50 })
+    twins.students.forEach((s, i) => Object.assign(s, { name: 'Sophia', homeroom: ['12', '27'][i] }))
+    const a = await pickInFloat(twins)
+    check('float pick: two Sophias, the homeroom number after the name', /^Sophia (12|27)$/.test(a.text), a.text)
+    check('float pick: the number is small and quiet, as on the desks', (await a.landed.locator('[data-float-homeroom]').count()) === 1)
+    check('float pick: no avatar beside the name', (await a.landed.locator('img').count()) === 0)
+    await a.win.screenshot({ path: `${SHOTS}/float-pick-same-name.png` })
+    // The strip, where the name is the height of the row: the number is never the part cut off.
+    await a.win.setViewportSize({ width: 334, height: 62 })
+    await a.win.waitForTimeout(500)
+    const tag = await a.landed.locator('[data-float-homeroom]').boundingBox()
+    check('float pick: in the strip the number still shows', Boolean(tag) && tag.width > 0 && tag.x + tag.width <= 334, JSON.stringify(tag))
+    await a.win.screenshot({ path: `${SHOTS}/float-pick-same-name-strip.png` })
+    const b = await pickInFloat(makeClass('c2', 'Float', 2, { pointsGoal: 50 }))
+    check('float pick: a name nobody shares has no number', /^(Amy|Tony)$/.test(b.text), b.text)
+    check('float pick: no avatar, avatars on or off', (await b.landed.locator('img').count()) === 0)
+    const all = makeClass('c3', 'Float', 2, { pointsGoal: 50, showAllHomerooms: true })
+    const c = await pickInFloat(all)
+    check('float pick: Homeroom on all desks shows every number here too', /^(Amy 1|Tony 2)$/.test(c.text), c.text)
+    return a.page
+  },
+
   /** Tiny, empty and full classes through every screen, looking for errors. */
   async 'edge classes'() {
     for (const count of [0, 1, 2, 35]) {

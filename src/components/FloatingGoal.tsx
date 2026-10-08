@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { FLOAT_SIZE, FLOAT_STRIP_SIZE, growForGetReady, resizeFloatingWindow } from '../hooks/useFloatingWindow'
 import { assetUrl } from '../lib/assets'
+import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { findMover, type Mover } from '../lib/moveExtension'
 import { FloatGetReady } from './FloatGetReady'
 import { GRIP_ROOM, MoveGrip } from './MoveGrip'
@@ -21,8 +22,11 @@ interface FloatingGoalProps {
   onAdd: () => void
   /** Ask for the app to come to the front, where the chest opens. */
   onCelebrate: () => void
-  /** Pick Student as it stands: the name flashing past, then the one it landed on, with their avatar (none when the class's avatars are off). */
-  pick: { name: string; avatarSrc: string | null; landed: boolean } | null
+  /**
+   * Pick Student as it stands: the name flashing past, then the one it landed on, with the
+   * homeroom number where two students share the name ('' otherwise).
+   */
+  pick: { name: string; homeroom: string; landed: boolean } | null
   /** False while the app is using the desks for something else (Flip Cards, groups, Swap Seats, Attendance). */
   canPick: boolean
   onPick: () => void
@@ -69,9 +73,9 @@ const STRIP_BELOW = 120
  * One size for the name, as big as the window allows: the height caps a short name, and a
  * long one is held to the width (a bold Andika letter is about half its size wide).
  */
-function nameSize(name: string, strip: boolean, withAvatar: boolean) {
-  // The avatar beside the name takes about three letters' room.
-  const letters = Math.max(5, name.length + (withAvatar ? 3 : 0))
+function nameSize(name: string, strip: boolean, homeroom: string) {
+  // A homeroom number after the name is small, as on the desks, and takes that much less room.
+  const letters = Math.max(5, name.length + (homeroom ? homeroom.length * HOMEROOM_TAG_SCALE + 0.5 : 0))
   return `min(${strip ? 55 : 26}vh, ${Math.round((strip ? 130 : 160) / letters)}vw)`
 }
 
@@ -246,21 +250,18 @@ export function FloatingGoal({
       <span
         key={pick.landed ? 'landed' : 'flashing'}
         className={clsx(
-          'flex min-w-0 items-center gap-[0.3em] font-extrabold',
+          'flex min-w-0 items-baseline gap-[0.25em] font-extrabold',
           pick.landed ? 'float-count-pop text-foreground' : 'text-muted-foreground',
         )}
-        style={{ fontSize: nameSize(pick.name, strip, pick.avatarSrc !== null) }}
+        style={{ fontSize: nameSize(pick.name, strip, pick.homeroom) }}
       >
-        {/* Their own character, which a young reader knows before they can read their name quickly. */}
-        {pick.avatarSrc && (
-          <img
-            src={pick.avatarSrc}
-            alt=""
-            draggable={false}
-            className="size-[1.2em] shrink-0 rounded-[0.18em] border border-black/10 bg-white object-contain"
-          />
-        )}
         <span className="truncate">{pick.name || ' '}</span>
+        {pick.homeroom && (
+          // Small and quiet after the name, as on the desks, and never the part that is cut off.
+          <span data-float-homeroom className="shrink-0 font-semibold opacity-50" style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}>
+            {pick.homeroom}
+          </span>
+        )}
       </span>
     </button>
   )
