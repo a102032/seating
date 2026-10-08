@@ -25,6 +25,10 @@ that were built and deliberately taken out. It is imported at the bottom of this
 
 ## Hard rules
 
+- **Children use the board too.** A 2nd grader reaches half the screen's height, a 6th grader all of it. While children are
+  at the board (the flip cards, a group activity locked for students, Choose Your Avatar), whatever a stray tap would undo or
+  upset stands down, and the teacher's own controls for that moment sit high. Anything new that brings children up does the same.
+  The side panel's empty lower part is on purpose: put nothing there.
 - **The app never scrolls, and fits any screen from 1024x500 up with no browser or Windows settings changed.** Not the
   board, not the side panel, not a screen that slides over the board. Content inside a modal may scroll; a modal itself
   must fit. It will run on many boards and laptops, and a teacher must never have to change a setting to make it fit:

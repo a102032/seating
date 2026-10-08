@@ -1019,7 +1019,7 @@ const scenarios = {
       await page.waitForTimeout(2500)
       await page.screenshot({ path: `${SHOTS}/edge-${count}-flip.png` })
       const flipOver = await overflow(page)
-      await panelButton(page, 'Flip Cards').click()
+      await page.getByTitle('Back to the seating chart').click()
       await page.waitForTimeout(800)
       await panelButton(page, 'Group Activity').click()
       await page.waitForTimeout(600)
@@ -1096,6 +1096,49 @@ const scenarios = {
       `${cards} cards, ${up} face up`,
     )
     check('switching class: no errors', page.errors.length === 0, page.errors[0] ?? '')
+    return page
+  },
+
+  /**
+   * Children at the board (2026-10-08): a 2nd grader reaches half the screen's height. While a
+   * child turns a flip card, or taps their group's light with the board locked, what a stray tap
+   * on the panel would undo or upset stands down: Flip Cards (a bump lost the round), Group
+   * Activity, the Saved mark and the move-the-panel arrow. + stays, for the turned card's student.
+   */
+  async 'children at the board'() {
+    const page = await open({ state: stateOf(makeClass('c1', 'Board', 28)), size: [1280, 559] })
+    const aside = page.locator('aside')
+    const off = async (loc) => (await loc.count()) > 0 && (await loc.first().isDisabled())
+    const arrow = aside.locator('button[title^="Move panel"]')
+    const mark = aside.locator('button[data-sync]')
+    check('children at the board: the Saved mark and the arrow answer on the seating chart', !(await off(arrow)) && !(await off(mark)))
+    await panelButton(page, 'Flip Cards').click()
+    await page.waitForTimeout(3000)
+    await page.locator('[data-flip-card]').first().click()
+    await page.waitForTimeout(900)
+    check(
+      'flip cards up: Flip Cards, Group Activity, the Saved mark and the arrow stand down',
+      (await off(panelButton(page, 'Flip Cards'))) &&
+        (await off(panelButton(page, 'Group Activity'))) &&
+        (await off(arrow)) &&
+        (await off(mark)),
+    )
+    check('flip cards up: + still gives the turned card a point', !(await aside.locator('button[title="Award Point"]').isDisabled()))
+    await page.getByTitle('Back to the seating chart').click()
+    await page.waitForTimeout(1200)
+    check('back on the seating chart: Flip Cards answers again', !(await off(panelButton(page, 'Flip Cards'))) && !(await off(arrow)))
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: /Pairs/ }).first().click()
+    await page.waitForTimeout(3500)
+    check('group activity, unlocked: the arrow answers', !(await off(arrow)))
+    await page.getByRole('button', { name: /^Lock$/ }).click()
+    await page.waitForTimeout(400)
+    check('group activity, locked for students: the Saved mark and the arrow stand down', (await off(arrow)) && (await off(mark)))
+    await page.getByRole('button', { name: /^Locked$/ }).click()
+    await page.waitForTimeout(400)
+    check('unlocked again: the arrow answers', !(await off(arrow)))
+    check('children at the board: no errors', page.errors.length === 0, page.errors[0] ?? '')
     return page
   },
 
@@ -1604,7 +1647,7 @@ const scenarios = {
         await panelButton(page, 'Flip Cards').click()
         await page.waitForTimeout(2500)
         await look('flip cards')
-        await panelButton(page, 'Flip Cards').click()
+        await page.getByTitle('Back to the seating chart').click()
         await page.waitForTimeout(800)
         await panelButton(page, 'Group Activity').click()
         await page.waitForTimeout(600)

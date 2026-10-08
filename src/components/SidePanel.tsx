@@ -169,6 +169,10 @@ export function SidePanel({
   // on it is the only thing on the panel that answers - and so does Choose Your Avatar, which
   // ends with Done on the board.
   const deskMode = swapMode || attendanceMode || choosingAvatars
+  // Children are at the board: turning a flip card, or tapping their group's light with the board
+  // locked. A 2nd grader reaches half the screen's height and a 6th grader all of it (2026-10-08),
+  // so what a stray tap would undo or upset stands down until they've gone back to their seats.
+  const childrenUp = flipDeckOpen || groupsLocked
 
   // Fits itself to the screen's height rather than to a list of screens: anything that adds a
   // line to the panel starts the fitting again.
@@ -318,10 +322,13 @@ export function SidePanel({
               {groupMode ? <PickGroupIcon size={18} /> : setName === 'table' ? <PickTableIcon size={18} /> : <PickRowIcon size={18} />}{' '}
               {groupMode ? 'Pick a Random Group' : setName === 'table' ? 'Pick a Random Table' : 'Pick a Random Row'}
             </TactileButton>
+            {/* Stands down while the cards are up: a child turning a card can reach it, and a bump
+                closed the deck and lost the round (opening it deals afresh). The way back is the
+                X on the cards' own bar, at the top of the board. */}
             <TactileButton
               active={flipDeckOpen}
               onClick={onToggleFlipDeck}
-              disabled={busy || pickFlashing}
+              disabled={busy || pickFlashing || flipDeckOpen}
               className={clsx('w-full justify-start', FIT_PY)}
             >
               <Layers size={18} /> Flip Cards
@@ -329,7 +336,7 @@ export function SidePanel({
             <TactileButton
               active={groupActivityOpen}
               onClick={onToggleGroupActivity}
-              disabled={deskMode || groupActivityLocked}
+              disabled={deskMode || groupActivityLocked || flipDeckOpen}
               className={clsx('w-full justify-start', FIT_PY)}
             >
               <GroupActivityIcon size={18} /> Group Activity
@@ -456,7 +463,7 @@ export function SidePanel({
               needsSignIn={cloud.needsSignIn}
               signingIn={cloud.signingIn}
               signInError={cloud.signInError}
-              disabled={deskMode}
+              disabled={deskMode || childrenUp}
               side={side}
               onSignIn={() => void cloud.signIn()}
               onSwitchTeacher={onSwitchTeacher}
@@ -475,7 +482,7 @@ export function SidePanel({
           <button
             type="button"
             onClick={onToggleSide}
-            disabled={deskMode}
+            disabled={deskMode || childrenUp}
             title={`Move panel to the ${side === 'left' ? 'right' : 'left'}`}
             className="rounded-lg p-1 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           >
