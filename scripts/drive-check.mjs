@@ -463,6 +463,9 @@ try {
     await dialog()
       .getByRole('button', { name: /Grade 4 English – Roster/ })
       .click()
+    // The class already has students, so the app asks whether the list replaces them or adds to them.
+    const asked = page.getByRole('alertdialog').getByRole('button', { name: 'Add to them' })
+    if (await waitFor(async () => (await asked.count()) === 1)) await asked.click()
     const done = await waitFor(async () => /Added/.test(await dialog().innerText()))
     const said = done ? (await dialog().innerText()).match(/Added[^\n]*/)?.[0] : ''
     check('roster: importing adds who is new, and says so', said === 'Added 3 students. 1 was already in the class.', said)
