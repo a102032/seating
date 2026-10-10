@@ -1297,7 +1297,9 @@ const scenarios = {
     // Measured before anyone joins: an unseated newcomer brings up the "not seated" bar, which
     // makes the desks, and so the names, a little smaller.
     const alone = await nameSize()
-    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures * 1.15, `${besidePictures}px -> ${alone}px`)
+    // Bigger, though by less than before the side rail: its wider desks give a name beside a picture
+    // more room across, while a name with a number under it is held by the desk's height.
+    check('no avatar: a class with no pictures gets bigger names', alone > besidePictures, `${besidePictures}px -> ${alone}px`)
     // A newcomer to a class of names shows by name like everyone else, with nothing to undo later.
     await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(500)

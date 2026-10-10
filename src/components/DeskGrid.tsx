@@ -100,9 +100,11 @@ export function DeskGrid({
     [labels, fontsLoaded, nameOnlyClass],
   )
   // A centred name with a homeroom number under it needs room below it as well as above: the
-  // name is held to about a third of the desk's height, or a bit under half when no centred
-  // name has a number. One cap for the class, so the names stay one size.
-  const nameHeightCap = seatedStudents.some((s) => hasNoAvatar(s) && tagged.has(s.id)) ? 34 : 44
+  // name is held to two fifths of the desk's height (the number only as tall as its digits), or
+  // a bit under half when no centred name has a number. One cap for the class, so the names stay
+  // one size. It was a third, until the side rail made the desks wider and names beside pictures,
+  // sized by the desk's width, grew past names that have the whole desk (2026-10-10).
+  const nameHeightCap = seatedStudents.some((s) => hasNoAvatar(s) && tagged.has(s.id)) ? 39 : 44
 
   const renderDesk = (index: number, position: number) => {
     const student = seated[index]

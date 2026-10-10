@@ -63,7 +63,8 @@ export function Desk({
   const nameOnly = student !== undefined && hasNoAvatar(student)
   // The room above a centred name: from near the desk's top down to just above the name's
   // capitals, which start about a third of the name's size above the middle.
-  const nameOnlyZzz = `min(34cqb, calc(47cqb - 0.44 * min(${nameSize}cqi, ${nameHeightCap}cqb)))`
+  const nameFont = `min(${nameSize}cqi, ${nameHeightCap}cqb)`
+  const nameOnlyZzz = `min(34cqb, calc(47cqb - 0.44 * ${nameFont}))`
 
   return (
     <button
@@ -147,13 +148,14 @@ export function Desk({
               <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                 <span
                   className="relative block w-full px-1 font-bold leading-tight"
-                  style={{ fontSize: `min(${nameSize}cqi, ${nameHeightCap}cqb)`, color: 'var(--desk-name, var(--card-foreground))' }}
+                  style={{ fontSize: nameFont, color: 'var(--desk-name, var(--card-foreground))' }}
                 >
                   <span className="block truncate">{student.name}</span>
                   {showHomeroom && (
                     <span
                       data-ink="homeroom"
-                      className="absolute inset-x-0 top-full block truncate font-semibold opacity-50"
+                      // Only as tall as its digits, so the name above it can be bigger.
+                      className="absolute inset-x-0 top-full block truncate font-semibold leading-none opacity-50"
                       style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}
                     >
                       {student.homeroom}
