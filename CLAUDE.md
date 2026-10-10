@@ -26,11 +26,11 @@ that were built and deliberately taken out. It is imported at the bottom of this
 ## Hard rules
 
 - **The app never scrolls, and fits any screen from 1024x500 up with no browser or Windows settings changed.** Not the
-  board, not the side panel, not a screen that slides over the board. Content inside a modal may scroll; a modal itself
+  board, not the side rail, not a screen that slides over the board. Content inside a modal may scroll; a modal itself
   must fit. It will run on many boards and laptops, and a teacher must never have to change a setting to make it fit:
   the teacher's own 4K board at 300% gives Chrome 1280x559. Check new UI at 1024x640, 1280x800, 1920x1080 and the real
-  screens in `SCROLL_SIZES` (`scripts/walkthrough.mjs`), down to 1024x500. Nothing opens by pushing the side panel down
-  (the class list and the timer controls open over it), and the panel tightens itself to its height
+  screens in `SCROLL_SIZES` (`scripts/walkthrough.mjs`), down to 1024x500. Nothing opens by pushing the rail down
+  (the class list opens over the board, the timer floats over it), and the rail tightens itself to its height
   (`hooks/useFitToHeight.ts`) - anything new on it must fit by the same means.
 - **Smooth on the board.** Classroom boards are often 4K panels with weak processors, and the app was choppy on the teacher's (see "Smooth on the
   board" in DECISIONS). No backdrop blur. Anything that moves many elements, or keeps moving, is CSS or
@@ -85,16 +85,22 @@ checks the live URL. Confirm it went green before saying something is live. It a
   board), and `pickChances`, the better chance the pickers give students picked less often. `components/ParticipationModal.tsx`
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
 - Points run one of two ways per class (`starsOnDesks`, `starsWaitOnDesks` in `useClasses.ts`): straight to the goal (the
-  default, no minus) or on the desks first, sent to the goal by All Stars In! under the side panel's +.
+  default, no minus) or on the desks first, sent to the goal by All Stars In! under the rail's star.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
-  step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useCountdown.ts`: the timer.
+  step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useTimer.ts`: the timer, kept outside React so a
+  running clock redraws only itself (its time, size, place, colour and sound are kept in `seating-chart-timer-settings-v1`).
 - `src/components/`:
-  - `SidePanel.tsx`: the class name (no goal) or the goal's controls (Get Ready! and Float, with a goal on), timer, pickers and points.
-  - `ClassTitle.tsx`: the class name, switcher and Class Settings gear - at the top of the side panel with no goal, at the
-    goal meter's end with one.
+  - `SideRail.tsx`: the side rail, one column of the teacher's own icons (`RailIcons.tsx`, generated from the teacher's Flaticon SVGs;
+    the pickers' grids in `PickerIcons.tsx`): Float, Get Ready!, the timer, Attendance, Swap Seats, the three pickers, Flip
+    Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
+    each button's name is its `aria-label` and `title`, which is also how the checks find them.
+  - `ClassTitle.tsx`: the class name, switcher and Class Settings gear (the app's one gear), at the far end of the bar along
+    the top (`lib/topBar.ts`), with the goal meter or without.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
-  - `FlipTimer.tsx` / `TimerDial.tsx` / `TimerSettingsModal.tsx`: the side panel's timer, as flip digits or a Time Timer-style dial.
+  - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its
+    colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away.
+  - `PickersPointsTab.tsx`: the Pickers & Points tab of Class Settings (the class goal and the pickers' settings).
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity. Groups are made from the seats in
     `lib/seatGroups.ts` (pairs side by side, squares of four, the room cut into patches); `lib/groups.ts` deals them and Shuffle mixes.
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes

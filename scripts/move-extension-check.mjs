@@ -45,7 +45,7 @@ async function floatIn(context) {
   await page.goto(URL)
   await page.locator('.splash-board button').first().click()
   await page.waitForTimeout(900)
-  const [win] = await Promise.all([context.waitForEvent('page'), page.locator('aside button', { hasText: 'Float' }).click()])
+  const [win] = await Promise.all([context.waitForEvent('page'), page.locator('aside button[aria-label="Float"]').click()])
   await win.waitForLoadState()
   await win.waitForTimeout(1500)
   // Playwright gives the floating window a screen the size of the test's viewport, but Chrome

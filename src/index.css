@@ -36,8 +36,6 @@
   --border: rgba(0, 0, 0, 0.1);
   --input: rgba(0, 0, 0, 0.12);
   --ring: #2563eb;
-  --clock-bg: var(--muted);
-  --clock-fg: var(--muted-foreground);
 }
 
 :root[data-theme='dark'],
@@ -66,8 +64,6 @@
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.14);
   --ring: #3b82f6;
-  --clock-bg: var(--muted);
-  --clock-fg: var(--muted-foreground);
 }
 
 /* Vibrant Elementary - ABCYA-style bold chrome on a bright sky-blue ground */
@@ -100,8 +96,6 @@
   --border: rgba(139, 92, 246, 0.18);
   --input: rgba(139, 92, 246, 0.22);
   --ring: #8b5cf6;
-  --clock-bg: #8b5cf6;
-  --clock-fg: #f3ecff;
 }
 
 /* Yellow means a point: the side panel's + and a group card's +, the buttons tapped all
@@ -157,8 +151,6 @@
   --border: var(--comic-ink);
   --input: var(--comic-ink);
   --ring: var(--comic-ink);
-  --clock-bg: var(--comic-ink);
-  --clock-fg: #ffd94a;
 }
 
 /*
@@ -200,8 +192,6 @@
   --border: rgba(244, 241, 230, 0.26);
   --input: rgba(244, 241, 230, 0.3);
   --ring: var(--chalk-yellow);
-  --clock-bg: #1f3d2f;
-  --clock-fg: var(--chalk);
 }
 
 @theme inline {
@@ -224,8 +214,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-clock: var(--clock-bg);
-  --color-clock-foreground: var(--clock-fg);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -502,11 +490,7 @@ button {
   background-image:
     radial-gradient(circle, rgba(232, 39, 44, 0.34) 2.2px, transparent 2.4px),
     radial-gradient(circle, rgba(232, 39, 44, 0.34) 2.2px, transparent 2.4px),
-    repeating-conic-gradient(
-      from 8deg at 50% 42%,
-      rgba(255, 255, 255, 0.34) 0deg 2.6deg,
-      rgba(255, 255, 255, 0) 2.6deg 7deg
-    ),
+    repeating-conic-gradient(from 8deg at 50% 42%, rgba(255, 255, 255, 0.34) 0deg 2.6deg, rgba(255, 255, 255, 0) 2.6deg 7deg),
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 48%),
     linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
   background-size:
@@ -696,13 +680,7 @@ button {
    * what is there and leaves the name and the avatar on white stock.
    */
   background-image:
-    var(--panel-texture),
-    linear-gradient(
-      to bottom,
-      var(--panel-edge) 0%,
-      var(--panel-edge) 17%,
-      rgba(255, 255, 255, 0) 34%
-    );
+    var(--panel-texture), linear-gradient(to bottom, var(--panel-edge) 0%, var(--panel-edge) 17%, rgba(255, 255, 255, 0) 34%);
   background-size:
     var(--panel-texture-size),
     100% 100%;
@@ -721,22 +699,13 @@ button {
    a halftone lattice and the fine diagonal ruling comics use for speed. */
 :root[data-theme='comic'] [data-ink='desk'] {
   --panel-texture:
-    radial-gradient(circle, var(--panel-dot) 1.7px, transparent 1.9px),
-    radial-gradient(circle, var(--panel-dot) 1.7px, transparent 1.9px);
+    radial-gradient(circle, var(--panel-dot) 1.7px, transparent 1.9px), radial-gradient(circle, var(--panel-dot) 1.7px, transparent 1.9px);
   --panel-texture-size: 11px 11px, 11px 11px;
   --panel-texture-pos: 0 0, 5.5px 5.5px;
 }
 
 :root[data-theme='comic'] [data-ink='desk']:nth-child(2n) {
-  --panel-texture:
-    repeating-linear-gradient(
-      -45deg,
-      var(--panel-dot) 0,
-      var(--panel-dot) 1.6px,
-      transparent 1.6px,
-      transparent 9px
-    ),
-    none;
+  --panel-texture: repeating-linear-gradient(-45deg, var(--panel-dot) 0, var(--panel-dot) 1.6px, transparent 1.6px, transparent 9px), none;
   --panel-texture-size: 100% 100%, 100% 100%;
   --panel-texture-pos: 0 0, 0 0;
 }
@@ -810,31 +779,548 @@ button {
   }
 }
 
-/* Time's up on the timer dial (TimerDial.tsx): the words and the pale red behind them breathe
-   slowly, and keep breathing until the teacher resets the timer - nothing stops it on a clock.
-   Gentle on purpose: the class goal is the one big moment. Scaled about the dial's centre. */
-@keyframes dial-times-up {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 1;
-  }
+/* The side rail (SideRail.tsx): one column of icons, as narrow as a finger-sized button, running
+   the window's whole height. It tightens itself to a short screen through these variables
+   (useFitToHeight): the gaps and padding first, then the icons. */
+:root {
+  --rail-w: clamp(58px, 12dvh, 92px);
+  /* The desks' gap from the window's other two edges, and from the rail and the bar. */
+  --board-gap: clamp(6px, 1.3dvh, 12px);
 }
 
-.dial-times-up {
-  transform-box: view-box;
-  transform-origin: 50% 50%;
-  animation: dial-times-up 2.2s ease-in-out infinite;
+.side-rail {
+  --ri: clamp(22px, 5.2vh, 40px);
+  --rpad: clamp(4px, 1.15vh, 10px);
+  --rg-gap: clamp(4px, 1vh, 9px);
+  --bgap: calc(clamp(2px, 0.55vh, 5px) + var(--bgap-extra, 0px));
+}
+
+.side-rail .rail-icon {
+  width: var(--ri);
+  height: var(--ri);
+  flex: none;
+}
+
+/* The timer's button when the time is up: red and breathing until it is tapped. */
+.side-rail .rail-alarm,
+.side-rail .rail-alarm:hover {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  animation: timer-breathe 1.6s ease-in-out infinite;
+}
+
+/* Comic Book's ink rings need a little air between the buttons. */
+:root[data-theme='comic'] {
+  --bgap-extra: 3px;
+}
+
+/* Chalkboard's wooden frame is drawn inside the board's edge, so the rail and the bar meet the
+   frame's inside rather than running over it. */
+:root[data-theme='chalk'] {
+  --frame-pad: 8px;
+}
+
+@keyframes timer-breathe {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.05;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dial-times-up {
+  .side-rail .rail-alarm,
+  .timer-clock.up,
+  .timer-dial .timer-up {
     animation: none;
   }
+}
+
+/* The big timer (BigTimer.tsx), after Classroom Screen's visual timer. Sized from the screen and
+   from --k, its size (0.45 to 1); it sits at --px and --py, 0 to 1 of the room around it, so it can
+   never leave the screen, and moves by translate, which the graphics chip runs. */
+.timer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.timer-card {
+  --kk: var(--k, 1);
+  --D: calc(min(64dvh, 50dvw) * var(--kk));
+  --tap: max(30px, calc(var(--D) * 0.115));
+  --side: max(34px, calc(var(--D) * 0.1));
+  --tw: var(--primary);
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: calc(var(--px, 0.5) * (100dvw - 100%)) calc(var(--py, 0.5) * (100dvh - 100%));
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: max(14px, calc(var(--D) * 0.07));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 18px 44px rgba(0, 0, 0, 0.38);
+  padding: max(4px, calc(var(--D) * 0.02)) var(--side) max(34px, calc(var(--D) * 0.085));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--D) * 0.015);
+}
+
+/* The choices open at a size that can be read, whatever size the card is; Back puts it back. */
+.timer-card.setting {
+  --kk: max(var(--k, 1), 0.85);
+}
+
+.timer-card.dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 26px 60px rgba(0, 0, 0, 0.45);
+}
+
+.timer-card button {
+  font-family: inherit;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.timer-card button:not(:disabled):active {
+  scale: 0.93;
+}
+
+/* The top strip: the hand at the left says "hold here and slide"; the gear, minimise and X at the
+   right, as on a window. Its buttons keep a finger's size however small the card gets. */
+.timer-strip {
+  align-self: stretch;
+  margin: 0 calc(-1 * var(--side) + max(6px, calc(var(--D) * 0.025)));
+  display: flex;
+  align-items: center;
+  gap: max(2px, calc(var(--D) * 0.01));
+}
+
+.timer-grip {
+  width: var(--tap);
+  height: var(--tap);
+  display: grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  cursor: grab;
+}
+
+.timer-grip svg,
+.timer-strip .timer-bare svg {
+  width: 62%;
+  height: 62%;
+}
+
+.timer-bare {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+}
+
+.timer-strip .timer-bare {
+  width: var(--tap);
+  height: var(--tap);
+}
+
+.timer-bare.on {
+  color: var(--primary);
+}
+
+.timer-face {
+  width: var(--D);
+  height: var(--D);
+}
+
+.timer-dial {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+  overflow: visible;
+  touch-action: manipulation;
+}
+
+.timer-dial.running {
+  cursor: default;
+}
+
+.timer-dial line {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.timer-dial text {
+  fill: currentColor;
+  font-weight: 700;
+  font-size: 7.4px;
+}
+
+/* Only the wedge takes the colour picked (2026-10-10, the teacher); the face's faint tint and
+   everything else keep the theme's own. */
+.timer-dial .timer-wedge {
+  fill: var(--tw);
+}
+
+.timer-dial .timer-tint {
+  fill: var(--primary);
+  fill-opacity: 0.1;
+}
+
+.timer-dial .timer-dot {
+  fill: currentColor;
+}
+
+.timer-dial .timer-up {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: timer-breathe 1.8s ease-in-out infinite;
+}
+
+.timer-dial .timer-up circle {
+  fill: #fee2e2;
+}
+
+.timer-dial .timer-up text {
+  fill: #b91c1c;
+  font-size: 13px;
+}
+
+/* The foot reaches into the card's sides, so a small card still has room for every button. */
+.timer-foot {
+  align-self: stretch;
+  margin: 0 calc(-1 * var(--side) + max(10px, calc(var(--D) * 0.05)));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.timer-round {
+  width: max(34px, calc(var(--D) * 0.17));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+}
+
+.timer-round svg {
+  width: 46%;
+  height: 46%;
+}
+
+.timer-round.go {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  justify-self: end;
+}
+
+.timer-round.quiet {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  justify-self: start;
+}
+
+.timer-set {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--D) * 0.025);
+}
+
+.timer-time {
+  font-weight: 700;
+  font-size: max(15px, calc(var(--D) * 0.105));
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.1em;
+  text-align: center;
+}
+
+.timer-step {
+  width: max(28px, calc(var(--D) * 0.125));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  display: grid;
+  place-items: center;
+}
+
+.timer-step svg {
+  width: 55%;
+  height: 55%;
+}
+
+.timer-step:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.timer-size {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: max(30px, calc(var(--D) * 0.09));
+  height: max(30px, calc(var(--D) * 0.09));
+  color: var(--muted-foreground);
+  cursor: nwse-resize;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  border-bottom-right-radius: inherit;
+}
+
+.timer-size svg {
+  width: 62%;
+  height: 62%;
+}
+
+/* The gear's choices, in the face's place. */
+.timer-choices {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(var(--D) * 0.018);
+}
+
+.timer-back {
+  align-self: flex-start;
+  width: max(38px, calc(var(--D) * 0.12));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  display: grid;
+  place-items: center;
+}
+
+.timer-back svg {
+  width: max(24px, calc(var(--D) * 0.08));
+  height: max(24px, calc(var(--D) * 0.08));
+}
+
+.timer-heading {
+  font-weight: 700;
+  font-size: calc(var(--D) * 0.058);
+}
+
+.timer-colors {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: calc(var(--D) * 0.02);
+}
+
+.timer-color {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--D) * 0.012);
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--card-foreground);
+  font-weight: 700;
+  font-size: calc(var(--D) * 0.042);
+}
+
+.timer-color i {
+  width: calc(var(--D) * 0.1);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--c);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  box-shadow: 0 0 0 calc(var(--D) * 0.008) var(--card);
+}
+
+.timer-color.on i {
+  box-shadow:
+    0 0 0 calc(var(--D) * 0.008) var(--card),
+    0 0 0 calc(var(--D) * 0.018) var(--card-foreground);
+}
+
+.timer-color i svg {
+  width: 55%;
+  height: 55%;
+  stroke-width: 3;
+  opacity: 0;
+}
+
+.timer-color.on i svg {
+  opacity: 1;
+}
+
+.timer-sounds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(var(--D) * 0.018);
+}
+
+.timer-sound {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  height: calc(var(--D) * 0.092);
+  padding: 0 0.8em;
+  border-radius: calc(var(--D) * 0.03);
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-weight: 700;
+  font-size: calc(var(--D) * 0.046);
+  white-space: nowrap;
+}
+
+.timer-sound svg {
+  width: 1.25em;
+  height: 1.25em;
+  flex: none;
+}
+
+.timer-sound.wide {
+  grid-column: span 2;
+  justify-content: center;
+}
+
+.timer-sound.on {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: transparent;
+}
+
+/* Put away: the clock at the start of the goal meter's bar (BigTimer.tsx, TimerClock). */
+.timer-clock {
+  --bar-h: 56px;
+  flex-shrink: 0;
+  height: 74%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 2px;
+  border-radius: 999px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  color: var(--secondary-foreground);
+}
+
+/* With the rail on the right, the clock is at the bar's right end, by the rail's timer button. */
+[data-side='right'] .timer-clock {
+  order: 99;
+}
+
+.timer-clock button {
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.timer-clock .timer-open {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--foreground);
+  padding: 0 0.3em 0 0.5em;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: calc(var(--bar-h) * 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-clock .timer-digits {
+  min-width: 2.6em;
+  text-align: center;
+  line-height: 1;
+}
+
+.timer-clock .timer-bare {
+  height: 100%;
+  aspect-ratio: 1;
+  color: var(--secondary-foreground);
+}
+
+.timer-clock .timer-bare svg {
+  width: 52%;
+  height: 52%;
+}
+
+.timer-clock.up {
+  background: #ef4444;
+  border-color: transparent;
+  color: #fff;
+  animation: timer-breathe 1.6s ease-in-out infinite;
+}
+
+.timer-clock.up .timer-open,
+.timer-clock.up .timer-bare {
+  color: #fff;
+}
+
+.timer-clock.up .timer-digits {
+  min-width: 0;
+  padding-left: 0.3em;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* The timer in Comic Book: inked, on paper, like its windows. */
+:root[data-theme='comic'] .timer-card {
+  box-shadow:
+    0 0 0 4px var(--comic-ink),
+    10px 10px 0 0 rgba(23, 19, 26, 0.9);
+}
+
+:root[data-theme='comic'] .timer-clock,
+:root[data-theme='comic'] .timer-color i {
+  box-shadow: 0 0 0 2.5px var(--comic-ink);
+}
+
+:root[data-theme='comic'] .timer-heading {
+  font-family: 'Bangers', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* And in Chalkboard: a board of its own, framed in wood like the windows. */
+:root[data-theme='chalk'] .timer-card {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  box-shadow:
+    0 0 0 6px var(--chalk-wood),
+    0 0 0 7px rgba(0, 0, 0, 0.4),
+    0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='chalk'] .timer-clock {
+  box-shadow: 0 0 0 1px rgba(244, 241, 230, 0.35);
+}
+
+:root[data-theme='chalk'] .timer-heading {
+  font-family: 'Cabin Sketch', 'Andika', ui-sans-serif, system-ui, sans-serif;
+  color: var(--chalk-yellow);
+  letter-spacing: 0.04em;
 }
 
 /* Flip cards (FlipDeck.tsx, FlipCard.tsx). The deal: each card drops in from above the board,
@@ -872,41 +1358,75 @@ button {
   transform-origin: 50% 85%;
 }
 @keyframes gift-dance {
-  0%, 100% { transform: rotate(0deg) translateY(0); }
-  15% { transform: rotate(-9deg) translateY(-6%); }
-  30% { transform: rotate(8deg) translateY(0); }
-  45% { transform: rotate(-6deg) translateY(-4%); }
-  60% { transform: rotate(4deg) translateY(0); }
-  75% { transform: rotate(0deg) translateY(-2%); }
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  15% {
+    transform: rotate(-9deg) translateY(-6%);
+  }
+  30% {
+    transform: rotate(8deg) translateY(0);
+  }
+  45% {
+    transform: rotate(-6deg) translateY(-4%);
+  }
+  60% {
+    transform: rotate(4deg) translateY(0);
+  }
+  75% {
+    transform: rotate(0deg) translateY(-2%);
+  }
 }
 .gift-reel {
   animation: gift-reel var(--roll-ms) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 @keyframes gift-reel {
-  from { transform: translateY(0); }
-  to { transform: translateY(var(--reel-end)); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--reel-end));
+  }
 }
 .gift-land {
   animation: gift-land 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 @keyframes gift-land {
-  0% { transform: scale(0.6); }
-  60% { transform: scale(1.18); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .gift-burst {
   animation: gift-burst var(--burst-ms, 0.7s) ease-out forwards;
 }
 @keyframes gift-burst {
-  0% { transform: translate(-50%, -50%) rotate(var(--turn)) translateY(0) scale(0.4); opacity: 1; }
-  100% { transform: translate(-50%, -50%) rotate(var(--turn)) translateY(var(--reach)) scale(1); opacity: 0; }
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--turn)) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--turn)) translateY(var(--reach)) scale(1);
+    opacity: 0;
+  }
 }
 .gift-waiting {
   animation: gift-waiting 1.4s ease-in-out infinite;
 }
 @keyframes gift-waiting {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .gift-dance,
@@ -920,62 +1440,6 @@ button {
   .gift-reel {
     animation-duration: 1ms;
   }
-}
-
-/* The flip clock's leaves (FlipDigit.tsx): the top half falls away, then the new bottom half
-   rises, darkening and lightening as they turn. 260ms a leaf. No reduced-motion switch here:
-   each leaf's animationend is what moves the digit on, so an animation that never ran would
-   leave the clock stuck. */
-@keyframes flip-leaf-fall {
-  from {
-    transform: rotateX(0deg);
-  }
-  to {
-    transform: rotateX(-90deg);
-  }
-}
-
-@keyframes flip-leaf-rise {
-  from {
-    transform: rotateX(90deg);
-  }
-  to {
-    transform: rotateX(0deg);
-  }
-}
-
-@keyframes flip-leaf-shade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.45;
-  }
-}
-
-@keyframes flip-leaf-shade-out {
-  from {
-    opacity: 0.45;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-.flip-leaf-fall {
-  animation: flip-leaf-fall 260ms ease-in forwards;
-}
-
-.flip-leaf-rise {
-  animation: flip-leaf-rise 260ms ease-out forwards;
-}
-
-.flip-leaf-shade-in {
-  animation: flip-leaf-shade-in 260ms ease-in forwards;
-}
-
-.flip-leaf-shade-out {
-  animation: flip-leaf-shade-out 260ms ease-out forwards;
 }
 
 /* The class goal bar (PointsMeter.tsx). CSS rather than framer-motion, so the graphics chip runs
@@ -1425,8 +1889,7 @@ button {
 
 [data-theme-preview='comic'] {
   background-image:
-    radial-gradient(circle, rgba(232, 39, 44, 0.34) 1px, transparent 1.2px),
-    linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
+    radial-gradient(circle, rgba(232, 39, 44, 0.34) 1px, transparent 1.2px), linear-gradient(135deg, var(--app-bg-from), var(--app-bg-to));
   background-size:
     6px 6px,
     100% 100%;

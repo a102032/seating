@@ -216,6 +216,7 @@ function statusSentence(status: SyncStatus, needsSignIn: boolean): string {
  * account the classes are in, and Switch Teacher. Nothing else on the panel moves for it.
  */
 export function SyncMark({
+  compact = false,
   account,
   status,
   needsSignIn,
@@ -226,6 +227,8 @@ export function SyncMark({
   onSignIn,
   onSwitchTeacher,
 }: {
+  /** The side rail's foot: the mark alone, its word for a mouse and a screen reader. */
+  compact?: boolean
   account: Account
   status: SyncStatus
   needsSignIn: boolean
@@ -245,13 +248,17 @@ export function SyncMark({
           type="button"
           disabled={disabled}
           data-sync={needsSignIn ? 'error' : status}
+          aria-label={mark.label}
+          title={compact ? mark.label : undefined}
           className={clsx(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold active:scale-95 disabled:pointer-events-none disabled:opacity-30',
+            'inline-flex items-center gap-1.5 rounded-full text-xs font-bold active:scale-95 disabled:pointer-events-none disabled:opacity-30',
+            compact ? 'p-0.5' : 'px-2.5 py-1',
             mark.className,
+            compact && '!bg-transparent',
           )}
         >
-          <mark.Icon size={14} />
-          {mark.label}
+          <mark.Icon size={compact ? 16 : 14} />
+          {!compact && mark.label}
         </button>
       </Popover.Trigger>
       <Popover.Portal>

@@ -150,6 +150,12 @@ const desk = (page, name) => page.locator('[data-ink=desk]', { hasText: name }).
 const panelButton = (page, name) => page.locator('aside').getByRole('button', { name, exact: true })
 const meterText = (page) => page.locator('.count-pop').first().textContent()
 const award = (page) => page.locator('aside button[title="Award Point"]').click()
+/** Pickers & Points, a tab of Class Settings since the side rail. */
+async function openPointsTab(page) {
+  await page.locator('button[aria-label="Class Settings"]').click()
+  await page.waitForTimeout(400)
+  await page.getByRole('tab', { name: 'Pickers & Points' }).click()
+}
 
 /** How far past the screen the page and the side panel run. 0 is the rule. */
 async function overflow(page) {
@@ -169,6 +175,11 @@ async function overflow(page) {
       })(),
       panel: aside ? aside.scrollHeight - aside.clientHeight : 0,
       dialog: box ? Math.max(0, Math.round(box.bottom - innerHeight), Math.round(-box.top)) : 0,
+      // The big timer floats, so it can't make the page scroll: it must simply be wholly on screen.
+      timer: (() => {
+        const t = document.querySelector('[data-timer-card]')?.getBoundingClientRect()
+        return t ? Math.round(Math.max(0, -t.left, -t.top, t.right - innerWidth, t.bottom - innerHeight)) : 0
+      })(),
     }
   })
 }
@@ -286,7 +297,7 @@ const scenarios = {
   async 'lowering the goal below the meter'() {
     const cls = makeClass('c1', 'Lower', 5, { pointsGoal: 50, classPoints: 40, goalEnabled: true })
     const page = await open({ state: stateOf(cls) })
-    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await openPointsTab(page)
     await page.waitForTimeout(500)
     await page.locator('#goal').fill('30')
     await page.waitForTimeout(700)
@@ -302,7 +313,7 @@ const scenarios = {
   async 'a held stepper stops at its limit'() {
     const cls = makeClass('c1', 'Stepper', 5, { pointsGoal: 50, classPoints: 45, goalEnabled: true })
     const page = await open({ state: stateOf(cls) })
-    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await openPointsTab(page)
     await page.waitForTimeout(500)
     const plus = page.locator('button[aria-label="Increase Class points on the meter now"]')
     const box = await plus.boundingBox()
@@ -373,13 +384,13 @@ const scenarios = {
     for (const [label, act] of [
       ['moving the panel', (page) => page.locator('aside button[title^="Move panel"]').click()],
       [
-        'choosing a timer face',
+        "choosing the timer's colour",
         async (page) => {
-          await page.locator('aside [aria-label="Timer controls"]').click()
-          await page.waitForTimeout(400)
-          await page.locator('aside button[title="Timer settings"]').click()
-          await page.waitForTimeout(500)
-          await page.getByRole('button', { name: /Dial/ }).first().click()
+          await panelButton(page, 'Timer').click()
+          await page.waitForTimeout(800)
+          await page.locator('[data-timer-card] button[aria-label="Timer settings"]').click()
+          await page.waitForTimeout(800)
+          await page.getByRole('button', { name: 'Green', exact: true }).click()
         },
       ],
     ]) {
@@ -548,6 +559,8 @@ const scenarios = {
     }
     const pickedAway = [...landed].filter((t) => /Amy|Tony|Kevin/.test(t))
     check('absent students are never picked', landed.size > 0 && pickedAway.length === 0, `landed on ${[...landed].join(', ')}`)
+    // The last pick is still showing, so the rail's Pick All reads Unpick All: it lets the pick go first.
+    await panelButton(page, 'Unpick All').click()
     await panelButton(page, 'Pick All').click()
     await award(page)
     await page.waitForTimeout(300)
@@ -614,7 +627,7 @@ const scenarios = {
       picks.length === 6 && picks.every((n) => n === 1) && c.pickRound?.ids.length === 6,
       `picks ${JSON.stringify(picks)}, round ${c.pickRound?.ids.length}`,
     )
-    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await openPointsTab(page)
     await page.waitForTimeout(500)
     await page.getByRole('button', { name: 'Start a New Round' }).click()
     await page.keyboard.press('Escape')
@@ -664,7 +677,7 @@ const scenarios = {
     cls.students[3].points = 9 // a running total from before: never sent to the goal again
     cls.starsOnDesks = undefined
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
-    await page.locator('aside button[title="Pickers & Points settings"]').click()
+    await openPointsTab(page)
     await page.waitForTimeout(500)
     await page.getByRole('button', { name: /On the desks first/ }).click()
     await page.keyboard.press('Escape')
@@ -1057,10 +1070,11 @@ const scenarios = {
     const cont = await page.getByRole('button', { name: /Continue with Last Groups/ }).textContent()
     check('reload mid-activity: last groups kept, with their point', /3 groups/.test(cont) && /1/.test(cont), cont.replace(/\s+/g, ' '))
     await page.keyboard.press('Escape')
-    await page.locator('aside [aria-label="Timer controls"]').click()
-    await page.waitForTimeout(400)
-    await page.locator('aside').locator('text=MIN').locator('..').locator('button').nth(1).click()
-    await page.locator('aside button[title="Start"]').click()
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-timer-card] button[aria-label="A minute more"]').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-timer-card] button[aria-label="Start"]').click()
     await page.waitForTimeout(1200)
     await page.reload()
     await page.locator('.splash-board button').first().click()
@@ -1561,6 +1575,124 @@ const scenarios = {
   },
 
   /** The rule: nothing scrolls, in any theme, at any screen from 1024x500 up. */
+  /**
+   * The timer (the side rail's hourglass): big over the board, set with a tap on the face and − +,
+   * coloured on the wedge alone, moved and made smaller, put away into the bar, time's up waiting
+   * for a tap, and X to turn it off.
+   */
+  async 'the timer'() {
+    const cls = makeClass('c1', 'Timer', 12, { pointsGoal: 50, classPoints: 5 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const card = page.locator('[data-timer-card]')
+    const time = () => page.locator('.timer-time').textContent()
+    const pause = () => page.waitForTimeout(800) // past the double-touch guard
+    // The board reads one touch as two: a second tap on the rail's button straight away is ignored.
+    await panelButton(page, 'Timer').click()
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(300)
+    check(
+      'timer: opens big from the rail, and a double touch leaves it open',
+      (await card.count()) === 1 && (await time()) === '10:00',
+      await time(),
+    )
+    // Never started: the rail's button turns it off again.
+    await pause()
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(300)
+    check(
+      'timer: tapped again unstarted, it goes off',
+      (await card.count()) === 0 && (await page.locator('[data-timer-clock]').count()) === 0,
+    )
+    await pause()
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(300)
+    // A tap on the face at three o'clock is 15 minutes; − takes one off.
+    const dial = await page.locator('.timer-dial').boundingBox()
+    await page.mouse.click(dial.x + dial.width * 0.85, dial.y + dial.height / 2)
+    await page.waitForTimeout(300)
+    const fromFace = await time()
+    await card.getByRole('button', { name: 'A minute less' }).click()
+    await page.waitForTimeout(300)
+    check(
+      'timer: a tap on the face sets it, and − takes a minute off',
+      fromFace === '15:00' && (await time()) === '14:00',
+      `${fromFace}, then ${await time()}`,
+    )
+    // Green colours the wedge alone: the play button keeps the theme's colour.
+    await pause()
+    await card.getByRole('button', { name: 'Timer settings' }).click()
+    await pause()
+    await card.getByRole('button', { name: 'Green', exact: true }).click()
+    await pause()
+    await card.getByRole('button', { name: 'Back to the clock' }).click()
+    await page.waitForTimeout(300)
+    const colours = await page.evaluate(() => ({
+      wedge: getComputedStyle(document.querySelector('.timer-wedge')).fill,
+      play: getComputedStyle(document.querySelector('.timer-round.go')).backgroundColor,
+      primary: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(),
+    }))
+    check('timer: green is the wedge only', colours.wedge === 'rgb(22, 163, 74)' && colours.play !== colours.wedge, JSON.stringify(colours))
+    // Slid by its strip, and made smaller by its corner: it stays on the screen and is kept.
+    const before = await card.boundingBox()
+    const grip = await page.locator('.timer-grip').boundingBox()
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(grip.x - 2000, grip.y + 2000, { steps: 10 })
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+    const moved = await card.boundingBox()
+    const corner = await page.locator('[data-timer-size]').boundingBox()
+    await page.mouse.move(corner.x + 5, corner.y + 5)
+    await page.mouse.down()
+    await page.mouse.move(corner.x - 400, corner.y - 400, { steps: 10 })
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+    const small = await card.boundingBox()
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')))
+    check(
+      'timer: slid to the corner it stops at the edge, and smaller is kept',
+      Math.round(moved.x) === 0 &&
+        Math.round(moved.y + moved.height) === 559 &&
+        small.width < before.width * 0.6 &&
+        kept.size < 0.6 &&
+        kept.pos.x === 0,
+      `${JSON.stringify(moved)} ${JSON.stringify(small)} ${JSON.stringify(kept)}`,
+    )
+    // A tap that ends a slide presses nothing.
+    check('timer: the slide pressed nothing', (await time()) === '14:00' && (await card.count()) === 1)
+    // Started, put away: the clock in the bar counts down; then the time runs out.
+    await page.clock.install()
+    await card.getByRole('button', { name: 'Start', exact: true }).click()
+    await page.clock.runFor(1500)
+    await card.getByRole('button', { name: 'Put the timer away' }).click()
+    await page.clock.runFor(1000)
+    const clock = page.locator('[data-timer-clock]')
+    check(
+      'timer: put away, a clock in the bar',
+      (await card.count()) === 0 && /^13:5\d$/.test((await clock.innerText()).trim()),
+      await clock.innerText(),
+    )
+    await page.clock.runFor(14 * 60 * 1000)
+    const upText = (await clock.innerText()).trim()
+    const railRed = (await panelButton(page, 'Timer').getAttribute('class')).includes('rail-alarm')
+    check("timer: time's up in the bar, and the rail's button red", upText === 'Time’s up!' && railRed, `${upText} ${railRed}`)
+    await page.clock.runFor(1000)
+    await clock.getByRole('button', { name: 'Open the timer' }).click({ force: true })
+    await page.clock.runFor(1000)
+    await page.locator('.timer-up').click({ force: true })
+    await page.clock.runFor(300)
+    check("timer: a tap on Time's up puts the time back", (await page.locator('.timer-up').count()) === 0 && (await time()) === '14:00')
+    await page.clock.runFor(1000)
+    await card.getByRole('button', { name: 'Turn the timer off' }).click()
+    await page.clock.runFor(300)
+    check(
+      'timer: X turns it off',
+      (await card.count()) === 0 && (await clock.count()) === 0 && page.errors.length === 0,
+      page.errors[0] ?? '',
+    )
+    return page
+  },
+
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
@@ -1575,7 +1707,7 @@ const scenarios = {
           const o = await overflow(page)
           // The timer controls and the class list open over the panel now, so there is no
           // accepted exception left: the panel fits itself to the screen (useFitToHeight).
-          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0) {
+          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0 || o.timer > 0) {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }
@@ -1590,12 +1722,18 @@ const scenarios = {
         await look('board')
         await desk(page, 'Amy').click()
         await look('one selected')
-        await page.locator('aside [aria-label="Timer controls"]').click()
-        await page.waitForTimeout(400)
-        await look('timer controls')
+        // The timer, big over the board, its choices, and put away in the bar.
+        await panelButton(page, 'Timer').click()
+        await page.waitForTimeout(500)
+        await look('timer')
         await page.waitForTimeout(800) // past the timer's double-touch guard
-        await page.locator('aside [aria-label="Timer controls"]').click({ position: { x: 10, y: 10 } })
-        await page.waitForTimeout(700)
+        await page.locator('[data-timer-card] button[aria-label="Timer settings"]').click()
+        await page.waitForTimeout(500)
+        await look('timer choices')
+        await page.waitForTimeout(800)
+        await page.locator('[data-timer-card] button[aria-label="Put the timer away"]').click()
+        await page.waitForTimeout(500)
+        await look('timer in the bar')
         await page.locator('button[title="Switch class"]').click()
         await page.waitForTimeout(400)
         await look('class list')
@@ -1628,7 +1766,7 @@ const scenarios = {
         await page.waitForTimeout(400)
         await page.keyboard.press('Escape')
         await page.waitForTimeout(600)
-        await page.locator('aside button[title="Pickers & Points settings"]').click()
+        await openPointsTab(page)
         await page.waitForTimeout(600)
         await look('pickers and points')
         await page.keyboard.press('Escape')

@@ -9,19 +9,14 @@ import { CELEBRATION_GIFS, gifThumbUrl } from '../lib/celebrationGifs'
 import { assetUrl } from '../lib/assets'
 import type { ClassData } from '../types'
 import { GET_READY_PRIZES } from '../lib/getReady'
-import { ConfirmModal } from './ConfirmModal'
-import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
-import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
 export interface PickerSettingsValue {
   allowRepeats: boolean
   soundEnabled: boolean
 }
 
-interface PickersPointsModalProps {
-  open: boolean
-  onClose: () => void
+export interface PickersPointsTabProps {
   settings: PickerSettingsValue
   onUpdateSettings: (patch: Partial<PickerSettingsValue>) => void
   activeClass: ClassData
@@ -32,7 +27,6 @@ interface PickersPointsModalProps {
   onSetGoalEnabled: (enabled: boolean) => void
   onSetStarsOnDesks: (on: boolean) => void
   onSetCelebrationGif: (gifId: string) => void
-  onResetClassGoal: () => void
   onSetClassPoints: (points: number) => void
   /** What a full star in Get Ready! is worth, the same on every drum. */
   getReadyPrize: number
@@ -272,7 +266,7 @@ function Stepper({
     'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black/5 text-foreground transition-colors hover:bg-black/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35 dark:bg-white/10 dark:hover:bg-white/20'
 
   return (
-    <div className="shrink-0 sm:w-64">
+    <div className="shrink-0 @xl:w-64">
       <Label htmlFor={id} className="text-foreground">
         {label}
       </Label>
@@ -318,9 +312,13 @@ function Stepper({
   )
 }
 
-export function PickersPointsModal({
-  open,
-  onClose,
+/**
+ * Pickers & Points, a tab of Class Settings (2026-10-09, the side rail): it was its own window,
+ * opened by a gear beside the side panel's pickers, and the rail has no room for a second gear.
+ * The goal comes first, since the chest on the goal meter opens it there; the pickers' settings
+ * under it. It lays itself out by its own width, not the screen's, so it fits the window it is in.
+ */
+export function PickersPointsTab({
   settings,
   onUpdateSettings,
   activeClass,
@@ -330,22 +328,25 @@ export function PickersPointsModal({
   onSetGoalEnabled,
   onSetStarsOnDesks,
   onSetCelebrationGif,
-  onResetClassGoal,
   onSetClassPoints,
   getReadyPrize,
   onSetGetReadyPrize,
-}: PickersPointsModalProps) {
-  const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
-  const [goal, setGoal] = useState(50)
-  const [starsPer, setStarsPer] = useState(1)
+  onAskResetGoal,
+}: PickersPointsTabProps & { onAskResetGoal: () => void }) {
+  // Seeded once as the tab opens, so a debounced write landing mid-edit can't feed the saved
+  // value back into the control the teacher is still using.
+  const [goal, setGoal] = useState(() => activeClass.pointsGoal || 50)
+  const [starsPer, setStarsPer] = useState(() => activeClass.starsPerClassPoint || 1)
 
-  // Everything else in this modal applies the moment you touch it, so the goal does too -
-  // no Save button. The write is debounced because holding the stepper would otherwise
-  // persist the class forty times a second.
+  // Everything else here applies the moment you touch it, so the goal does too - no Save button.
+  // The write is debounced because holding the stepper would otherwise persist the class forty
+  // times a second.
   const latest = useRef({ goal, starsPer })
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const classRef = useRef(activeClass)
-  classRef.current = activeClass
+  const saveGoal = useRef(onSaveGoal)
+  useEffect(() => {
+    saveGoal.current = onSaveGoal
+  })
 
   /** Writes now, whether or not a debounced write was already waiting. */
   function commitNow(next: { goal: number; starsPer: number }) {
@@ -354,13 +355,7 @@ export function PickersPointsModal({
       commitTimer.current = null
     }
     latest.current = next
-    onSaveGoal(next.goal, next.starsPer)
-  }
-
-  /** Only for closing and unmounting: writes the pending edit, if there is one. */
-  function flushPending() {
-    if (!commitTimer.current) return
-    commitNow(latest.current)
+    saveGoal.current(next.goal, next.starsPer)
   }
 
   function commitSoon(next: { goal: number; starsPer: number }) {
@@ -368,6 +363,17 @@ export function PickersPointsModal({
     if (commitTimer.current) clearTimeout(commitTimer.current)
     commitTimer.current = setTimeout(() => commitNow(latest.current), COMMIT_DELAY_MS)
   }
+
+  // Don't lose an edit to another tab, or to the window closing.
+  useEffect(
+    () => () => {
+      if (!commitTimer.current) return
+      clearTimeout(commitTimer.current)
+      commitTimer.current = null
+      saveGoal.current(latest.current.goal, latest.current.starsPer)
+    },
+    [],
+  )
 
   function changeGoal(next: number) {
     setGoal(next)
@@ -379,23 +385,6 @@ export function PickersPointsModal({
     commitSoon({ goal: latest.current.goal, starsPer: next })
   }
 
-  // Seed once per opening, from a ref, so a debounced write landing mid-edit can't feed the
-  // saved value back into the control the teacher is still using.
-  useEffect(() => {
-    if (!open) return
-    const seeded = { goal: classRef.current.pointsGoal || 50, starsPer: classRef.current.starsPerClassPoint || 1 }
-    latest.current = seeded
-    setGoal(seeded.goal)
-    setStarsPer(seeded.starsPer)
-  }, [open])
-
-  // Don't lose an edit to closing the modal, or to the app unmounting.
-  useEffect(() => {
-    if (open) return
-    flushPending()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
   // Off means the meter isn't on screen at all - but the goal itself is kept, so switching
   // back on restores the number the teacher chose rather than a default.
   const goalOn = activeClass.goalEnabled !== false && (activeClass.pointsGoal ?? 0) > 0
@@ -406,199 +395,161 @@ export function PickersPointsModal({
     if (on && (activeClass.pointsGoal ?? 0) <= 0) commitNow({ goal: goal || 50, starsPer })
     onSetGoalEnabled(on)
   }
-  // Nothing to build while closed - see useLingerWhileClosing.
-  const shown = useLingerWhileClosing(open)
-  if (!shown) return null
 
   return (
-    <>
-      <Modal open={open && !confirmingResetGoal} onClose={onClose} title="Pickers &amp; Points" size="xl">
-        {/* No h-full here: the dialog body is the scroller, and forcing this to its height
-            made the sections fight over the space and spill their text over each other. */}
-        {/* Two columns on a wide screen. Stacked, this modal grew past the viewport every
-            time anything was added to it, and shaving paddings only ever bought one more
-            addition - side by side there is room to spare. */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-          <section className="flex flex-col gap-2.5 lg:w-[19rem] lg:shrink-0">
-            <div className="flex flex-col gap-2.5">
-              <ToggleRow
-                label="Allow Repeats"
-                onDescription="Anyone can be picked again straight away."
-                offDescription="Everyone gets picked once before anyone repeats, and the same for rows and tables."
-                checked={settings.allowRepeats}
-                onCheckedChange={(checked) => onUpdateSettings({ allowRepeats: checked })}
-              />
-              <ToggleRow
-                label="Picker Sound"
-                onDescription="A sound plays as students or rows flash by during a pick."
-                offDescription="Picks happen silently."
-                checked={settings.soundEnabled}
-                onCheckedChange={(checked) => onUpdateSettings({ soundEnabled: checked })}
-              />
-            </div>
-
-            {/*
-              Who has been picked is kept quietly, for the teacher, in Class Settings
-              (Participation) - the list of names that was here showed only the students who HAD
-              been picked, and the ones worth noticing are the ones missing from it. What stays
-              here is the round: with Allow Repeats off, everyone gets a turn before anyone has a
-              second, and this starts that over.
-            */}
-            <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
-              <TactileButton disabled={!roundStarted} className="w-full justify-center" onClick={onStartNewRound}>
-                <RotateCcw size={16} /> Start a New Round
-              </TactileButton>
-              <p className="mt-1 text-center text-xs text-muted-foreground">Everyone can be picked again.</p>
-            </div>
-
-            {/* Get Ready!'s one setting. A full star is the same prize on every drum, so a faster
-                class keeps more of it and a shorter drum is harder without being worth less. It
-                only exists with a goal, as the button does. */}
-            {goalOn && (
-              <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
-                <ChipRow
-                  label="Get Ready! prize"
-                  hint="Class points for a full star, on every drum."
-                  value={getReadyPrize}
-                  choices={GET_READY_PRIZES}
-                  onChange={onSetGetReadyPrize}
-                />
-              </div>
-            )}
-          </section>
-
-          <Separator className="lg:hidden" />
-
-          <section className="flex min-w-0 flex-1 flex-col gap-2.5">
-            {/* The guided setup lights the switch and the goal, not the celebrations under them. */}
-            <div className="flex flex-col gap-2.5" data-guide="goal">
-              {/* Side by side, so the second switch costs the modal no height. */}
-              <div className="flex flex-col gap-2.5 sm:flex-row">
-                <ToggleRow
-                  label="Class Goal"
-                  onDescription="The goal meter shows at the top of the board."
-                  offDescription="No meter on the board at all, and nothing for the class to ask about."
-                  checked={goalOn}
-                  onCheckedChange={toggleGoal}
-                />
-                {/* Straight to the goal by default: the board shows the jar the class fills
-                  together, and nothing for children to compare. Stars on the desks are this
-                  lesson's, on their way to the goal - never a running total. Only with a goal:
-                  without one there is nowhere for the stars to go. */}
-                {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
-              </div>
-              {goalOn && (
-                <div className="flex flex-col gap-2.5">
-                  <ChipRow
-                    label="Stars for 1 class point"
-                    hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
-                    value={starsPer}
-                    choices={STARS_PER_CHOICES}
-                    onChange={changeStarsPer}
-                  />
-                  {/* Side by side, so the second stepper costs the modal no height - it was
-                  sized to fit the screen without scrolling, and it should stay that way. */}
-                  <div className="flex flex-col gap-2.5 sm:flex-row sm:gap-4">
-                    <Stepper
-                      id="goal"
-                      label="Class points to fill the goal"
-                      hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
-                      value={goal}
-                      min={1}
-                      max={999}
-                      onChange={changeGoal}
-                    />
-                    {/* The one place the meter can be corrected. A point that landed by mistake
-                    had no way back before this, short of resetting the whole run. */}
-                    <Stepper
-                      id="class-points"
-                      label="Class points on the meter now"
-                      hint="Fix a point that landed by mistake. Never opens the chest."
-                      value={Math.min(goal, activeClass.classPoints ?? 0)}
-                      min={0}
-                      max={goal}
-                      onChange={onSetClassPoints}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            {goalOn && (
-              <div>
-                <Label className="text-foreground">Celebration</Label>
-                {/* A filmstrip, not a grid: a wrapped grid of eleven thumbnails is tall enough
-                    to push this modal back into scrolling, which is the thing we just fixed. */}
-                <div className="mt-1.5 flex gap-2 overflow-x-auto rounded-2xl border border-black/10 p-1.5 dark:border-white/10">
-                  {/* The chosen one is ringed, lifted and ticked, and everything else is
-                      dimmed. A 2px border on a thumbnail is invisible in a row of thumbnails. */}
-                  <button
-                    type="button"
-                    onClick={() => onSetCelebrationGif('')}
-                    title="Treasure chest"
-                    className={clsx(
-                      'relative flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl transition-all active:scale-95',
-                      !activeClass.celebrationGifId
-                        ? 'scale-105 bg-primary/15 ring-[3px] ring-primary ring-offset-2 ring-offset-card'
-                        : 'bg-black/5 opacity-55 hover:opacity-100 dark:bg-white/10',
-                    )}
-                  >
-                    <img src={assetUrl('/treasure/chest-open.svg')} alt="" className="h-8 w-8" />
-                    <span className="text-[10px] font-bold text-foreground">Treasure</span>
-                    {!activeClass.celebrationGifId && <SelectedTick />}
-                  </button>
-                  {CELEBRATION_GIFS.map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => onSetCelebrationGif(g.id)}
-                      title={g.label}
-                      className={clsx(
-                        'relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-black/5 transition-all active:scale-95 dark:bg-white/10',
-                        activeClass.celebrationGifId === g.id
-                          ? 'scale-105 ring-[3px] ring-primary ring-offset-2 ring-offset-card'
-                          : 'opacity-55 hover:opacity-100',
-                      )}
-                    >
-                      <img src={gifThumbUrl(g.id)} alt={g.label} loading="lazy" className="h-full w-full object-cover" />
-                      <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-[9px] font-bold text-white">
-                        {g.label}
-                      </span>
-                      {activeClass.celebrationGifId === g.id && <SelectedTick />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Reset All Stars went with the running total it cleared: stars on the desks are
-                this lesson's and empty themselves into the goal, and a miscount is fixed in the
-                roster. */}
-            {goalOn && (
-              <TactileButton
-                variant="danger"
-                disabled={(activeClass.classPoints ?? 0) === 0 && (activeClass.goalRemainder ?? 0) === 0}
-                className="justify-center sm:self-start"
-                onClick={() => setConfirmingResetGoal(true)}
-              >
-                <RotateCcw size={16} /> Reset Class Goal
-              </TactileButton>
-            )}
-          </section>
+    <div className="@container flex flex-col gap-4">
+      {/* The guided setup lights the switch and the goal, not the celebrations under them. */}
+      <section className="flex flex-col gap-2.5" data-guide="goal">
+        {/* Side by side where there is room, so the second switch costs no height. */}
+        <div className="flex flex-col gap-2.5 @xl:flex-row">
+          <ToggleRow
+            label="Class Goal"
+            onDescription="The goal meter shows at the top of the board."
+            offDescription="No meter on the board at all, and nothing for the class to ask about."
+            checked={goalOn}
+            onCheckedChange={toggleGoal}
+          />
+          {/* Straight to the goal by default: the board shows the jar the class fills together,
+            and nothing for children to compare. Stars on the desks are this lesson's, on their
+            way to the goal - never a running total. Only with a goal: without one there is
+            nowhere for the stars to go. */}
+          {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
         </div>
-      </Modal>
+        {goalOn && (
+          <>
+            <ChipRow
+              label="Stars for 1 class point"
+              hint={starsPer === 1 ? 'Every star moves the meter.' : `${starsPer} stars = 1 class point.`}
+              value={starsPer}
+              choices={STARS_PER_CHOICES}
+              onChange={changeStarsPer}
+            />
+            <div className="flex flex-col gap-2.5 @xl:flex-row @xl:gap-4">
+              <Stepper
+                id="goal"
+                label="Class points to fill the goal"
+                hint={`${goal * starsPer} stars fills it. Leftovers carry over.`}
+                value={goal}
+                min={1}
+                max={999}
+                onChange={changeGoal}
+              />
+              {/* The one place the meter can be corrected. A point that landed by mistake had no
+                way back before this, short of resetting the whole run. */}
+              <Stepper
+                id="class-points"
+                label="Class points on the meter now"
+                hint="Fix a point that landed by mistake. Never opens the chest."
+                value={Math.min(goal, activeClass.classPoints ?? 0)}
+                min={0}
+                max={goal}
+                onChange={onSetClassPoints}
+              />
+            </div>
+          </>
+        )}
+      </section>
 
-      <ConfirmModal
-        open={confirmingResetGoal}
-        title="Reset the class goal meter?"
-        message={`This empties "${activeClass.name}"'s shared meter back to 0.`}
-        confirmLabel="Yes, Reset Meter"
-        cancelLabel="No"
-        onCancel={() => setConfirmingResetGoal(false)}
-        onConfirm={() => {
-          onResetClassGoal()
-          setConfirmingResetGoal(false)
-        }}
-      />
-    </>
+      {goalOn && (
+        <section>
+          <Label className="text-foreground">Celebration</Label>
+          {/* A filmstrip, not a grid: a wrapped grid of thumbnails is tall. */}
+          <div className="mt-1.5 flex gap-2 overflow-x-auto rounded-2xl border border-black/10 p-1.5 dark:border-white/10">
+            {/* The chosen one is ringed, lifted and ticked, and everything else is dimmed. A 2px
+                border on a thumbnail is invisible in a row of thumbnails. */}
+            <button
+              type="button"
+              onClick={() => onSetCelebrationGif('')}
+              title="Treasure chest"
+              className={clsx(
+                'relative flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl transition-all active:scale-95',
+                !activeClass.celebrationGifId
+                  ? 'scale-105 bg-primary/15 ring-[3px] ring-primary ring-offset-2 ring-offset-card'
+                  : 'bg-black/5 opacity-55 hover:opacity-100 dark:bg-white/10',
+              )}
+            >
+              <img src={assetUrl('/treasure/chest-open.svg')} alt="" className="h-8 w-8" />
+              <span className="text-[10px] font-bold text-foreground">Treasure</span>
+              {!activeClass.celebrationGifId && <SelectedTick />}
+            </button>
+            {CELEBRATION_GIFS.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => onSetCelebrationGif(g.id)}
+                title={g.label}
+                className={clsx(
+                  'relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-black/5 transition-all active:scale-95 dark:bg-white/10',
+                  activeClass.celebrationGifId === g.id
+                    ? 'scale-105 ring-[3px] ring-primary ring-offset-2 ring-offset-card'
+                    : 'opacity-55 hover:opacity-100',
+                )}
+              >
+                <img src={gifThumbUrl(g.id)} alt={g.label} loading="lazy" className="h-full w-full object-cover" />
+                <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-[9px] font-bold text-white">
+                  {g.label}
+                </span>
+                {activeClass.celebrationGifId === g.id && <SelectedTick />}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Separator />
+
+      {/* The pickers. Who has been picked is kept quietly, for the teacher, in the Students tab
+          (Participation); what stays here is the round: with Allow Repeats off, everyone gets a
+          turn before anyone has a second, and Start a New Round starts that over. */}
+      <section className="grid gap-2.5 @xl:grid-cols-2">
+        <ToggleRow
+          label="Allow Repeats"
+          onDescription="Anyone can be picked again straight away."
+          offDescription="Everyone gets picked once before anyone repeats, and the same for rows and tables."
+          checked={settings.allowRepeats}
+          onCheckedChange={(checked) => onUpdateSettings({ allowRepeats: checked })}
+        />
+        <ToggleRow
+          label="Picker Sound"
+          onDescription="A sound plays as students or rows flash by during a pick."
+          offDescription="Picks happen silently."
+          checked={settings.soundEnabled}
+          onCheckedChange={(checked) => onUpdateSettings({ soundEnabled: checked })}
+        />
+        <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+          <TactileButton disabled={!roundStarted} className="w-full justify-center" onClick={onStartNewRound}>
+            <RotateCcw size={16} /> Start a New Round
+          </TactileButton>
+          <p className="mt-1 text-center text-xs text-muted-foreground">Everyone can be picked again.</p>
+        </div>
+        {/* Get Ready!'s one setting. A full star is the same prize on every drum, so a faster class
+            keeps more of it and a shorter drum is harder without being worth less. It only exists
+            with a goal, as the button does. */}
+        {goalOn && (
+          <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+            <ChipRow
+              label="Get Ready! prize"
+              hint="Class points for a full star, on every drum."
+              value={getReadyPrize}
+              choices={GET_READY_PRIZES}
+              onChange={onSetGetReadyPrize}
+            />
+          </div>
+        )}
+      </section>
+
+      {/* Reset All Stars went with the running total it cleared: stars on the desks are this
+          lesson's and empty themselves into the goal, and a miscount is fixed in the roster. */}
+      {goalOn && (
+        <TactileButton
+          variant="danger"
+          disabled={(activeClass.classPoints ?? 0) === 0 && (activeClass.goalRemainder ?? 0) === 0}
+          className="justify-center self-start"
+          onClick={onAskResetGoal}
+        >
+          <RotateCcw size={16} /> Reset Class Goal
+        </TactileButton>
+      )}
+    </div>
   )
 }

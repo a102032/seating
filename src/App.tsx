@@ -1,5 +1,4 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { PictureInPicture2, Star } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
 import { ChooseAvatarBanner, ChooseAvatarPicker } from './components/ChooseAvatars'
@@ -14,14 +13,13 @@ import { GUIDE_STEPS, nextStep, rememberGuideDone, shouldGuide, type GuideStepId
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
 import { GroupExitModal } from './components/GroupExitModal'
-import { PickersPointsModal } from './components/PickersPointsModal'
 import { PointsMeter } from './components/PointsMeter'
+import { barClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
-import { SidePanel } from './components/SidePanel'
+import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
-import { TactileButton } from './components/TactileButton'
+import { BigTimer, TimerClock } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
-import { TimerSettingsModal } from './components/TimerSettingsModal'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
 import { goalIsLive, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
@@ -37,23 +35,12 @@ import { studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
-import { type Student, type TimerSettings } from './types'
+import { type Student } from './types'
 
-const DEFAULT_TIMER_SETTINGS: TimerSettings = { warningEnabled: true, alarmSound: 'ding', face: 'flip' }
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
 type PanelSide = 'left' | 'right'
-
-function loadTimerSettings(): TimerSettings {
-  try {
-    const raw = localStorage.getItem('seating-chart-timer-settings-v1')
-    if (!raw) return DEFAULT_TIMER_SETTINGS
-    return { ...DEFAULT_TIMER_SETTINGS, ...JSON.parse(raw) }
-  } catch {
-    return DEFAULT_TIMER_SETTINGS
-  }
-}
 
 function loadGroupChimes(): boolean {
   try {
@@ -165,8 +152,6 @@ export default function App() {
   const [landedTick, setLandedTick] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('students')
-  const [timerSettingsOpen, setTimerSettingsOpen] = useState(false)
-  const [pickerSettingsOpen, setPickerSettingsOpen] = useState(false)
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
   const [flipSettingsOpen, setFlipSettingsOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
@@ -183,7 +168,6 @@ export default function App() {
   const [groupsLocked, setGroupsLocked] = useState(false)
   const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
-  const [timerSettings, setTimerSettings] = useState<TimerSettings>(loadTimerSettings)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
   /**
@@ -410,8 +394,8 @@ export default function App() {
   }
 
   /**
-   * The guided setup moves the teacher from one step to the next, opening the window each step
-   * happens in: a tab of Class Settings, Pickers & Points, or neither for the last word.
+   * The guided setup moves the teacher from one step to the next, opening the tab of Class
+   * Settings each step happens in, or closing it for the last word over the board.
    */
   function goToStep(id: GuideStepId | null) {
     if (id === null) {
@@ -421,13 +405,8 @@ export default function App() {
     const place = GUIDE_STEPS.find((step) => step.id === id)!.place
     setGuideStep(id)
     setGuideStudents(activeClass?.students.length ?? 0)
-    if (typeof place === 'object') {
-      setPickerSettingsOpen(false)
-      openSettings(place.settings)
-    } else {
-      setSettingsOpen(false)
-      setPickerSettingsOpen(place === 'pickers')
-    }
+    if (typeof place === 'object') openSettings(place.settings)
+    else setSettingsOpen(false)
   }
 
   function startGuide() {
@@ -478,11 +457,6 @@ export default function App() {
     } catch {
       // ignore
     }
-  }
-
-  function updateTimerSettings(next: TimerSettings) {
-    setTimerSettings(next)
-    remember('seating-chart-timer-settings-v1', JSON.stringify(next))
   }
 
   function togglePanelSide() {
@@ -566,15 +540,17 @@ export default function App() {
   }
 
   function toggleSelectAll() {
-    // Unpick All whenever anyone is picked by hand, not only everyone (2026-10-08, the teacher):
-    // a few students tapped all over the board took a tap each to let go of.
+    // Unpick All whenever anyone is picked, not only everyone (2026-10-08, the teacher): a few
+    // students tapped all over the board took a tap each to let go of. A pick still showing is
+    // let go of the same way (the side rail, 2026-10-09); it used to be taken over by Pick All.
     if (pointsSelection.size > 0) {
       resetPointsSelection()
       return
     }
-    // Pick All takes the board over, as a pick does: a pick still showing would otherwise keep
-    // the points, and + went to the one picked student instead of the class.
-    if (picker.hasResult) picker.dismiss()
+    if (picker.hasResult) {
+      picker.dismiss()
+      return
+    }
     setSpentDelta(null)
     setLandedTick(0)
     // Selecting everyone is the one case where nothing dims, so the ripple is the only
@@ -671,50 +647,17 @@ export default function App() {
   // "Add your students" moves on by itself once a list is in.
   if (guideStep === 'students' && activeClass.students.length > guideStudents) advanceGuide()
 
-  /**
-   * The goal's controls, at the top of the side panel where the class's name is when there's no
-   * goal: Get Ready! and Float. Float belonged on the meter, because the meter is what floats,
-   * until the teacher found buttons beside the meter took the eye from it. Get Ready! stands down
-   * with the rest of the panel in Swap Seats and Attendance, and while a pick is flashing. Float
-   * stays lit while the goal floats; where the browser can't float it, Get Ready! is alone.
-   * The two share the row equally, like Attendance and Swap Seats under them, and Float sits on
-   * the outside, the screen's edge, whichever side the panel is on (2026-10-05, the teacher):
-   * Get Ready! is the one used mid-lesson, so it is the one nearer the board.
-   */
-  const evenly = '!gap-1.5 !px-2.5 !py-[var(--btn-py,0.5rem)] grow shrink basis-0 justify-center'
-  const getReadyButton = (
-    <TactileButton
-      key="get-ready"
-      active={getReadyOpen}
-      disabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking || floatReadying}
-      onClick={() => setGetReadyOpen(true)}
-      className={evenly}
-      title="A star for getting ready quickly and quietly"
-    >
-      <Star size={16} className="fill-amber-400 text-amber-600" /> Get Ready!
-    </TactileButton>
-  )
-  const floatButton = canFloat && (
-    <TactileButton
-      key="float"
-      active={floatWin !== null}
-      onClick={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
-      className={evenly}
-      title={floatWin ? 'Close the floating class goal' : 'Float the class goal in a small window over your lesson'}
-    >
-      <PictureInPicture2 size={16} /> Float
-    </TactileButton>
-  )
-  const goalControls = <>{panelSide === 'left' ? [floatButton, getReadyButton] : [getReadyButton, floatButton]}</>
-
-  const sidePanel = (
-    <SidePanel
-      classes={classes}
-      activeClassId={activeClassId}
-      onSelectClass={setActiveClassId}
-      // With a goal on, the class's name labels the goal meter and the goal's controls take its row.
-      nameInBar={goalLive}
-      goalControls={goalControls}
+  const sideRail = (
+    <SideRail
+      goalLive={goalLive}
+      canFloat={canFloat}
+      floating={floatWin !== null}
+      onToggleFloat={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
+      getReadyOpen={getReadyOpen}
+      // Get Ready! stands down in Swap Seats and Attendance, while a pick is flashing, and while
+      // the floating window's own is running.
+      getReadyDisabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking || floatReadying}
+      onGetReady={() => setGetReadyOpen(true)}
       deskStars={desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
       onAllStarsIn={allStarsIn}
       swapMode={swapMode}
@@ -749,10 +692,6 @@ export default function App() {
       rowPickActive={
         groupActivityOpen ? groupPicker.pick?.kind === 'group' : picker.mode === 'row-flashing' || picker.mode === 'row-result'
       }
-      onOpenSettings={() => openSettings()}
-      onOpenPickerSettings={() => setPickerSettingsOpen(true)}
-      timerSettings={timerSettings}
-      onOpenTimerSettings={() => setTimerSettingsOpen(true)}
       side={panelSide}
       onToggleSide={togglePanelSide}
       saveError={saveError}
@@ -760,7 +699,7 @@ export default function App() {
       onSwitchTeacher={openSwitchTeacher}
       pointsSelectedCount={activeSelection.size}
       allSeatedSelected={seatedIds.length > 0 && seatedIds.every((id) => activeSelection.has(id))}
-      anyPickedByHand={pointsSelection.size > 0}
+      anyPicked={pointsSelection.size > 0 || (picker.hasResult && !flipDeckOpen)}
       onToggleSelectAll={toggleSelectAll}
       wholeSets={wholeSets && { count: wholeSets.count, whole: wholeSets.whole, onPick: pickWholeSets }}
       onAwardPoint={() => applyPointsDelta(1)}
@@ -769,7 +708,6 @@ export default function App() {
       canDeductPoint={canDeductPoint}
       flipDeckOpen={flipDeckOpen}
       pickFlashing={picker.isPicking}
-      flipActiveName={deck.activeId ? (studentsById.get(deck.activeId)?.name ?? null) : null}
       onToggleFlipDeck={() => {
         // Deal outside the state updater - React may run an updater more than once, which
         // would deal (and sound) twice.
@@ -783,11 +721,21 @@ export default function App() {
       }}
       groupActivityOpen={groupActivityOpen}
       groupActivityLocked={groupActivityOpen && groupsLocked}
-      groupsLocked={groupActivityOpen && groupsLocked}
       onToggleGroupActivity={() => {
         if (groupActivityOpen) requestExitGroups()
         else setGroupModalOpen(true)
       }}
+    />
+  )
+
+  const classTitle = (
+    <ClassTitle
+      classes={classes}
+      activeClassId={activeClassId}
+      onSelectClass={setActiveClassId}
+      onOpenSettings={() => openSettings()}
+      disabled={swapMode || attendanceMode || choosingAvatars}
+      settingsDisabled={groupActivityOpen && groupsLocked}
     />
   )
 
@@ -838,44 +786,56 @@ export default function App() {
         // halftone lattice over this gradient, which it can only do by replacing
         // background-image wholesale - Tailwind's gradient owns that property.
         data-ink="canvas"
-        className={`flex h-[100dvh] w-[100dvw] gap-3 bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)] p-2 sm:p-3 ${
-          panelSide === 'right' ? 'flex-row-reverse' : 'flex-row'
-        }`}
+        // The rail runs the window's whole height down its side and the bar along the top to the far
+        // side, both flush against the window's edges (2026-10-10, the teacher's mock-ups); the desks
+        // keep a gap from the other two. In Chalkboard everything meets the wooden frame's inside
+        // edge (--frame-pad), so the frame stays whole.
+        className="grid h-[100dvh] w-[100dvw] gap-[var(--board-gap)] bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)] p-[var(--frame-pad,0px)]"
+        style={{
+          gridTemplateColumns: panelSide === 'left' ? 'var(--rail-w) minmax(0, 1fr)' : 'minmax(0, 1fr) var(--rail-w)',
+          gridTemplateRows: 'auto minmax(0, 1fr)',
+          gridTemplateAreas: panelSide === 'left' ? "'rail bar' 'rail board'" : "'bar rail' 'board rail'",
+        }}
         onPointerDownCapture={primeAudio}
       >
         {/* Plain boxes, deliberately. They were framer layout boxes so the panel glided when it
             moved to the other side - a once-a-term change - and that made framer measure the
             page on every render: every desk tap, every point, every picker flash. */}
-        <div className="flex shrink-0">{sidePanel}</div>
+        <div className="flex min-h-0" style={{ gridArea: 'rail' }}>
+          {sideRail}
+        </div>
 
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-          {/* Hidden entirely until a goal exists - a meter on screen is a meter the class
-              will ask about every lesson, whether or not the teacher wanted one. */}
-          {(activeClass.pointsGoal ?? 0) > 0 && activeClass.goalEnabled !== false && (
+        {/* The bar: the goal meter with the class's name at its end, or the name alone with no goal -
+            a meter on screen is a meter the class will ask about every lesson, whether or not the
+            teacher wanted one. The timer, put away, is a clock at its start. */}
+        <div className="min-w-0" style={{ gridArea: 'bar' }}>
+          {goalLive ? (
             <PointsMeter
               classId={activeClass.id}
               classPoints={activeClass.classPoints ?? 0}
               goalsReached={activeClass.goalsReached ?? 0}
               goal={activeClass.pointsGoal ?? 0}
               celebrationGifId={activeClass.celebrationGifId}
-              onOpenGoalSettings={() => setPickerSettingsOpen(true)}
+              onOpenGoalSettings={() => openSettings('points')}
               holdCelebration={!appInFront}
               onWaitingChange={setGoalWaiting}
               lifted={meterLifted}
-              title={
-                <ClassTitle
-                  place="bar"
-                  classes={classes}
-                  activeClassId={activeClassId}
-                  onSelectClass={setActiveClassId}
-                  onOpenSettings={() => openSettings()}
-                  disabled={swapMode || attendanceMode || choosingAvatars}
-                  settingsDisabled={groupActivityOpen && groupsLocked}
-                />
-              }
+              side={panelSide}
+              leading={<TimerClock />}
+              title={classTitle}
             />
+          ) : (
+            <div data-ink="panel" data-side={panelSide} className={barClass(panelSide)}>
+              <TimerClock />
+              {classTitle}
+            </div>
           )}
+        </div>
 
+        <div
+          className={`relative flex min-h-0 min-w-0 flex-col gap-2 mb-[var(--board-gap)] ${panelSide === 'left' ? 'mr-[var(--board-gap)]' : 'ml-[var(--board-gap)]'}`}
+          style={{ gridArea: 'board' }}
+        >
           {choosingAvatars ? (
             <ChooseAvatarBanner
               onDone={() => {
@@ -1012,13 +972,6 @@ export default function App() {
         }}
       />
 
-      <TimerSettingsModal
-        open={timerSettingsOpen}
-        onClose={() => setTimerSettingsOpen(false)}
-        settings={timerSettings}
-        onChange={updateTimerSettings}
-      />
-
       <FlipDeckSettingsModal
         open={flipSettingsOpen}
         onClose={() => setFlipSettingsOpen(false)}
@@ -1026,30 +979,6 @@ export default function App() {
         onChange={deck.updateSettings}
         roundStarted={deck.roundStarted}
         goalLive={goalLive}
-      />
-
-      <PickersPointsModal
-        open={pickerSettingsOpen}
-        onClose={() => {
-          setPickerSettingsOpen(false)
-          if (guideStep === 'goal') advanceGuide()
-        }}
-        settings={picker.settings}
-        onUpdateSettings={picker.updateSettings}
-        activeClass={activeClass}
-        roundStarted={pickedThisRound.size > 0 || picker.rowsPicked > 0}
-        onStartNewRound={() => {
-          startNewRound(activeClass.id)
-          picker.resetRows()
-        }}
-        onSaveGoal={(goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer)}
-        onSetGoalEnabled={(enabled) => setGoalEnabled(activeClass.id, enabled)}
-        onSetStarsOnDesks={(on) => setStarsOnDesks(activeClass.id, on)}
-        onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
-        onResetClassGoal={() => resetClassGoal(activeClass.id)}
-        onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
-        getReadyPrize={activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE}
-        onSetGetReadyPrize={(prize) => setGetReady(activeClass.id, { getReadyPrize: prize })}
       />
 
       {/* Choose Your Avatar: the student whose desk was tapped picks from the characters, then a pose. */}
@@ -1085,7 +1014,9 @@ export default function App() {
         initialTab={settingsTab}
         onClose={() => {
           setSettingsOpen(false)
-          if (guideStep === 'seat') advanceGuide()
+          // Seat Students closes the window onto the seated class, and the goal's step ends when the
+          // window does; closing it at any other step ends the guide.
+          if (guideStep === 'seat' || guideStep === 'goal') advanceGuide()
           else if (guideStep && typeof GUIDE_STEPS.find((step) => step.id === guideStep)?.place === 'object') endGuide()
         }}
         activeClass={activeClass}
@@ -1138,7 +1069,28 @@ export default function App() {
         }}
         cloud={cloud}
         onSwitchTeacher={openSwitchTeacher}
+        pickersPoints={{
+          settings: picker.settings,
+          onUpdateSettings: picker.updateSettings,
+          activeClass,
+          roundStarted: pickedThisRound.size > 0 || picker.rowsPicked > 0,
+          onStartNewRound: () => {
+            startNewRound(activeClass.id)
+            picker.resetRows()
+          },
+          onSaveGoal: (goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer),
+          onSetGoalEnabled: (enabled) => setGoalEnabled(activeClass.id, enabled),
+          onSetStarsOnDesks: (on) => setStarsOnDesks(activeClass.id, on),
+          onSetCelebrationGif: (gifId) => setCelebrationGif(activeClass.id, gifId),
+          onSetClassPoints: (points) => setClassPoints(activeClass.id, points),
+          getReadyPrize: activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE,
+          onSetGetReadyPrize: (prize) => setGetReady(activeClass.id, { getReadyPrize: prize }),
+        }}
+        onResetClassGoal={() => resetClassGoal(activeClass.id)}
       />
+
+      {/* The timer, big over the board; put away, it is the clock in the bar. */}
+      <BigTimer />
 
       {guideStep && !splashOpen && <SetupGuide step={guideStep} onNext={advanceGuide} onSkip={endGuide} />}
 

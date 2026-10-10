@@ -8,14 +8,14 @@ import type { ClassData } from '../types'
  *
  * The order follows where things are: the Class tab (name, room), the Students tab (students,
  * avatars, seats - Seat Students closes the window onto the seated class), then the class goal
- * in Pickers & Points, then the board. Room layout comes before the students so they are seated
+ * on the Pickers & Points tab, then the board. Room layout comes before the students so they are seated
  * into the right room. Mid-lesson tips (tapping the timer for its controls and the like) are not
  * here: they belong to the tutorial and video the teacher plans.
  */
 export type GuideStepId = 'name' | 'layout' | 'students' | 'avatars' | 'seat' | 'goal' | 'ready'
 
-/** Where a step happens: a tab of Class Settings, the Pickers & Points window, or the board itself. */
-export type GuidePlace = { settings: 'class' | 'students' } | 'pickers' | 'board'
+/** Where a step happens: a tab of Class Settings, or the board itself. */
+export type GuidePlace = { settings: 'class' | 'students' | 'points' } | 'board'
 
 export interface GuideStep {
   id: GuideStepId
@@ -72,7 +72,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: 'goal',
-    place: 'pickers',
+    place: { settings: 'points' },
     targets: ['[data-guide="goal"]'],
     title: 'The class goal',
     text: 'The class fills the treasure chest together. Choose how many points fill it, or turn it off.',
@@ -82,7 +82,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     place: 'board',
     targets: [],
     title: "You're ready!",
-    text: 'Tap a desk, then + to give a star.',
+    text: 'Tap a desk, then the star to give a point.',
   },
 ]
 

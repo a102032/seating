@@ -66,6 +66,7 @@ import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
 import { ThemePicker } from './ThemePicker'
 import { LayoutPicker } from './LayoutPicker'
+import { PickersPointsTab, type PickersPointsTabProps } from './PickersPointsTab'
 import type { RoomLayout } from '../lib/layouts'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
@@ -114,6 +115,9 @@ interface ClassSettingsModalProps {
   /** Signing in, for the Google tab and the Google Sheets import. */
   cloud: ReturnType<typeof useCloudSync>
   onSwitchTeacher: () => void
+  /** The Pickers & Points tab: the class goal and the pickers' settings. */
+  pickersPoints: PickersPointsTabProps
+  onResetClassGoal: () => void
 }
 
 const genderOptions: { value: Gender; label: string }[] = [
@@ -143,17 +147,19 @@ function GenderSelect({ value, onChange, className }: { value: Gender; onChange:
   )
 }
 
-export type SettingsTab = 'students' | 'class' | 'google'
+export type SettingsTab = 'students' | 'class' | 'points' | 'google'
 
 const SETTINGS_TABS: { id: SettingsTab; label: string; icon: ComponentType<{ size?: number; className?: string }> }[] = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'class', label: 'Class', icon: School },
+  { id: 'points', label: 'Pickers & Points', icon: Star },
   { id: 'google', label: 'Google', icon: GoogleG },
 ]
 
 /**
  * Each tab is about one thing: the students (the roster, their seats, today's attendance), the
- * class as a whole (its look, and making or deleting it), or Google (the account, the seating
+ * class as a whole (its look, and making or deleting it), its goal and pickers (Pickers & Points,
+ * its own window until the side rail left room for one gear), or Google (the account, the seating
  * chart as a picture, the Drive folder). It was one page, and the roster - the part used most -
  * got a row and a half of it.
  */
@@ -225,6 +231,8 @@ export function ClassSettingsModal({
   initialTab = 'students',
   cloud,
   onSwitchTeacher,
+  pickersPoints,
+  onResetClassGoal,
 }: ClassSettingsModalProps) {
   const [name, setName] = useState(activeClass.name)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -236,6 +244,7 @@ export function ClassSettingsModal({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
   const [confirmingMixUp, setConfirmingMixUp] = useState(false)
+  const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
@@ -474,6 +483,7 @@ export function ClassSettingsModal({
           !confirmingDelete &&
           !confirmingUnseatAll &&
           !confirmingMixUp &&
+          !confirmingResetGoal &&
           !confirmingDeleteStudent &&
           !pickingAvatarFor &&
           !assigningAvatars &&
@@ -856,6 +866,8 @@ export function ClassSettingsModal({
                 <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
               </section>
             </>
+          ) : tab === 'points' ? (
+            <PickersPointsTab {...pickersPoints} onAskResetGoal={() => setConfirmingResetGoal(true)} />
           ) : (
             <GoogleTab activeClass={activeClass} cloud={cloud} onSwitchTeacher={onSwitchTeacher} />
           )}
@@ -879,6 +891,19 @@ export function ClassSettingsModal({
         onConfirm={() => {
           onUnseatAll()
           setConfirmingUnseatAll(false)
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingResetGoal}
+        title="Reset the class goal meter?"
+        message={`This empties "${activeClass.name}"'s shared meter back to 0.`}
+        confirmLabel="Yes, Reset Meter"
+        cancelLabel="No"
+        onCancel={() => setConfirmingResetGoal(false)}
+        onConfirm={() => {
+          onResetClassGoal()
+          setConfirmingResetGoal(false)
         }}
       />
 

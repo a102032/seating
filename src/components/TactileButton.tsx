@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -9,6 +9,7 @@ type NativeButtonProps = Omit<
 
 interface TactileButtonProps extends NativeButtonProps {
   children: ReactNode
+  ref?: Ref<HTMLButtonElement>
   active?: boolean
   variant?: 'default' | 'primary' | 'danger'
 }

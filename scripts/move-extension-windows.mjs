@@ -97,7 +97,7 @@ async function run(scale) {
         reply(answer)
       })
   })
-  const [win] = await Promise.all([context.waitForEvent('page'), page.locator('aside button', { hasText: 'Float' }).click()])
+  const [win] = await Promise.all([context.waitForEvent('page'), page.locator('aside button[aria-label="Float"]').click()])
   await win.waitForLoadState()
   await win.waitForTimeout(2000)
 

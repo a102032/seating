@@ -6,6 +6,7 @@ import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
 import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
 import { landingIsLoud, landingIsSilent, starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
+import { barClass } from '../lib/topBar'
 
 interface PointsMeterProps {
   classId: string
@@ -27,7 +28,7 @@ interface PointsMeterProps {
   /**
    * The class's name, with its switcher and settings gear (ClassTitle), at the meter's end: the
    * one thing beside the meter, and a quiet one. Float and All Stars In! were here and went to
-   * the side panel, because buttons beside the meter took the eye from it.
+   * the side, because buttons beside the meter took the eye from it.
    */
   title: ReactNode
   /**
@@ -35,6 +36,10 @@ interface PointsMeterProps {
    * class sees them land in it.
    */
   lifted?: boolean
+  /** The timer, put away as a clock at the bar's start (BigTimer.tsx). */
+  leading?: ReactNode
+  /** Which side the rail is on: the bar meets the window's edge on the other. */
+  side: 'left' | 'right'
 }
 
 /** How full the meter has to get before the chest starts straining. */
@@ -66,6 +71,8 @@ export function PointsMeter({
   onWaitingChange,
   title,
   lifted = false,
+  leading,
+  side,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
@@ -238,8 +245,10 @@ export function PointsMeter({
   return (
     <div
       data-ink="panel"
+      data-side={side}
       className={clsx(
-        'relative flex h-14 shrink-0 items-center gap-2.5 overflow-visible rounded-2xl border border-border bg-card/70 px-3 shadow-sm transition-shadow sm:gap-3 sm:px-4',
+        barClass(side),
+        'transition-shadow',
         open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
         // Above Get Ready!'s faded board (z-55), under the stars flying in (z-60). Only to be
         // seen: a tap on it goes through to the board, where it ends Get Ready!, rather than
@@ -247,6 +256,8 @@ export function PointsMeter({
         lifted && 'pointer-events-none z-[56]',
       )}
     >
+      {leading}
+
       {/* Where the voyage starts. It unrolls again when a new run begins. 40px, a third up from
           30, because the teacher found it hard to see; it still fits the 56px row. */}
       <motion.img

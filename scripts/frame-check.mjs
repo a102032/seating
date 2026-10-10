@@ -224,15 +224,15 @@ await measure('get ready: stars into the jar', async () => {
 })
 await page.mouse.click(700, 400)
 await wait(800)
-await measure('dial timer running', async () => {
-  await page.locator('aside .bg-clock [role=button]').click()
-  await wait(400)
-  const sec = page
-    .locator('aside .bg-clock div.flex-col.gap-1', { has: page.locator('span:text-is("MIN")') })
-    .locator('button')
-    .nth(1)
-  await sec.click()
-  await page.getByRole('button', { name: 'Start' }).click()
+await measure('timer running, big', async () => {
+  await page.locator('aside button[aria-label="Timer"]').click()
+  await wait(900)
+  await page.locator('[data-timer-card] button[aria-label="Start"]').click()
+  await wait(3000)
+})
+await wait(800)
+await measure('timer running, in the bar', async () => {
+  await page.locator('[data-timer-card] button[aria-label="Put the timer away"]').click()
   await wait(3000)
 })
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)

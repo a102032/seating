@@ -15,21 +15,15 @@ interface ClassTitleProps {
   disabled: boolean
   /** Settings also stands down while students are at a locked board. */
   settingsDisabled: boolean
-  /**
-   * Where it sits. In the side panel (no class goal on) the name has the top row to itself; on
-   * the goal meter's end (a goal on) it is held to part of the bar, so the meter keeps its room,
-   * and the class list drops down over the board from the right.
-   */
-  place: 'panel' | 'bar'
 }
 
 /**
- * The class's name, with the class switcher's arrow and the gear for Class Settings beside it.
- * With a class goal on it sits at the end of the goal meter, which it labels, and the goal's own
- * controls take its row on the side panel - buttons beside the meter took the eye from it.
- * With no goal there is no meter, so it stays at the top of the side panel.
+ * The class's name, with the class switcher's arrow and the gear for Class Settings beside it, at
+ * the far end of the bar along the top: it labels the goal meter, and with no goal it has the bar
+ * to itself. Held to half the bar, so the meter keeps its room; the class list drops down over the
+ * board from the right.
  */
-export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettings, disabled, settingsDisabled, place }: ClassTitleProps) {
+export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettings, disabled, settingsDisabled }: ClassTitleProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
   const activeClass = classes.find((c) => c.id === activeClassId)
@@ -51,8 +45,8 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
 
   return (
     // relative and above what is below, so the class list can open over it.
-    // On the meter a hairline sets it apart from the count, so "32 / 50" and the name don't run together.
-    <div className={clsx('relative z-30', place === 'panel' ? 'shrink-0' : 'min-w-0 max-w-[50%] shrink border-l border-border pl-2')}>
+    // A hairline sets it apart from the count, so "32 / 50" and the name don't run together.
+    <div className="relative z-30 ml-auto min-w-0 max-w-[50%] shrink border-l border-border pl-2">
       <div className="relative z-30 flex items-center gap-1">
         <span
           ref={nameRef}
@@ -76,32 +70,21 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
           </button>
         )}
         {/*
-          Class Settings is a gear beside the class's name, the way the pickers' settings are
-          a gear beside theirs. It was a button with a word on the row below, and Attendance
-          sat here instead, which left a long class name 67px and cut "Grade 4 English" to
-          "Grade ...". It stands down when a running activity is underneath, since settings
+          Class Settings is a gear beside the class's name. It said "Class Settings" beside it on
+          the meter for a while (lesson one: two gears that looked alike sent the teacher to the
+          wrong one first); with the side rail it is the one gear in the app, so it stands alone
+          (2026-10-09). It stands down when a running activity is underneath, since settings
           rearrange the class, and when the board is locked for students.
         */}
-        {/* On the meter it says what it opens: two gears that look alike, and a "Class Settings"
-            label only a mouse could make appear, sent the teacher to the wrong one first in
-            lesson one. In the panel (no goal) there's no room for the words beside a long name. */}
         <button
           type="button"
           onClick={onOpenSettings}
           disabled={disabled || settingsDisabled}
           title="Class Settings"
           aria-label="Class Settings"
-          className={clsx(
-            'flex shrink-0 items-center gap-1 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30',
-            place === 'panel' ? 'ml-auto' : 'pr-2.5',
-          )}
+          className="flex shrink-0 items-center rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
         >
-          <Settings size={18} />
-          {place === 'bar' && (
-            <span className="whitespace-nowrap font-semibold" style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1rem)' }}>
-              Class Settings
-            </span>
-          )}
+          <Settings className="size-[clamp(18px,3.8vh,24px)]" />
         </button>
       </div>
 
@@ -126,10 +109,7 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
             data-ink="menu"
-            className={clsx(
-              'absolute top-full z-30 mt-1.5 rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl',
-              place === 'panel' ? 'inset-x-0' : 'right-0 w-[clamp(14rem,24vmin,20rem)]',
-            )}
+            className="absolute right-0 top-full z-30 mt-1.5 w-[clamp(14rem,24vmin,20rem)] rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
           >
             <div className="flex flex-col gap-1">
               {classes.map((cls) => (
