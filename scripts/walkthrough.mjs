@@ -1094,7 +1094,7 @@ const scenarios = {
     await page.waitForTimeout(800)
     await page.locator('button[title="Switch class"]').click()
     await page.waitForTimeout(400)
-    await page.locator('aside').getByRole('button', { name: 'Class B' }).click()
+    await page.locator('[data-ink=menu]').getByRole('button', { name: 'Class B' }).click()
     await page.waitForTimeout(400)
     await page
       .getByRole('button', { name: /^(Switch|Yes)/ })
