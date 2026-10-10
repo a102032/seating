@@ -262,7 +262,7 @@ export function SideRail(props: SideRailProps) {
         >
           <AttendanceIcon className="rail-icon" />
           {attendanceTaken && !attendanceMode && (
-            <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-emerald-500 text-white shadow">
+            <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-emerald-500 text-white shadow">
               <Check size={11} strokeWidth={3.5} />
             </span>
           )}
@@ -392,7 +392,7 @@ export function SideRail(props: SideRailProps) {
             onClick={onAllStarsIn}
           >
             <img src={assetUrl('/treasure/chest-closed.svg')} alt="" draggable={false} className="rail-icon" />
-            <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-amber-400 px-1 text-center text-xs font-bold tabular-nums text-amber-950 shadow">
+            <span className="absolute right-0.5 top-0.5 min-w-5 rounded-full bg-amber-400 px-1 text-center text-xs font-bold tabular-nums text-amber-950 shadow">
               {deskStars}
             </span>
           </RailButton>
