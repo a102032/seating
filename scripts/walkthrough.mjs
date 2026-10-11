@@ -502,6 +502,38 @@ const scenarios = {
     return page
   },
 
+  /**
+   * A theme draws the rail differently (Chalkboard's frame takes height), so a change of theme
+   * fits it again. It used to go unfitted in the new theme, and going back left it tightened for
+   * good (2026-10-11, the teacher's laptop): at 1333x608 Chalkboard runs over unless it tightens.
+   */
+  async 'theme change: the rail fits itself again'() {
+    const page = await open({ state: stateOf(makeClass('c1', '2A1 ELA', 30, { pointsGoal: 100, classPoints: 75 })), size: [1333, 608] })
+    const fit = () =>
+      page.evaluate(() => {
+        const a = document.querySelector('aside')
+        return { step: a.dataset.fit, over: a.scrollHeight - a.clientHeight }
+      })
+    const start = await fit()
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(400)
+    await page.getByRole('tab', { name: 'Class' }).click()
+    await page.waitForTimeout(300)
+    await page.getByRole('button', { name: 'Chalkboard' }).first().click()
+    await page.waitForTimeout(500)
+    const chalk = await fit()
+    check('theme change: Chalkboard fits the rail', chalk.over <= 0, JSON.stringify(chalk))
+    await page.getByRole('button', { name: 'Elementary' }).first().click()
+    await page.waitForTimeout(500)
+    const back = await fit()
+    check(
+      'theme change: back again, the rail is as it was',
+      back.step === start.step && back.over <= 0,
+      `${JSON.stringify(start)} -> ${JSON.stringify(back)}`,
+    )
+    return page
+  },
+
   /** Points past the goal carry into the next run, and the meter should show them once the chest shuts. */
   async 'meter shows the carried-over points after a celebration'() {
     const cls = makeClass('c1', 'Overflow', 5, { pointsGoal: 10, classPoints: 8, goalEnabled: true })

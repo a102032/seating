@@ -9,8 +9,8 @@ import { useEffect, useLayoutEffect, useState, type RefObject } from 'react'
  * screen a page gets - a 4K board at 300% gives 1280x559. Rather than tuning the panel for a
  * list of screens, it measures itself: drawn, overflowing, one step tighter, measured again,
  * all before the screen is painted, so nobody sees the steps. It starts again from 0 whenever
- * `resetKey` changes (something appeared or went in the box), the window is resized, or the
- * fonts arrive, since a box that needed a step before may not need it now.
+ * `resetKey` changes (something appeared or went in the box), the window is resized, the fonts
+ * arrive or the theme changes, since a box that needed a step before may not need it now.
  */
 export function useFitToHeight(ref: RefObject<HTMLElement | null>, steps: number, resetKey: string): number {
   const [epoch, setEpoch] = useState(0)
@@ -18,9 +18,15 @@ export function useFitToHeight(ref: RefObject<HTMLElement | null>, steps: number
     const again = () => setEpoch((n) => n + 1)
     window.addEventListener('resize', again)
     document.fonts?.addEventListener('loadingdone', again)
+    // A theme draws the box differently (Chalkboard's frame takes height), and it is put on the
+    // page after React has drawn, so watching the page's own theme is what catches it. A theme
+    // that overflowed went unfitted, and going back left the rail tightened for good (2026-10-11).
+    const themes = new MutationObserver(again)
+    themes.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     return () => {
       window.removeEventListener('resize', again)
       document.fonts?.removeEventListener('loadingdone', again)
+      themes.disconnect()
     }
   }, [])
 
