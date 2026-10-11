@@ -1,5 +1,6 @@
 import type { ClassData } from '../types'
 import { dateKey } from './attendance'
+import { goalIsLive } from './points'
 
 /**
  * What the splash says to a signed-in teacher: "Good morning, Derek!" most of the time, and now
@@ -128,7 +129,7 @@ function classNews(classes: ClassData[], now: Date, name: string): string[] {
   const yesterday = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
   const news: string[] = []
   for (const c of classes) {
-    if (c.goalEnabled === false || !c.pointsGoal) continue
+    if (!goalIsLive(c) || !c.pointsGoal) continue
     if (c.goalReachedOn === today) news.push(`${name}, ${c.name} opened the chest today!`)
     else if (c.goalReachedOn === yesterday) news.push(`${name}, ${c.name} opened the chest yesterday!`)
     const left = c.pointsGoal - (c.classPoints ?? 0)

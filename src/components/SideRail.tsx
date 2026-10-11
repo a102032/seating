@@ -23,8 +23,13 @@ import { AttendanceIcon, DrumIcon, FlipIcon, GroupIcon, HourglassIcon, PointIcon
 import { TactileButton } from './TactileButton'
 
 interface SideRailProps {
-  /** A class goal is on: Float and Get Ready! exist only with one. */
+  /** A class goal is on: Float exists only with one. */
   goalLive: boolean
+  /**
+   * The class runs points (a class goal or student points). With no points the star, −, Pick All
+   * and Pick Whole Row go: picking students by hand is only ever for giving them points.
+   */
+  points: boolean
   /** The browser can float the class goal over the lesson (Chrome and Edge). */
   canFloat: boolean
   floating: boolean
@@ -120,6 +125,7 @@ const FIT_STEPS = [
 export function SideRail(props: SideRailProps) {
   const {
     goalLive,
+    points,
     canFloat,
     floating,
     onToggleFloat,
@@ -175,7 +181,7 @@ export function SideRail(props: SideRailProps) {
 
   // Fits itself to the screen's height: anything that adds a button starts the fitting again.
   const asideRef = useRef<HTMLElement>(null)
-  const fitKey = [goalLive && canFloat, goalLive, showMinus, deskStars !== null, Boolean(cloud.account), saveError].join()
+  const fitKey = [goalLive && canFloat, points, showMinus, deskStars !== null, Boolean(cloud.account), saveError].join()
   const fit = useFitToHeight(asideRef, FIT_STEPS.length - 1, fitKey)
 
   const table = setName === 'table'
@@ -221,17 +227,16 @@ export function SideRail(props: SideRailProps) {
       )}
 
       <Group>
-        {goalLive && (
-          <RailButton
-            name="Get Ready!"
-            title="A star for getting ready quickly and quietly"
-            active={getReadyOpen}
-            disabled={getReadyDisabled}
-            onClick={onGetReady}
-          >
-            <DrumIcon className="rail-icon" />
-          </RailButton>
-        )}
+        {/* In every way of running points: with no points it is the star and the drum, no prize. */}
+        <RailButton
+          name="Get Ready!"
+          title="A star for getting ready quickly and quietly"
+          active={getReadyOpen}
+          disabled={getReadyDisabled}
+          onClick={onGetReady}
+        >
+          <DrumIcon className="rail-icon" />
+        </RailButton>
         {/* The timer opens big over the board from here; lit while it is, red when its time is up. */}
         <RailButton
           name="Timer"
@@ -295,7 +300,7 @@ export function SideRail(props: SideRailProps) {
         >
           <studentPicker.icon className="rail-icon" />
         </RailButton>
-        {wholeSets && !groupMode ? (
+        {wholeSets && !groupMode && points ? (
           // Tap one student in a row that did well, then this, and the whole row is picked.
           // Greyed once it is.
           <RailButton
@@ -336,15 +341,17 @@ export function SideRail(props: SideRailProps) {
         {/* Lit only with everyone picked; Unpick All whenever anyone is picked, so one tap lets go of
             students tapped all over the board (2026-10-08, the teacher). On the flip cards + always
             means the student whose card is up, never the room. */}
-        <RailButton
-          name={anyPicked ? 'Unpick All' : 'Pick All'}
-          active={allSeatedSelected && !anyPicked}
-          disabled={busy || flipDeckOpen}
-          onClick={onToggleSelectAll}
-          face={anyPicked ? 'none' : 'all'}
-        >
-          {anyPicked ? <NoneIcon className="rail-icon" /> : <AllIcon className="rail-icon" />}
-        </RailButton>
+        {points && (
+          <RailButton
+            name={anyPicked ? 'Unpick All' : 'Pick All'}
+            active={allSeatedSelected && !anyPicked}
+            disabled={busy || flipDeckOpen}
+            onClick={onToggleSelectAll}
+            face={anyPicked ? 'none' : 'all'}
+          >
+            {anyPicked ? <NoneIcon className="rail-icon" /> : <AllIcon className="rail-icon" />}
+          </RailButton>
+        )}
       </Group>
       <Line />
 
@@ -361,43 +368,48 @@ export function SideRail(props: SideRailProps) {
           <GroupIcon className="rail-icon" />
         </RailButton>
       </Group>
-      <Line />
 
-      <Group>
-        {/* Greyed when nobody selected has a star to lose: the sound of a point going with nothing
-            going was a small lie. Only where stars wait on the desks. */}
-        {showMinus && (
-          <RailButton
-            name="Deduct Point"
-            title={pointsSelectedCount > 0 && !canDeductPoint ? 'No points to take away' : 'Deduct Point'}
-            disabled={busy || pointsSelectedCount === 0 || !canDeductPoint}
-            onClick={onDeductPoint}
-          >
-            <Minus className="rail-icon" strokeWidth={2.75} />
-          </RailButton>
-        )}
-        {/* data-points: in Elementary, where every other button is pale, the star stays yellow so a
-            hand finds it without looking (index.css). */}
-        <RailButton name="Award Point" disabled={busy || pointsSelectedCount === 0} onClick={onAwardPoint} points>
-          <PointIcon className="rail-icon" />
-        </RailButton>
-        {/* All Stars In! finishes what + and - started, only in a class that puts its stars on the
-            desks first: the chest they go into, with how many are waiting. Greyed with none, and only
-            ever a tap - stars left on the desks wait for next time. */}
-        {deskStars !== null && (
-          <RailButton
-            name="All Stars In!"
-            title={deskStars === 0 ? 'No stars on the desks yet' : 'Add every star on the desks to the class goal'}
-            disabled={busy || deskStars === 0}
-            onClick={onAllStarsIn}
-          >
-            <img src={assetUrl('/treasure/chest-closed.svg')} alt="" draggable={false} className="rail-icon" />
-            <span className="absolute right-0.5 top-0.5 min-w-5 rounded-full bg-amber-400 px-1 text-center text-xs font-bold tabular-nums text-amber-950 shadow">
-              {deskStars}
-            </span>
-          </RailButton>
-        )}
-      </Group>
+      {points && (
+        <>
+          <Line />
+
+          <Group>
+            {/* Greyed when nobody selected has a star to lose: the sound of a point going with nothing
+              going was a small lie. Only where stars wait on the desks. */}
+            {showMinus && (
+              <RailButton
+                name="Deduct Point"
+                title={pointsSelectedCount > 0 && !canDeductPoint ? 'No points to take away' : 'Deduct Point'}
+                disabled={busy || pointsSelectedCount === 0 || !canDeductPoint}
+                onClick={onDeductPoint}
+              >
+                <Minus className="rail-icon" strokeWidth={2.75} />
+              </RailButton>
+            )}
+            {/* data-points: in Elementary, where every other button is pale, the star stays yellow so a
+              hand finds it without looking (index.css). */}
+            <RailButton name="Award Point" disabled={busy || pointsSelectedCount === 0} onClick={onAwardPoint} points>
+              <PointIcon className="rail-icon" />
+            </RailButton>
+            {/* All Stars In! finishes what + and - started, only in a class that puts its stars on the
+              desks first: the chest they go into, with how many are waiting. Greyed with none, and only
+              ever a tap - stars left on the desks wait for next time. */}
+            {deskStars !== null && (
+              <RailButton
+                name="All Stars In!"
+                title={deskStars === 0 ? 'No stars on the desks yet' : 'Add every star on the desks to the class goal'}
+                disabled={busy || deskStars === 0}
+                onClick={onAllStarsIn}
+              >
+                <img src={assetUrl('/treasure/chest-closed.svg')} alt="" draggable={false} className="rail-icon" />
+                <span className="absolute right-0.5 top-0.5 min-w-5 rounded-full bg-amber-400 px-1 text-center text-xs font-bold tabular-nums text-amber-950 shadow">
+                  {deskStars}
+                </span>
+              </RailButton>
+            )}
+          </Group>
+        </>
+      )}
 
       {/* The foot: the Saved mark and the side arrows, bare. mt-auto keeps them at the bottom. */}
       <div className="mt-auto flex shrink-0 flex-wrap items-center justify-center gap-0.5 pt-0.5">

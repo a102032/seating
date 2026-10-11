@@ -84,8 +84,11 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - `src/lib/participation.ts`: who had a turn - the record of picks and points, day by day, for the teacher only (never on the
   board), and `pickChances`, the better chance the pickers give students picked less often. `components/ParticipationModal.tsx`
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
-- Points run one of two ways per class (`starsOnDesks`, `starsWaitOnDesks` in `useClasses.ts`): straight to the goal (the
-  default, no minus) or on the desks first, sent to the goal by All Stars In! under the rail's star.
+- Points, per class (`pointsMode`, read through `lib/points.ts`: `pointsModeOf`, `goalIsLive`, `starsWaitOnDesks`): a class
+  goal (the default, where the Quest will live), student points (each student's own stars on their desk, until Clear All
+  Stars), or none (no star on the rail; Get Ready! with no prize). A class goal runs one of two ways (`starsOnDesks`):
+  straight to the goal (no minus) or on the desks first, sent to the goal by All Stars In! under the rail's star. Anything
+  new that gives points must work in all three.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
   step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useTimer.ts`: the timer, kept outside React so a
   running clock redraws only itself (its time, size, place, colour and sound are kept in `seating-chart-timer-settings-v1`).

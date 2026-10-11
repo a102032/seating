@@ -40,11 +40,11 @@ import { parseRosterCsv, rosterFromRows } from '../lib/csv'
 import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../lib/drive'
 import type { useCloudSync } from '../hooks/useCloudSync'
 import { useDrive } from '../hooks/useDrive'
-import { MAX_CLASSES, starsWaitOnDesks, type AvatarScope } from '../hooks/useClasses'
+import { MAX_CLASSES, pointsModeOf, starsWaitOnDesks, type AvatarScope } from '../hooks/useClasses'
 import { hasNoAvatar, resolveAvatarSrc } from '../lib/stickers'
 import { NoAvatarPicture } from './NoAvatarPicture'
 import type { Theme } from '../lib/theme'
-import { MAX_DESKS, type ClassData, type Gender, type Student } from '../types'
+import { MAX_DESKS, type ClassData, type Gender, type PointsMode, type Student } from '../types'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -118,6 +118,8 @@ interface ClassSettingsModalProps {
   /** The Pickers & Points tab: the class goal and the pickers' settings. */
   pickersPoints: PickersPointsTabProps
   onResetClassGoal: () => void
+  /** Clear All Stars, with student points. */
+  onClearDeskStars: () => void
 }
 
 const genderOptions: { value: Gender; label: string }[] = [
@@ -233,6 +235,7 @@ export function ClassSettingsModal({
   onSwitchTeacher,
   pickersPoints,
   onResetClassGoal,
+  onClearDeskStars,
 }: ClassSettingsModalProps) {
   const [name, setName] = useState(activeClass.name)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -245,6 +248,9 @@ export function ClassSettingsModal({
   const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
   const [confirmingMixUp, setConfirmingMixUp] = useState(false)
   const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
+  const [confirmingClearStars, setConfirmingClearStars] = useState(false)
+  // A switch away from student points, waiting on the teacher: it clears the students' stars.
+  const [confirmingPointsMode, setConfirmingPointsMode] = useState<PointsMode | null>(null)
   const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [assigningAvatars, setAssigningAvatars] = useState(false)
@@ -484,6 +490,8 @@ export function ClassSettingsModal({
           !confirmingUnseatAll &&
           !confirmingMixUp &&
           !confirmingResetGoal &&
+          !confirmingClearStars &&
+          !confirmingPointsMode &&
           !confirmingDeleteStudent &&
           !pickingAvatarFor &&
           !assigningAvatars &&
@@ -867,7 +875,17 @@ export function ClassSettingsModal({
               </section>
             </>
           ) : tab === 'points' ? (
-            <PickersPointsTab {...pickersPoints} onAskResetGoal={() => setConfirmingResetGoal(true)} />
+            <PickersPointsTab
+              {...pickersPoints}
+              // Leaving student points clears every desk's stars, so the teacher is asked first.
+              onSetPointsMode={(mode) => {
+                const starsOnDesks = activeClass.students.some((st) => (st.points ?? 0) > 0)
+                if (pointsModeOf(activeClass) === 'students' && starsOnDesks) setConfirmingPointsMode(mode)
+                else pickersPoints.onSetPointsMode(mode)
+              }}
+              onAskResetGoal={() => setConfirmingResetGoal(true)}
+              onAskClearStars={() => setConfirmingClearStars(true)}
+            />
           ) : (
             <GoogleTab activeClass={activeClass} cloud={cloud} onSwitchTeacher={onSwitchTeacher} />
           )}
@@ -904,6 +922,32 @@ export function ClassSettingsModal({
         onConfirm={() => {
           onResetClassGoal()
           setConfirmingResetGoal(false)
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingClearStars}
+        title="Clear All Stars?"
+        message={`Every student in "${activeClass.name}" goes back to 0 stars. This can't be undone.`}
+        confirmLabel="Yes, Clear Them"
+        cancelLabel="No"
+        onCancel={() => setConfirmingClearStars(false)}
+        onConfirm={() => {
+          onClearDeskStars()
+          setConfirmingClearStars(false)
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmingPointsMode !== null}
+        title="Clear the students' stars?"
+        message={`Switching to ${confirmingPointsMode === 'goal' ? 'a class goal' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
+        confirmLabel="Yes, Switch"
+        cancelLabel="No"
+        onCancel={() => setConfirmingPointsMode(null)}
+        onConfirm={() => {
+          if (confirmingPointsMode) pickersPoints.onSetPointsMode(confirmingPointsMode)
+          setConfirmingPointsMode(null)
         }}
       />
 

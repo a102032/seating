@@ -74,8 +74,8 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: 'goal',
     place: { settings: 'points' },
     targets: ['[data-guide="goal"]'],
-    title: 'The class goal',
-    text: 'The class fills the treasure chest together. Choose how many points fill it, or turn it off.',
+    title: 'Points',
+    text: 'A class goal the whole class fills together, stars for each student, or no points. You can change it any time.',
   },
   {
     id: 'ready',

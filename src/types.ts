@@ -4,6 +4,9 @@ import type { GroupScheme } from './lib/groups'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
+/** How a class runs points: a class goal, each student's own stars, or none (ClassData.pointsMode). */
+export type PointsMode = 'goal' | 'students' | 'none'
+
 export interface Student {
   id: string
   name: string
@@ -12,11 +15,12 @@ export interface Student {
   /** Chosen sticker as "theme/pose" (see lib/stickers.ts) - falls back to a character derived from the student id. */
   avatarId?: string
   /**
-   * Stars waiting on the student's desk, floored at 0, in a class whose stars go on the desks
-   * first (starsOnDesks): All Stars In! sends them to the class goal and sets this back to 0.
-   * In a class whose stars go straight to the goal it isn't used. Older saves may hold a
-   * running total from when every class counted stars all term; it is cleared when a class
-   * starts putting stars on the desks, so it is never sent to the goal twice.
+   * Stars on the student's desk, floored at 0. In a class with student points (pointsMode
+   * 'students') they are the student's own, kept until the teacher clears them. In a class goal
+   * whose stars go on the desks first (starsOnDesks), they are this lesson's, waiting: All Stars
+   * In! sends them to the goal and sets this back to 0. Otherwise it isn't used. Older saves may
+   * hold a running total from when every class counted stars all term; it is cleared whenever a
+   * class starts putting stars on the desks, so it is never shown or sent anywhere.
    */
   points?: number
 }
@@ -90,9 +94,18 @@ export interface ClassData {
   /**
    * Whether the class goal is switched on. Kept separate from pointsGoal so turning the
    * meter off doesn't throw away the number the teacher set. Unset counts as on, so classes
-   * saved before this behave as they did.
+   * saved before this behave as they did. Since pointsMode it follows it (on only for 'goal'),
+   * so a computer still on an older version shows the same thing.
    */
   goalEnabled?: boolean
+  /**
+   * How the class runs points (2026-10-11, the teacher): 'goal', the class goal the whole class
+   * fills together (the default); 'students', each student's own stars on their desk, kept until
+   * the teacher clears them; or 'none', no points at all. Unset is read from the old switch: a
+   * class with its goal on is 'goal', one with it off (whose stars went nowhere the class could
+   * see) is 'none' - see pointsModeOf in hooks/useClasses.
+   */
+  pointsMode?: PointsMode
   /**
    * How the class runs points. Unset or false: straight to the goal - a star flies from the desk
    * into the class goal the moment it is given, desks show nothing, and there is no minus.

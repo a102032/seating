@@ -36,6 +36,8 @@ interface GroupActivityProps {
   canShuffle: boolean
   /** This deal came from the Shuffle button, so it gets the riffle sound. A first deal doesn't. */
   dealWasShuffle: boolean
+  /** The class runs points. With no points the cards carry no score and there is no Reset Points. */
+  points?: boolean
   onResetPoints: () => void
   onAdjustPoints: (groupId: string, delta: number) => void
   onMove: (studentId: string, groupId: string) => void
@@ -242,6 +244,7 @@ export function GroupActivity({
   dealTick,
   canShuffle,
   dealWasShuffle,
+  points: scoring = true,
   onResetPoints,
   onAdjustPoints,
   onMove,
@@ -460,14 +463,16 @@ export function GroupActivity({
           >
             <Shuffle size={16} /> Shuffle
           </TactileButton>
-          <TactileButton
-            onClick={() => setConfirmingReset(true)}
-            disabled={dealing || locked || groups.every((g) => g.points === 0)}
-            className="!px-3 !py-2"
-            title="Set every group's score back to 0"
-          >
-            <RotateCcw size={16} /> Reset Points
-          </TactileButton>
+          {scoring && (
+            <TactileButton
+              onClick={() => setConfirmingReset(true)}
+              disabled={dealing || locked || groups.every((g) => g.points === 0)}
+              className="!px-3 !py-2"
+              title="Set every group's score back to 0"
+            >
+              <RotateCcw size={16} /> Reset Points
+            </TactileButton>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -632,57 +637,59 @@ export function GroupActivity({
                   </div>
 
                   {/* The same +/- as the side panel - one size for a point, wherever it's given. */}
-                  <footer
-                    className={clsx(
-                      'flex shrink-0 items-center justify-center gap-2 border-t border-black/5 dark:border-white/10',
-                      d.footerPad,
-                    )}
-                    // The wash runs to the bottom of the card. Stopping it above the score
-                    // left every card two-tone and cut the colour in half at a distance.
-                    style={{ background: status.wash ?? undefined }}
-                  >
-                    <TactileButton
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (group.points === 0) return
-                        onAdjustPoints(group.id, -1)
-                        playPointDeduct()
-                      }}
-                      disabled={group.points === 0 || dealing}
-                      title="Take a point away"
-                      // flex-1 with a cap rather than a fixed width: on a wide card they are
-                      // the side panel's size, on a narrow one they give ground instead of
-                      // pushing each other out of the card.
-                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
-                    >
-                      <Minus size={points.sign} strokeWidth={2.75} />
-                    </TactileButton>
-                    <span
+                  {scoring && (
+                    <footer
                       className={clsx(
-                        'flex shrink-0 items-center justify-center gap-1 px-1 font-extrabold tabular-nums',
-                        d.score,
-                        points.score,
+                        'flex shrink-0 items-center justify-center gap-2 border-t border-black/5 dark:border-white/10',
+                        d.footerPad,
                       )}
+                      // The wash runs to the bottom of the card. Stopping it above the score
+                      // left every card two-tone and cut the colour in half at a distance.
+                      style={{ background: status.wash ?? undefined }}
                     >
-                      <Star size={points.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
-                      <span key={group.points} className="count-pop">
-                        {group.points}
+                      <TactileButton
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (group.points === 0) return
+                          onAdjustPoints(group.id, -1)
+                          playPointDeduct()
+                        }}
+                        disabled={group.points === 0 || dealing}
+                        title="Take a point away"
+                        // flex-1 with a cap rather than a fixed width: on a wide card they are
+                        // the side panel's size, on a narrow one they give ground instead of
+                        // pushing each other out of the card.
+                        className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
+                      >
+                        <Minus size={points.sign} strokeWidth={2.75} />
+                      </TactileButton>
+                      <span
+                        className={clsx(
+                          'flex shrink-0 items-center justify-center gap-1 px-1 font-extrabold tabular-nums',
+                          d.score,
+                          points.score,
+                        )}
+                      >
+                        <Star size={points.star} className="fill-amber-500 text-amber-500" strokeWidth={0} />
+                        <span key={group.points} className="count-pop">
+                          {group.points}
+                        </span>
                       </span>
-                    </span>
-                    <TactileButton
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onAdjustPoints(group.id, 1)
-                        playCoinTick()
-                      }}
-                      disabled={dealing}
-                      title="Give a point"
-                      data-points="award"
-                      className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
-                    >
-                      <Plus size={points.sign} strokeWidth={2.75} />
-                    </TactileButton>
-                  </footer>
+                      <TactileButton
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAdjustPoints(group.id, 1)
+                          playCoinTick()
+                        }}
+                        disabled={dealing}
+                        title="Give a point"
+                        data-points="award"
+                        className={clsx('min-w-0 flex-1 !px-0 justify-center', d.buttonH, points.width)}
+                      >
+                        <Plus size={points.sign} strokeWidth={2.75} />
+                      </TactileButton>
+                    </footer>
+                  )}
                 </section>
               )
             })}

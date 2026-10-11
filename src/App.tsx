@@ -21,7 +21,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
-import { goalIsLive, starsWaitOnDesks, useClasses } from './hooks/useClasses'
+import { goalIsLive, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
@@ -82,7 +82,8 @@ export default function App() {
     clearParticipationDay,
     clearParticipation,
     setGoalSettings,
-    setGoalEnabled,
+    setPointsMode,
+    clearDeskStars,
     setShowAllHomerooms,
     setAvatarsOff,
     setGetReady,
@@ -189,12 +190,21 @@ export default function App() {
   const [floatReadying, setFloatReadying] = useState(false)
   if (!floatWin && floatReadying) setFloatReadying(false)
   const goalLive = activeClass ? goalIsLive(activeClass) : false
-  /** Stars wait on the desks for All Stars In!, rather than flying straight to the goal. */
+  /** How the class runs points: a class goal, each student's own stars, or none. */
+  const pointsMode = activeClass ? pointsModeOf(activeClass) : 'goal'
+  /** Stars stay on the desks: a student's own (student points), or waiting for All Stars In! (a class goal's). */
   const desksMode = activeClass ? starsWaitOnDesks(activeClass) : false
 
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
+
+  // Desks picked by hand are for giving points: switching to no points lets them go, rather than
+  // leaving the board dimmed with no Unpick All to undo it.
+  useEffect(() => {
+    if (pointsMode === 'none') resetPointsSelection()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pointsMode])
 
   // No goal, nothing to float: switching the goal off in Pickers & Points takes the window with it.
   useEffect(() => {
@@ -369,11 +379,12 @@ export default function App() {
    */
   function requestExitGroups() {
     groupPicker.dismiss()
-    if (summarizeGroupPoints(groups).totalPoints > 0) setExitPromptOpen(true)
+    // With no points the cards carry no score, so there is nothing to ask about.
+    if (pointsMode !== 'none' && summarizeGroupPoints(groups).totalPoints > 0) setExitPromptOpen(true)
     else setGroupActivityOpen(false)
   }
 
-  /** The points go onto the class goal, and the board comes back. */
+  /** The points go out - onto the class goal, or to each student in a group - and the board comes back. */
   function giveOutGroupPoints() {
     if (!activeClass) return
     const { totalPoints } = summarizeGroupPoints(groups)
@@ -381,7 +392,13 @@ export default function App() {
     setExitPromptOpen(false)
     setGroupActivityOpen(false)
     playGroupsDone()
-    setToast({ id: Date.now(), text: `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal.` })
+    setToast({
+      id: Date.now(),
+      text:
+        pointsMode === 'students'
+          ? "Everyone got their group's points."
+          : `${totalPoints} point${totalPoints === 1 ? '' : 's'} added to the class goal.`,
+    })
   }
 
   /**
@@ -486,8 +503,9 @@ export default function App() {
     }
     if (!swapMode) {
       const studentId = seating[index]
-      // Nobody earns a star on a day they aren't here, so an absent desk doesn't select.
-      if (!studentId || absentIds.has(studentId)) return
+      // Nobody earns a star on a day they aren't here, so an absent desk doesn't select; and with
+      // no points a desk is never picked by hand, since that is only ever for giving a point.
+      if (!studentId || absentIds.has(studentId) || pointsMode === 'none') return
       togglePointsSelection(studentId)
       return
     }
@@ -650,6 +668,7 @@ export default function App() {
   const sideRail = (
     <SideRail
       goalLive={goalLive}
+      points={pointsMode !== 'none'}
       canFloat={canFloat}
       floating={floatWin !== null}
       onToggleFloat={() => (floatWin ? closeFloat() : void openFloat(FLOAT_SIZE))}
@@ -658,7 +677,8 @@ export default function App() {
       // the floating window's own is running.
       getReadyDisabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking || floatReadying}
       onGetReady={() => setGetReadyOpen(true)}
-      deskStars={desksMode ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
+      // All Stars In! only in a class goal whose stars wait on the desks: student points keep theirs.
+      deskStars={desksMode && goalLive ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
       onAllStarsIn={allStarsIn}
       swapMode={swapMode}
       onToggleSwap={() => {
@@ -909,6 +929,7 @@ export default function App() {
                     dealTick={dealTick}
                     dealWasShuffle={dealWasShuffle}
                     canShuffle={groupScheme !== null}
+                    points={pointsMode !== 'none'}
                     onResetPoints={() => resetGroupPoints(activeClass.id)}
                     onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}
                     onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
@@ -966,6 +987,7 @@ export default function App() {
         onClose={() => setExitPromptOpen(false)}
         groups={groups}
         onGiveOut={giveOutGroupPoints}
+        toStudents={pointsMode === 'students'}
         onKeep={() => {
           setExitPromptOpen(false)
           setGroupActivityOpen(false)
@@ -995,16 +1017,23 @@ export default function App() {
         }}
       />
 
-      {/* Get Ready! puts class points straight into the jar, so it fits both ways of running
-          points; it is the whole class, so it goes in no one's participation record. */}
+      {/* Get Ready! is the whole class, so it goes in no one's participation record. With a class
+          goal its stars go straight into the jar, leaving any waiting on desks where they are. */}
       <GetReady
-        open={getReadyOpen && goalLive}
+        open={getReadyOpen}
         lastDrum={activeClass.getReadyDrum}
-        prize={activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE}
+        // In every way of running points (2026-10-11, the teacher): into the class goal, to every
+        // student here with student points, or no prize at all, a challenge for its own sake.
+        prize={pointsMode === 'none' ? 0 : (activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE)}
+        everyone={pointsMode === 'students'}
         silent={activeClass.getReadySilent === true}
         onSetSilent={(silent) => setGetReady(activeClass.id, { getReadySilent: silent })}
         onChooseDrum={(seconds) => setGetReady(activeClass.id, { getReadyDrum: seconds })}
-        onAward={(stars) => addToClassGoal(activeClass.id, stars)}
+        onAward={(stars) => {
+          // The whole class, so it goes in no one's participation record.
+          if (pointsMode === 'students') adjustPoints(activeClass.id, seatedIds, stars)
+          else addToClassGoal(activeClass.id, stars)
+        }}
         onLiftMeter={setMeterLifted}
         onClose={() => setGetReadyOpen(false)}
       />
@@ -1079,7 +1108,7 @@ export default function App() {
             picker.resetRows()
           },
           onSaveGoal: (goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer),
-          onSetGoalEnabled: (enabled) => setGoalEnabled(activeClass.id, enabled),
+          onSetPointsMode: (mode) => setPointsMode(activeClass.id, mode),
           onSetStarsOnDesks: (on) => setStarsOnDesks(activeClass.id, on),
           onSetCelebrationGif: (gifId) => setCelebrationGif(activeClass.id, gifId),
           onSetClassPoints: (points) => setClassPoints(activeClass.id, points),
@@ -1087,12 +1116,23 @@ export default function App() {
           onSetGetReadyPrize: (prize) => setGetReady(activeClass.id, { getReadyPrize: prize }),
         }}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
+        onClearDeskStars={() => clearDeskStars(activeClass.id)}
       />
 
       {/* The timer, big over the board; put away, it is the clock in the bar. */}
       <BigTimer />
 
-      {guideStep && !splashOpen && <SetupGuide step={guideStep} onNext={advanceGuide} onSkip={endGuide} />}
+      {guideStep && !splashOpen && (
+        <SetupGuide
+          step={guideStep}
+          onNext={advanceGuide}
+          onSkip={endGuide}
+          // "Tap a desk, then the star" means nothing to a class with no points.
+          text={
+            guideStep === 'ready' && pointsMode === 'none' ? 'Tap a picker to choose a student, or Get Ready! for a challenge.' : undefined
+          }
+        />
+      )}
 
       {floatWin && goalLive && (
         <FloatingGoal

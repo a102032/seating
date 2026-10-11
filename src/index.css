@@ -795,6 +795,13 @@ button {
   --bgap: calc(clamp(2px, 0.55vh, 5px) + var(--bgap-extra, 0px));
 }
 
+/* The rail measures itself to fit, so its buttons never ease their size: a greyed button kept the
+   button's own "transition everything", and when a font arrived and the rail measured again, its
+   padding was still easing back, so the rail looked as if it fitted and then ran 9px past the bottom. */
+.side-rail [data-slot='button'] {
+  transition-property: color, background-color, border-color, box-shadow, scale;
+}
+
 .side-rail .rail-icon {
   width: var(--ri);
   height: var(--ri);

@@ -11,6 +11,8 @@ interface GroupExitModalProps {
   groups: StudentGroup[]
   onGiveOut: () => void
   onKeep: () => void
+  /** Student points: each student in a group gets its points, rather than the class goal. */
+  toStudents?: boolean
 }
 
 /**
@@ -18,7 +20,7 @@ interface GroupExitModalProps {
  * one a teacher means at the end of an activity, and "keep" is for the teacher who is only
  * stepping out to the seating chart mid-lesson.
  */
-export function GroupExitModal({ open, onClose, groups, onGiveOut, onKeep }: GroupExitModalProps) {
+export function GroupExitModal({ open, onClose, groups, onGiveOut, onKeep, toStudents = false }: GroupExitModalProps) {
   const { totalPoints } = summarizeGroupPoints(groups)
   const scoring = groups.filter((g) => g.points > 0)
 
@@ -53,7 +55,9 @@ export function GroupExitModal({ open, onClose, groups, onGiveOut, onKeep }: Gro
           <Target size={22} className="shrink-0" />
           <span>
             <span className="block font-bold">Give Out the Points</span>
-            <span className="block text-sm opacity-85">They go onto the class goal, one class point each.</span>
+            <span className="block text-sm opacity-85">
+              {toStudents ? 'Each student in a group gets its points.' : 'They go onto the class goal, one class point each.'}
+            </span>
           </span>
         </button>
 

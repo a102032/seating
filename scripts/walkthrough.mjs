@@ -185,20 +185,188 @@ async function overflow(page) {
 }
 
 const scenarios = {
-  /** Stars given with the class goal switched off shouldn't be filling a meter nobody can see. */
-  async 'goal off: stars leave the meter alone'() {
+  /**
+   * A class saved with its goal switched off gave stars that went nowhere the class could see:
+   * it comes in with no points, and nothing is given or counted.
+   */
+  async 'goal off: comes in with no points'() {
     const cls = makeClass('c1', 'Goal Off', 5, { pointsGoal: 50, classPoints: 0, goalEnabled: false })
     const page = await open({ state: stateOf(cls) })
-    for (let i = 0; i < 3; i++) {
-      await desk(page, 'Amy').click()
-      await award(page)
-      await page.waitForTimeout(250)
-    }
+    await desk(page, 'Amy').click()
+    await page.waitForTimeout(300)
     const c = await activeSaved(page)
     check(
-      'goal off: stars leave the meter alone',
-      (c.classPoints ?? 0) === 0,
-      `Amy has ${c.students[0].points} stars, meter holds ${c.classPoints}`,
+      'goal off: no star, no Pick All, no meter, and a desk tap picks nobody',
+      (await panelButton(page, 'Award Point').count()) === 0 &&
+        (await panelButton(page, 'Pick All').count()) === 0 &&
+        (await page.locator('[data-goal-coin]').count()) === 0 &&
+        (await page.locator('[data-ink=desk].desk-wiggle, [data-ink=desk].desk-wiggle-loop').count()) === 0 &&
+        (c.classPoints ?? 0) === 0,
+    )
+    check('goal off: Get Ready! is still there', (await panelButton(page, 'Get Ready!').count()) === 1)
+    return page
+  },
+
+  /**
+   * The three ways of running points (2026-10-11): a class goal, each student's own stars on their
+   * desk, or none. Student points: + and − on the desks, Get Ready! gives everyone the stars, group
+   * points go to each member, Clear All Stars empties them, and leaving asks first. No points: no
+   * star, no scores on the group cards, and Get Ready! is a challenge with no prize.
+   */
+  async 'points: a class goal, student points, or none'() {
+    const cls = makeClass('c1', 'Points', 12, { pointsGoal: 50, classPoints: 10, goalEnabled: true })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const choose = async (label) => {
+      await openPointsTab(page)
+      await page.waitForTimeout(400)
+      await page.getByRole('button', { name: label, exact: true }).click()
+      await page.waitForTimeout(400)
+    }
+    await choose('Student points')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    check(
+      'student points: no meter, the star and − on the rail, no All Stars In!',
+      (await page.locator('[data-goal-coin]').count()) === 0 &&
+        (await panelButton(page, 'Award Point').count()) === 1 &&
+        (await panelButton(page, 'Deduct Point').count()) === 1 &&
+        (await page.getByRole('button', { name: /All Stars In/ }).count()) === 0,
+    )
+    await desk(page, 'Amy').click()
+    await award(page)
+    await award(page)
+    await page.locator('aside button[title="Deduct Point"]').click()
+    await desk(page, 'Tony').click()
+    await award(page)
+    await page.waitForTimeout(400)
+    let c = await activeSaved(page)
+    check(
+      'student points: the stars stay with each student, the goal untouched',
+      c.pointsMode === 'students' && c.students[0].points === 1 && c.students[1].points === 1 && c.classPoints === 10,
+      `Amy ${c.students[0].points}, Tony ${c.students[1].points}, goal ${c.classPoints}`,
+    )
+    check('student points: a desk shows its count', /1/.test(await desk(page, 'Amy').innerText()))
+    let over = await overflow(page)
+    check(
+      'student points: nothing scrolls',
+      Object.values(over).every((v) => v <= 0),
+      JSON.stringify(over),
+    )
+    // Get Ready!: a full star is 5 stars for everyone here.
+    await panelButton(page, 'Unpick All').click()
+    await panelButton(page, 'Get Ready!').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-drum="10"]').click()
+    const star = page.locator('[data-get-ready] button[aria-label="Start"]')
+    await page.waitForTimeout(800)
+    await star.click()
+    await page.waitForTimeout(1500)
+    await page.getByRole('button', { name: 'Ready!', exact: true }).click()
+    await page.waitForTimeout(1200)
+    const words = await page.locator('[data-get-ready]').innerText()
+    c = await activeSaved(page)
+    check(
+      'student points: Get Ready! gives everyone the stars',
+      /Everyone gets 5 stars!/.test(words) && c.students[0].points === 6 && c.students[2].points === 5 && c.classPoints === 10,
+      `${words.replace(/\s+/g, ' ')} | Amy ${c.students[0].points}, Kevin ${c.students[2].points}`,
+    )
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(800)
+    // Group points go to each student in the group.
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: /^Pairs/ }).click()
+    await page.waitForTimeout(3500)
+    const first = page.locator('[data-group-id]').first()
+    const members = await first.locator('button[title^="Tap"]').allInnerTexts()
+    await first.locator('button[title="Give a point"]').click()
+    await first.locator('button[title="Give a point"]').click()
+    await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: /Give Out the Points/ }).click()
+    await page.waitForTimeout(800)
+    c = await activeSaved(page)
+    const got = c.students.filter((st) => members.some((m) => m.includes(st.name))).map((st) => st.points)
+    check(
+      "student points: a group's points go to each student in it",
+      got.length === 2 && got.every((n) => n >= 7),
+      JSON.stringify({ members, got }),
+    )
+    // Clear All Stars, behind a question.
+    await choose('Clear All Stars')
+    await page.getByRole('button', { name: 'Yes, Clear Them' }).click()
+    await page.waitForTimeout(600)
+    c = await activeSaved(page)
+    check(
+      'student points: Clear All Stars empties every desk',
+      c.students.every((st) => !st.points),
+    )
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    // Leaving student points with stars on the desks asks first.
+    await desk(page, 'Amy').click()
+    await award(page)
+    await page.waitForTimeout(300)
+    await choose('No points')
+    const asked = await page.getByRole('alertdialog').filter({ hasText: "Clear the students' stars?" }).count()
+    await page.getByRole('button', { name: 'Yes, Switch' }).click()
+    await page.waitForTimeout(500)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    c = await activeSaved(page)
+    check(
+      'no points: leaving student points asks first, and the desks are cleared',
+      asked === 1 && c.pointsMode === 'none' && c.students.every((st) => !st.points),
+    )
+    check(
+      'no points: no star, no Pick All, no meter',
+      (await panelButton(page, 'Award Point').count()) === 0 &&
+        (await panelButton(page, 'Pick All').count()) === 0 &&
+        (await page.locator('[data-goal-coin]').count()) === 0,
+    )
+    over = await overflow(page)
+    check(
+      'no points: nothing scrolls',
+      Object.values(over).every((v) => v <= 0),
+      JSON.stringify(over),
+    )
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: /Continue with Last Groups/ }).click()
+    await page.waitForTimeout(1200)
+    check(
+      'no points: the group cards carry no score',
+      (await page.locator('[data-group-id] button[title="Give a point"]').count()) === 0 &&
+        (await page.getByRole('button', { name: /Reset Points/ }).count()) === 0,
+    )
+    await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
+    await page.waitForTimeout(800)
+    check('no points: leaving the groups asks nothing', (await page.getByRole('dialog').count()) === 0)
+    await panelButton(page, 'Get Ready!').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-drum="10"]').click()
+    await page.waitForTimeout(800)
+    await star.click()
+    await page.waitForTimeout(1500)
+    await page.getByRole('button', { name: 'Ready!', exact: true }).click()
+    await page.waitForTimeout(1200)
+    const plain = (await page.locator('[data-get-ready]').innerText()).replace(/\s+/g, ' ')
+    c = await activeSaved(page)
+    check(
+      'no points: Get Ready! is a challenge with no prize',
+      /Great Job!/.test(plain) && !/stars?!/.test(plain) && c.students.every((st) => !st.points) && c.classPoints === 10,
+      plain,
+    )
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(800)
+    // Back to the class goal: its meter where it was.
+    await choose('Class goal')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    c = await activeSaved(page)
+    check(
+      'class goal: back, with the meter where it was',
+      c.pointsMode === 'goal' && (await page.locator('[data-goal-coin]').count()) === 1 && (await meterText(page)).trim() === '10 / 50',
     )
     return page
   },
@@ -259,7 +427,7 @@ const scenarios = {
     )
     await panelButton(page, 'Unpick All').click()
     // At tables it is the table.
-    const tables = await open({ state: stateOf(makeClass('c2', 'Tables', 30, { layout: 'tables4' })), size: [1024, 500] })
+    const tables = await open({ state: stateOf(makeClass('c2', 'Tables', 30, { layout: 'tables4', pointsGoal: 50 })), size: [1024, 500] })
     await tables.locator('[data-ink=desk]', { hasText: 'Kevin' }).first().click()
     await panelButton(tables, 'Pick Whole Table').click()
     await tables.waitForTimeout(300)
@@ -1470,8 +1638,8 @@ const scenarios = {
     await page.waitForTimeout(1200)
     const c = await activeSaved(page)
     check(
-      'guide: Seat Students seats them and moves on to the goal, which is on',
-      c.seating.filter(Boolean).length === 3 && c.goalEnabled === true && (await title()) === 'The class goal' && (await onScreen()),
+      'guide: Seat Students seats them and moves on to points, a class goal to start with',
+      c.seating.filter(Boolean).length === 3 && c.pointsMode === 'goal' && (await title()) === 'Points' && (await onScreen()),
     )
     await next()
     check("guide: then You're ready!, over the board", (await title()) === "You're ready!" && (await page.getByRole('tab').count()) === 0)

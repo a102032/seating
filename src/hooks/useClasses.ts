@@ -5,7 +5,8 @@ import { getTheme, hasNoAvatar, randomPose, stickerId } from '../lib/stickers'
 import { moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
-import { type ClassData, type Gender, type GroupStatus, type Student, type StudentGroup } from '../types'
+import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
+import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
 
 export const MAX_CLASSES = 5
@@ -43,6 +44,7 @@ function makeClass(name: string): ClassData {
     seating: emptySeating(),
     pointsGoal: NEW_CLASS_GOAL,
     goalEnabled: true,
+    pointsMode: 'goal',
     classPoints: 0,
     updatedAt: now,
     createdAt: now,
@@ -149,18 +151,11 @@ function withDayTaken(c: ClassData, day: string): ClassData {
   return { ...c, attendanceTaken: taken.includes(day) ? taken : [...taken, day].sort() }
 }
 
-/** The class goal has to exist and be switched on for group points to have anywhere to go. */
-export function goalIsLive(c: ClassData): boolean {
-  return (c.pointsGoal ?? 0) > 0 && c.goalEnabled !== false
-}
+export { goalIsLive, pointsModeOf, starsWaitOnDesks }
 
-/**
- * Stars wait on the desks for All Stars In!, rather than flying straight to the goal. Only while
- * there is a goal to send them to: with it off, desks show nothing and there is no minus, as in
- * the straight-to-the-goal way.
- */
-export function starsWaitOnDesks(c: ClassData): boolean {
-  return c.starsOnDesks === true && goalIsLive(c)
+/** Every desk's stars back to none. */
+function withDesksEmpty(c: ClassData): ClassData {
+  return { ...c, students: c.students.map((s) => (s.points ? { ...s, points: 0 } : s)) }
 }
 
 export function useClasses() {
@@ -438,7 +433,7 @@ export function useClasses() {
     (classId: string, on: boolean) =>
       updateClass(classId, (c) => {
         if ((c.starsOnDesks === true) === on) return c
-        if (on) return { ...c, starsOnDesks: true, students: c.students.map((s) => (s.points ? { ...s, points: 0 } : s)) }
+        if (on) return { ...withDesksEmpty(c), starsOnDesks: true }
         return { ...withDeskStarsBanked(c), starsOnDesks: false }
       }),
     [updateClass],
@@ -514,10 +509,30 @@ export function useClasses() {
     [updateClass],
   )
 
-  const setGoalEnabled = useCallback(
-    (classId: string, enabled: boolean) => updateClass(classId, (c) => ({ ...c, goalEnabled: enabled })),
+  /**
+   * A class goal, student points, or none. Stars waiting on the desks for the goal go into it
+   * before the goal goes, rather than being lost; any other stars on the desks are cleared, so a
+   * new way of running points starts with the desks empty - a student's stars never turn into a
+   * class goal's, or the other way round. (The teacher is asked first when that clears students'
+   * stars.) The goal keeps its number for when it comes back, and gets one if it never had one.
+   */
+  const setPointsMode = useCallback(
+    (classId: string, mode: PointsMode) =>
+      updateClass(classId, (c) => {
+        if (pointsModeOf(c) === mode) return c
+        const banked = goalIsLive(c) && starsWaitOnDesks(c) ? withDeskStarsBanked(c) : c
+        return {
+          ...withDesksEmpty(banked),
+          pointsMode: mode,
+          goalEnabled: mode === 'goal',
+          ...(mode === 'goal' && !((c.pointsGoal ?? 0) > 0) && { pointsGoal: NEW_CLASS_GOAL }),
+        }
+      }),
     [updateClass],
   )
+
+  /** Clear All Stars, with student points: everyone back to 0, when the teacher says a week or a term is over. */
+  const clearDeskStars = useCallback((classId: string) => updateClass(classId, withDesksEmpty), [updateClass])
 
   const setShowAllHomerooms = useCallback(
     (classId: string, show: boolean) => updateClass(classId, (c) => ({ ...c, showAllHomerooms: show })),
@@ -607,11 +622,12 @@ export function useClasses() {
   )
 
   /**
-   * The activity is over: the groups' points go onto the class goal, one class point each,
-   * and the cards go back to zero. The groups themselves stay, so the same teams can be picked
-   * up again tomorrow. Group points always go to the whole class; stars for each member were
-   * taken out. A goal switched off is switched on (its last number, or 50) so the points land
-   * where the class can see them - a meter filling out of sight was taken out once already.
+   * The activity is over: the groups' points go out and the cards go back to zero. With a class
+   * goal they go onto the goal, one class point each; with student points every student in a
+   * group gets its points, onto their desk (stars for each member came back for this way of
+   * running points, 2026-10-11). With no points there are none. The groups themselves stay, so
+   * the same teams can be picked up again tomorrow. Group points are the whole group's, so they
+   * go in no one's participation record.
    */
   const finishGroupActivity = useCallback(
     (classId: string) =>
@@ -619,8 +635,12 @@ export function useClasses() {
         const groups = c.groups ?? []
         const total = groups.reduce((sum, g) => sum + g.points, 0)
         let next = c
-        if (total > 0 && !goalIsLive(c)) next = { ...c, pointsGoal: c.pointsGoal || 50, goalEnabled: true }
-        next = addClassPoints(next, total)
+        if (pointsModeOf(c) === 'goal') next = addClassPoints(c, total)
+        else if (pointsModeOf(c) === 'students') {
+          const earned = new Map<string, number>()
+          groups.forEach((g) => g.studentIds.forEach((id) => earned.set(id, (earned.get(id) ?? 0) + g.points)))
+          next = { ...c, students: c.students.map((s) => (earned.get(s.id) ? { ...s, points: (s.points ?? 0) + earned.get(s.id)! } : s)) }
+        }
         return { ...next, groups: groups.map((g) => ({ ...g, points: 0 })) }
       }),
     [updateClass],
@@ -655,7 +675,8 @@ export function useClasses() {
     clearParticipationDay,
     clearParticipation,
     setGoalSettings,
-    setGoalEnabled,
+    setPointsMode,
+    clearDeskStars,
     setShowAllHomerooms,
     setAvatarsOff,
     setGetReady,

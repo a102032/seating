@@ -7,7 +7,8 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../lib/celebrationGifs'
 import { assetUrl } from '../lib/assets'
-import type { ClassData } from '../types'
+import { goalIsLive, pointsModeOf } from '../lib/points'
+import type { ClassData, PointsMode } from '../types'
 import { GET_READY_PRIZES } from '../lib/getReady'
 import { TactileButton } from './TactileButton'
 
@@ -24,7 +25,8 @@ export interface PickersPointsTabProps {
   roundStarted: boolean
   onStartNewRound: () => void
   onSaveGoal: (goal: number, starsPerClassPoint: number) => void
-  onSetGoalEnabled: (enabled: boolean) => void
+  /** A class goal, student points, or none (the window asks first when that clears students' stars). */
+  onSetPointsMode: (mode: PointsMode) => void
   onSetStarsOnDesks: (on: boolean) => void
   onSetCelebrationGif: (gifId: string) => void
   onSetClassPoints: (points: number) => void
@@ -142,6 +144,58 @@ function StarsChoice({ onDesks, onChange }: { onDesks: boolean; onChange: (onDes
         <p className={clsx('col-start-1 row-start-1', !onDesks && 'invisible')}>
           Stars stay on the desks, and − takes one back. All Stars In! adds them to the goal.
         </p>
+      </div>
+    </div>
+  )
+}
+
+const POINTS_CHOICES: { mode: PointsMode; label: string; says: string }[] = [
+  { mode: 'goal', label: 'Class goal', says: 'The whole class fills the treasure chest together.' },
+  { mode: 'students', label: 'Student points', says: 'Each student keeps their own stars, on their desk, until you clear them.' },
+  { mode: 'none', label: 'No points', says: 'No stars. The pickers, the cards, groups and Get Ready! still work.' },
+]
+
+/**
+ * How the class runs points (2026-10-11, the teacher): a class goal, each student's own stars, or
+ * none - three pictures, one of three, the way the timer's colour and the stars' two ways are
+ * chosen. All three sentences share one cell, the others hidden, so choosing doesn't change the
+ * window's height.
+ */
+function PointsChoice({ mode, onChange }: { mode: PointsMode; onChange: (mode: PointsMode) => void }) {
+  const pictures: Record<PointsMode, React.ReactNode> = {
+    goal: <img src={chestPicture} alt="" className="h-6 w-6 shrink-0" />,
+    students: <MiniDesk star />,
+    none: <MiniDesk star={false} />,
+  }
+  return (
+    <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+      <Label className="text-foreground">Points</Label>
+      <div className="mt-1.5 flex gap-1.5">
+        {POINTS_CHOICES.map((c) => (
+          <button
+            key={c.mode}
+            type="button"
+            onClick={() => onChange(c.mode)}
+            aria-pressed={mode === c.mode}
+            className={clsx(
+              'relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-sm font-bold transition-all active:scale-95',
+              mode === c.mode
+                ? 'bg-primary/15 text-foreground ring-2 ring-primary'
+                : 'bg-black/5 text-muted-foreground hover:bg-black/10 dark:bg-white/10',
+            )}
+          >
+            {pictures[c.mode]}
+            <span className="leading-tight">{c.label}</span>
+            {mode === c.mode && <SelectedTick />}
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 grid text-xs text-muted-foreground">
+        {POINTS_CHOICES.map((c) => (
+          <p key={c.mode} className={clsx('col-start-1 row-start-1', mode !== c.mode && 'invisible')}>
+            {c.says}
+          </p>
+        ))}
       </div>
     </div>
   )
@@ -325,14 +379,15 @@ export function PickersPointsTab({
   roundStarted,
   onStartNewRound,
   onSaveGoal,
-  onSetGoalEnabled,
+  onSetPointsMode,
   onSetStarsOnDesks,
   onSetCelebrationGif,
   onSetClassPoints,
   getReadyPrize,
   onSetGetReadyPrize,
   onAskResetGoal,
-}: PickersPointsTabProps & { onAskResetGoal: () => void }) {
+  onAskClearStars,
+}: PickersPointsTabProps & { onAskResetGoal: () => void; onAskClearStars: () => void }) {
   // Seeded once as the tab opens, so a debounced write landing mid-edit can't feed the saved
   // value back into the control the teacher is still using.
   const [goal, setGoal] = useState(() => activeClass.pointsGoal || 50)
@@ -385,36 +440,33 @@ export function PickersPointsTab({
     commitSoon({ goal: latest.current.goal, starsPer: next })
   }
 
-  // Off means the meter isn't on screen at all - but the goal itself is kept, so switching
-  // back on restores the number the teacher chose rather than a default.
-  const goalOn = activeClass.goalEnabled !== false && (activeClass.pointsGoal ?? 0) > 0
-
-  // A switch has to act on the tap, not on a debounce - so it writes straight away rather
-  // than going through the pending-edit path the steppers use.
-  function toggleGoal(on: boolean) {
-    if (on && (activeClass.pointsGoal ?? 0) <= 0) commitNow({ goal: goal || 50, starsPer })
-    onSetGoalEnabled(on)
-  }
+  // Without a class goal the meter isn't on screen at all - but the goal itself is kept, so
+  // coming back to it restores the number the teacher chose rather than a default.
+  const mode = pointsModeOf(activeClass)
+  const goalOn = goalIsLive(activeClass)
+  const deskStars = activeClass.students.reduce((n, st) => n + (st.points ?? 0), 0)
 
   return (
     <div className="@container flex flex-col gap-4">
-      {/* The guided setup lights the switch and the goal, not the celebrations under them. */}
+      {/* The guided setup lights how points work and the goal, not the celebrations under them. */}
       <section className="flex flex-col gap-2.5" data-guide="goal">
-        {/* Side by side where there is room, so the second switch costs no height. */}
-        <div className="flex flex-col gap-2.5 @xl:flex-row">
-          <ToggleRow
-            label="Class Goal"
-            onDescription="The goal meter shows at the top of the board."
-            offDescription="No meter on the board at all, and nothing for the class to ask about."
-            checked={goalOn}
-            onCheckedChange={toggleGoal}
-          />
-          {/* Straight to the goal by default: the board shows the jar the class fills together,
-            and nothing for children to compare. Stars on the desks are this lesson's, on their
-            way to the goal - never a running total. Only with a goal: without one there is
-            nowhere for the stars to go. */}
-          {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
-        </div>
+        <PointsChoice mode={mode} onChange={onSetPointsMode} />
+        {/* Straight to the goal by default: the board shows the jar the class fills together, and
+          nothing for children to compare. Stars on the desks are this lesson's, on their way to
+          the goal - never a running total. Only with a goal: student points keep their own. */}
+        {goalOn && <StarsChoice onDesks={activeClass.starsOnDesks === true} onChange={onSetStarsOnDesks} />}
+        {/* Student points stay until the teacher clears them - never on a clock - so the teacher
+          decides whether a week or a term is over. A miscount is fixed in the roster. */}
+        {mode === 'students' && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
+            <TactileButton variant="danger" disabled={deskStars === 0} className="justify-center" onClick={onAskClearStars}>
+              <RotateCcw size={16} /> Clear All Stars
+            </TactileButton>
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+              Everyone back to 0, at the end of a week or a term. A student&rsquo;s stars can be fixed in the roster.
+            </p>
+          </div>
+        )}
         {goalOn && (
           <>
             <ChipRow
@@ -523,13 +575,17 @@ export function PickersPointsTab({
           <p className="mt-1 text-center text-xs text-muted-foreground">Everyone can be picked again.</p>
         </div>
         {/* Get Ready!'s one setting. A full star is the same prize on every drum, so a faster class
-            keeps more of it and a shorter drum is harder without being worth less. It only exists
-            with a goal, as the button does. */}
-        {goalOn && (
+            keeps more of it and a shorter drum is harder without being worth less. With student
+            points every student here gets it; with no points Get Ready! has no prize. */}
+        {mode !== 'none' && (
           <div className="rounded-2xl border border-black/10 p-2.5 dark:border-white/10">
             <ChipRow
               label="Get Ready! prize"
-              hint="Class points for a full star, on every drum."
+              hint={
+                mode === 'students'
+                  ? 'Stars for every student, for a full star, on every drum.'
+                  : 'Class points for a full star, on every drum.'
+              }
               value={getReadyPrize}
               choices={GET_READY_PRIZES}
               onChange={onSetGetReadyPrize}

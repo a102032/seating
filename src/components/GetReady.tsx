@@ -23,8 +23,10 @@ interface GetReadyProps {
   open: boolean
   /** The drum used last time, outlined so the same job is the same tap. */
   lastDrum?: number
-  /** What a full star is worth. */
+  /** What a full star is worth. 0 is no prize: a class with no points still plays it, for the challenge. */
   prize: number
+  /** With student points the stars go to every student here, so the last word says everyone gets them. */
+  everyone?: boolean
   /** No sound at all: the class's choice, from the speaker on "How long?". */
   silent: boolean
   onSetSilent: (silent: boolean) => void
@@ -47,7 +49,18 @@ interface GetReadyProps {
  * Soft taps play between the big beats, in one of four Japanese rhythms (lib/getReady), unless
  * the speaker on "How long?" has turned Get Ready! silent.
  */
-export function GetReady({ open, lastDrum, prize, silent, onSetSilent, onChooseDrum, onAward, onLiftMeter, onClose }: GetReadyProps) {
+export function GetReady({
+  open,
+  lastDrum,
+  prize,
+  everyone = false,
+  silent,
+  onSetSilent,
+  onChooseDrum,
+  onAward,
+  onLiftMeter,
+  onClose,
+}: GetReadyProps) {
   const [seconds, setSeconds] = useState<number | null>(null)
   // Each opening starts at "How long?".
   const [wasOpen, setWasOpen] = useState(open)
@@ -75,7 +88,15 @@ export function GetReady({ open, lastDrum, prize, silent, onSetSilent, onChooseD
         onClose={onClose}
       />
       {open && seconds !== null && (
-        <StarMoment seconds={seconds} prize={prize} silent={silent} onAward={onAward} onLiftMeter={onLiftMeter} onClose={onClose} />
+        <StarMoment
+          seconds={seconds}
+          prize={prize}
+          everyone={everyone}
+          silent={silent}
+          onAward={onAward}
+          onLiftMeter={onLiftMeter}
+          onClose={onClose}
+        />
       )}
     </>
   )
@@ -186,6 +207,7 @@ type Ending = { words: string; earned?: number }
 export function StarMoment({
   seconds,
   prize,
+  everyone = false,
   silent = false,
   onAward,
   onLiftMeter,
@@ -198,7 +220,10 @@ export function StarMoment({
   beside,
 }: {
   seconds: number
+  /** What a full star is worth; 0 is no prize, and Ready! ends on "Great Job!" with nothing flying. */
   prize: number
+  /** The stars go to every student here (student points): "Everyone gets 3 stars!". */
+  everyone?: boolean
   /** No sound at all: no drum, no taps, no endings, no coins. The star still throbs on every beat. */
   silent?: boolean
   onAward: (stars: number) => void
@@ -378,6 +403,12 @@ export function StarMoment({
     hushTaps()
     const n = r.left
     if (!silent) playGetReadyGo()
+    setSent(true)
+    // No prize (a class with no points): the challenge was the point, so "Great Job!" and nothing flies.
+    if (n <= 0) {
+      later(() => showEnding({ words: 'Great Job!' }), 500)
+      return
+    }
     const box = starRef.current?.getBoundingClientRect()
     onLiftMeter(true)
     const lands = box ? fly(box.left + box.width / 2, box.top + box.height * 0.525, n, layout.s * 0.09, { silent }) : 0
@@ -388,7 +419,6 @@ export function StarMoment({
         onAward(n)
       }, lands)
     } else onAward(n)
-    setSent(true)
     later(() => showEnding({ words: 'Great Job!', earned: n }), Math.max(500, lands))
   }
 
@@ -506,7 +536,7 @@ export function StarMoment({
           {/* How many stars the class earned, in gold, a step smaller (the teacher's addition). */}
           {ending.earned !== undefined && (
             <span className="mt-2.5 text-yellow-300" style={{ fontSize: cue(0.051) }}>
-              You earned {ending.earned} {ending.earned === 1 ? 'star' : 'stars'}!
+              {everyone ? 'Everyone gets' : 'You earned'} {ending.earned} {ending.earned === 1 ? 'star' : 'stars'}!
             </span>
           )}
         </div>

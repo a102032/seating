@@ -6,6 +6,8 @@ interface SetupGuideProps {
   step: GuideStepId
   onNext: () => void
   onSkip: () => void
+  /** Words for this class in place of the step's own: the last word, for a class with no points. */
+  text?: string
 }
 
 type Box = { left: number; top: number; width: number; height: number }
@@ -108,7 +110,7 @@ function findTarget(selectors: string[]): Box | null {
  * open and move, reading where it is once a frame while the guide is up: setup happens at a desk,
  * not mid-lesson, so that small cost is fine here.
  */
-export function SetupGuide({ step, onNext, onSkip }: SetupGuideProps) {
+export function SetupGuide({ step, onNext, onSkip, text }: SetupGuideProps) {
   const def = GUIDE_STEPS.find((s) => s.id === step)!
   const shown = GUIDE_STEPS.filter((s) => s.id !== 'ready')
   const number = shown.findIndex((s) => s.id === step) + 1
@@ -197,7 +199,7 @@ export function SetupGuide({ step, onNext, onSkip }: SetupGuideProps) {
         {!centred && <p className="text-xs font-bold" style={{ color: GUIDE.blue }}>{`Step ${number} of ${shown.length}`}</p>}
         <p className="mt-0.5 text-lg font-bold">{def.title}</p>
         <p className="mt-1 text-sm" style={{ color: GUIDE.ink }}>
-          {def.text}
+          {text ?? def.text}
         </p>
         <div className="mt-3 flex items-center justify-between gap-2">
           {centred ? (

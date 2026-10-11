@@ -43,7 +43,8 @@ function makeClass(id, name, count) {
   }))
   const seating = Array(40).fill(null)
   students.forEach((s, i) => (seating[i] = s.id))
-  return { id, name, students, seating, updatedAt: new Date(Date.now() - 60_000).toISOString() }
+  // A class goal, as every new class has: a class with none runs no points, and these give stars.
+  return { id, name, students, seating, pointsMode: 'goal', pointsGoal: 50, updatedAt: new Date(Date.now() - 60_000).toISOString() }
 }
 
 const results = []
