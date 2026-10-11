@@ -174,10 +174,11 @@ await measure('flip 3 cards', async () => {
     await wait(900)
   }
 })
-// Mystery Gifts on and a fresh deal with them in it (not measured), then one gift from wrapped to sent.
+// Fun surprise cards on (in Class Settings' Tools, which the cards' gear opens) and a fresh deal with
+// them in it (not measured), then one gift from wrapped to sent.
 await page.getByTitle('Flip card settings').click()
 await wait(600)
-await page.locator('#bonus-cards').click()
+await page.locator('[data-guide="gifts"] [role="switch"]').click()
 await page.keyboard.press('Escape')
 await wait(600)
 await page.getByRole('button', { name: 'Shuffle' }).click()

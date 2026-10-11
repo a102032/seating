@@ -1,5 +1,4 @@
 import { Check } from 'lucide-react'
-import clsx from 'clsx'
 import { ROOM_LAYOUTS, layoutPlan, type Gap, type RoomLayout } from '../lib/layouts'
 
 interface LayoutPickerProps {
@@ -12,8 +11,8 @@ const LABELS: Record<RoomLayout, [string, string?]> = {
   pairs: ['Pairs'],
   threes: ['Rows of 3'],
   tables4: ['Tables of 4'],
-  'tables5-top': ['Tables of 5', '5th desk on top'],
-  'tables5-bottom': ['Tables of 5', '5th desk below'],
+  'tables5-top': ['Tables of 5', '5th on top'],
+  'tables5-bottom': ['Tables of 5', '5th below'],
 }
 
 /**
@@ -68,7 +67,7 @@ const VIEW_H = Math.max(...ROOM_LAYOUTS.map((id) => DRAWINGS[id].height)) + MARG
 function LayoutDrawing({ layout }: { layout: RoomLayout }) {
   const { width, height, desks } = DRAWINGS[layout]
   return (
-    <span className="block h-[4.75rem] w-full overflow-hidden rounded-lg bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]">
+    <span className="cs-pic-art bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]">
       <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="block h-full w-full" aria-hidden>
         <g transform={`translate(${(VIEW_W - width) / 2} ${(VIEW_H - height) / 2})`}>
           {desks.map((desk, i) => (
@@ -92,34 +91,26 @@ function LayoutDrawing({ layout }: { layout: RoomLayout }) {
 /**
  * How the desks stand in this room, picked from drawings the way a theme is. Per class, since
  * classes can meet in different rooms. A change is immediate: between Rows, Pairs and Rows of 3
- * nobody moves, and into or out of tables the class keeps its order, back rows first.
+ * nobody moves, and into or out of tables the class keeps its order, back rows first. The
+ * drawings are sized by the screen's height (Class Settings' pictures), so the Class section fits.
  */
 export function LayoutPicker({ layout, onSetLayout }: LayoutPickerProps) {
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+    <div className="cs-pics cs-rooms cs-fill" data-guide="layouts">
       {ROOM_LAYOUTS.map((id) => {
         const active = id === layout
         const [label, detail] = LABELS[id]
         return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onSetLayout(id)}
-            aria-pressed={active}
-            className={clsx(
-              'relative flex flex-col items-center gap-1 rounded-xl border-2 p-1 transition-colors active:scale-[0.97]',
-              active ? 'border-primary bg-accent' : 'border-transparent hover:bg-accent/60',
-            )}
-          >
+          <button key={id} type="button" className="cs-pic" onClick={() => onSetLayout(id)} aria-pressed={active}>
             <LayoutDrawing layout={id} />
             {active && (
-              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                <Check size={13} strokeWidth={3} />
+              <span className="cs-tick">
+                <Check strokeWidth={3.5} />
               </span>
             )}
-            <span className="text-center text-xs leading-tight font-semibold text-foreground">
+            <span>
               {label}
-              {detail && <span className="block font-normal text-muted-foreground">{detail}</span>}
+              {detail && <small>{detail}</small>}
             </span>
           </button>
         )

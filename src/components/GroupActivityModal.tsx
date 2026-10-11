@@ -4,7 +4,6 @@ import { describeScheme, schemeLabel, type GroupScheme } from '../lib/groups'
 import type { LayoutPlan } from '../lib/layouts'
 import type { Student, StudentGroup } from '../types'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Modal } from './Modal'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
@@ -23,8 +22,6 @@ interface GroupActivityModalProps {
   lastMadeBy: GroupScheme | undefined
   onStart: (scheme: GroupScheme) => void
   onContinue: () => void
-  chimes: boolean
-  onSetChimes: (on: boolean) => void
 }
 
 const COUNT_OPTIONS = [2, 3, 4, 5, 6]
@@ -53,8 +50,6 @@ export function GroupActivityModal({
   lastMadeBy,
   onStart,
   onContinue,
-  chimes,
-  onSetChimes,
 }: GroupActivityModalProps) {
   const seatedCount = seating.filter(Boolean).length
   const lastPoints = lastGroups.reduce((sum, g) => sum + g.points, 0)
@@ -172,20 +167,6 @@ export function GroupActivityModal({
                 )
               })}
             </div>
-          </section>
-
-          <section className="flex items-center justify-between gap-4 rounded-2xl border border-black/10 p-3 dark:border-white/10">
-            <div className="min-w-0">
-              <Label htmlFor="status-chimes" className="text-foreground">
-                Status Chimes
-              </Label>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {chimes
-                  ? 'On: a soft chime when a group taps Help, Ready or Done - so you hear it with your back to the board.'
-                  : 'Off: the cards change colour silently.'}
-              </p>
-            </div>
-            <Switch id="status-chimes" checked={chimes} onCheckedChange={onSetChimes} className="shrink-0" />
           </section>
         </div>
       )}

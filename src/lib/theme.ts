@@ -2,10 +2,12 @@ export type Theme = 'light' | 'dark' | 'chalk' | 'vibrant' | 'comic'
 
 const THEME_KEY = 'seating-chart-theme-v1'
 /**
- * Set only when a teacher picks a theme themselves. THEME_KEY alone can't be trusted as a
+ * Set only when a teacher picked a theme themselves. THEME_KEY alone can't be trusted as a
  * choice: applyTheme used to write it on every paint, so the OS's dark-mode default from a
  * first visit sits in storage looking exactly like a pick. Without this flag, a teacher who
- * never touched the picker would open the board to Dark.
+ * never touched the picker would open the board to Dark. Since each class keeps its own theme
+ * (2026-10-11, ClassData.theme), nothing writes these: they are the board's theme from before,
+ * which a class that hasn't picked one still shows.
  */
 const CHOSEN_KEY = 'seating-chart-theme-chosen-v1'
 const THEMES: Theme[] = ['light', 'dark', 'chalk', 'vibrant', 'comic']
@@ -38,17 +40,7 @@ export function loadTheme(): Theme {
   return 'vibrant'
 }
 
-/** Paint the theme. Saves nothing - only a teacher's own pick is remembered, via chooseTheme. */
+/** Paint the theme. Saves nothing: a class keeps its own pick (ClassData.theme). */
 export function applyTheme(theme: Theme) {
   document.documentElement.setAttribute('data-theme', theme)
-}
-
-/** The teacher picked this one. Remember it, and remember that it was a pick. */
-export function chooseTheme(theme: Theme) {
-  try {
-    localStorage.setItem(THEME_KEY, theme)
-    localStorage.setItem(CHOSEN_KEY, '1')
-  } catch {
-    // ignore
-  }
 }

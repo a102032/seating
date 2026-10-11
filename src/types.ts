@@ -1,6 +1,7 @@
 import type { RoomLayout } from './lib/layouts'
 import type { ParticipationRecord } from './lib/participation'
 import type { GroupScheme } from './lib/groups'
+import type { Theme } from './lib/theme'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
@@ -143,6 +144,13 @@ export interface ClassData {
    */
   getReadySilent?: boolean
   /**
+   * This class's own colour theme (2026-10-11, the teacher: "Pick a color theme for this class").
+   * Unset follows the board's theme, the one every class shared before (lib/theme's loadTheme).
+   */
+  theme?: Theme
+  /** The number of the classroom the class meets in, for the printed seating chart. */
+  room?: string
+  /**
    * Show every student's homeroom number after their name on the board. Unset is off: the
    * number then shows only where two students share a name (lib/sameNames), which is its job.
    */
@@ -154,11 +162,12 @@ export interface ClassData {
    */
   celebrationGifId?: string
   /**
-   * Stars a class has to earn for one class point. Unset or 1 means every star counts, which
-   * is how the meter behaved before this existed - so old saved classes need no migration.
+   * Stars a class had to earn for one class point, and the stars banked toward the next. No longer
+   * used (2026-10-11, the teacher: a bigger goal is the same challenge, with one setting fewer):
+   * a class saved with a rate above 1 has its goal and meter multiplied by it on load
+   * (useClasses' withoutStarRate), so it fills at exactly the pace it did.
    */
   starsPerClassPoint?: number
-  /** Stars banked toward the next class point, so a divisor never loses the leftovers. */
   goalRemainder?: number
   /**
    * How many times the class has filled its goal. The meter celebrates when this climbs -

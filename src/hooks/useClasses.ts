@@ -6,6 +6,7 @@ import { moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
+import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
 
@@ -55,7 +56,24 @@ const firstClass = () => makeClass('Class 1')
 
 /** A class as saved by any version of the app, with everything this version expects. */
 function normalizeClass(c: ClassData): ClassData {
-  return withAvatarsSwitch(c.seating?.length >= MAX_SEATS ? c : { ...c, seating: withAllDesks(c.seating) })
+  return withoutStarRate(withAvatarsSwitch(c.seating?.length >= MAX_SEATS ? c : { ...c, seating: withAllDesks(c.seating) }))
+}
+
+/**
+ * "Stars for 1 class point" went (2026-10-11, the teacher: a bigger goal makes it just as much of a
+ * challenge). A class that had it above 1 gets its goal and its meter multiplied by it, the banked
+ * stars added on, so it fills at exactly the pace it did and the next point lands where it would have.
+ */
+function withoutStarRate(c: ClassData): ClassData {
+  if (c.starsPerClassPoint === undefined && c.goalRemainder === undefined) return c
+  const { starsPerClassPoint, goalRemainder, ...rest } = c
+  const rate = Math.max(1, Math.round(starsPerClassPoint ?? 1))
+  if (rate === 1) return rest
+  return {
+    ...rest,
+    pointsGoal: c.pointsGoal ? c.pointsGoal * rate : c.pointsGoal,
+    classPoints: (c.classPoints ?? 0) * rate + (goalRemainder ?? 0),
+  }
 }
 
 /**
@@ -93,15 +111,9 @@ function awardStars(c: ClassData, studentIds: string[], delta: number): ClassDat
   return starsToGoal(c, studentIds.length * delta)
 }
 
-/**
- * Stars onto the meter at the teacher's rate. The leftovers are banked rather than dropped, so
- * awarding one star at a time eventually counts for as much as awarding them all at once.
- */
+/** Stars onto the meter, one class point each. */
 function starsToGoal(c: ClassData, stars: number): ClassData {
-  if (stars <= 0) return c
-  const perClassPoint = Math.max(1, Math.round(c.starsPerClassPoint ?? 1))
-  const banked = (c.goalRemainder ?? 0) + stars
-  return addClassPoints({ ...c, goalRemainder: banked % perClassPoint }, Math.floor(banked / perClassPoint))
+  return addClassPoints(c, stars)
 }
 
 /** Every desk's stars onto the goal, and the desks empty for the next lesson. */
@@ -493,8 +505,8 @@ export function useClasses() {
     [updateClass],
   )
 
-  const setGoalSettings = useCallback(
-    (classId: string, goal: number, starsPerClassPoint: number) =>
+  const setGoal = useCallback(
+    (classId: string, goal: number) =>
       updateClass(classId, (c) => {
         const pointsGoal = Math.max(0, Math.round(goal))
         return {
@@ -503,11 +515,16 @@ export function useClasses() {
           // A goal lowered below what's on the meter leaves it full, not past full: the meter
           // read "40 / 30" until the next point. Full waits for one more point to open the chest.
           classPoints: pointsGoal > 0 ? Math.min(c.classPoints ?? 0, pointsGoal) : c.classPoints,
-          starsPerClassPoint: Math.max(1, Math.round(starsPerClassPoint)),
         }
       }),
     [updateClass],
   )
+
+  /** This class's own colour theme. */
+  const setClassTheme = useCallback((classId: string, theme: Theme) => updateClass(classId, (c) => ({ ...c, theme })), [updateClass])
+
+  /** The classroom the class meets in, as typed. */
+  const setRoom = useCallback((classId: string, room: string) => updateClass(classId, (c) => ({ ...c, room })), [updateClass])
 
   /**
    * A class goal, student points, or none. Stars waiting on the desks for the goal go into it
@@ -580,10 +597,7 @@ export function useClasses() {
   )
 
   /** Clears the shared meter without touching any stars waiting on the desks. */
-  const resetClassGoal = useCallback(
-    (classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0, goalRemainder: 0 })),
-    [updateClass],
-  )
+  const resetClassGoal = useCallback((classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0 })), [updateClass])
 
   // --- Group Activity -------------------------------------------------------------------
 
@@ -674,7 +688,9 @@ export function useClasses() {
     setParticipation,
     clearParticipationDay,
     clearParticipation,
-    setGoalSettings,
+    setGoal,
+    setClassTheme,
+    setRoom,
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,

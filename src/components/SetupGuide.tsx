@@ -1,73 +1,41 @@
+import { ArrowRight, Check } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { GUIDE_STEPS, type GuideStepId } from '../lib/setupGuide'
+import type { GuideContext, GuideStep } from '../lib/setupGuide'
 
 interface SetupGuideProps {
-  step: GuideStepId
+  step: GuideStep
+  /** "Students · 2 of 6", or "All done" on a new class's last word. */
+  where: string
+  /** The last step of the section being guided: Next says Finish. */
+  finish: boolean
+  context: Omit<GuideContext, 'showing'>
   onNext: () => void
   onSkip: () => void
-  /** Words for this class in place of the step's own: the last word, for a class with no points. */
-  text?: string
+  onStop: () => void
+  /** The last word of a new class's walk: Show me starts the tour. */
+  onTour: () => void
 }
 
-type Box = { left: number; top: number; width: number; height: number }
+type Box = { left: number; top: number; right: number; bottom: number }
 
 /** Room round the lit thing, so its edge isn't cut by the hole. */
-const PAD = 8
-const BUBBLE_WIDTH = 340
-const GAP = 14
+const PAD = 6
+const GAP = 10
+/** The bubble keeps this far from the window's edges. */
+const EDGE = 8
 /**
- * The helper's own colours, the same in every theme: a soft sky blue with navy words (about 10:1),
- * and the stronger blue only on Next, the one thing to tap to go on. A full-strength blue bubble
- * was too loud on the board (2026-10-06, the teacher).
+ * The helper's own colours, the same in every theme (2026-10-06, the teacher): a soft sky blue with
+ * navy words, and the strong blue only on Next, the one thing to tap to go on. The windows are
+ * white, so a white bubble read as one more place to do something.
  */
-const GUIDE = { sky: '#dbeafe', navy: '#1e3a8a', ink: '#1e40af', blue: '#2563eb' }
-/** The bubble keeps this far from the screen's edges. */
-const EDGE = 12
-/** The narrowest the bubble goes to fit beside the lit thing. */
-const SIDE_WIDTH = 260
+const GUIDE = { sky: '#dcefff', navy: '#0c2d57', blue: '#0b74c4' }
 
 /**
- * Where the bubble goes: under the lit thing, or over it, or beside it, whichever it fits in
- * first - below reads most naturally, and a tall thing (the class goal in its window) leaves
- * room only at the side on a short screen. If it fits nowhere it sits at the bottom of the
- * screen, inside it, even if that covers part of the lit thing: a bubble cut off by the screen's
- * edge can't be read or tapped at all.
+ * The part of an element that shows: inside a list that scrolls (the roster), the rest is hidden,
+ * and a hole round all of it would light whatever sits below the list.
  */
-function place(box: Box, width: number, height: number): { left: number; top: number; width: number } {
-  const clampX = (x: number) => Math.max(EDGE, Math.min(innerWidth - width - EDGE, x))
-  const clampY = (y: number) => Math.max(EDGE, Math.min(innerHeight - height - EDGE, y))
-  const centreX = clampX(box.left + box.width / 2 - width / 2)
-  const centreY = clampY(box.top + box.height / 2 - height / 2)
-  const below = box.top + box.height + PAD + GAP
-  if (below + height <= innerHeight - EDGE) return { left: centreX, top: below, width }
-  const above = box.top - PAD - GAP - height
-  if (above >= EDGE) return { left: centreX, top: above, width }
-  // Beside it the bubble may be a little narrower, rather than cover what it points at.
-  const right = box.left + box.width + PAD + GAP
-  const roomRight = Math.min(width, innerWidth - EDGE - right)
-  if (roomRight >= SIDE_WIDTH) return { left: right, top: centreY, width: roomRight }
-  const roomLeft = Math.min(width, box.left - PAD - GAP - EDGE)
-  if (roomLeft >= SIDE_WIDTH) return { left: box.left - PAD - GAP - roomLeft, top: centreY, width: roomLeft }
-  return { left: centreX, top: innerHeight - height - EDGE, width }
-}
-
-/** The little point on the bubble's edge nearest the lit thing, or none if they overlap. */
-function arrowFor(box: Box, { left, top }: { left: number; top: number }, width: number, height: number): CSSProperties | null {
-  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
-  if (top >= box.top + box.height) return { left: clamp(box.left + box.width / 2, left + 20, left + width - 20) - left - 9, top: -9 }
-  if (top + height <= box.top) return { left: clamp(box.left + box.width / 2, left + 20, left + width - 20) - left - 9, bottom: -9 }
-  const y = clamp(box.top + box.height / 2, top + 20, top + height - 20) - top - 9
-  if (left >= box.left + box.width) return { left: -9, top: y }
-  if (left + width <= box.left) return { right: -9, top: y }
-  return null
-}
-
-/**
- * The part of an element that shows: inside a list that scrolls (the roster on a short screen),
- * the rest is hidden, and a hole round all of it would light whatever sits below the list.
- */
-function visiblePart(el: HTMLElement): Box {
+function visiblePart(el: Element): Box {
   const r = el.getBoundingClientRect()
   let { left, top, right, bottom } = r
   for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
@@ -79,151 +47,227 @@ function visiblePart(el: HTMLElement): Box {
     right = Math.min(right, c.right)
     bottom = Math.min(bottom, c.bottom)
   }
-  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
+  return { left, top, right, bottom }
+}
+
+/** Whether nothing but the guide itself is over this element: a window opened on top hides the guide. */
+function uncovered(el: Element, box: Box): boolean {
+  const x = Math.min(innerWidth - 1, Math.max(0, (box.left + box.right) / 2))
+  const y = Math.min(innerHeight - 1, Math.max(0, box.top + Math.min((box.bottom - box.top) / 2, 20)))
+  const hit = document.elementsFromPoint(x, y).find((e) => !e.closest('[data-guide-layer]'))
+  return Boolean(hit && (el === hit || el.contains(hit) || hit.closest('[data-radix-popper-content-wrapper]')))
 }
 
 /**
- * Finds the thing a step points at, if it is on the screen and nothing covers it: a window opened
- * on top (the pasted list, the avatar picker) hides the guide until it closes, and a step whose
- * window is closing shows nothing rather than a hole over empty space.
+ * Everything the step lights that is on the screen, as one box, with any menu or list opened from
+ * it (the Import menu, Boy or Girl), so what it opens can be used too. 'covered' when a window is
+ * open over it; 'missing' when it isn't on the screen at all.
  */
-function findTarget(selectors: string[]): Box | null {
+function findTargets(selectors: string[]): Box | 'covered' | 'missing' {
+  const boxes: Box[] = []
+  let covered = false
   for (const selector of selectors) {
-    const el = document.querySelector<HTMLElement>(selector)
-    if (!el) continue
-    const r = visiblePart(el)
-    if (r.width < 4 || r.height < 4) continue
-    const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2))
-    const y = Math.min(innerHeight - 1, Math.max(0, r.top + Math.min(r.height / 2, 20)))
-    const hit = document.elementFromPoint(x, y)
-    if (!hit || !(el === hit || el.contains(hit))) continue
-    return r
+    document.querySelectorAll(selector).forEach((el) => {
+      const b = visiblePart(el)
+      if (b.right - b.left < 4 || b.bottom - b.top < 4) return
+      if (!uncovered(el, b)) covered = true
+      else boxes.push(b)
+    })
   }
-  return null
+  if (boxes.length === 0) return covered ? 'covered' : 'missing'
+  document.querySelectorAll('[data-radix-popper-content-wrapper]').forEach((el) => {
+    if (el.closest('[data-help-menu]')) return
+    const b = el.getBoundingClientRect()
+    if (b.width > 4 && b.height > 4) boxes.push({ left: b.left, top: b.top, right: b.right, bottom: b.bottom })
+  })
+  return {
+    left: Math.min(...boxes.map((b) => b.left)),
+    top: Math.min(...boxes.map((b) => b.top)),
+    right: Math.max(...boxes.map((b) => b.right)),
+    bottom: Math.max(...boxes.map((b) => b.bottom)),
+  }
+}
+
+/** Class Settings' window, which the fade and the bubble stay inside, as in the preview. */
+function windowBox(): Box {
+  const win = document.querySelector('[data-slot="dialog-content"] .cs-main')?.closest('[data-slot="dialog-content"]')
+  const r = win?.getBoundingClientRect()
+  return r ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : { left: 0, top: 0, right: innerWidth, bottom: innerHeight }
 }
 
 /**
- * The guided first setup, drawn over everything: the screen faded but for a lit hole round the
- * one thing to do, and a bubble beside it saying what to do, with Next and Skip. The fade lets
- * taps through, so the lit thing is used as it is; only the bubble takes taps of its own (and the
- * window under it is told not to close for them - see `Modal`). It follows its target as windows
- * open and move, reading where it is once a frame while the guide is up: setup happens at a desk,
- * not mid-lesson, so that small cost is fine here.
+ * Under the lit thing if it fits, else over it, else beside it (a tall menu), else wherever covers
+ * least of it (the whole student list): always inside the window.
  */
-export function SetupGuide({ step, onNext, onSkip, text }: SetupGuideProps) {
-  const def = GUIDE_STEPS.find((s) => s.id === step)!
-  const shown = GUIDE_STEPS.filter((s) => s.id !== 'ready')
-  const number = shown.findIndex((s) => s.id === step) + 1
-  const [box, setBox] = useState<Box | null>(null)
-  const [bubbleHeight, setBubbleHeight] = useState(160)
+function place(hole: Box, win: Box, w: number, h: number): { left: number; top: number } {
+  const clampX = (x: number) => Math.min(Math.max(win.left + EDGE, x), win.right - w - EDGE)
+  const sideTop = Math.min(Math.max(win.top + EDGE, hole.top), win.bottom - h - EDGE)
+  const left = clampX(hole.left)
+  if (hole.bottom + GAP + h <= win.bottom - EDGE) return { left, top: hole.bottom + GAP }
+  if (hole.top - GAP - h >= win.top + EDGE) return { left, top: hole.top - GAP - h }
+  if (hole.left - GAP - w >= win.left + EDGE) return { left: hole.left - GAP - w, top: sideTop }
+  if (hole.right + GAP + w <= win.right - EDGE) return { left: hole.right + GAP, top: sideTop }
+  const below = Math.min(hole.bottom + GAP, win.bottom - h - EDGE)
+  const above = Math.max(win.top + EDGE, hole.top - GAP - h)
+  const covers = (t: number) => Math.max(0, Math.min(t + h, hole.bottom) - Math.max(t, hole.top))
+  return { left, top: covers(below) <= covers(above) ? below : above }
+}
+
+/**
+ * The guide, drawn over Class Settings: one thing lit with an amber ring, the rest of the window
+ * faded and closed to taps, and a sky-blue bubble beside it saying what to do, with Skip and Next.
+ * The lit thing is used as it is. It follows its target as menus open and the list scrolls, reading
+ * where it is once a frame while the guide is up: setup happens at a desk, not mid-lesson, so that
+ * small cost is fine here.
+ */
+export function SetupGuide({ step, where, finish, context, onNext, onSkip, onStop, onTour }: SetupGuideProps) {
+  const [frame, setFrame] = useState<{ hole: Box | 'covered' | 'missing'; win: Box; text: string } | null>(null)
+  const [bubbleSize, setBubbleSize] = useState({ w: 384, h: 140 })
   const bubbleRef = useRef<HTMLDivElement>(null)
-  const last = useRef('')
+  const lastKey = useRef('')
+  const ctxRef = useRef(context)
+  useLayoutEffect(() => {
+    ctxRef.current = context
+  })
 
   useLayoutEffect(() => {
-    let frame = 0
+    let raf = 0
     const read = () => {
-      const next = def.targets.length ? findTarget(def.targets) : null
-      const key = next ? `${Math.round(next.left)},${Math.round(next.top)},${Math.round(next.width)},${Math.round(next.height)}` : 'none'
-      if (key !== last.current) {
-        last.current = key
-        setBox(next)
+      const hole = findTargets(step.targets)
+      const win = windowBox()
+      const ctx: GuideContext = { ...ctxRef.current, showing: (sel) => document.querySelector(sel) !== null }
+      const text = typeof step.text === 'function' ? step.text(ctx) : step.text
+      const key = JSON.stringify([
+        typeof hole === 'string' ? hole : Object.values(hole).map(Math.round),
+        Object.values(win).map(Math.round),
+        text,
+      ])
+      if (key !== lastKey.current) {
+        lastKey.current = key
+        setFrame({ hole, win, text })
       }
-      const h = bubbleRef.current?.offsetHeight
-      if (h) setBubbleHeight((old) => (Math.abs(old - h) > 1 ? h : old))
-      frame = requestAnimationFrame(read)
+      const el = bubbleRef.current
+      if (el)
+        setBubbleSize((old) =>
+          Math.abs(old.w - el.offsetWidth) > 1 || Math.abs(old.h - el.offsetHeight) > 1 ? { w: el.offsetWidth, h: el.offsetHeight } : old,
+        )
+      raf = requestAnimationFrame(read)
     }
     read()
-    return () => cancelAnimationFrame(frame)
-  }, [def])
+    return () => cancelAnimationFrame(raf)
+  }, [step])
 
-  // The thing to do may be lower down in a window that scrolls inside (the class goal).
+  // The step's box gets the cursor, so "Type the name of your class" can be typed straight away.
   useEffect(() => {
-    for (const selector of def.targets) {
-      const el = document.querySelector<HTMLElement>(selector)
-      if (el) {
-        el.scrollIntoView({ block: 'nearest' })
-        break
+    if (!step.focus) return
+    const id = requestAnimationFrame(() => document.querySelector<HTMLElement>(step.focus!)?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [step])
+
+  if (!frame) return null
+  const { win, text } = frame
+  // A window opened over the lit thing (the pasted list, a question) hides the guide until it closes.
+  if (frame.hole === 'covered') return null
+  // Nothing to light (it shouldn't happen): the whole window faded, the bubble in its middle, so
+  // Next and Stop are always there.
+  const found = frame.hole !== 'missing' ? frame.hole : null
+  const hole = found
+    ? {
+        left: Math.max(win.left + 4, found.left - PAD),
+        top: Math.max(win.top + 4, found.top - PAD),
+        right: Math.min(win.right - 4, found.right + PAD),
+        bottom: Math.min(win.bottom - 4, found.bottom + PAD),
       }
-    }
-  }, [def])
-
-  const centred = def.targets.length === 0
-  // A step with a target waits for it: nothing is drawn while its window opens or is covered.
-  if (!centred && !box) return null
-
-  let width = Math.min(BUBBLE_WIDTH, innerWidth - 2 * EDGE)
-  let bubble: CSSProperties
-  let arrow: CSSProperties | null = null
-  if (centred || !box) {
-    bubble = { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }
-  } else {
-    const at = place(box, width, bubbleHeight)
-    width = at.width
-    bubble = { left: at.left, top: at.top }
-    arrow = arrowFor(box, at, width, bubbleHeight)
-  }
+    : {
+        left: (win.left + win.right) / 2,
+        top: (win.top + win.bottom) / 2,
+        right: (win.left + win.right) / 2,
+        bottom: (win.top + win.bottom) / 2,
+      }
+  const at = found
+    ? place(hole, win, bubbleSize.w, bubbleSize.h)
+    : { left: (win.left + win.right - bubbleSize.w) / 2, top: (win.top + win.bottom - bubbleSize.h) / 2 }
+  const last = step.section === null
+  const block = (style: CSSProperties) => <div className="pointer-events-auto absolute" style={style} />
 
   return createPortal(
     <div data-guide-layer="" className="pointer-events-none fixed inset-0 z-[100]">
-      {centred ? (
-        <div className="absolute inset-0 bg-slate-950/55" />
-      ) : (
-        box && (
-          // The fade is the hole's own shadow: everything but the lit thing goes dark, and taps
-          // still reach the lit thing through it.
-          <div
-            data-guide-hole=""
-            className="absolute rounded-2xl transition-[left,top,width,height] duration-200"
-            style={{
-              left: box.left - PAD,
-              top: box.top - PAD,
-              width: box.width + 2 * PAD,
-              height: box.height + 2 * PAD,
-              // An amber ring, then the fade (a ring class would be lost under this inline shadow).
-              boxShadow: '0 0 0 4px #fbbf24, 0 0 0 9999px rgba(2, 6, 23, 0.55)',
-            }}
-          />
-        )
-      )}
-      {/* The bubble is blue in every theme (2026-10-06, the teacher): the windows are white, so a
-          white bubble read as one more place to do something. Sky blue says it is the helper. */}
+      {/* Taps anywhere but the lit thing and the bubble go nowhere. */}
+      {block({ left: 0, top: 0, right: 0, height: hole.top })}
+      {block({ left: 0, top: hole.bottom, right: 0, bottom: 0 })}
+      {block({ left: 0, top: hole.top, width: hole.left, height: hole.bottom - hole.top })}
+      {block({ left: hole.right, top: hole.top, right: 0, height: hole.bottom - hole.top })}
+      {/* The fade is the hole's own shadow, kept inside the window. */}
       <div
+        className="absolute overflow-hidden rounded-3xl"
+        style={{ left: win.left, top: win.top, width: win.right - win.left, height: win.bottom - win.top }}
+      >
+        <div
+          data-guide-hole=""
+          className="absolute rounded-[14px] transition-[left,top,width,height] duration-200"
+          style={{
+            left: hole.left - win.left,
+            top: hole.top - win.top,
+            width: hole.right - hole.left,
+            height: hole.bottom - hole.top,
+            // Faded toward the window's own colour: white in the light themes, as in the preview, and
+            // dark in Dark and Chalkboard, where a white wash left the words glaring.
+            boxShadow: `${found ? '0 0 0 3px #f59e0b, ' : ''}0 0 0 4000px color-mix(in srgb, var(--card) 74%, transparent)`,
+          }}
+        />
+      </div>
+      <div
+        ref={bubbleRef}
         data-guide-bubble=""
         role="dialog"
-        aria-label={def.title}
-        ref={bubbleRef}
-        className="pointer-events-auto absolute rounded-2xl p-4 shadow-2xl"
-        style={{ ...bubble, width, background: GUIDE.sky, color: GUIDE.navy }}
+        aria-label="Guide"
+        className="pointer-events-auto absolute flex flex-col gap-1.5 rounded-2xl px-3.5 py-2.5 shadow-xl [@media(max-height:540px)]:gap-1 [@media(max-height:540px)]:py-2"
+        style={{ left: at.left, top: at.top, width: Math.min(384, win.right - win.left - 16), background: GUIDE.sky, color: GUIDE.navy }}
       >
-        {arrow && <span className="absolute size-[18px] rotate-45" style={{ ...arrow, background: GUIDE.sky }} aria-hidden />}
-        {!centred && <p className="text-xs font-bold" style={{ color: GUIDE.blue }}>{`Step ${number} of ${shown.length}`}</p>}
-        <p className="mt-0.5 text-lg font-bold">{def.title}</p>
-        <p className="mt-1 text-sm" style={{ color: GUIDE.ink }}>
-          {text ?? def.text}
-        </p>
-        <div className="mt-3 flex items-center justify-between gap-2">
-          {centred ? (
-            <span />
-          ) : (
-            <button
-              type="button"
-              onClick={onSkip}
-              data-guide-skip=""
-              className="rounded-lg px-2 py-1.5 text-sm font-semibold hover:bg-blue-200/60"
-              style={{ color: GUIDE.ink }}
-            >
-              Skip
-            </button>
-          )}
+        <div className="flex items-center justify-between gap-2 text-[13px] font-bold" style={{ color: GUIDE.blue }}>
+          <span>{where}</span>
+          <button
+            type="button"
+            onClick={onStop}
+            data-guide-stop=""
+            className="rounded-lg px-2 py-0.5 opacity-75 hover:bg-white/60 hover:opacity-100"
+            style={{ color: GUIDE.navy }}
+          >
+            Stop guide
+          </button>
+        </div>
+        <p className="m-0 text-base font-bold leading-snug [@media(max-height:540px)]:text-[15px]">{text}</p>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={last ? onStop : onSkip}
+            data-guide-skip=""
+            className="rounded-xl px-3.5 py-1.5 font-bold hover:bg-white/60"
+            style={{ color: GUIDE.navy, touchAction: 'manipulation' }}
+          >
+            {last ? 'Not now' : 'Skip'}
+          </button>
           {/* A plain button, so no theme restyles it. */}
           <button
             type="button"
-            onClick={centred ? onSkip : onNext}
+            onClick={last ? onTour : onNext}
             data-guide-next=""
-            className="rounded-xl px-4 py-2 font-bold text-white shadow-sm transition-[scale] duration-150 active:scale-[0.96]"
+            className="inline-flex items-center gap-1 rounded-xl px-[18px] py-1.5 font-bold text-white transition-[scale] duration-150 active:scale-[0.96]"
             style={{ background: GUIDE.blue, touchAction: 'manipulation' }}
           >
-            {centred ? 'Done' : 'Next'}
+            {last ? (
+              <>
+                Show me <ArrowRight size={18} />
+              </>
+            ) : finish ? (
+              <>
+                Finish <Check size={18} />
+              </>
+            ) : (
+              <>
+                Next <ArrowRight size={18} />
+              </>
+            )}
           </button>
         </div>
       </div>

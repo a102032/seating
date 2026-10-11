@@ -94,7 +94,9 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
   ctx.textAlign = 'right'
   ctx.fillText(when, WIDTH - MARGIN, baseline)
   ctx.textAlign = 'left'
-  const label = ' · Seating Chart'
+  // The classroom it meets in, when the teacher has typed one: a substitute finds the room by it.
+  const room = cls.room?.trim()
+  const label = `${room ? ` · Room ${room}` : ''} · Seating Chart`
   ctx.font = `400 34px ${FACE}`
   const labelWidth = ctx.measureText(label).width
   const titleSize = fitFont(ctx, cls.name, 700, 60, WIDTH - 2 * MARGIN - dateWidth - labelWidth - 40)

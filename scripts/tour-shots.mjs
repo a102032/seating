@@ -1,0 +1,294 @@
+import { createRequire } from 'module'
+import { readFileSync, writeFileSync } from 'fs'
+const require = createRequire(import.meta.url)
+const { chromium } = require('/opt/node22/lib/node_modules/playwright/index.js')
+// The tour's pictures (components/Tour.tsx): each screen of the app at the teacher's board size
+// (1280x559), and where every thing a stop lights is in it. Take them again whenever one of those
+// screens changes. Serve the app first (npm run dev -- --port 5175), then:
+//   URL=http://localhost:5175/seating/ FONTS=<dir> node scripts/tour-shots.mjs
+// FONTS serves the real faces from fontsource packages in that dir (as the walkthrough does), since
+// Google Fonts may be blocked; without it the pictures have the fallback face.
+// Writes public/tour/*.jpg and src/lib/tourRects.json.
+const URL = process.env.URL || 'http://localhost:5175/seating/'
+const FONT_DIR = process.env.FONTS
+const FONTS = FONT_DIR && {
+  'andika-400': `${FONT_DIR}/fontsource-andika/files/andika-latin-400-normal.woff2`,
+  'andika-700': `${FONT_DIR}/fontsource-andika/files/andika-latin-700-normal.woff2`,
+}
+const FONT_CSS = FONTS
+  ? Object.keys(FONTS)
+      .map(
+        (k) =>
+          `@font-face { font-family: 'Andika'; font-weight: ${k.split('-')[1]}; src: url(https://fonts.gstatic.com/local/${k}) format('woff2'); }`,
+      )
+      .join('\n')
+  : ''
+const OUT = new globalThis.URL('../public/tour/', import.meta.url).pathname
+const RECTS = new globalThis.URL('../src/lib/tourRects.json', import.meta.url).pathname
+const SIZE = [1280, 559]
+
+// A class like the teacher's: 28 students, one away today, a class goal part filled.
+const NAMES =
+  'Amy Tony Kevin Mulan Brian Cindy Daniel Emma Grace Henry Ivy Jack Leo Sophia Andy Bella Chris Doris Eric Fiona Gary Hannah Ian Judy Kelly Louis Mandy Nick'.split(
+    ' ',
+  )
+const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const students = NAMES.map((n, i) => ({ id: `s${i}`, name: n, homeroom: String(501 + (i % 4)), gender: i % 2 ? 'boy' : 'girl', points: 0 }))
+const seating = Array(40).fill(null)
+students.forEach((s, i) => (seating[i] = s.id))
+const today = day(new Date())
+const STATE = {
+  classes: [
+    {
+      id: 'c1',
+      name: '4B English',
+      students,
+      seating,
+      pointsMode: 'goal',
+      pointsGoal: 50,
+      classPoints: 18,
+      attendance: { [today]: ['s3'] },
+      attendanceTaken: [today],
+      updatedAt: new Date().toISOString(),
+    },
+  ],
+  activeClassId: 'c1',
+}
+const TEACHER = { uid: 't1', firstName: 'Derek', email: 'derek@example.com', dirty: [], deleted: [] }
+
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+
+async function open() {
+  const context = await browser.newContext({ viewport: { width: SIZE[0], height: SIZE[1] } })
+  const page = await context.newPage()
+  if (FONTS) {
+    await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: FONT_CSS }))
+    await page.route('https://fonts.gstatic.com/local/**', (r) =>
+      r.fulfill({ contentType: 'font/woff2', body: readFileSync(FONTS[r.request().url().split('/').pop()]) }),
+    )
+  }
+  await page.route(
+    (url) => url.pathname.includes('firebase'),
+    (r) => r.abort(),
+  )
+  await page.addInitScript(
+    ([s, teacher]) => {
+      if (sessionStorage.getItem('seeded')) return
+      sessionStorage.setItem('seeded', '1')
+      localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+      localStorage.setItem('seating-chart-account-v1', JSON.stringify(teacher))
+      localStorage.setItem('seating-chart-theme-v1', 'vibrant')
+      localStorage.setItem('seating-chart-theme-chosen-v1', '1')
+      localStorage.setItem('seating-chart-guide-v1', JSON.stringify({ t1: true }))
+    },
+    [STATE, TEACHER],
+  )
+  await page.goto(URL)
+  await page.locator('.splash-board button', { hasText: '4B English' }).first().click()
+  await page.waitForTimeout(900)
+  return page
+}
+
+/** Where each thing is: everything a selector finds, as one box [left, top, right, bottom], kept on the screen. */
+async function rects(page, map) {
+  const out = {}
+  for (const [k, sel] of Object.entries(map)) {
+    out[k] = await page.evaluate((sel) => {
+      const els = [...document.querySelectorAll(sel)].filter((e) => e.getBoundingClientRect().width > 0)
+      if (!els.length) return null
+      const rs = els.map((e) => e.getBoundingClientRect())
+      return [
+        Math.max(0, Math.round(Math.min(...rs.map((r) => r.left)))),
+        Math.max(0, Math.round(Math.min(...rs.map((r) => r.top)))),
+        Math.min(innerWidth, Math.round(Math.max(...rs.map((r) => r.right)))),
+        Math.min(innerHeight, Math.round(Math.max(...rs.map((r) => r.bottom)))),
+      ]
+    }, sel)
+    if (!out[k]) throw new Error(`nothing found for ${k}: ${sel}`)
+  }
+  return out
+}
+
+/** Marks what has no selector of its own, by its words. */
+async function mark(page, marks) {
+  await page.evaluate((marks) => {
+    for (const [name, re] of marks) {
+      const el = [...document.querySelectorAll('button, span')].find((b) => new RegExp(re).test(b.textContent.trim()))
+      el?.setAttribute('data-tour-mark', name)
+    }
+  }, marks)
+}
+
+const shot = (page, name) => page.screenshot({ path: `${OUT}${name}.jpg`, type: 'jpeg', quality: 72 })
+const all = {}
+
+{
+  const page = await open()
+  await page.evaluate(() => {
+    // The meter is the bar holding the chest; the tab the box holding the gear.
+    const chest = document.querySelector('img[src*="chest-closed"]')
+    let m = chest
+    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
+    m?.setAttribute('data-tour-mark', 'meter')
+    document.querySelector('[data-class-tab]')?.setAttribute('data-tour-mark', 'tab')
+    document.querySelector('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'desk')
+  })
+  all.board = await rects(page, {
+    float: 'aside [aria-label="Float"]',
+    getready: 'aside [aria-label="Get Ready!"]',
+    timer: 'aside [aria-label="Timer"]',
+    attendance: 'aside [aria-label="Attendance"]',
+    swap: 'aside [aria-label="Swap Seats"]',
+    pickStudent: 'aside [aria-label="Pick a Random Student"]',
+    pickRow: 'aside [aria-label="Pick a Random Row"]',
+    pickAll: 'aside [aria-label="Pick All"]',
+    flip: 'aside [aria-label="Flip Cards"]',
+    groups: 'aside [aria-label="Group Activity"]',
+    star: 'aside [aria-label="Award Point"]',
+    saved: 'aside [data-sync]',
+    side: 'aside button[title^="Move panel"]',
+    meter: '[data-tour-mark="meter"]',
+    chest: 'img[src*="chest-closed"]',
+    tab: '[data-tour-mark="tab"]',
+    gear: 'button[aria-label="Class Settings"]',
+    desk: '[data-tour-mark="desk"]',
+  })
+  await shot(page, 'board')
+
+  // Flip Cards, dealt, with one card turned over so the glow shows.
+  await page.click('aside [aria-label="Flip Cards"]')
+  await page.waitForTimeout(3500)
+  await page.evaluate(() => document.querySelectorAll('[data-flip-card]')[8]?.setAttribute('data-tour-mark', 'card'))
+  await page.click('[data-tour-mark="card"]')
+  await page.waitForTimeout(1500)
+  await mark(page, [
+    ['left', ' left$'],
+    ['shuffle', '^Shuffle$'],
+    ['reveal', '^(Reveal All|Hide All)$'],
+  ])
+  await page.evaluate(() => {
+    document.querySelector('[data-tour-mark="card"]')?.closest('.grid')?.setAttribute('data-tour-mark', 'deck')
+  })
+  all.flip = await rects(page, {
+    shuffle: '[data-tour-mark="shuffle"]',
+    reveal: '[data-tour-mark="reveal"]',
+    pile: '[data-tour-mark="left"]',
+    settings: 'button[title="Flip card settings"]',
+    exit: 'button[title="Back to the seating chart"]',
+    deck: '[data-tour-mark="deck"]',
+    card: '[data-tour-mark="card"]',
+    star: 'aside [aria-label="Award Point"]',
+  })
+  // The pile sits in the middle of the toolbar.
+  all.flip.pileStack = await page.evaluate(() => {
+    const bar = document.querySelector('[data-tour-mark="left"]')?.closest('div.flex')?.parentElement
+    const r = bar?.children[1]?.getBoundingClientRect()
+    return r ? [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)] : null
+  })
+  await shot(page, 'flip')
+  await page.click('button[title="Back to the seating chart"]')
+  await page.waitForTimeout(1200)
+
+  // Group Activity: the window that chooses, then the cards.
+  await page.click('aside [aria-label="Group Activity"]')
+  await page.waitForTimeout(700)
+  await page.evaluate(() => {
+    for (const l of document.querySelectorAll('[data-slot="dialog-content"] label')) {
+      const sec = l.closest('section')
+      if (/How Many/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'count')
+      if (/Groups Of/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'size')
+      if (/Split By/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'split')
+    }
+  })
+  all.chooser = await rects(page, {
+    window: '[data-slot="dialog-content"]',
+    count: '[data-tour-mark="count"]',
+    size: '[data-tour-mark="size"]',
+    split: '[data-tour-mark="split"]',
+  })
+  await shot(page, 'chooser')
+  await page.locator('[data-tour-mark="count"] button').nth(2).click()
+  await page.waitForTimeout(4500)
+  await mark(page, [
+    ['new', '^New Groups$'],
+    ['gshuffle', '^Shuffle$'],
+    ['reset', '^Reset Points$'],
+    ['lock', '^Lock$'],
+    ['gexit', '^Exit Group Activity$'],
+  ])
+  await page.evaluate(() => {
+    const chip = document.querySelector('[title*="tap to change"]')
+    chip?.setAttribute('data-tour-mark', 'status')
+    let card = chip
+    while (card && card.getBoundingClientRect().height < 120) card = card.parentElement
+    card?.setAttribute('data-tour-mark', 'gcard')
+    card?.querySelector('[title^="Tap, then tap another group"]')?.setAttribute('data-tour-mark', 'name')
+  })
+  all.groups = await rects(page, {
+    new: '[data-tour-mark="new"]',
+    shuffle: '[data-tour-mark="gshuffle"]',
+    reset: '[data-tour-mark="reset"]',
+    lock: '[data-tour-mark="lock"]',
+    exit: '[data-tour-mark="gexit"]',
+    card: '[data-tour-mark="gcard"]',
+    status: '[data-tour-mark="status"]',
+    name: '[data-tour-mark="name"]',
+    plus: '[data-tour-mark="gcard"] [title="Give a point"]',
+    minus: '[data-tour-mark="gcard"] [title="Take a point away"]',
+    pickGroup: 'aside [aria-label="Pick a Random Group"]',
+  })
+  await shot(page, 'groups')
+  await page.context().close()
+}
+
+{
+  // The timer, big over the board.
+  const page = await open()
+  await page.click('aside [aria-label="Timer"]')
+  await page.waitForTimeout(900)
+  all.timer = await rects(page, {
+    card: '[data-timer-card]',
+    grip: '.timer-grip',
+    face: '.timer-face',
+    gear: '[aria-label="Timer settings"]',
+    minimise: '[aria-label="Put the timer away"]',
+    off: '[data-timer-card] [aria-label="Turn the timer off"]',
+    again: '[aria-label="Again"]',
+    minusplus: '[aria-label="A minute less"], [aria-label="A minute more"]',
+    start: '[data-timer-card] [aria-label="Start"]',
+    size: '.timer-size',
+    rail: 'aside [aria-label="Timer"]',
+  })
+  await shot(page, 'timer')
+  await page.context().close()
+}
+
+{
+  // Get Ready!: "How long?", then the star.
+  const page = await open()
+  await page.click('aside [aria-label="Get Ready!"]')
+  await page.waitForTimeout(900)
+  all.howlong = await rects(page, {
+    window: '[data-slot="dialog-content"]',
+    drums: '[data-drum]',
+    speaker: '[aria-label*="Tap for"]',
+  })
+  await shot(page, 'howlong')
+  await page.click('[data-drum="15"]')
+  await page.waitForTimeout(1400)
+  await mark(page, [
+    ['ready', '^Ready!$'],
+    ['stop', '^Stop$'],
+  ])
+  all.star = await rects(page, {
+    star: 'button[aria-label="Start"]',
+    ready: '[data-tour-mark="ready"]',
+    stop: '[data-tour-mark="stop"]',
+  })
+  await shot(page, 'star')
+  await page.context().close()
+}
+
+writeFileSync(RECTS, JSON.stringify(all, null, 1) + '\n')
+console.log(JSON.stringify(all))
+await browser.close()

@@ -150,12 +150,14 @@ const desk = (page, name) => page.locator('[data-ink=desk]', { hasText: name }).
 const panelButton = (page, name) => page.locator('aside').getByRole('button', { name, exact: true })
 const meterText = (page) => page.locator('.count-pop').first().textContent()
 const award = (page) => page.locator('aside button[title="Award Point"]').click()
-/** Pickers & Points, a tab of Class Settings since the side rail. */
-async function openPointsTab(page) {
+/** Class Settings, on one of its sections (the list down its left). */
+async function openSection(page, section) {
   await page.locator('button[aria-label="Class Settings"]').click()
   await page.waitForTimeout(400)
-  await page.getByRole('tab', { name: 'Pickers & Points' }).click()
+  await page.locator(`[data-section-link="${section}"]`).click()
+  await page.waitForTimeout(200)
 }
+const openPointsTab = (page) => openSection(page, 'points')
 
 /**
  * A refresh mid-lesson goes straight back to the class (lib/resume): same tab, same teacher, same
@@ -185,6 +187,11 @@ async function overflow(page) {
       })(),
       panel: aside ? aside.scrollHeight - aside.clientHeight : 0,
       dialog: box ? Math.max(0, Math.round(box.bottom - innerHeight), Math.round(-box.top)) : 0,
+      // A section of Class Settings never runs past the window's edge; only its lists scroll inside.
+      section: (() => {
+        const page = document.querySelector('.cs-page')
+        return page ? Math.max(page.scrollHeight - page.clientHeight, page.scrollWidth - page.clientWidth) : 0
+      })(),
       // The big timer floats, so it can't make the page scroll: it must simply be wholly on screen.
       timer: (() => {
         const t = document.querySelector('[data-timer-card]')?.getBoundingClientRect()
@@ -232,7 +239,7 @@ const scenarios = {
       await page.getByRole('button', { name: label, exact: true }).click()
       await page.waitForTimeout(400)
     }
-    await choose('Student points')
+    await choose('Student Points (No Goal)')
     await page.keyboard.press('Escape')
     await page.waitForTimeout(600)
     check(
@@ -317,7 +324,7 @@ const scenarios = {
     await desk(page, 'Amy').click()
     await award(page)
     await page.waitForTimeout(300)
-    await choose('No points')
+    await choose('No Points')
     const asked = await page.getByRole('alertdialog').filter({ hasText: "Clear the students' stars?" }).count()
     await page.getByRole('button', { name: 'Yes, Switch' }).click()
     await page.waitForTimeout(500)
@@ -370,7 +377,7 @@ const scenarios = {
     await page.mouse.click(640, 300)
     await page.waitForTimeout(800)
     // Back to the class goal: its meter where it was.
-    await choose('Class goal')
+    await choose('Class Goal')
     await page.keyboard.press('Escape')
     await page.waitForTimeout(600)
     c = await activeSaved(page)
@@ -515,10 +522,7 @@ const scenarios = {
         return { step: a.dataset.fit, over: a.scrollHeight - a.clientHeight }
       })
     const start = await fit()
-    await page.locator('button[aria-label="Class Settings"]').click()
-    await page.waitForTimeout(400)
-    await page.getByRole('tab', { name: 'Class' }).click()
-    await page.waitForTimeout(300)
+    await openSection(page, 'class')
     await page.getByRole('button', { name: 'Chalkboard' }).first().click()
     await page.waitForTimeout(500)
     const chalk = await fit()
@@ -559,7 +563,7 @@ const scenarios = {
     const page = await open({ state: stateOf(cls) })
     await openPointsTab(page)
     await page.waitForTimeout(500)
-    await page.locator('#goal').fill('30')
+    await page.locator('[data-guide="goal-row"] input').fill('30')
     await page.waitForTimeout(700)
     await page.keyboard.press('Escape')
     await page.waitForTimeout(600)
@@ -575,7 +579,7 @@ const scenarios = {
     const page = await open({ state: stateOf(cls) })
     await openPointsTab(page)
     await page.waitForTimeout(500)
-    const plus = page.locator('button[aria-label="Increase Class points on the meter now"]')
+    const plus = page.locator('button[aria-label="More: Stars on the meter"]')
     const box = await plus.boundingBox()
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
     await page.mouse.down()
@@ -886,18 +890,15 @@ const scenarios = {
       picks.length === 6 && picks.every((n) => n === 1) && c.pickRound?.ids.length === 6,
       `picks ${JSON.stringify(picks)}, round ${c.pickRound?.ids.length}`,
     )
-    await openPointsTab(page)
-    await page.waitForTimeout(500)
+    await openSection(page, 'tools')
     await page.getByRole('button', { name: 'Start a New Round' }).click()
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
     c = await activeSaved(page)
     check('participation: Start a New Round keeps the record', !c.pickRound && Object.keys(c.participation[today]).length === 6)
-    await page.getByTitle('Class Settings').click()
-    await page.waitForTimeout(500)
-    await page.getByRole('button', { name: 'Participation' }).click()
-    await page.waitForTimeout(600)
-    const report = await page.getByRole('dialog').last().innerText()
+    await openSection(page, 'participation')
+    await page.waitForTimeout(400)
+    const report = await page.locator('.cs-page').innerText()
     check(
       'participation: the report lists the class',
       /Amy/.test(report) && /Tony/.test(report) && /Everyone here was picked/.test(report),
@@ -905,10 +906,10 @@ const scenarios = {
     )
     // A pick made while trying something out, taken back out of the record; then the whole lesson.
     const amyId = c.students.find((s) => s.name === 'Amy').id
-    const amy = page.getByRole('dialog').last().locator('div.break-inside-avoid', { hasText: 'Amy' })
+    const amy = page.locator('.cs-pc', { hasText: 'Amy' })
     await amy.getByTitle('Tap to fix these numbers').click()
     await page.waitForTimeout(300)
-    await amy.getByTitle('Picked: one fewer').click()
+    await amy.locator('button[aria-label="Picked: one fewer"]').click()
     await page.waitForTimeout(400)
     c = await activeSaved(page)
     check(
@@ -1121,10 +1122,10 @@ const scenarios = {
     check('long press: none on the side panel', !(await menuOpens(panelButton(page, 'Pick a Random Student'))))
     await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(600)
-    await page.getByRole('tab', { name: 'Class', exact: true }).click()
+    await page.locator('[data-section-link="class"]').click()
     await page.waitForTimeout(300)
     check('long press: a text box keeps its menu, for pasting', await menuOpens(page.locator('#class-name')))
-    check("long press: none on a window's buttons", !(await menuOpens(page.getByRole('tab', { name: 'Students' }))))
+    check("long press: none on a window's buttons", !(await menuOpens(page.locator('[data-section-link="students"]'))))
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
     const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
@@ -1509,7 +1510,12 @@ const scenarios = {
       ),
     )
     check('mix up seats: a different plan', after.slice(0, 30).join() !== before)
-    check('mix up seats: the window closes on the new plan', (await page.locator('[role=dialog]').count()) === 0)
+    // Since the menus' tidy-up (2026-10-11) the window stays open, saying what happened.
+    check(
+      'mix up seats: the window stays open, saying so',
+      (await page.locator('.cs-page').count()) === 1 &&
+        (await page.locator('.cs-note', { hasText: 'New seats for everyone.' }).count()) === 1,
+    )
     return page
   },
 
@@ -1531,23 +1537,18 @@ const scenarios = {
         .first()
         .evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
     const besidePictures = await nameSize()
-    await page.locator('button[aria-label="Class Settings"]').click()
-    await page.waitForTimeout(500)
-    await page.locator('#avatars-on').click()
+    await openSection(page, 'avatars')
+    await page.locator('[data-guide="avatars-switch"] [role="switch"]').click()
     await page.waitForTimeout(300)
     let c = await activeSaved(page)
     check(
       "no avatar: the switch turns the class's avatars off, every pick kept",
       c.avatarsOff === true && c.students[0].avatarId === 'frog/superhero',
     )
-    await page.getByRole('button', { name: /Student Avatars/ }).click()
-    await page.waitForTimeout(500)
     check(
-      'no avatar: Student Avatars offers no No Avatar',
-      !(await page.getByRole('dialog').filter({ hasText: 'Tap a character' }).innerText()).includes('No Avatar'),
+      'no avatar: a character for the class offers no No Avatar',
+      !(await page.locator('[data-guide="give-character"]').innerText()).includes('No Avatar'),
     )
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
     // Measured before anyone joins: an unseated newcomer brings up the "not seated" bar, which
@@ -1559,6 +1560,7 @@ const scenarios = {
     // A newcomer to a class of names shows by name like everyone else, with nothing to undo later.
     await page.locator('button[aria-label="Class Settings"]').click()
     await page.waitForTimeout(500)
+    await page.locator('[data-guide="add"]').click()
     await page.getByPlaceholder('Name').fill('Zoe')
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await page.waitForTimeout(300)
@@ -1592,11 +1594,12 @@ const scenarios = {
     let over = await overflow(page)
     check('no avatar: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
     // Back on: every character where it was.
-    await page.locator('button[aria-label="Class Settings"]').click()
-    await page.waitForTimeout(500)
-    await page.locator('#avatars-on').click()
+    await openSection(page, 'avatars')
+    await page.locator('[data-guide="avatars-switch"] [role="switch"]').click()
     await page.waitForTimeout(300)
     // One student's family would rather not: No Avatar in their own picker.
+    await page.locator('[data-section-link="students"]').click()
+    await page.waitForTimeout(300)
     await page.getByTitle('Choose an avatar').nth(1).click()
     await page.waitForTimeout(500)
     await page
@@ -1650,9 +1653,8 @@ const scenarios = {
    */
   async 'choose your avatar'() {
     const page = await open({ state: stateOf(makeClass('c1', 'Choose', 12)), size: [1280, 559] })
-    await page.locator('button[aria-label="Class Settings"]').click()
-    await page.waitForTimeout(500)
-    await page.getByRole('button', { name: 'Students Choose' }).click()
+    await openSection(page, 'avatars')
+    await page.getByRole('button', { name: 'Let Students Choose' }).click()
     await page.waitForTimeout(500)
     check('choose: the board says what to do', await page.getByText('Tap your desk. Choose your avatar!').isVisible())
     check('choose: the side panel stands down', await panelButton(page, 'Pick a Random Student').isDisabled())
@@ -1686,59 +1688,194 @@ const scenarios = {
   },
 
   /**
-   * The guided first setup: a teacher with no students yet taps New Class on the splash and is
-   * walked through it, each bubble on the screen at the floor size; doing the thing moves it on,
-   * and finishing is remembered, so the next class starts without it.
+   * The guide through Class Settings (2026-10-11): New Class on the splash walks the whole setup,
+   * one thing lit at a time, every bubble inside the window at the floor size, ending on the
+   * tour's offer; a tap on the faded part does nothing; Guide me walks only the section that is
+   * open and finishes there; stopping is remembered.
    */
-  async 'guided first setup'() {
+  async 'guide through class settings'() {
     const page = await open({ state: stateOf(makeClass('c1', 'Class 1', 0)), size: [1024, 500], splash: false })
     await page.locator('.splash-board button', { hasText: 'New Class' }).click()
     await page.waitForTimeout(1200)
     const bubble = page.locator('[data-guide-bubble]')
-    const title = async () => ((await bubble.count()) ? bubble.locator('p.text-lg').innerText() : '')
-    const onScreen = () =>
+    const text = async () => ((await bubble.count()) ? bubble.locator('p').innerText() : '')
+    const where = async () => ((await bubble.count()) ? bubble.locator('span').first().innerText() : '')
+    const inWindow = () =>
       bubble.evaluate((b) => {
         const r = b.getBoundingClientRect()
-        return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5
+        const w = document.querySelector('[data-slot="dialog-content"]').getBoundingClientRect()
+        return r.left >= w.left - 0.5 && r.top >= w.top - 0.5 && r.right <= w.right + 0.5 && r.bottom <= w.bottom + 0.5
       })
     const next = async () => {
       await page.locator('[data-guide-next]').click()
-      await page.waitForTimeout(800)
+      await page.waitForTimeout(500)
     }
-    check('guide: New Class starts it, on the class name', (await title()) === 'Name your class' && (await onScreen()))
-    await page.locator('#class-name').fill('4B English')
-    await next()
-    check('guide: then the room', (await title()) === 'Pick your room' && (await onScreen()))
-    await next()
-    check('guide: then the students', (await title()) === 'Add your students' && (await onScreen()))
-    await page.evaluate((text) => {
-      const data = new DataTransfer()
-      data.setData('text/plain', text)
-      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
-    }, 'Amy\t401\nTony\t402\nKevin\t403')
-    await page.waitForTimeout(600)
-    await page.getByRole('button', { name: 'Add 3 Students' }).click()
-    await page.waitForTimeout(900)
-    check('guide: a list in moves it on to avatars', (await title()) === 'Avatars' && (await onScreen()))
-    await next()
-    check('guide: then seats', (await title()) === 'Seat your students' && (await onScreen()))
-    await page.locator('[data-guide="seat"]').click()
-    await page.waitForTimeout(1200)
+    check(
+      'guide: New Class walks it, from the class name, with the cursor in the box',
+      (await text()) === 'Type the name of your class.' &&
+        (await where()) === 'Class · 1 of 5' &&
+        (await page.evaluate(() => document.activeElement?.id)) === 'class-name' &&
+        (await inWindow()),
+    )
+    await page.keyboard.press('Control+A')
+    await page.keyboard.type('4B English')
+    // A tap on the faded part goes nowhere: the section list is behind the fade.
+    await page.mouse.click(80, 300)
+    await page.waitForTimeout(300)
+    check('guide: a tap on the fade does nothing', (await where()) === 'Class · 1 of 5')
+    let steps = 0
+    let offScreen = 0
+    const seen = []
+    while ((await bubble.count()) && !(await text()).includes('Want a tour') && steps < 30) {
+      if (!(await inWindow())) offScreen++
+      seen.push(await where())
+      if ((await text()).startsWith('Paste your student list')) {
+        // The list goes in as the guide says, with a paste.
+        await page.evaluate((list) => {
+          const data = new DataTransfer()
+          data.setData('text/plain', list)
+          document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
+        }, 'Amy\t401\nTony\t402\nKevin\t403')
+        await page.waitForTimeout(600)
+        check('guide: the pasted list window puts the guide aside', (await bubble.count()) === 0)
+        await page.getByRole('button', { name: 'Add 3 Students' }).click()
+        await page.waitForTimeout(700)
+        check('guide: and it comes back on the list', (await text()).startsWith('This is your class list'))
+      }
+      if ((await text()).startsWith('Tap Seat Students')) {
+        await page.locator('[data-guide="seat"]').click()
+        await page.waitForTimeout(500)
+      }
+      await next()
+      steps++
+    }
     const c = await activeSaved(page)
     check(
-      'guide: Seat Students seats them and moves on to points, a class goal to start with',
-      c.seating.filter(Boolean).length === 3 && c.pointsMode === 'goal' && (await title()) === 'Points' && (await onScreen()),
+      "guide: Class, Students, Avatars and Points, then You're all set! at Done",
+      (await text()).includes('Want a tour') &&
+        offScreen === 0 &&
+        seen.some((w) => w.startsWith('Students')) &&
+        seen.some((w) => w.startsWith('Avatars')) &&
+        seen.some((w) => w.startsWith('Points')),
+      `${seen.join(', ')}; ${offScreen} off the window`,
     )
-    await next()
-    check("guide: then You're ready!, over the board", (await title()) === "You're ready!" && (await page.getByRole('tab').count()) === 0)
+    check(
+      'guide: the class is named and seated',
+      c.name === '4B English' && c.seating.filter(Boolean).length === 3,
+      `${c.name}, ${c.seating.filter(Boolean).length}`,
+    )
     const over = await overflow(page)
-    check('guide: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    check('guide: nothing scrolls', over.page <= 0 && over.panel <= 0 && over.section <= 0, JSON.stringify(over))
+    // Show me: the tour's first card, Class Settings put away.
     await next()
     check(
-      'guide: Done ends it, remembered',
-      (await bubble.count()) === 0 &&
-        (await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-guide-v1') || '{}')['walkthrough-teacher'] === true)),
+      'guide: Show me starts the tour',
+      (await page.locator('[data-tour-card]').count()) === 1 && (await page.locator('.cs-page').count()) === 0,
     )
+    await page.locator('[data-tour-action="not-now"]').click()
+    await page.waitForTimeout(400)
+    check(
+      'guide: finished is remembered',
+      await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-guide-v1') || '{}')['walkthrough-teacher'] === true),
+    )
+    // Guide me, on the section that is open: only it, finishing there.
+    await openSection(page, 'tools')
+    await page.locator('[data-guide="help"]').click()
+    await page.locator('[data-help="guide"]').click()
+    await page.waitForTimeout(400)
+    const toolSteps = []
+    while ((await bubble.count()) && toolSteps.length < 12) {
+      toolSteps.push(await where())
+      const finish = (await page.locator('[data-guide-next]').innerText()).includes('Finish')
+      await next()
+      if (finish) break
+    }
+    check(
+      'guide: Guide me walks the open section and finishes there',
+      toolSteps.length === 8 &&
+        toolSteps.every((w) => w.startsWith('Tools')) &&
+        (await bubble.count()) === 0 &&
+        (await page.locator('.cs-page[data-section="tools"]').count()) === 1,
+      toolSteps.join(', '),
+    )
+    return page
+  },
+
+  /**
+   * The tour of the app, from Help: a picture of each screen with one thing lit, a card between
+   * parts, and stopping picks up where it left off next time.
+   */
+  async 'tour of the app'() {
+    const page = await open({ state: stateOf(makeClass('c1', 'Tour', 12, { pointsGoal: 50, classPoints: 5 })), size: [1280, 559] })
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.waitForTimeout(400)
+    await page.locator('[data-guide="help"]').click()
+    await page.locator('[data-help="tour"]').click()
+    await page.waitForTimeout(400)
+    check(
+      'tour: Help opens it, Class Settings put away',
+      (await page.locator('[data-tour-card]').count()) === 1 && (await page.locator('.cs-page').count()) === 0,
+    )
+    await page.locator('[data-tour-action="begin"]').click()
+    let stops = 0
+    let bad = 0
+    const parts = []
+    for (let guard = 0; guard < 80; guard++) {
+      // Past the lit ring's own slide to its new place (0.2 s).
+      await page.waitForTimeout(300)
+      if (await page.locator('[data-tour-card]').count()) {
+        const title = await page.locator('[data-tour-card] h3').innerText()
+        parts.push(title)
+        if (title === 'That’s the tour!') break
+        await page.locator('[data-tour-action="go"]').click()
+        continue
+      }
+      const ok = await page.evaluate(() => {
+        const b = document.querySelector('[data-tour-bubble]').getBoundingClientRect()
+        const h = document.querySelector('[data-tour-hole]')?.getBoundingClientRect()
+        const cover = h
+          ? Math.max(0, Math.min(b.bottom, h.bottom) - Math.max(b.top, h.top)) *
+            Math.max(0, Math.min(b.right, h.right) - Math.max(b.left, h.left))
+          : 1
+        return (
+          Boolean(h) && b.top >= 0 && b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight && cover / (h.width * h.height) < 0.15
+        )
+      })
+      if (!ok) bad++
+      stops++
+      await page.locator('[data-tour-action="next"]').click()
+    }
+    check(
+      'tour: 62 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 62 && bad === 0,
+      `${stops} stops, ${bad} bad`,
+    )
+    check('tour: a card before each part after the first', parts.length === 6, parts.join(', '))
+    await page.locator('[data-tour-action="done"]').click()
+    await page.waitForTimeout(300)
+    // Stopped in Group Activity, it offers to go on from there.
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.locator('[data-guide="help"]').click()
+    await page.locator('[data-help="tour"]').click()
+    await page.locator('[data-tour-action="begin"]').click()
+    for (let i = 0; i < 18; i++) await page.locator('[data-tour-action="next"]').click()
+    await page.locator('[data-tour-action="skip"]').click()
+    await page.locator('[data-tour-action="stop-here"]').click()
+    await page.locator('button[aria-label="Class Settings"]').click()
+    await page.locator('[data-guide="help"]').click()
+    await page.locator('[data-help="tour"]').click()
+    await page.waitForTimeout(300)
+    const offer = await page.locator('[data-tour-card]').innerText()
+    await page.locator('[data-tour-action="resume"]').click()
+    const resumed = await page.locator('[data-tour-card] h3').innerText()
+    check(
+      'tour: stopped, it picks up where it left off',
+      /You were up to\s+Group Activity/.test(offer) && resumed === 'Group Activity',
+      `${offer.replace(/\s+/g, ' ')} -> ${resumed}`,
+    )
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    check('tour: Escape stops it', (await page.locator('[data-tour]').count()) === 0)
     return page
   },
 
@@ -1752,8 +1889,8 @@ const scenarios = {
       ['pairs', 'Pairs', 'row', 6],
       ['threes', 'Rows of 3', 'row', 6],
       ['tables4', 'Tables of 4', 'table', 9],
-      ['tables5-top', '5th desk on top', 'table', 6],
-      ['tables5-bottom', '5th desk below', 'table', 6],
+      ['tables5-top', '5th on top', 'table', 6],
+      ['tables5-bottom', '5th below', 'table', 6],
       ['rows', 'Rows', 'row', 6],
     ]
     const nameSize = (page) =>
@@ -1768,12 +1905,9 @@ const scenarios = {
         const rowsName = await nameSize(page)
         const bad = []
         for (const [id, label, setName, sets] of LAYOUTS) {
-          await page.locator('button[aria-label="Class Settings"]').click()
-          await page.waitForTimeout(500)
-          await page.getByRole('tab', { name: 'Class' }).click()
-          await page.waitForTimeout(300)
+          await openSection(page, 'class')
           const o1 = await overflow(page)
-          if (o1.page || o1.dialog) bad.push(`${id} settings ${JSON.stringify(o1)}`)
+          if (o1.page || o1.dialog || o1.section > 0) bad.push(`${id} settings ${JSON.stringify(o1)}`)
           await page.locator('[role=dialog] button[aria-pressed]', { hasText: label }).first().click()
           await page.waitForTimeout(300)
           await page.keyboard.press('Escape')
@@ -1819,10 +1953,7 @@ const scenarios = {
     const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)) })
     const before = (await activeSaved(page)).seating.slice(0, 35).join()
     for (const label of ['Pairs', 'Rows of 3', 'Rows']) {
-      await page.locator('button[aria-label="Class Settings"]').click()
-      await page.waitForTimeout(500)
-      await page.getByRole('tab', { name: 'Class' }).click()
-      await page.waitForTimeout(300)
+      await openSection(page, 'class')
       await page.locator('[role=dialog] button[aria-pressed]', { hasText: label }).first().click()
       await page.waitForTimeout(300)
       await page.keyboard.press('Escape')
@@ -1965,7 +2096,7 @@ const scenarios = {
           const o = await overflow(page)
           // The timer controls and the class list open over the panel now, so there is no
           // accepted exception left: the panel fits itself to the screen (useFitToHeight).
-          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0 || o.timer > 0) {
+          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0 || o.timer > 0 || o.section > 0) {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }
@@ -2012,21 +2143,16 @@ const scenarios = {
         await page.waitForTimeout(800)
         await page.locator('button[aria-label="Class Settings"]').click()
         await page.waitForTimeout(600)
-        await look('settings students')
-        await page.getByRole('tab', { name: 'Class' }).click()
-        await page.waitForTimeout(400)
-        await look('settings class')
-        await page.getByRole('tab', { name: 'Students' }).click()
-        await page.getByRole('button', { name: /View \/ Edit Attendance/ }).click()
-        await page.waitForTimeout(600)
-        await look('attendance record')
-        await page.keyboard.press('Escape')
-        await page.waitForTimeout(400)
-        await page.keyboard.press('Escape')
-        await page.waitForTimeout(600)
-        await openPointsTab(page)
-        await page.waitForTimeout(600)
-        await look('pickers and points')
+        // Every section of Class Settings, all of it inside the window.
+        for (const section of ['class', 'students', 'avatars', 'points', 'tools', 'attendance', 'participation', 'google']) {
+          await page.locator(`[data-section-link="${section}"]`).click()
+          await page.waitForTimeout(250)
+          await look(`settings ${section}`)
+        }
+        await page.locator('[data-section-link="points"]').click()
+        await page.locator('[data-guide="celebration-row"] button').click()
+        await page.waitForTimeout(300)
+        await look('settings celebration')
         await page.keyboard.press('Escape')
         await page.waitForTimeout(600)
         check(`nothing scrolls: ${where}`, bad.length === 0 && page.errors.length === 0, [...bad, ...page.errors].join('; '))

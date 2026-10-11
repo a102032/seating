@@ -1,16 +1,16 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
+import { ClassSettingsModal, SECTIONS, type SettingsSection } from './components/ClassSettingsModal'
 import clsx from 'clsx'
 import { ChooseAvatarBanner, ChooseAvatarPicker } from './components/ChooseAvatars'
 import { ClassTitle } from './components/ClassTitle'
 import { GetReady } from './components/GetReady'
 import { DeskGrid } from './components/DeskGrid'
 import { FlipDeck } from './components/FlipDeck'
-import { FlipDeckSettingsModal } from './components/FlipDeckSettingsModal'
 import { FloatingGoal } from './components/FloatingGoal'
 import { SetupGuide } from './components/SetupGuide'
-import { GUIDE_STEPS, nextStep, rememberGuideDone, shouldGuide, type GuideStepId } from './lib/setupGuide'
+import { Tour } from './components/Tour'
+import { GUIDE_STEPS, rememberGuideDone, shouldGuide, stepFrom, stepPlace, type GuideScope } from './lib/setupGuide'
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
 import { GroupExitModal } from './components/GroupExitModal'
@@ -22,7 +22,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
-import { goalIsLive, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
+import { goalIsLive, MAX_CLASSES, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
@@ -33,7 +33,7 @@ import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio 
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
 import { homeroomsToShow } from './lib/sameNames'
 import { studentsAsShown } from './lib/stickers'
-import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
+import { applyTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
 import { rememberInClass, resumesInClass } from './lib/resume'
@@ -83,7 +83,9 @@ export default function App() {
     setParticipation,
     clearParticipationDay,
     clearParticipation,
-    setGoalSettings,
+    setGoal,
+    setClassTheme,
+    setRoom,
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,
@@ -154,9 +156,10 @@ export default function App() {
   /** Counts awards so a repeat award on the same desks replays their pop. */
   const [landedTick, setLandedTick] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('students')
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('students')
+  /** The tour of the app, from Help in Class Settings, or offered at the end of a new class's setup. */
+  const [tourOpen, setTourOpen] = useState(false)
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
-  const [flipSettingsOpen, setFlipSettingsOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
   const [groupActivityOpen, setGroupActivityOpen] = useState(false)
   /** How the current groups were made, so Shuffle can deal the same shape again. Null for saved groups. */
@@ -172,7 +175,12 @@ export default function App() {
   const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
-  const [theme, setTheme] = useState<Theme>(loadTheme)
+  /**
+   * The board's own theme, which every class shared before each class had its own (2026-10-11): a
+   * class that hasn't picked one yet still shows it.
+   */
+  const [boardTheme] = useState<Theme>(loadTheme)
+  const theme = activeClass?.theme ?? boardTheme
   /**
    * The splash is up until the teacher starts a class, every time the app is opened rather than
    * once. Opening this app is something a teacher does at the top of a lesson, so a deliberate
@@ -189,10 +197,8 @@ export default function App() {
   const appInFront = useAppInFront()
   /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
   const [goalWaiting, setGoalWaiting] = useState(false)
-  /** The guided first setup's step, while it runs (lib/setupGuide). */
-  const [guideStep, setGuideStep] = useState<GuideStepId | null>(null)
-  /** How many students the class had as the step began: adding some moves "Add your students" on. */
-  const [guideStudents, setGuideStudents] = useState(0)
+  /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
+  const [guide, setGuide] = useState<{ scope: GuideScope; index: number } | null>(null)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
   const [floatReadying, setFloatReadying] = useState(false)
   if (!floatWin && floatReadying) setFloatReadying(false)
@@ -305,12 +311,19 @@ export default function App() {
 
   const deck = useFlipDeck(seatedIds, activeClassId, flipDeckOpen, {
     genderOf: (id) => studentsById.get(id)?.gender ?? 'unspecified',
-    giftsAllowed: () => goalLive,
-    // A Mystery Gift's stars are the whole class's, straight into the chest in either way of
-    // running points, so they go in no one's participation record. They fly from the card,
-    // one a star, and the meter waits for them to land.
+    giftsAllowed: () => pointsMode !== 'none',
+    // A surprise card's stars are the whole class's, so they go in no one's participation record.
+    // With a class goal they fly from the card into the chest, one a star, and the meter waits for
+    // them to land. With student points every student here gets them (2026-10-11), as with Get
+    // Ready!: a surprise card is nobody's turn.
     onGift: (cardId, stars) => {
       if (!activeClassId) return
+      if (pointsMode === 'students') {
+        adjustPoints(activeClassId, seatedIds, stars)
+        playCoinTick()
+        setToast({ id: Date.now(), text: `Everyone gets ${stars} stars!` })
+        return
+      }
       const box = document.querySelector(`[data-flip-card="${CSS.escape(cardId)}"]`)?.getBoundingClientRect()
       if (box) flyStarsFrom(box.left + box.width / 2, box.top + box.height / 2, stars, Math.min(56, box.width * 0.3), { loud: false })
       addToClassGoal(activeClassId, stars)
@@ -408,43 +421,49 @@ export default function App() {
     })
   }
 
-  /**
-   * Settings opens on the roster, except for a class just made from the splash: that one needs
-   * its name first, and the name is on the Class tab.
-   */
-  function openSettings(tab: SettingsTab = 'students') {
-    setSettingsTab(tab)
+  /** Class Settings opens on the class list, the part a teacher comes for most, unless asked for another section. */
+  function openSettings(section: SettingsSection = 'students') {
+    setSettingsSection(section)
     setSettingsOpen(true)
   }
 
-  /**
-   * The guided setup moves the teacher from one step to the next, opening the tab of Class
-   * Settings each step happens in, or closing it for the last word over the board.
-   */
-  function goToStep(id: GuideStepId | null) {
-    if (id === null) {
+  // --- The guide through Class Settings (lib/setupGuide) ------------------------------------
+  const guideContext = { cls: activeClass!, signedIn: Boolean(cloud.account) }
+
+  /** To step `from`, or the next one after it that applies; past the end, the guide is done. */
+  function guideTo(scope: GuideScope, from: number) {
+    const index = activeClass ? stepFrom(from, scope, { ...guideContext, showing: () => false }) : null
+    if (index === null) {
       endGuide()
       return
     }
-    const place = GUIDE_STEPS.find((step) => step.id === id)!.place
-    setGuideStep(id)
-    setGuideStudents(activeClass?.students.length ?? 0)
-    if (typeof place === 'object') openSettings(place.settings)
-    else setSettingsOpen(false)
+    setGuide({ scope, index })
+    const section = GUIDE_STEPS[index].section
+    if (section) openSettings(section)
   }
 
-  function startGuide() {
-    if (activeClass) goToStep(nextStep(null, activeClass))
+  /** Help's Guide me walks the section that is open; a new class walks the whole setup. */
+  function startGuide(scope: GuideScope) {
+    guideTo(scope, 0)
   }
 
-  function advanceGuide() {
-    if (activeClass) goToStep(nextStep(guideStep, activeClass))
-  }
-
-  /** Done or skipped: not offered by itself again on this board (Guide Me brings it back). */
+  /** Done or stopped: a new teacher's first sign-in doesn't start it again on this board. */
   function endGuide() {
-    setGuideStep(null)
+    setGuide(null)
     if (cloud.account) rememberGuideDone(cloud.account.uid)
+  }
+
+  /** Another class, made and opened straight to its name, with the whole setup walked through. */
+  function newClass() {
+    createClass()
+    openSettings('class')
+    startGuide('all')
+  }
+
+  function openTour() {
+    if (guide) endGuide()
+    setSettingsOpen(false)
+    setTourOpen(true)
   }
 
   /**
@@ -466,8 +485,8 @@ export default function App() {
     if (fresh && splashOpen) {
       setSplashOpen(false)
       openSettings('class')
-      // Their first class: the guided setup walks them through it.
-      if (shouldGuide(cloud.account.uid, classes)) startGuide()
+      // Their first class: the guide walks them through setting it up.
+      if (shouldGuide(cloud.account.uid, classes)) startGuide('all')
     }
     // Only the moment the account arrives counts; classes and the splash are read as they are then.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -669,9 +688,6 @@ export default function App() {
     return <div className="flex h-full w-full items-center justify-center text-neutral-400">Loading...</div>
   }
 
-  // "Add your students" moves on by itself once a list is in.
-  if (guideStep === 'students' && activeClass.students.length > guideStudents) advanceGuide()
-
   const sideRail = (
     <SideRail
       goalLive={goalLive}
@@ -761,6 +777,7 @@ export default function App() {
       activeClassId={activeClassId}
       onSelectClass={setActiveClassId}
       onOpenSettings={() => openSettings()}
+      onNewClass={classes.length < MAX_CLASSES ? newClass : null}
       disabled={swapMode || attendanceMode || choosingAvatars}
       settingsDisabled={groupActivityOpen && groupsLocked}
       side={panelSide}
@@ -784,11 +801,9 @@ export default function App() {
             }}
             onNewClass={() => {
               if (cloud.needsSignIn) void cloud.signIn()
-              // Made, opened, and straight to its name, as New Class in Class Settings does.
-              createClass()
+              // Made, opened, and straight to its name, as New Class in the class list does.
               setSplashOpen(false)
-              openSettings('class')
-              if (shouldGuide(cloud.account?.uid, classes)) startGuide()
+              newClass()
             }}
             account={cloud.account}
             signingIn={cloud.signingIn}
@@ -915,7 +930,8 @@ export default function App() {
                     studentsById={studentsById}
                     showStars={desksMode}
                     showAllHomerooms={activeClass.showAllHomerooms === true}
-                    onOpenSettings={() => setFlipSettingsOpen(true)}
+                    // The cards' settings are with every other tool's, in Class Settings.
+                    onOpenSettings={() => openSettings('tools')}
                     onExit={() => {
                       setFlipDeckOpen(false)
                       resetPointsSelection()
@@ -993,8 +1009,6 @@ export default function App() {
         lastMadeBy={activeClass.groupsMadeBy}
         onStart={startGroups}
         onContinue={continueGroups}
-        chimes={groupChimes}
-        onSetChimes={updateGroupChimes}
       />
 
       <GroupExitModal
@@ -1007,15 +1021,6 @@ export default function App() {
           setExitPromptOpen(false)
           setGroupActivityOpen(false)
         }}
-      />
-
-      <FlipDeckSettingsModal
-        open={flipSettingsOpen}
-        onClose={() => setFlipSettingsOpen(false)}
-        settings={deck.settings}
-        onChange={deck.updateSettings}
-        roundStarted={deck.roundStarted}
-        goalLive={goalLive}
       />
 
       {/* Choose Your Avatar: the student whose desk was tapped picks from the characters, then a pose. */}
@@ -1055,32 +1060,32 @@ export default function App() {
 
       <ClassSettingsModal
         open={settingsOpen}
-        initialTab={settingsTab}
         onClose={() => {
           setSettingsOpen(false)
-          // Seat Students closes the window onto the seated class, and the goal's step ends when the
-          // window does; closing it at any other step ends the guide.
-          if (guideStep === 'seat' || guideStep === 'goal') advanceGuide()
-          else if (guideStep && typeof GUIDE_STEPS.find((step) => step.id === guideStep)?.place === 'object') endGuide()
+          // Closing the window ends the guide; its last word, at Done, ends it too.
+          if (guide) endGuide()
         }}
+        section={settingsSection}
+        onSection={setSettingsSection}
         activeClass={activeClass}
         classes={classes}
-        classesCount={classes.length}
-        unseatedCount={unseatedStudents.length}
+        cloud={cloud}
+        onSwitchTeacher={openSwitchTeacher}
+        onGuide={() => startGuide(settingsSection)}
+        onTour={openTour}
         onRename={(name) => renameClass(activeClass.id, name)}
+        onSetRoom={(room) => setRoom(activeClass.id, room)}
+        onSetLayout={(layout) => setLayout(activeClass.id, layout)}
+        onSetShowAllHomerooms={(show) => setShowAllHomerooms(activeClass.id, show)}
+        theme={theme}
+        onSetTheme={(next) => setClassTheme(activeClass.id, next)}
+        onDeleteClass={() => deleteClass(activeClass.id)}
         onAddStudents={(students) => addStudents(activeClass.id, students)}
         onRemoveStudents={(studentIds) => deleteStudents(activeClass.id, studentIds)}
         onReplaceStudents={(students) => replaceStudents(activeClass.id, students)}
         onUpdateStudent={(studentId, patch) => updateStudent(activeClass.id, studentId, patch)}
-        onAssignAvatars={(themeId, options) => assignAvatars(activeClass.id, themeId, options)}
         onDeleteStudent={(studentId) => deleteStudent(activeClass.id, studentId)}
         onUnseatStudent={(studentId) => unseatStudent(activeClass.id, studentId)}
-        onCreateClass={() => {
-          createClass()
-          if (shouldGuide(cloud.account?.uid, classes)) startGuide()
-        }}
-        onGuideMe={startGuide}
-        onDeleteClass={() => deleteClass(activeClass.id)}
         onUnseatAll={() => unseatAll(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
         onMixUpSeats={() => {
@@ -1089,8 +1094,6 @@ export default function App() {
           mixUpSeats(activeClass.id)
           playShuffle()
         }}
-        onSetLayout={(layout) => setLayout(activeClass.id, layout)}
-        onSetShowAllHomerooms={(show) => setShowAllHomerooms(activeClass.id, show)}
         onSetAvatarsOff={(off) => setAvatarsOff(activeClass.id, off)}
         onStudentsChoose={() => {
           // The desks have to be in view: the cards come down, and a pick or a selection on the
@@ -1101,53 +1104,58 @@ export default function App() {
           setChoosingAvatars(true)
         }}
         studentsChooseBlocked={groupActivityOpen}
-        onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
-        onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}
-        onClearParticipationDay={(day) => clearParticipationDay(activeClass.id, day)}
-        onClearParticipation={() => clearParticipation(activeClass.id)}
-        theme={theme}
-        onSetTheme={(next) => {
-          // A pick from the picker is the only thing that gets remembered - see chooseTheme.
-          setTheme(next)
-          chooseTheme(next)
-        }}
-        cloud={cloud}
-        onSwitchTeacher={openSwitchTeacher}
-        pickersPoints={{
-          settings: picker.settings,
-          onUpdateSettings: picker.updateSettings,
-          activeClass,
+        onAssignAvatars={(themeId, options) => assignAvatars(activeClass.id, themeId, options)}
+        onSetPointsMode={(mode) => setPointsMode(activeClass.id, mode)}
+        onSetStarsOnDesks={(on) => setStarsOnDesks(activeClass.id, on)}
+        onSetGoal={(goal) => setGoal(activeClass.id, goal)}
+        onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
+        onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
+        onResetClassGoal={() => resetClassGoal(activeClass.id)}
+        onClearDeskStars={() => clearDeskStars(activeClass.id)}
+        tools={{
+          pickers: picker.settings,
+          onUpdatePickers: picker.updateSettings,
+          pickedThisRound: pickedThisRound.size,
           roundStarted: pickedThisRound.size > 0 || picker.rowsPicked > 0,
           onStartNewRound: () => {
             startNewRound(activeClass.id)
             picker.resetRows()
           },
-          onSaveGoal: (goal, starsPer) => setGoalSettings(activeClass.id, goal, starsPer),
-          onSetPointsMode: (mode) => setPointsMode(activeClass.id, mode),
-          onSetStarsOnDesks: (on) => setStarsOnDesks(activeClass.id, on),
-          onSetCelebrationGif: (gifId) => setCelebrationGif(activeClass.id, gifId),
-          onSetClassPoints: (points) => setClassPoints(activeClass.id, points),
           getReadyPrize: activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE,
           onSetGetReadyPrize: (prize) => setGetReady(activeClass.id, { getReadyPrize: prize }),
+          flip: deck.settings,
+          onUpdateFlip: deck.updateSettings,
+          groupChimes,
+          onSetGroupChimes: updateGroupChimes,
         }}
-        onResetClassGoal={() => resetClassGoal(activeClass.id)}
-        onClearDeskStars={() => clearDeskStars(activeClass.id)}
+        onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
+        onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}
+        onClearParticipationDay={(day) => clearParticipationDay(activeClass.id, day)}
+        onClearParticipation={() => clearParticipation(activeClass.id)}
       />
 
       {/* The timer, big over the board; put away, it is the clock in the bar. */}
       <BigTimer />
 
-      {guideStep && !splashOpen && (
+      {guide && settingsOpen && !splashOpen && (
         <SetupGuide
-          step={guideStep}
-          onNext={advanceGuide}
-          onSkip={endGuide}
-          // "Tap a desk, then the star" means nothing to a class with no points.
-          text={
-            guideStep === 'ready' && pointsMode === 'none' ? 'Tap a picker to choose a student, or Get Ready! for a challenge.' : undefined
-          }
+          step={GUIDE_STEPS[guide.index]}
+          where={(() => {
+            const step = GUIDE_STEPS[guide.index]
+            const place = stepPlace(guide.index, guide.scope, { ...guideContext, showing: () => false })
+            return step.section ? `${SECTIONS.find((sec) => sec.id === step.section)!.label} · ${place.label}` : 'All done'
+          })()}
+          finish={stepPlace(guide.index, guide.scope, { ...guideContext, showing: () => false }).finish}
+          context={guideContext}
+          // Next (it's done) and Skip (leave it as it is) both move on to the next thing.
+          onNext={() => guideTo(guide.scope, guide.index + 1)}
+          onSkip={() => guideTo(guide.scope, guide.index + 1)}
+          onStop={endGuide}
+          onTour={openTour}
         />
       )}
+
+      {tourOpen && <Tour onClose={() => setTourOpen(false)} />}
 
       {floatWin && goalLive && (
         <FloatingGoal

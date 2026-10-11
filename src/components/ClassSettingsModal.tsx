@@ -1,1225 +1,428 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Armchair,
-  ChevronDown,
+  Check,
+  CircleCheck,
+  CircleQuestionMark,
   ClipboardCheck,
-  ClipboardPaste,
-  Dices,
-  FilePlus2,
-  FileUp,
-  GraduationCap,
   Hand,
-  Pencil,
-  Plus,
-  Pointer,
+  Map as MapIcon,
   School,
   Signpost,
   Smile,
   Star,
-  Trash2,
-  TriangleAlert,
-  Undo2,
-  Upload,
   Users,
-  UserX,
 } from 'lucide-react'
-import clsx from 'clsx'
-import { motion } from 'framer-motion'
-import { Popover } from 'radix-ui'
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import type { ComponentType, ReactNode } from 'react'
-import { parseRosterCsv, rosterFromRows } from '../lib/csv'
-import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../lib/drive'
+import { Dialog as DialogPrimitive, Popover } from 'radix-ui'
+import { useState, type ComponentType } from 'react'
 import type { useCloudSync } from '../hooks/useCloudSync'
-import { useDrive } from '../hooks/useDrive'
-import { MAX_CLASSES, pointsModeOf, starsWaitOnDesks, type AvatarScope } from '../hooks/useClasses'
-import { hasNoAvatar, resolveAvatarSrc } from '../lib/stickers'
-import { NoAvatarPicture } from './NoAvatarPicture'
-import type { Theme } from '../lib/theme'
-import { MAX_DESKS, type ClassData, type Gender, type PointsMode, type Student } from '../types'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { GoogleG } from './Account'
-import { AvatarPickerModal } from './AvatarPickerModal'
-import { GoogleTab } from './GoogleTab'
-import { RosterSheetsModal } from './RosterSheetsModal'
-import { PasteRosterModal } from './PasteRosterModal'
-import { AttendanceHistoryModal } from './AttendanceHistoryModal'
-import { ParticipationModal } from './ParticipationModal'
-import type { DayCount } from '../lib/participation'
-import { ClassAvatarsModal } from './ClassAvatarsModal'
-import { ConfirmModal } from './ConfirmModal'
-import { DangerCover } from './DangerCover'
-import { Modal } from './Modal'
-import { TactileButton } from './TactileButton'
-import { ThemePicker } from './ThemePicker'
-import { LayoutPicker } from './LayoutPicker'
-import { PickersPointsTab, type PickersPointsTabProps } from './PickersPointsTab'
-import type { RoomLayout } from '../lib/layouts'
+import { pointsModeOf, type AvatarScope } from '../hooks/useClasses'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
+import type { RoomLayout } from '../lib/layouts'
+import type { DayCount } from '../lib/participation'
+import type { Theme } from '../lib/theme'
+import type { ClassData, PointsMode, Student } from '../types'
+import { DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { GoogleG } from './Account'
+import { ConfirmModal } from './ConfirmModal'
+import { PickStudentIcon } from './PickerIcons'
+import { AttendanceSection } from './settings/AttendanceSection'
+import { AvatarsSection } from './settings/AvatarsSection'
+import { ClassSection } from './settings/ClassSection'
+import { GoogleSection } from './settings/GoogleSection'
+import { ParticipationSection } from './settings/ParticipationSection'
+import { PointsSection } from './settings/PointsSection'
+import { StudentsSection } from './settings/StudentsSection'
+import { ToolsSection, type PickerSettingsValue } from './settings/ToolsSection'
+import type { FlipDeckSettings } from '../hooks/useFlipDeck'
+
+export type SettingsSection = 'class' | 'students' | 'avatars' | 'points' | 'tools' | 'attendance' | 'participation' | 'google'
+
+/**
+ * The sections down the left, in the order a class is set up (2026-10-11, the teacher: setting up
+ * didn't go in a logical order, and meant jumping between menus): the four Set up sections, then
+ * the tools' settings, then what looks back over lessons, then Google. A `group` starts a heading
+ * ('' is a gap with no heading).
+ */
+export const SECTIONS: {
+  id: SettingsSection
+  label: string
+  icon: ComponentType<{ className?: string; size?: number }>
+  group?: string
+}[] = [
+  { id: 'class', label: 'Class', icon: School, group: 'Set up' },
+  { id: 'students', label: 'Students', icon: Users },
+  { id: 'avatars', label: 'Avatars', icon: Smile },
+  { id: 'points', label: 'Points', icon: Star },
+  { id: 'tools', label: 'Tools', icon: PickStudentIcon, group: 'In class' },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck, group: 'Look back' },
+  { id: 'participation', label: 'Participation', icon: Hand },
+  { id: 'google', label: 'Google', icon: GoogleG, group: '' },
+]
+
+/** The setup sections, which a new class's guide walks through in order and whose feet lead on. */
+export const SETUP_SECTIONS: SettingsSection[] = ['class', 'students', 'avatars', 'points']
+
+export interface ToolsProps {
+  pickers: PickerSettingsValue
+  onUpdatePickers: (patch: Partial<PickerSettingsValue>) => void
+  pickedThisRound: number
+  roundStarted: boolean
+  onStartNewRound: () => void
+  getReadyPrize: number
+  onSetGetReadyPrize: (prize: number) => void
+  flip: FlipDeckSettings
+  onUpdateFlip: (patch: Partial<FlipDeckSettings>) => void
+  groupChimes: boolean
+  onSetGroupChimes: (on: boolean) => void
+}
 
 interface ClassSettingsModalProps {
   open: boolean
   onClose: () => void
+  section: SettingsSection
+  onSection: (section: SettingsSection) => void
   activeClass: ClassData
   classes: ClassData[]
-  classesCount: number
-  unseatedCount: number
+  cloud: ReturnType<typeof useCloudSync>
+  onSwitchTeacher: () => void
+  /** Help: the guide through the section that is open, or the tour of the whole app. */
+  onGuide: () => void
+  onTour: () => void
+  // Class
   onRename: (name: string) => void
-  /** Returns the new students' ids. */
+  onSetRoom: (room: string) => void
+  onSetLayout: (layout: RoomLayout) => void
+  onSetShowAllHomerooms: (show: boolean) => void
+  theme: Theme
+  onSetTheme: (theme: Theme) => void
+  onDeleteClass: () => void
+  // Students
   onAddStudents: (students: Omit<Student, 'id'>[]) => string[]
-  /** An import taken back out: exactly the students it added. */
   onRemoveStudents: (studentIds: string[]) => void
-  /** A new list in place of the class's students. */
   onReplaceStudents: (students: Omit<Student, 'id'>[]) => string[]
   onUpdateStudent: (studentId: string, patch: Partial<Omit<Student, 'id'>>) => void
-  onAssignAvatars: (themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) => void
   onDeleteStudent: (studentId: string) => void
   onUnseatStudent: (studentId: string) => void
-  onCreateClass: () => void
-  /** Start the guided setup for this class. */
-  onGuideMe: () => void
-  onDeleteClass: () => void
   onUnseatAll: () => void
   onSeatClass: () => void
   onMixUpSeats: () => void
-  onSetLayout: (layout: RoomLayout) => void
-  onSetShowAllHomerooms: (show: boolean) => void
-  /** The class's avatars on or off; each student's own pick is kept either way. */
+  // Avatars
   onSetAvatarsOff: (off: boolean) => void
-  /** Students come up to the board and choose their own avatars (Choose Your Avatar). */
   onStudentsChoose: () => void
-  /** The group cards cover the desks: choosing waits until the activity is over. */
   studentsChooseBlocked: boolean
+  onAssignAvatars: (themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) => void
+  // Points
+  onSetPointsMode: (mode: PointsMode) => void
+  onSetStarsOnDesks: (on: boolean) => void
+  onSetGoal: (goal: number) => void
+  onSetCelebrationGif: (gifId: string) => void
+  onSetClassPoints: (points: number) => void
+  onResetClassGoal: () => void
+  onClearDeskStars: () => void
+  // Tools
+  tools: ToolsProps
+  // Attendance and participation
   onToggleAbsentInRecord: (studentId: string, day: string) => void
-  /** Fixing the participation record: one student's day, a whole lesson, or all of it. */
   onSetParticipation: (day: string, studentId: string, count: DayCount) => void
   onClearParticipationDay: (day: string) => void
   onClearParticipation: () => void
-  theme: Theme
-  onSetTheme: (theme: Theme) => void
-  /** Which tab it opens on. A class just made from the splash needs its name first, so the Class tab. */
-  initialTab?: SettingsTab
-  /** Signing in, for the Google tab and the Google Sheets import. */
-  cloud: ReturnType<typeof useCloudSync>
-  onSwitchTeacher: () => void
-  /** The Pickers & Points tab: the class goal and the pickers' settings. */
-  pickersPoints: PickersPointsTabProps
-  onResetClassGoal: () => void
-  /** Clear All Stars, with student points. */
-  onClearDeskStars: () => void
 }
 
-const genderOptions: { value: Gender; label: string }[] = [
-  { value: 'boy', label: 'Boy' },
-  { value: 'girl', label: 'Girl' },
-]
+/** The guide's layer sits outside the window it points into: a tap on it is not a tap outside the window. */
+function keepOpenForGuide(e: Event) {
+  if ((e.target as Element | null)?.closest?.('[data-guide-layer]')) e.preventDefault()
+}
 
 /**
- * Not chosen yet reads "Boy or Girl", in the placeholder's grey, rather than "Unspecified":
- * the box has no label of its own, so it has to say what it is for. There is no way back to
- * not chosen - a teacher always knows, and a CSV without a gender column still arrives unset.
+ * Class Settings: one window, the sections down the left, one section at a time on the right, all
+ * of it on screen (2026-10-11, the teacher's menus: too much everywhere, the order didn't follow
+ * setup, and things hid below the edge). Every change saves the moment it is made, as a phone's
+ * Settings does, so the title bar says so, and Done closes it - there is nothing to forget to save.
  */
-function GenderSelect({ value, onChange, className }: { value: Gender; onChange: (g: Gender) => void; className?: string }) {
-  return (
-    <Select value={value === 'unspecified' ? '' : value} onValueChange={(v) => onChange(v as Gender)}>
-      <SelectTrigger className={clsx('w-full', className)}>
-        <SelectValue placeholder="Boy or Girl" />
-      </SelectTrigger>
-      <SelectContent>
-        {genderOptions.map((g) => (
-          <SelectItem key={g.value} value={g.value}>
-            {g.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
+export function ClassSettingsModal(props: ClassSettingsModalProps) {
+  const { open, onClose, section, onSection, activeClass, classes, cloud } = props
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [choosingGif, setChoosingGif] = useState(false)
+  const [confirming, setConfirming] = useState<'delete' | 'empty' | 'clear' | PointsMode | null>(null)
 
-export type SettingsTab = 'students' | 'class' | 'points' | 'google'
-
-const SETTINGS_TABS: { id: SettingsTab; label: string; icon: ComponentType<{ size?: number; className?: string }> }[] = [
-  { id: 'students', label: 'Students', icon: Users },
-  { id: 'class', label: 'Class', icon: School },
-  { id: 'points', label: 'Pickers & Points', icon: Star },
-  { id: 'google', label: 'Google', icon: GoogleG },
-]
-
-/**
- * Each tab is about one thing: the students (the roster, their seats, today's attendance), the
- * class as a whole (its look, and making or deleting it), its goal and pickers (Pickers & Points,
- * its own window until the side rail left room for one gear), or Google (the account, the seating
- * chart as a picture, the Drive folder). It was one page, and the roster - the part used most -
- * got a row and a half of it.
- */
-function SettingsTabs({ tab, onChange }: { tab: SettingsTab; onChange: (tab: SettingsTab) => void }) {
-  return (
-    <div role="tablist" className="flex shrink-0 rounded-2xl bg-secondary p-1">
-      {SETTINGS_TABS.map(({ id, label, icon: Icon }) => {
-        const on = tab === id
-        return (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => onChange(id)}
-            className={clsx(
-              'relative flex flex-1 items-center justify-center gap-2 rounded-xl py-2 font-bold transition-colors active:scale-[0.98]',
-              on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {on && (
-              <motion.span
-                layoutId="settings-tab-pill"
-                className="absolute inset-0 rounded-xl bg-card shadow-sm"
-                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-              />
-            )}
-            <Icon size={18} className="relative" />
-            <span className="relative">{label}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-export function ClassSettingsModal({
-  open,
-  onClose,
-  activeClass,
-  classes,
-  classesCount,
-  unseatedCount,
-  onRename,
-  onAddStudents,
-  onRemoveStudents,
-  onReplaceStudents,
-  onUpdateStudent,
-  onAssignAvatars,
-  onDeleteStudent,
-  onUnseatStudent,
-  onCreateClass,
-  onGuideMe,
-  onDeleteClass,
-  onUnseatAll,
-  onSeatClass,
-  onMixUpSeats,
-  onSetLayout,
-  onSetShowAllHomerooms,
-  onSetAvatarsOff,
-  onStudentsChoose,
-  studentsChooseBlocked,
-  onToggleAbsentInRecord,
-  onSetParticipation,
-  onClearParticipationDay,
-  onClearParticipation,
-  theme,
-  onSetTheme,
-  initialTab = 'students',
-  cloud,
-  onSwitchTeacher,
-  pickersPoints,
-  onResetClassGoal,
-  onClearDeskStars,
-}: ClassSettingsModalProps) {
-  const [name, setName] = useState(activeClass.name)
-  const [nameError, setNameError] = useState<string | null>(null)
-  const [dragOver, setDragOver] = useState(false)
-  const [manualName, setManualName] = useState('')
-  const [manualHomeroom, setManualHomeroom] = useState('')
-  const [manualGender, setManualGender] = useState<Gender>('unspecified')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [confirmingUnseatAll, setConfirmingUnseatAll] = useState(false)
-  const [confirmingMixUp, setConfirmingMixUp] = useState(false)
-  const [confirmingResetGoal, setConfirmingResetGoal] = useState(false)
-  const [confirmingClearStars, setConfirmingClearStars] = useState(false)
-  // A switch away from student points, waiting on the teacher: it clears the students' stars.
-  const [confirmingPointsMode, setConfirmingPointsMode] = useState<PointsMode | null>(null)
-  const [confirmingDeleteStudent, setConfirmingDeleteStudent] = useState<Student | null>(null)
-  const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
-  const [assigningAvatars, setAssigningAvatars] = useState(false)
-  const [attendanceOpen, setAttendanceOpen] = useState(false)
-  const [participationOpen, setParticipationOpen] = useState(false)
-  const [guardOpen, setGuardOpen] = useState(false)
-  const [tab, setTab] = useState<SettingsTab>(initialTab)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [importOpen, setImportOpen] = useState(false)
-  const [sheetsOpen, setSheetsOpen] = useState(false)
-  const [sheets, setSheets] = useState<DriveFile[] | null>(null)
-  const [imported, setImported] = useState<string | null>(null)
-  // A list pasted in: what was pasted, and whether its window is up.
-  const [pasteText, setPasteText] = useState<string | null>(null)
-  // What the last paste, file or sheet did ("Added 28 students."), under the roster's heading,
-  // with the students it added, so the import can be taken back out.
-  const [importNote, setImportNote] = useState<{ text: string; added?: string[] } | null>(null)
-  // A list waiting on Replace them / Add to them, because the class already has students.
-  const [pending, setPending] = useState<{ students: Omit<Student, 'id'>[]; report: (text: string) => void } | null>(null)
-  const drive = useDrive(cloud.account?.uid)
-
-  const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
-
-  useEffect(() => {
-    setName(activeClass.name)
-    setNameError(null)
-  }, [activeClass.id, activeClass.name])
-
-  function commitRename() {
-    const trimmed = name.trim()
-    if (!trimmed || trimmed === activeClass.name) {
-      // A cleared box goes back to the name the class still has, rather than sitting empty.
-      setName(activeClass.name)
-      setNameError(null)
-      return
-    }
-    const isDuplicate = classes.some((c) => c.id !== activeClass.id && c.name.trim().toLowerCase() === trimmed.toLowerCase())
-    if (isDuplicate) {
-      setNameError(`You already have a class named "${trimmed}"`)
-      return
-    }
-    setNameError(null)
-    onRename(trimmed)
+  // Opening, or another section, starts with the celebration's pictures put away.
+  const [shownSection, setShownSection] = useState(section)
+  if (shownSection !== section) {
+    setShownSection(section)
+    setChoosingGif(false)
   }
-
-  /**
-   * Who in a list isn't on the roster yet (same name and homeroom), so importing a file a second
-   * time - after fixing a line in it, say - adds only who is new rather than doubling the class.
-   */
-  function newcomers(students: Omit<Student, 'id'>[]) {
-    const key = (s: { name: string; homeroom: string }) => `${s.name.trim().toLowerCase()}|${s.homeroom.trim()}`
-    const known = new Set(activeClass.students.map(key))
-    return students.filter((s) => !known.has(key(s)) && known.add(key(s)))
-  }
-
-  /** What an import did, in words: how many were added, and how many were already here. */
-  function describeAdded(found: number, added: number): string {
-    const already = found - added
-    return `Added ${added} ${added === 1 ? 'student' : 'students'}.${already > 0 ? ` ${already} ${already === 1 ? 'was' : 'were'} already in the class.` : ''}`
-  }
-
-  /**
-   * Every import comes in here: a paste, a file or a sheet. Into a class that already has
-   * students it asks first, Replace them or Add to them (2026-10-06, the teacher: a second roster
-   * only ever added, so a wrong one could only be fixed a student at a time). `report` says what
-   * happened where the import was made (the sheets window has its own line).
-   */
-  function bringIn(students: Omit<Student, 'id'>[], report: (text: string) => void = () => {}) {
-    const fresh = newcomers(students)
-    const say = (text: string, added?: string[]) => {
-      setImportNote({ text, added })
-      report(text)
-    }
-    if (students.length === 0) return say('No names found in that list.')
-    if (fresh.length === 0) return say('Everyone in that list is already in the class.')
-    if (activeClass.students.length > 0) {
-      setPending({ students, report })
-      return
-    }
-    say(describeAdded(students.length, fresh.length), onAddStudents(fresh))
-  }
-
-  function answerPending(choice: 'replace' | 'add' | 'cancel') {
-    if (!pending) return
-    const { students, report } = pending
-    setPending(null)
-    if (choice === 'cancel') return
-    const say = (text: string, added?: string[]) => {
-      setImportNote({ text, added })
-      report(text)
-    }
-    if (choice === 'replace') {
-      onReplaceStudents(students)
-      // Replacing isn't taken back with a tap: the question before it is the safeguard.
-      say(`The class list is now these ${students.length} ${students.length === 1 ? 'student' : 'students'}.`)
-      return
-    }
-    const fresh = newcomers(students)
-    say(describeAdded(students.length, fresh.length), onAddStudents(fresh))
-  }
-
-  /** The last import taken back out: exactly who it added, nobody who was here before. */
-  function takeOut() {
-    const added = importNote?.added
-    if (!added?.length) return
-    onRemoveStudents(added)
-    setImportNote({ text: `Took out the ${added.length} ${added.length === 1 ? 'student' : 'students'} just added.` })
-  }
-
-  /**
-   * An Excel file as it is, or a CSV. Teachers keep rosters in Excel and few know what a CSV is:
-   * the file window used to show only CSV files, so an Excel roster couldn't even be chosen
-   * (lesson one). The Excel reader is loaded only when one is chosen.
-   */
-  async function handleFiles(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-    const name = file.name.toLowerCase()
-    try {
-      let students: Omit<Student, 'id'>[]
-      if (name.endsWith('.xlsx')) {
-        const { readXlsxRows } = await import('../lib/xlsx')
-        students = rosterFromRows(await readXlsxRows(await file.arrayBuffer()))
-      } else if (name.endsWith('.xls')) {
-        setImportNote({ text: 'That is an old Excel file. Save it as .xlsx and try again, or copy the names and paste them.' })
-        return
-      } else {
-        students = parseRosterCsv(await file.text())
-      }
-      bringIn(students)
-    } catch {
-      setImportNote({ text: "That file couldn't be read. Copy the names in it and paste them instead." })
-    }
-  }
-
-  function addPasted(students: Omit<Student, 'id'>[]) {
-    setPasteText(null)
-    bringIn(students)
-  }
-
-  // Ctrl+V anywhere on the Students tab (but not in a box being typed in) opens the pasted list,
-  // so "copy it in Excel, paste it here" needs nothing found first.
-  useEffect(() => {
-    if (!open || tab !== 'students' || pasteText !== null) return
-    function onPaste(e: ClipboardEvent) {
-      const target = e.target as HTMLElement | null
-      if (target?.closest('input, textarea, [contenteditable="true"]')) return
-      const text = e.clipboardData?.getData('text/plain') ?? ''
-      if (!text.trim()) return
-      e.preventDefault()
-      setPasteText(text)
-    }
-    document.addEventListener('paste', onPaste)
-    return () => document.removeEventListener('paste', onPaste)
-  }, [open, tab, pasteText])
-
-  // Each of these starts Drive straight from the tap: the first time in an hour it opens
-  // Google's window, which a browser only allows right after one.
-  function openRosterSheets(make: boolean) {
-    setImportOpen(false)
-    setImported(null)
-    setSheetsOpen(true)
-    if (make) makeSheet()
-    else {
-      setSheets(null)
-      void drive.run('list', rosterSheets).then((found) => found && setSheets(found))
-    }
-  }
-
-  function makeSheet() {
-    void drive
-      .run('make', (token) => makeRosterSheet(token, activeClass.name))
-      .then((made) => made && setSheets((list) => [made, ...(list ?? []).filter((s) => s.id !== made.id)]))
-  }
-
-  function importSheet(sheet: DriveFile) {
-    setImported(null)
-    void drive
-      .run('read', (token) => readSheet(token, sheet.id))
-      .then((rows) => {
-        if (!rows) return
-        const students = rosterFromRows(rows)
-        if (students.length === 0) {
-          setImported('This sheet has no students yet. Fill it in first.')
-          return
-        }
-        bringIn(students, setImported)
-      })
-  }
-
-  function submitManualAdd() {
-    if (!manualName.trim()) return
-    onAddStudents([{ name: manualName.trim(), homeroom: manualHomeroom.trim(), gender: manualGender }])
-    setManualName('')
-    setManualHomeroom('')
-    setManualGender('unspecified')
-  }
-
-  // Settings opens on the roster, the part a teacher comes here for most, unless it was opened
-  // for a class that was just made. Reset as it opens, during render, so the wrong tab never
-  // shows for a frame first.
   const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) {
+  if (wasOpen !== open) {
     setWasOpen(open)
-    if (open) setTab(initialTab)
-  }
-  // The guided setup moves from the Class tab to the Students tab with the window open.
-  const [askedTab, setAskedTab] = useState(initialTab)
-  if (initialTab !== askedTab) {
-    setAskedTab(initialTab)
-    if (open) setTab(initialTab)
+    setChoosingGif(false)
+    setHelpOpen(false)
   }
 
-  function closeAndReset() {
-    setImportNote(null)
-    setConfirmingDelete(false)
-    setConfirmingUnseatAll(false)
-    setConfirmingMixUp(false)
-    setConfirmingDeleteStudent(null)
-    setPickingAvatarFor(null)
-    setEditingId(null)
-    setGuardOpen(false)
-    onClose()
-  }
-
-  // Nothing to build while closed - see useLingerWhileClosing. This one built the roster and
-  // a month of attendance on every desk tap.
+  // Nothing to build while closed - see useLingerWhileClosing.
   const shown = useLingerWhileClosing(open)
   if (!shown) return null
 
+  const go = (to: SettingsSection) => onSection(to)
+  const next = (from: SettingsSection) => SETUP_SECTIONS[SETUP_SECTIONS.indexOf(from) + 1]
+  const label = (id: SettingsSection) => SECTIONS.find((s) => s.id === id)!.label
+
+  function setPointsMode(mode: PointsMode) {
+    // Leaving student points clears every desk's stars, so the teacher is asked first.
+    const starsOnDesks = activeClass.students.some((s) => (s.points ?? 0) > 0)
+    if (pointsModeOf(activeClass) === 'students' && mode !== 'students' && starsOnDesks) setConfirming(mode)
+    else props.onSetPointsMode(mode)
+  }
+
+  let page
+  switch (section) {
+    case 'class':
+      page = (
+        <ClassSection
+          activeClass={activeClass}
+          classes={classes}
+          onRename={props.onRename}
+          onSetRoom={props.onSetRoom}
+          onSetLayout={props.onSetLayout}
+          onSetShowAllHomerooms={props.onSetShowAllHomerooms}
+          theme={props.theme}
+          onSetTheme={props.onSetTheme}
+          onAskDelete={() => setConfirming('delete')}
+          onNext={() => go(next('class'))}
+        />
+      )
+      break
+    case 'students':
+      page = (
+        <StudentsSection
+          // Another class is another list: nothing half-done carries over.
+          key={activeClass.id}
+          activeClass={activeClass}
+          cloud={cloud}
+          onAddStudents={props.onAddStudents}
+          onRemoveStudents={props.onRemoveStudents}
+          onReplaceStudents={props.onReplaceStudents}
+          onUpdateStudent={props.onUpdateStudent}
+          onDeleteStudent={props.onDeleteStudent}
+          onUnseatStudent={props.onUnseatStudent}
+          onUnseatAll={props.onUnseatAll}
+          onSeatClass={props.onSeatClass}
+          onMixUpSeats={props.onMixUpSeats}
+          onNext={() => go(next('students'))}
+        />
+      )
+      break
+    case 'avatars':
+      page = (
+        <AvatarsSection
+          key={activeClass.id}
+          activeClass={activeClass}
+          onSetAvatarsOff={props.onSetAvatarsOff}
+          onStudentsChoose={() => {
+            props.onStudentsChoose()
+            onClose()
+          }}
+          studentsChooseBlocked={props.studentsChooseBlocked}
+          onAssignAvatars={props.onAssignAvatars}
+          onNext={() => go(next('avatars'))}
+        />
+      )
+      break
+    case 'points':
+      page = (
+        <PointsSection
+          activeClass={activeClass}
+          onSetPointsMode={setPointsMode}
+          onSetStarsOnDesks={props.onSetStarsOnDesks}
+          onSetGoal={props.onSetGoal}
+          onSetCelebrationGif={props.onSetCelebrationGif}
+          onSetClassPoints={props.onSetClassPoints}
+          onAskEmptyMeter={() => setConfirming('empty')}
+          onAskClearStars={() => setConfirming('clear')}
+          choosingGif={choosingGif}
+          onChoosingGif={setChoosingGif}
+        />
+      )
+      break
+    case 'tools':
+      page = <ToolsSection pointsMode={pointsModeOf(activeClass)} {...props.tools} />
+      break
+    case 'attendance':
+      page = (
+        <AttendanceSection
+          key={activeClass.id}
+          activeClass={activeClass}
+          onToggleAbsent={props.onToggleAbsentInRecord}
+          uid={cloud.account?.uid}
+        />
+      )
+      break
+    case 'participation':
+      page = (
+        <ParticipationSection
+          key={activeClass.id}
+          activeClass={activeClass}
+          onSetCount={props.onSetParticipation}
+          onClearDay={props.onClearParticipationDay}
+          onClearAll={props.onClearParticipation}
+        />
+      )
+      break
+    case 'google':
+      page = <GoogleSection activeClass={activeClass} cloud={cloud} onSwitchTeacher={props.onSwitchTeacher} />
+      break
+  }
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="h-[min(calc(100dvh-2rem),52rem)] max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] max-w-none grid-rows-[auto_minmax(0,1fr)]"
+        onPointerDownOutside={keepOpenForGuide}
+        onInteractOutside={keepOpenForGuide}
+        onFocusOutside={keepOpenForGuide}
+        // The class name box gets the cursor from the guide's first step, not from opening.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <header className="cs-head">
+          <DialogTitle>Class Settings</DialogTitle>
+          <span className="cs-class">{activeClass.name}</span>
+          {/* Help, in the teacher's corner rather than on the board: the guide through this section,
+              or the tour of the whole app. One button with two plain choices. */}
+          <Popover.Root open={helpOpen} onOpenChange={setHelpOpen}>
+            <Popover.Trigger asChild>
+              <button type="button" className="cs-help" data-guide="help">
+                <CircleQuestionMark /> Help
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content align="start" sideOffset={6} className="cs-menu cs-help-menu" data-help-menu="">
+                <button
+                  type="button"
+                  data-help="guide"
+                  onClick={() => {
+                    setHelpOpen(false)
+                    setChoosingGif(false)
+                    props.onGuide()
+                  }}
+                >
+                  <span className="cs-hm-ic">
+                    <Signpost />
+                  </span>
+                  <span>
+                    <b>Guide me through this section</b>
+                    <small>Step by step: {label(section)}</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  data-help="tour"
+                  onClick={() => {
+                    setHelpOpen(false)
+                    props.onTour()
+                  }}
+                >
+                  <span className="cs-hm-ic">
+                    <MapIcon />
+                  </span>
+                  <span>
+                    <b>Take a tour of the app</b>
+                    <small>Every screen, one part at a time</small>
+                  </span>
+                </button>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+          <span className="cs-saved text-emerald-700 dark:text-emerald-400">
+            <CircleCheck size={16} />
+            <span className="hidden sm:inline">Changes save by themselves</span>
+          </span>
+          <button type="button" data-slot="button" className="cs-btn cs-primary cs-done" data-guide="done" onClick={onClose}>
+            <Check /> Done
+          </button>
+        </header>
+        <div className="cs-main">
+          <nav className="cs-nav" aria-label="Sections">
+            {SECTIONS.map((s) => (
+              <SectionLink key={s.id} section={s} current={section === s.id} onClick={() => go(s.id)} />
+            ))}
+          </nav>
+          <div className="cs-page" data-section={section}>
+            {page}
+          </div>
+        </div>
+
+        <ConfirmModal
+          open={confirming === 'delete'}
+          title="Delete Class?"
+          message={`This deletes "${activeClass.name}", its students and its seating chart. This can't be undone.`}
+          confirmLabel="Delete Class"
+          requireTypedText={activeClass.name}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            setConfirming(null)
+            props.onDeleteClass()
+            onClose()
+          }}
+        />
+        <ConfirmModal
+          open={confirming === 'empty'}
+          title="Empty the meter?"
+          message={`"${activeClass.name}"'s class goal meter goes back to 0.`}
+          confirmLabel="Yes, Empty It"
+          cancelLabel="No"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            props.onResetClassGoal()
+            setConfirming(null)
+          }}
+        />
+        <ConfirmModal
+          open={confirming === 'clear'}
+          title="Clear All Stars?"
+          message={`Every student in "${activeClass.name}" goes back to 0 stars. This can't be undone.`}
+          confirmLabel="Yes, Clear Them"
+          cancelLabel="No"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            props.onClearDeskStars()
+            setConfirming(null)
+          }}
+        />
+        <ConfirmModal
+          open={confirming === 'goal' || confirming === 'none'}
+          title="Clear the students' stars?"
+          message={`Switching to ${confirming === 'goal' ? 'a class goal' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
+          confirmLabel="Yes, Switch"
+          cancelLabel="No"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            if (confirming === 'goal' || confirming === 'none') props.onSetPointsMode(confirming)
+            setConfirming(null)
+          }}
+        />
+      </DialogContent>
+    </DialogPrimitive.Root>
+  )
+}
+
+function SectionLink({ section, current, onClick }: { section: (typeof SECTIONS)[number]; current: boolean; onClick: () => void }) {
+  const Icon = section.icon
   return (
     <>
-      <Modal
-        open={
-          open &&
-          !confirmingDelete &&
-          !confirmingUnseatAll &&
-          !confirmingMixUp &&
-          !confirmingResetGoal &&
-          !confirmingClearStars &&
-          !confirmingPointsMode &&
-          !confirmingDeleteStudent &&
-          !pickingAvatarFor &&
-          !assigningAvatars &&
-          !attendanceOpen &&
-          !participationOpen &&
-          !sheetsOpen &&
-          !pending &&
-          pasteText === null
-        }
-        onClose={closeAndReset}
-        title="Class Settings"
-        wide
-        fixedHeight
-        // New Class makes another class rather than setting this one, so it sits by the title,
-        // on every tab, where it costs the Class tab no row. A new class needs its name first,
-        // so it lands on the Class tab, as from the splash. Pulled in top and bottom so the
-        // header is no taller than the title.
-        headerAction={
-          <div className="flex items-center gap-2">
-            <TactileButton
-              onClick={() => {
-                onCreateClass()
-                setTab('class')
-              }}
-              disabled={classesCount >= MAX_CLASSES}
-              className={clsx('-my-1.5 !py-1.5', classesCount >= MAX_CLASSES && 'opacity-40')}
-              title={classesCount >= MAX_CLASSES ? `You can save up to ${MAX_CLASSES} classes` : undefined}
-            >
-              <Plus size={16} /> New Class
-            </TactileButton>
-            {/* The guided setup again, for this class, any time (it runs by itself once, for a
-                teacher's first class). */}
-            <TactileButton onClick={onGuideMe} className="-my-1.5 !py-1.5" data-guide-me="">
-              <Signpost size={16} /> Guide Me
-            </TactileButton>
-          </div>
-        }
-      >
-        {/* Closer on a short screen, so the Class tab's room layouts fit on the teacher's own
-            board (1280x559) without scrolling inside the window. */}
-        <div className="flex min-h-full flex-col gap-3.5 [@media(max-height:600px)]:gap-2.5">
-          <SettingsTabs tab={tab} onChange={setTab} />
-
-          {tab === 'students' ? (
-            <>
-              {/* Manual add - always one row, side by side, its label beside it rather than above
-                  so the roster keeps the height the avatar row below takes. Since a list can be
-                  pasted, this is for a student who joins mid-year. */}
-              <section className="shrink-0">
-                <div className="grid grid-cols-[auto_2fr_1fr_1fr_auto] items-center gap-2">
-                  <Label className="whitespace-nowrap">Add a Student</Label>
-                  <Input value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="Name" className="min-w-0" />
-                  <Input
-                    value={manualHomeroom}
-                    onChange={(e) => setManualHomeroom(e.target.value)}
-                    placeholder="Homeroom #"
-                    className="min-w-0"
-                  />
-                  <GenderSelect value={manualGender} onChange={setManualGender} className="min-w-0" />
-                  <TactileButton variant="primary" onClick={submitManualAdd} className="whitespace-nowrap">
-                    <Plus size={18} /> Add
-                  </TactileButton>
-                </div>
-              </section>
-
-              {/* Avatars, all in one place and near the top: in lesson one Student Avatars was the
-                  last thing the teacher found, at the bottom left. The switch turns the class's
-                  avatars off without losing them - each student's pick waits for them to come
-                  back on - and says so under it, since a board can't show a tooltip. Both
-                  sentences share one cell, so flipping it doesn't move anything. */}
-              <section className="flex shrink-0 items-center gap-3 pl-1" data-guide="avatars">
-                <Switch id="avatars-on" checked={!activeClass.avatarsOff} onCheckedChange={(on) => onSetAvatarsOff(!on)} />
-                <div className="min-w-0 flex-1">
-                  <Label htmlFor="avatars-on" className="cursor-pointer text-foreground">
-                    Avatars
-                  </Label>
-                  <div className="grid text-sm leading-tight text-muted-foreground">
-                    <p className={clsx('col-start-1 row-start-1', activeClass.avatarsOff && 'invisible')}>
-                      On: each student's avatar is on their desk.
-                    </p>
-                    <p className={clsx('col-start-1 row-start-1', !activeClass.avatarsOff && 'invisible')}>
-                      Off: names only. Each student's avatar is kept.
-                    </p>
-                  </div>
-                </div>
-                <TactileButton
-                  onClick={() => setAssigningAvatars(true)}
-                  disabled={activeClass.students.length === 0}
-                  className={clsx('shrink-0 !py-1.5', activeClass.students.length === 0 && 'opacity-40')}
-                  title="Choose avatars for the whole class at once"
-                >
-                  <Smile size={16} /> Student Avatars
-                </TactileButton>
-                {/* The children come up and choose their own at the board. Not with avatars off:
-                    they would choose one and not see it. */}
-                <TactileButton
-                  onClick={() => {
-                    onStudentsChoose()
-                    closeAndReset()
-                  }}
-                  disabled={seatedIds.size === 0 || activeClass.avatarsOff === true || studentsChooseBlocked}
-                  className={clsx(
-                    'shrink-0 !py-1.5',
-                    (seatedIds.size === 0 || activeClass.avatarsOff || studentsChooseBlocked) && 'opacity-40',
-                  )}
-                  title={
-                    activeClass.avatarsOff
-                      ? 'Turn avatars on first'
-                      : studentsChooseBlocked
-                        ? 'Finish the group activity first'
-                        : 'Students tap their own desk and choose their avatar'
-                  }
-                >
-                  <Pointer size={16} /> Students Choose
-                </TactileButton>
-              </section>
-
-              {/* The roster is what this tab is for, so it takes all the height that's left. A CSV
-                  can still be dropped anywhere on it; the Import button is the way on a board. */}
-              <section
-                className={clsx('flex min-h-[6rem] flex-1 flex-col rounded-2xl transition-shadow', dragOver && 'ring-2 ring-primary')}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setDragOver(true)
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setDragOver(false)
-                  void handleFiles(e.dataTransfer.files)
-                }}
-              >
-                <div className="mb-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <Label className="mb-0">
-                    Roster ({activeClass.students.length} {activeClass.students.length === 1 ? 'student' : 'students'})
-                  </Label>
-                  {activeClass.students.length > MAX_DESKS && (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                      <TriangleAlert size={13} />
-                      {activeClass.students.length - MAX_DESKS} more than the {MAX_DESKS} available desks
-                    </span>
-                  )}
-                  <div className="ml-auto flex gap-1.5">
-                    {/* Import is a short menu: a pasted list first (the quickest, with no file to
-                        save), then a file - Excel or CSV - and, signed in, Google Sheets. */}
-                    <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
-                      <Popover.Trigger asChild>
-                        <TactileButton className="!py-1.5" data-guide="import">
-                          <Upload size={16} /> Import <ChevronDown size={14} />
-                        </TactileButton>
-                      </Popover.Trigger>
-                      <Popover.Portal>
-                        <Popover.Content
-                          align="end"
-                          sideOffset={6}
-                          className="z-50 flex w-80 flex-col gap-0.5 rounded-2xl border border-black/5 bg-card p-1.5 text-card-foreground shadow-xl dark:border-white/10"
-                        >
-                          <ImportChoice
-                            icon={<ClipboardPaste size={20} className="text-primary" />}
-                            title="Paste a list"
-                            note="Copied from Excel or Google Sheets"
-                            onClick={() => {
-                              setImportOpen(false)
-                              setPasteText('')
-                            }}
-                          />
-                          <ImportChoice
-                            icon={<FileUp size={20} className="text-muted-foreground" />}
-                            title="From an Excel or CSV file"
-                            note="From this computer"
-                            onClick={() => {
-                              setImportOpen(false)
-                              fileInputRef.current?.click()
-                            }}
-                          />
-                          {cloud.account && (
-                            <>
-                              <ImportChoice
-                                icon={<GoogleG size={20} />}
-                                title="From a Google Sheet"
-                                note="A roster sheet in your Drive"
-                                onClick={() => openRosterSheets(false)}
-                              />
-                              <div className="mx-2 my-1 h-px bg-black/10 dark:bg-white/10" />
-                              <ImportChoice
-                                icon={<FilePlus2 size={20} className="text-emerald-600" />}
-                                title="Make a roster sheet"
-                                note="A ready-made Sheet to fill in, then import"
-                                onClick={() => openRosterSheets(true)}
-                              />
-                            </>
-                          )}
-                        </Popover.Content>
-                      </Popover.Portal>
-                    </Popover.Root>
-                    {/* The record, not the register: attendance is taken on the seating chart,
-                        with the side panel's button. This is for looking back, fixing a day, or
-                        marking someone away ahead of time. */}
-                    <TactileButton onClick={() => setAttendanceOpen(true)} className="!py-1.5" title="Who was away, day by day">
-                      <ClipboardCheck size={16} /> View / Edit Attendance
-                    </TactileButton>
-                    {/* Who had a turn, lesson by lesson: for looking back, and only ever here,
-                        never on the board (lib/participation). */}
-                    <TactileButton
-                      onClick={() => setParticipationOpen(true)}
-                      className="!py-1.5"
-                      title="Who was picked and given points, lesson by lesson"
-                    >
-                      <Hand size={16} /> Participation
-                    </TactileButton>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                    className="hidden"
-                    onChange={(e) => {
-                      void handleFiles(e.target.files)
-                      // Otherwise choosing the same file again (fixed and saved) does nothing at all.
-                      e.target.value = ''
-                    }}
-                  />
-                </div>
-                {importNote && (
-                  <div className="mb-1.5 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{importNote.text}</p>
-                    {/* The wrong list? One tap takes back exactly what it added. It stays until the
-                        window closes or the next import - nothing on a timer. */}
-                    {importNote.added && importNote.added.length > 0 && (
-                      <TactileButton onClick={takeOut} className="!px-3 !py-1 text-sm" data-take-out="">
-                        <Undo2 size={15} /> Take them out
-                      </TactileButton>
-                    )}
-                  </div>
-                )}
-                <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-black/10 dark:border-white/10">
-                  {activeClass.students.length === 0 ? (
-                    // An empty class says how to fill it, where the roster will be: the help where
-                    // it is needed, rather than in a walkthrough read once.
-                    <div className="flex flex-col items-center gap-3 p-5 text-center" data-guide="students-empty">
-                      <p className="text-lg font-bold text-foreground">Copy your student list from Excel and paste it here.</p>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        <TactileButton variant="primary" onClick={() => setPasteText('')}>
-                          <ClipboardPaste size={18} /> Paste a List
-                        </TactileButton>
-                        <TactileButton onClick={() => fileInputRef.current?.click()}>
-                          <FileUp size={18} /> Choose a File
-                        </TactileButton>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Names and homeroom numbers. Boy or Girl can wait. A new student who joins later can be added above.
-                      </p>
-                    </div>
-                  ) : (
-                    activeClass.students.map((s) => (
-                      <RosterRow
-                        key={s.id}
-                        student={s}
-                        seated={seatedIds.has(s.id)}
-                        editing={editingId === s.id}
-                        onEdit={() => setEditingId(s.id)}
-                        onCancelEdit={() => setEditingId(null)}
-                        onSave={(patch) => {
-                          onUpdateStudent(s.id, patch)
-                          setEditingId(null)
-                        }}
-                        onDelete={() => setConfirmingDeleteStudent(s)}
-                        onUnseat={() => onUnseatStudent(s.id)}
-                        onPickAvatar={() => setPickingAvatarFor(s)}
-                        showStars={starsWaitOnDesks(activeClass)}
-                      />
-                    ))
-                  )}
-                </ScrollArea>
-              </section>
-
-              {/* The foot is the seats, in the order a new class is set up after its roster.
-                  Seating, both ways, side by side: they are opposites, and used to sit at opposite
-                  ends of this window. Seat Students seats everyone still unseated, then closes. */}
-              <section className="flex shrink-0 items-center justify-end gap-2">
-                {/* A new seating plan in one tap, behind a confirm: the plan it replaces can't be
-                    brought back. */}
-                <TactileButton
-                  onClick={() => setConfirmingMixUp(true)}
-                  disabled={activeClass.students.length < 2}
-                  className={clsx('shrink-0', activeClass.students.length < 2 && 'opacity-40')}
-                  title="Give everyone a new, random seat"
-                >
-                  <Dices size={16} /> Mix Up Seats
-                </TactileButton>
-                <TactileButton
-                  onClick={() => setConfirmingUnseatAll(true)}
-                  disabled={seatedIds.size === 0}
-                  className={clsx('shrink-0', seatedIds.size === 0 && 'opacity-40')}
-                  title="Take every student out of their seat"
-                >
-                  <UserX size={16} /> Unseat All
-                </TactileButton>
-                <TactileButton
-                  variant="primary"
-                  data-guide="seat"
-                  disabled={unseatedCount === 0}
-                  className={clsx('shrink-0', unseatedCount === 0 && 'opacity-40')}
-                  title="Put every student without a desk into an empty one"
-                  onClick={() => {
-                    onSeatClass()
-                    closeAndReset()
-                  }}
-                >
-                  <GraduationCap size={18} />
-                  {unseatedCount === 0 ? 'Seat Students' : `Seat Students (${unseatedCount})`}
-                </TactileButton>
-              </section>
-            </>
-          ) : tab === 'class' ? (
-            <>
-              {/* This class's name and Delete Class share the top row: both are about this class.
-                  (New Class, which makes another, is by the window's title.) The name box is
-                  narrowed to leave room for the delete cover's note, and the cover sits level
-                  with the box's foot, beside the label rather than below it, so the row is no
-                  taller than the name. Delete stays behind its cover. */}
-              <section className="grid shrink-0 grid-cols-[minmax(0,20rem)_auto] justify-between gap-x-2">
-                <Label htmlFor="class-name" className="mb-1.5">
-                  Class Name
-                </Label>
-                <DangerCover
-                  open={guardOpen}
-                  onOpen={() => setGuardOpen(true)}
-                  onAutoClose={() => setGuardOpen(false)}
-                  className="col-start-2 row-span-2 row-start-1 self-end"
-                  note={['Delete Class…', 'Be careful!']}
-                >
-                  <TactileButton variant="danger" onClick={() => setConfirmingDelete(true)}>
-                    <Trash2 size={16} /> Delete Class
-                  </TactileButton>
-                </DangerCover>
-                <Input
-                  id="class-name"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value)
-                    setNameError(null)
-                  }}
-                  onBlur={commitRename}
-                  className={clsx('col-start-1 font-semibold', nameError && 'border-destructive focus-visible:ring-destructive')}
-                />
-                {nameError && <p className="col-start-1 mt-1 text-xs font-semibold text-destructive">{nameError}</p>}
-              </section>
-
-              <section className="shrink-0">
-                <Label className="mb-1.5">
-                  Theme <span className="font-normal">(changes every class)</span>
-                </Label>
-                <ThemePicker theme={theme} onSetTheme={onSetTheme} />
-              </section>
-
-              {/* Per class, unlike the theme: classes can meet in different rooms. The homeroom
-                  switch shares the heading row, so it costs the tab no height: at 1024x640 a row
-                  of its own fell below the window's edge. Off, a number shows only after a name
-                  two students share - the app finds them (lib/sameNames). */}
-              <section className="shrink-0" data-guide="layout">
-                <div className="mb-1.5 flex items-center gap-3">
-                  <Label>
-                    Room Layout <span className="font-normal">(this class)</span>
-                  </Label>
-                  <Label htmlFor="all-homerooms" className="ml-auto cursor-pointer">
-                    Homeroom on all desks
-                  </Label>
-                  <Switch
-                    id="all-homerooms"
-                    checked={activeClass.showAllHomerooms === true}
-                    onCheckedChange={onSetShowAllHomerooms}
-                    title={
-                      activeClass.showAllHomerooms
-                        ? 'Every desk shows its homeroom number.'
-                        : 'Only students with the same name show their homeroom number.'
-                    }
-                  />
-                </div>
-                <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
-              </section>
-            </>
-          ) : tab === 'points' ? (
-            <PickersPointsTab
-              {...pickersPoints}
-              // Leaving student points clears every desk's stars, so the teacher is asked first.
-              onSetPointsMode={(mode) => {
-                const starsOnDesks = activeClass.students.some((st) => (st.points ?? 0) > 0)
-                if (pointsModeOf(activeClass) === 'students' && starsOnDesks) setConfirmingPointsMode(mode)
-                else pickersPoints.onSetPointsMode(mode)
-              }}
-              onAskResetGoal={() => setConfirmingResetGoal(true)}
-              onAskClearStars={() => setConfirmingClearStars(true)}
-            />
-          ) : (
-            <GoogleTab activeClass={activeClass} cloud={cloud} onSwitchTeacher={onSwitchTeacher} />
-          )}
-        </div>
-      </Modal>
-
-      <ReplaceOrAdd
-        pending={pending}
-        current={activeClass.students.length}
-        newcomers={pending ? newcomers(pending.students).length : 0}
-        onAnswer={answerPending}
-      />
-
-      <ConfirmModal
-        open={confirmingUnseatAll}
-        title="Unseat All Students?"
-        message={`This will clear every desk in "${activeClass.name}" and move all students back to the unseated list. This can't be undone.`}
-        confirmLabel="Yes, Unseat All"
-        cancelLabel="No"
-        onCancel={() => setConfirmingUnseatAll(false)}
-        onConfirm={() => {
-          onUnseatAll()
-          setConfirmingUnseatAll(false)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingResetGoal}
-        title="Reset the class goal meter?"
-        message={`This empties "${activeClass.name}"'s shared meter back to 0.`}
-        confirmLabel="Yes, Reset Meter"
-        cancelLabel="No"
-        onCancel={() => setConfirmingResetGoal(false)}
-        onConfirm={() => {
-          onResetClassGoal()
-          setConfirmingResetGoal(false)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingClearStars}
-        title="Clear All Stars?"
-        message={`Every student in "${activeClass.name}" goes back to 0 stars. This can't be undone.`}
-        confirmLabel="Yes, Clear Them"
-        cancelLabel="No"
-        onCancel={() => setConfirmingClearStars(false)}
-        onConfirm={() => {
-          onClearDeskStars()
-          setConfirmingClearStars(false)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingPointsMode !== null}
-        title="Clear the students' stars?"
-        message={`Switching to ${confirmingPointsMode === 'goal' ? 'a class goal' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
-        confirmLabel="Yes, Switch"
-        cancelLabel="No"
-        onCancel={() => setConfirmingPointsMode(null)}
-        onConfirm={() => {
-          if (confirmingPointsMode) pickersPoints.onSetPointsMode(confirmingPointsMode)
-          setConfirmingPointsMode(null)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingMixUp}
-        title="Mix Up Seats?"
-        message={`Everyone in "${activeClass.name}" gets a new, random seat. The seating plan you have now can't be brought back.`}
-        confirmLabel="Yes, Mix Up"
-        cancelLabel="No"
-        onCancel={() => setConfirmingMixUp(false)}
-        onConfirm={() => {
-          onMixUpSeats()
-          // Closed, so the new plan is the first thing the teacher sees - as Seat Students does.
-          closeAndReset()
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingDeleteStudent !== null}
-        title="Remove Student?"
-        message={`This will permanently remove "${confirmingDeleteStudent?.name}" from "${activeClass.name}"'s roster${
-          confirmingDeleteStudent && seatedIds.has(confirmingDeleteStudent.id) ? ' and their seat' : ''
-        }. This can't be undone.`}
-        confirmLabel="Remove Student"
-        cancelLabel="No"
-        onCancel={() => setConfirmingDeleteStudent(null)}
-        onConfirm={() => {
-          if (confirmingDeleteStudent) onDeleteStudent(confirmingDeleteStudent.id)
-          setConfirmingDeleteStudent(null)
-        }}
-      />
-
-      <ConfirmModal
-        open={confirmingDelete}
-        title="Delete Class?"
-        message={`This will permanently delete "${activeClass.name}" and its entire roster and seating chart. This can't be undone.`}
-        confirmLabel="Delete Class"
-        requireTypedText={activeClass.name}
-        onCancel={() => setConfirmingDelete(false)}
-        onConfirm={() => {
-          onDeleteClass()
-          setConfirmingDelete(false)
-          onClose()
-        }}
-      />
-
-      <ParticipationModal
-        open={participationOpen}
-        onClose={() => setParticipationOpen(false)}
-        activeClass={activeClass}
-        onSetCount={onSetParticipation}
-        onClearDay={onClearParticipationDay}
-        onClearAll={onClearParticipation}
-      />
-
-      <AttendanceHistoryModal
-        open={attendanceOpen}
-        onClose={() => setAttendanceOpen(false)}
-        activeClass={activeClass}
-        onToggleAbsent={onToggleAbsentInRecord}
-        uid={cloud.account?.uid}
-      />
-
-      <PasteRosterModal open={pasteText !== null} initialText={pasteText ?? ''} onClose={() => setPasteText(null)} onAdd={addPasted} />
-
-      <RosterSheetsModal
-        open={sheetsOpen}
-        onClose={() => setSheetsOpen(false)}
-        drive={drive}
-        sheets={sheets}
-        onMakeSheet={makeSheet}
-        onImportSheet={importSheet}
-        imported={imported}
-      />
-
-      <ClassAvatarsModal
-        open={assigningAvatars}
-        students={activeClass.students}
-        onClose={() => setAssigningAvatars(false)}
-        onAssign={onAssignAvatars}
-      />
-
-      <AvatarPickerModal
-        open={pickingAvatarFor !== null}
-        student={pickingAvatarFor}
-        onClose={() => setPickingAvatarFor(null)}
-        onSelect={(avatarId) => {
-          if (pickingAvatarFor) onUpdateStudent(pickingAvatarFor.id, { avatarId })
-          setPickingAvatarFor(null)
-        }}
-      />
-    </>
-  )
-}
-
-/** One line of the Import menu: a big target, with what it does under the title. */
-function ImportChoice({ icon, title, note, onClick }: { icon: ReactNode; title: string; note: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-start gap-3 rounded-xl p-2.5 text-left hover:bg-accent active:scale-[0.99]"
-    >
-      <span className="mt-0.5 shrink-0">{icon}</span>
-      <span>
-        <span className="block font-bold text-foreground">{title}</span>
-        <span className="block text-sm text-muted-foreground">{note}</span>
-      </span>
-    </button>
-  )
-}
-
-interface RosterRowProps {
-  student: Student
-  seated: boolean
-  editing: boolean
-  onEdit: () => void
-  onCancelEdit: () => void
-  onSave: (patch: Partial<Omit<Student, 'id'>>) => void
-  onDelete: () => void
-  onUnseat: () => void
-  onPickAvatar: () => void
-  /**
-   * The class puts its stars on the desks first, so the roster shows the stars waiting on each
-   * desk and lets a miscount be fixed. Straight to the goal, a student has no stars of their own.
-   */
-  showStars: boolean
-}
-
-function RosterRow({
-  student,
-  seated,
-  editing,
-  onEdit,
-  onCancelEdit,
-  onSave,
-  onDelete,
-  onUnseat,
-  onPickAvatar,
-  showStars,
-}: RosterRowProps) {
-  const [name, setName] = useState(student.name)
-  const [homeroom, setHomeroom] = useState(student.homeroom)
-  const [gender, setGender] = useState<Gender>(student.gender)
-  const [points, setPoints] = useState(String(student.points ?? 0))
-
-  // Cancel throws the edit away, so opening the row again shows the student as they are.
-  function cancel() {
-    setName(student.name)
-    setHomeroom(student.homeroom)
-    setGender(student.gender)
-    setPoints(String(student.points ?? 0))
-    onCancelEdit()
-  }
-
-  function save() {
-    // A name wiped out by mistake keeps the old one: a desk with no name on it can't be read.
-    const kept = name.trim() || student.name
-    setName(kept)
-    onSave({ name: kept, homeroom: homeroom.trim(), gender, ...(showStars ? { points: Math.max(0, Number(points) || 0) } : {}) })
-  }
-
-  if (editing) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 border-b border-black/5 p-2 last:border-b-0 dark:border-white/5">
-        <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 min-w-[8rem] flex-1" />
-        <Input value={homeroom} onChange={(e) => setHomeroom(e.target.value)} className="h-8 w-24" />
-        <GenderSelect value={gender} onChange={setGender} className="h-8 w-auto" />
-        {/* Editable rather than a reset button: correcting a miscount ("that should be 1,
-            not 3") is the case that actually comes up, and typing 0 covers the reset. */}
-        {showStars && (
-          <div className="flex items-center gap-1">
-            <Star size={14} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
-            <Input
-              value={points}
-              onChange={(e) => setPoints(e.target.value.replace(/[^0-9]/g, ''))}
-              inputMode="numeric"
-              title="Stars"
-              className="h-8 w-16"
-            />
-          </div>
-        )}
-        <TactileButton variant="primary" onClick={save}>
-          Save
-        </TactileButton>
-        <TactileButton onClick={cancel}>Cancel</TactileButton>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-2 border-b border-black/5 p-2 last:border-b-0 hover:bg-black/[0.02] dark:border-white/5 dark:hover:bg-white/[0.04]">
+      {section.group !== undefined &&
+        (section.group ? <div className="cs-nav-label">{section.group}</div> : <div className="cs-nav-gap" />)}
       <button
         type="button"
-        onClick={onPickAvatar}
-        title="Choose an avatar"
-        className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm dark:border-white/10"
+        className="cs-nav-item"
+        data-section-link={section.id}
+        aria-current={current ? 'page' : undefined}
+        onClick={onClick}
       >
-        {hasNoAvatar(student) ? (
-          <NoAvatarPicture className="h-full w-full" />
-        ) : (
-          <img src={resolveAvatarSrc(student) ?? undefined} alt="" draggable={false} className="h-full w-full object-contain select-none" />
-        )}
+        <span className="cs-ic">
+          <Icon size={20} />
+        </span>
+        {section.label}
       </button>
-      <span className="flex-1 truncate font-semibold text-foreground">{student.name}</span>
-      {showStars && (student.points ?? 0) > 0 && (
-        <Badge variant="secondary" className="gap-1">
-          <Star size={11} className="shrink-0 fill-amber-500 text-amber-500" strokeWidth={0} />
-          {student.points}
-        </Badge>
-      )}
-      <Badge variant="secondary">Room {student.homeroom || '-'}</Badge>
-      {seated && (
-        <button
-          onClick={onUnseat}
-          title="Remove from seat"
-          className="rounded-full p-1.5 text-neutral-400 hover:bg-amber-100 hover:text-amber-600 dark:hover:bg-amber-500/15"
-        >
-          <Armchair size={16} />
-        </button>
-      )}
-      <button onClick={onEdit} className="rounded-full p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-        <Pencil size={16} />
-      </button>
-      <button
-        onClick={onDelete}
-        className="rounded-full p-1.5 text-neutral-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-500/15"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  )
-}
-
-/**
- * A list brought into a class that already has students: replace them with it, or add the new
- * names to them. Replace is what a teacher means after importing the wrong roster; Add is what
- * they mean after fixing a line in the right one. Tapping outside, or Cancel, changes nothing.
- */
-function ReplaceOrAdd({
-  pending,
-  current,
-  newcomers,
-  onAnswer,
-}: {
-  pending: { students: Omit<Student, 'id'>[] } | null
-  current: number
-  newcomers: number
-  onAnswer: (choice: 'replace' | 'add' | 'cancel') => void
-}) {
-  const listed = pending?.students.length ?? 0
-  return (
-    <AlertDialog open={pending !== null} onOpenChange={(next) => !next && onAnswer('cancel')}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            This class has {current} {current === 1 ? 'student' : 'students'}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            Replace them with the {listed} in your list, or add the {newcomers} new {newcomers === 1 ? 'one' : 'ones'} to them?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="flex-wrap gap-2">
-          <AlertDialogCancel onClick={() => onAnswer('cancel')}>Cancel</AlertDialogCancel>
-          <TactileButton onClick={() => onAnswer('add')} data-import-add="">
-            <Plus size={16} /> Add to them
-          </TactileButton>
-          <TactileButton variant="primary" onClick={() => onAnswer('replace')} data-import-replace="">
-            <Upload size={16} /> Replace them
-          </TactileButton>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    </>
   )
 }

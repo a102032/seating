@@ -3,7 +3,7 @@ import type { useDrive } from '../hooks/useDrive'
 import type { DriveFile } from '../lib/drive'
 import { Modal } from './Modal'
 import { TactileButton } from './TactileButton'
-import { DriveLink, DriveProblem } from './GoogleTab'
+import { DriveLink, DriveProblem } from './settings/GoogleSection'
 
 interface RosterSheetsModalProps {
   open: boolean

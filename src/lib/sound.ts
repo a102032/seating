@@ -666,17 +666,6 @@ export function playStatusDone() {
   playTone(ctx, master, { frequency: 1975.5, start: 0.07, duration: 0.5, type: 'sine', peakGain: 0.18 })
 }
 
-/** The safety cover's plastic snap as it flips open. */
-export function playDeleteCoverOpen() {
-  const ctx = getContext()
-  const master = ctx.createGain()
-  master.gain.value = 1
-  master.connect(ctx.destination)
-
-  playNoiseBurst(ctx, master, 0, 0.03, 0.5)
-  playTone(ctx, master, { frequency: 1800, start: 0, duration: 0.04, type: 'square', peakGain: 0.25 })
-}
-
 export const ALARM_SOUND_LABELS: Record<AlarmSound, string> = {
   ding: 'Ding',
   chime: 'Chime',

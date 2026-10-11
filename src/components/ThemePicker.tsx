@@ -1,5 +1,4 @@
 import { Check } from 'lucide-react'
-import clsx from 'clsx'
 import { THEME_OPTIONS, type Theme } from '../lib/theme'
 
 interface ThemePickerProps {
@@ -17,7 +16,7 @@ const AVATAR_DOTS = ['#f59e0b', '#22c55e', '#ec4899', '#3b82f6', '#a855f7', '#f9
  */
 function ThemeThumbnail({ theme }: { theme: Theme }) {
   return (
-    <span data-theme-preview={theme} className="relative flex h-[4.75rem] w-full gap-1 overflow-hidden rounded-lg p-1.5">
+    <span data-theme-preview={theme} className="cs-pic-art relative !flex gap-1 p-1.5">
       <span
         data-preview="panel"
         className="flex w-[24%] shrink-0 flex-col gap-1 rounded-md p-1"
@@ -40,29 +39,21 @@ function ThemeThumbnail({ theme }: { theme: Theme }) {
   )
 }
 
+/** This class's own colours (2026-10-11, the teacher: "Pick a color theme for this class"). */
 export function ThemePicker({ theme, onSetTheme }: ThemePickerProps) {
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+    <div className="cs-pics cs-themes cs-fill">
       {THEME_OPTIONS.map((opt) => {
         const active = opt.id === theme
         return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => onSetTheme(opt.id)}
-            aria-pressed={active}
-            className={clsx(
-              'relative flex flex-col items-center gap-1 rounded-xl border-2 p-1 transition-colors active:scale-[0.97]',
-              active ? 'border-primary bg-accent' : 'border-transparent hover:bg-accent/60',
-            )}
-          >
+          <button key={opt.id} type="button" className="cs-pic" onClick={() => onSetTheme(opt.id)} aria-pressed={active}>
             <ThemeThumbnail theme={opt.id} />
             {active && (
-              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                <Check size={13} strokeWidth={3} />
+              <span className="cs-tick">
+                <Check strokeWidth={3.5} />
               </span>
             )}
-            <span className="text-center text-xs leading-tight font-semibold text-foreground">{opt.label}</span>
+            <span>{opt.label}</span>
           </button>
         )
       })}

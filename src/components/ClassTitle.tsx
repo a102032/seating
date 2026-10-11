@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Settings } from 'lucide-react'
+import { Check, ChevronDown, Plus, Settings } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useShrinkToFit } from '../hooks/useShrinkToFit'
 import type { ClassData } from '../types'
@@ -11,6 +11,8 @@ interface ClassTitleProps {
   activeClassId: string | null
   onSelectClass: (id: string) => void
   onOpenSettings: () => void
+  /** Another class, from the foot of the class list; null when the teacher has the most there can be. */
+  onNewClass: (() => void) | null
   /** Swap Seats or Attendance is on: a desk tap is the only thing that answers. */
   disabled: boolean
   /** Settings also stands down while students are at a locked board. */
@@ -25,13 +27,25 @@ interface ClassTitleProps {
  * meter is the class's, these are the teacher's. The class list drops down over the board from
  * the window's edge.
  */
-export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettings, disabled, settingsDisabled, side }: ClassTitleProps) {
+export function ClassTitle({
+  classes,
+  activeClassId,
+  onSelectClass,
+  onOpenSettings,
+  onNewClass,
+  disabled,
+  settingsDisabled,
+  side,
+}: ClassTitleProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
   const activeClass = classes.find((c) => c.id === activeClassId)
   // The name shares its row with the class switcher and the settings gear, so a name that still
   // doesn't fit gives up a little size before it gives up letters.
   const nameRef = useShrinkToFit<HTMLSpanElement>(activeClass?.name, 0.75)
+  // The list holds the other classes and New Class (2026-10-11: New Class left Class Settings' title
+  // bar), so it is there with one class too, unless there can be no more.
+  const hasList = classes.length > 1 || onNewClass !== null
 
   useEffect(() => {
     if (disabled) setListOpen(false)
@@ -57,12 +71,13 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
         >
           {activeClass?.name}
         </span>
-        {classes.length > 1 && (
+        {hasList && (
           <button
             type="button"
             onClick={() => setListOpen((v) => !v)}
             disabled={disabled}
             title="Switch class"
+            data-class-list-button=""
             className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           >
             <motion.span animate={{ rotate: listOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="block">
@@ -94,7 +109,7 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
         on a board that gives the app 1280x559 it pushed Pick All and +/- off the bottom. A tap
         anywhere else closes it.
       */}
-      {listOpen && classes.length > 1 && (
+      {listOpen && hasList && (
         <button
           type="button"
           aria-label="Close the class list"
@@ -103,7 +118,7 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
         />
       )}
       <AnimatePresence initial={false}>
-        {listOpen && classes.length > 1 && (
+        {listOpen && hasList && (
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -115,23 +130,44 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
               side === 'left' ? 'right-0' : 'left-0',
             )}
           >
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5" data-class-list="">
               {classes.map((cls) => (
                 <button
                   key={cls.id}
                   type="button"
                   onClick={() => requestSwitch(cls)}
-                  className={clsx(
-                    'w-full truncate rounded-xl px-3 py-2 text-left font-semibold transition-colors active:scale-[0.98]',
-                    cls.id === activeClassId
-                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                  )}
+                  aria-current={cls.id === activeClassId ? 'true' : undefined}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left font-bold transition-colors hover:bg-secondary active:scale-[0.98]"
                   style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
                 >
-                  {cls.name}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{cls.name}</span>
+                    <span className="block text-[0.8em] font-normal text-muted-foreground">
+                      {cls.students.length
+                        ? `${cls.students.length} ${cls.students.length === 1 ? 'student' : 'students'}`
+                        : 'No students yet'}
+                    </span>
+                  </span>
+                  {cls.id === activeClassId && <Check size={18} className="shrink-0 text-primary" />}
                 </button>
               ))}
+              {onNewClass && (
+                <>
+                  <div className="mx-2 my-1 h-px bg-border" />
+                  <button
+                    type="button"
+                    data-new-class=""
+                    onClick={() => {
+                      setListOpen(false)
+                      onNewClass()
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left font-bold text-secondary-foreground transition-colors hover:bg-secondary active:scale-[0.98]"
+                    style={{ fontSize: 'clamp(0.8rem, 1.5vmin, 1.05rem)' }}
+                  >
+                    <Plus size={18} /> New Class
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         )}

@@ -77,12 +77,12 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - Google Drive and Sheets: `lib/drive.ts` (the folder, the roster sheet, reading a sheet, the attendance Sheet, the
   picture upload, error words), `hooks/useDrive.ts` (one action at a time, with its link or its problem),
   `lib/chartPicture.ts` (the seating chart picture, drawn on a canvas from the class's plan),
-  `components/GoogleTab.tsx` (Class Settings' third tab) and `components/RosterSheetsModal.tsx`. Only Google's
+  `components/settings/GoogleSection.tsx` (Class Settings' Google section) and `components/RosterSheetsModal.tsx`. Only Google's
   drive.file permission; every Drive action starts from a tap, because Google's window may need to open.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks (its round of students is kept with the class, `pickRound`).
   `useGroupPicker.ts`: the same during Group Activity.
 - `src/lib/participation.ts`: who had a turn - the record of picks and points, day by day, for the teacher only (never on the
-  board), and `pickChances`, the better chance the pickers give students picked less often. `components/ParticipationModal.tsx`
+  board), and `pickChances`, the better chance the pickers give students picked less often. `components/settings/ParticipationSection.tsx`
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
 - Points, per class (`pointsMode`, read through `lib/points.ts`: `pointsModeOf`, `goalIsLive`, `starsWaitOnDesks`): a class
   goal (the default, where the Quest will live), student points (each student's own stars on their desk, until Clear All
@@ -97,13 +97,16 @@ checks the live URL. Confirm it went green before saying something is live. It a
     the pickers' grids in `PickerIcons.tsx`): Float, Get Ready!, the timer, Attendance, Swap Seats, the three pickers, Flip
     Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
-  - `ClassTitle.tsx`: the class name, switcher and Class Settings gear (the app's one gear), in its own tab in the top corner
-    away from the rail, an aisle apart from the goal meter (`lib/topBar.ts`), with the meter or without.
+  - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
+    gear), in its own tab in the top corner away from the rail, an aisle apart from the goal meter (`lib/topBar.ts`), with the meter or without.
+  - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`SECTIONS`: Class, Students, Avatars,
+    Points; Tools; Attendance, Participation; Google), each in `components/settings/` and built from `settings/parts.tsx`, laid out
+    by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of
+    thing scrolls. Every change saves as it is made, and Done closes it. Help in its title bar: the guide and the tour.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
-  - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
+  - `FlipDeck.tsx` / `FlipCard.tsx`: flip cards (their settings are in Class Settings' Tools, which their gear opens).
   - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its
     colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away.
-  - `PickersPointsTab.tsx`: the Pickers & Points tab of Class Settings (the class goal and the pickers' settings).
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity. Groups are made from the seats in
     `lib/seatGroups.ts` (pairs side by side, squares of four, the room cut into patches); `lib/groups.ts` deals them and Shuffle mixes.
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
@@ -113,12 +116,15 @@ checks the live URL. Confirm it went green before saying something is live. It a
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`), with +1, Pick and Get Ready!
     (`FloatGetReady.tsx`, the app's own star in the window grown big). CSS animations only in there, and timers on the
     floating window's own clock (`win.setTimeout`): the app's page behind the lesson gets about one timer a second.
-  - `AttendanceHistoryModal.tsx` (the record, opened from Class Settings) and `AbsentIcon.tsx` (the zzz).
+  - `settings/AttendanceSection.tsx` (the record, in Class Settings) and `AbsentIcon.tsx` (the zzz).
   - `PasteRosterModal.tsx`: a list pasted in from Excel or a Google Sheet. `lib/csv.ts` finds the columns in a paste, a CSV or an
     Excel file (`lib/xlsx.ts` reads an .xlsx in the browser, loaded only when one is chosen).
   - `ChooseAvatars.tsx`: Choose Your Avatar, the bar over the board and the big two-step picker a child uses at their desk.
-  - `SetupGuide.tsx`: the guided first setup, a faded screen with a lit hole and a bubble; its steps, and when it starts, are in
-    `lib/setupGuide.ts`. Anything new it points at carries a `data-guide` mark.
+  - `SetupGuide.tsx`: the guide through Class Settings, one thing lit and the rest faded and closed to taps, a bubble with Skip
+    and Next; its steps (by section, and a new class's whole walk) are in `lib/setupGuide.ts`. Anything it points at carries a
+    `data-guide` mark. `Tour.tsx`: the tour of the app, pictures of each screen with one thing lit; its parts and words are in
+    `lib/tour.ts`, its pictures in `public/tour/` and where things are in them in `lib/tourRects.json`, both made by
+    `scripts/tour-shots.mjs` - take them again when one of those screens changes.
   - `ui/`: shadcn primitives.
 - `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it
   to land (`starsLandingIn`) before the coin moves.
