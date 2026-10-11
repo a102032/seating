@@ -157,6 +157,16 @@ async function openPointsTab(page) {
   await page.getByRole('tab', { name: 'Pickers & Points' }).click()
 }
 
+/**
+ * A refresh mid-lesson goes straight back to the class (lib/resume): same tab, same teacher, same
+ * day. The splash coming back is a failure.
+ */
+async function refresh(page) {
+  await page.reload()
+  await page.waitForTimeout(600)
+  if (await page.locator('.splash-board').count()) throw new Error('a refresh went back to the splash')
+}
+
 /** How far past the screen the page and the side panel run. 0 is the rule. */
 async function overflow(page) {
   return page.evaluate(() => {
@@ -439,6 +449,56 @@ const scenarios = {
       Object.values(overTables).every((v) => v <= 0),
       JSON.stringify(overTables),
     )
+    return page
+  },
+
+  /**
+   * A refresh goes back to the class that was open, not the splash (2026-10-11, the teacher). The
+   * splash is still how the app opens: a new tab, the next day, or nobody signed in.
+   */
+  async 'a refresh goes back to the class'() {
+    const page = await open({
+      state: stateOf(makeClass('c1', 'Grade 4 English', 20), makeClass('c2', 'Grade 3 Phonics', 18)),
+      size: [1280, 559],
+    })
+    const splash = () => page.locator('.splash-board').count()
+    const className = () => page.locator('[data-ink="class-name"]').innerText()
+    await page.reload()
+    await page.waitForTimeout(800)
+    check(
+      'refresh: straight back to the class, no splash',
+      (await splash()) === 0 && (await className()) === 'Grade 4 English',
+      await className(),
+    )
+    // The next day starts at the splash, as opening the app always has.
+    await page.evaluate(() => {
+      const note = JSON.parse(sessionStorage.getItem('seating-chart-in-class-v1'))
+      sessionStorage.setItem('seating-chart-in-class-v1', JSON.stringify({ ...note, day: '2020-01-01' }))
+    })
+    await page.reload()
+    await page.waitForTimeout(800)
+    check('refresh: the next day starts at the splash', (await splash()) === 1)
+    await page.locator('.splash-board button', { hasText: 'Grade 3 Phonics' }).click()
+    await page.waitForTimeout(900)
+    await page.reload()
+    await page.waitForTimeout(800)
+    check(
+      'refresh: back to the class chosen on the splash',
+      (await splash()) === 0 && (await className()) === 'Grade 3 Phonics',
+      await className(),
+    )
+    check('refresh: no errors', page.errors.length === 0, page.errors[0] ?? '')
+    // Another tab is opening the app.
+    const other = await page.context().newPage()
+    await other.goto(URL)
+    await other.waitForTimeout(800)
+    check('refresh: a new tab starts at the splash', (await other.locator('.splash-board').count()) === 1)
+    await other.close()
+    // Nobody signed in: the splash, with Sign in.
+    await page.evaluate(() => localStorage.removeItem('seating-chart-account-v1'))
+    await page.reload()
+    await page.waitForTimeout(800)
+    check('refresh: signed out, the splash', (await splash()) === 1)
     return page
   },
 
@@ -778,8 +838,7 @@ const scenarios = {
       await page.waitForTimeout(2600)
       await desk(page, 'Amy').click()
       if (i === 0) {
-        await page.reload()
-        await page.locator('.splash-board button').first().click()
+        await refresh(page)
         await page.waitForTimeout(800)
       }
     }
@@ -864,8 +923,7 @@ const scenarios = {
       c.students[0].points === 1 && c.students[1].points === 1 && !c.students[3].points && c.classPoints === 10,
       `Amy ${c.students[0].points}, Tony ${c.students[1].points}, Mulan ${c.students[3].points}, meter ${c.classPoints}`,
     )
-    await page.reload()
-    await page.locator('.splash-board button').first().click()
+    await refresh(page)
     await page.waitForTimeout(800)
     const button = page.getByRole('button', { name: /All Stars In/ })
     check('stars on the desks: still there after a reload', /2/.test(await button.innerText()))
@@ -1230,8 +1288,7 @@ const scenarios = {
     await page.getByRole('button', { name: /^3/ }).first().click()
     await page.waitForTimeout(4500)
     await page.locator('[data-group-id] button[title="Give a point"]').first().click()
-    await page.reload()
-    await page.locator('.splash-board button').first().click()
+    await refresh(page)
     await page.waitForTimeout(900)
     await panelButton(page, 'Group Activity').click()
     await page.waitForTimeout(600)
@@ -1244,8 +1301,7 @@ const scenarios = {
     await page.waitForTimeout(800)
     await page.locator('[data-timer-card] button[aria-label="Start"]').click()
     await page.waitForTimeout(1200)
-    await page.reload()
-    await page.locator('.splash-board button').first().click()
+    await refresh(page)
     await page.waitForTimeout(900)
     check('reload mid-timer: no errors', page.errors.length === 0, page.errors[0] ?? '')
     return page

@@ -35,6 +35,7 @@ import { studentsAsShown } from './lib/stickers'
 import { applyTheme, chooseTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
+import { rememberInClass, resumesInClass } from './lib/resume'
 import { type Student } from './types'
 
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
@@ -172,11 +173,16 @@ export default function App() {
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   const [theme, setTheme] = useState<Theme>(loadTheme)
   /**
-   * The splash is up until the teacher starts a class, on every open rather than once.
-   * Opening this app is something a teacher does at the top of a lesson, so a deliberate
-   * "start" is the moment they're already having - and it costs one tap to get past.
+   * The splash is up until the teacher starts a class, every time the app is opened rather than
+   * once. Opening this app is something a teacher does at the top of a lesson, so a deliberate
+   * "start" is the moment they're already having - and it costs one tap to get past. A refresh
+   * isn't opening it: the same tab, the same teacher and the same day go straight back to the
+   * class (lib/resume).
    */
-  const [splashOpen, setSplashOpen] = useState(true)
+  const [splashOpen, setSplashOpen] = useState(() => !(activeClass && resumesInClass(cloud.account?.uid)))
+  useEffect(() => {
+    if (!splashOpen) rememberInClass(cloud.account?.uid)
+  }, [splashOpen, cloud.account?.uid])
   /** The class goal in its own small window over the lesson, so a point doesn't mean switching apps. */
   const { win: floatWin, open: openFloat, close: closeFloat } = useFloatingWindow(theme)
   const appInFront = useAppInFront()

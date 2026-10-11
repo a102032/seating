@@ -150,6 +150,14 @@ const pointsOf = async (page, className, student) => {
   )
 }
 const syncMark = (page) => page.locator('aside [data-sync]').getAttribute('data-sync')
+/**
+ * Opening the app again in the same tab. A plain refresh goes straight back to the class that was
+ * open (lib/resume), so the note that says so is dropped first, as closing the tab would.
+ */
+async function reopen(page) {
+  await page.evaluate(() => sessionStorage.removeItem('seating-chart-in-class-v1'))
+  await page.reload()
+}
 
 async function signIn(page, who) {
   await page.evaluate((w) => (window.__testGoogle = w), who)
@@ -437,7 +445,7 @@ try {
     check('first sign-in: a brand-new teacher goes straight to Class Settings, on the Class tab', Boolean(setUp))
     await shot(pc, '11-first-sign-in')
     // The next day: her class, New Class and Switch Teacher, nothing else.
-    await pc.reload()
+    await reopen(pc)
     const greeted = await waitFor(async () => greets(await splashText(pc), 'Teacher Amy'))
     check(
       'title: "Teacher Amy Chen" is welcomed as Teacher Amy',
@@ -458,7 +466,7 @@ try {
       const a = JSON.parse(localStorage.getItem('seating-chart-account-v1'))
       localStorage.setItem('seating-chart-account-v1', JSON.stringify({ ...a, firstName: 'Teacher' }))
     })
-    await pc.reload()
+    await reopen(pc)
     const fixed = await waitFor(async () => greets(await splashText(pc), 'Teacher Amy'))
     check('title: a board that saved "Teacher" greets Teacher Amy once it has checked the sign-in', Boolean(fixed))
     const kept = await pc.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-account-v1')).firstName)
@@ -484,7 +492,7 @@ try {
       sessionStorage.removeItem('drop-firebase-sign-in')
       indexedDB.deleteDatabase('firebaseLocalStorageDb')
     })
-    await pc.reload()
+    await reopen(pc)
     await pc.waitForTimeout(2500)
     const splash = await splashText(pc)
     check(
@@ -497,7 +505,7 @@ try {
     await openClass(pc, 'Grade 4 English')
     const down = await waitFor(async () => (await syncMark(pc)) === 'error')
     check("reconnect: closing Google's window still opens the class, with the Saved mark amber", Boolean(down), String(await syncMark(pc)))
-    await pc.reload()
+    await reopen(pc)
     await pc.waitForTimeout(2500)
     await pc.evaluate((w) => (window.__testGoogle = w), DEREK)
     await openClass(pc, 'Grade 4 English')

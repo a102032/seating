@@ -11,6 +11,7 @@ import {
 } from '../lib/cloud'
 import type { Snapshot } from '../lib/firebase'
 import { replaceLocalState } from '../lib/localStore'
+import { forgetInClass } from '../lib/resume'
 import type { ClassData } from '../types'
 
 /**
@@ -463,6 +464,8 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
     record.current = null
     saveAccount(null)
     replaceLocalState(takeBoardStash())
+    // The next teacher starts at the splash, not in a class that was open a moment ago.
+    forgetInClass()
     location.reload()
   }, [flush])
 
