@@ -97,8 +97,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
     the pickers' grids in `PickerIcons.tsx`): Float, Get Ready!, the timer, Attendance, Swap Seats, the three pickers, Flip
     Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
-  - `ClassTitle.tsx`: the class name, switcher and Class Settings gear (the app's one gear), at the far end of the bar along
-    the top (`lib/topBar.ts`), with the goal meter or without.
+  - `ClassTitle.tsx`: the class name, switcher and Class Settings gear (the app's one gear), in its own tab in the top corner
+    away from the rail, an aisle apart from the goal meter (`lib/topBar.ts`), with the meter or without.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
   - `FlipDeck.tsx` / `FlipCard.tsx` / `FlipDeckSettingsModal.tsx`: flip cards.
   - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its

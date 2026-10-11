@@ -440,7 +440,7 @@ function TimerChoices({ t, onBack }: { t: TimerState; onBack: () => void }) {
  * with pause or play and X, the way Windows puts a window on the taskbar. A tap on the time opens
  * it big again where it was. Red and breathing when the time is up, until it is tapped.
  */
-export function TimerClock() {
+export function TimerClock({ frame }: { frame?: string }) {
   const view = useTimer((s) => s.view)
   const up = useTimer((s) => s.up)
   const running = useTimer((s) => s.running)
@@ -449,7 +449,7 @@ export function TimerClock() {
   const act = (fn: () => void) => () => {
     if (fresh()) fn()
   }
-  return (
+  const clock = (
     <div className={clsx('timer-clock', up && 'up')} data-timer-clock="">
       <button type="button" className="timer-open" onClick={act(timer.open)} aria-label="Open the timer" title="Open the timer">
         <span className="timer-digits">{up ? 'Time’s up!' : timeText(left)}</span>
@@ -468,6 +468,14 @@ export function TimerClock() {
         <CloseIcon />
       </button>
     </div>
+  )
+  // With no goal meter to sit at the start of, the clock is a little piece of the top row itself.
+  return frame ? (
+    <div data-ink="panel" className={frame}>
+      {clock}
+    </div>
+  ) : (
+    clock
   )
 }
 

@@ -26,19 +26,13 @@ interface PointsMeterProps {
   /** Whether a filled goal is waiting for the app to come back, so the floating window can say so. */
   onWaitingChange: (waiting: boolean) => void
   /**
-   * The class's name, with its switcher and settings gear (ClassTitle), at the meter's end: the
-   * one thing beside the meter, and a quiet one. Float and All Stars In! were here and went to
-   * the side, because buttons beside the meter took the eye from it.
-   */
-  title: ReactNode
-  /**
    * Get Ready! is ending with stars on their way: the meter comes up above the faded board, so the
    * class sees them land in it.
    */
   lifted?: boolean
   /** The timer, put away as a clock at the bar's start (BigTimer.tsx). */
   leading?: ReactNode
-  /** Which side the rail is on: the bar meets the window's edge on the other. */
+  /** Which side the rail is on, so the put-away clock sits at the end by the rail's timer button. */
   side: 'left' | 'right'
 }
 
@@ -69,7 +63,6 @@ export function PointsMeter({
   onOpenGoalSettings,
   holdCelebration,
   onWaitingChange,
-  title,
   lifted = false,
   leading,
   side,
@@ -247,7 +240,7 @@ export function PointsMeter({
       data-ink="panel"
       data-side={side}
       className={clsx(
-        barClass(side),
+        barClass(),
         'transition-shadow',
         open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
         // Above Get Ready!'s faded board (z-55), under the stars flying in (z-60). Only to be
@@ -345,8 +338,6 @@ export function PointsMeter({
       >
         {displayPoints} / {goal}
       </span>
-
-      {title}
 
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}

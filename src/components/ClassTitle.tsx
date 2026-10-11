@@ -15,15 +15,17 @@ interface ClassTitleProps {
   disabled: boolean
   /** Settings also stands down while students are at a locked board. */
   settingsDisabled: boolean
+  /** Which side the rail is on: the tab is in the far corner, and the class list opens from that edge. */
+  side: 'left' | 'right'
 }
 
 /**
- * The class's name, with the class switcher's arrow and the gear for Class Settings beside it, at
- * the far end of the bar along the top: it labels the goal meter, and with no goal it has the bar
- * to itself. Held to half the bar, so the meter keeps its room; the class list drops down over the
- * board from the right.
+ * The class's name, with the class switcher's arrow and the gear for Class Settings beside it, in
+ * its own tab in the top corner away from the rail (lib/topBar), apart from the goal meter: the
+ * meter is the class's, these are the teacher's. The class list drops down over the board from
+ * the window's edge.
  */
-export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettings, disabled, settingsDisabled }: ClassTitleProps) {
+export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettings, disabled, settingsDisabled, side }: ClassTitleProps) {
   const [listOpen, setListOpen] = useState(false)
   const [switchTarget, setSwitchTarget] = useState<ClassData | null>(null)
   const activeClass = classes.find((c) => c.id === activeClassId)
@@ -45,8 +47,7 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
 
   return (
     // relative and above what is below, so the class list can open over it.
-    // A hairline sets it apart from the count, so "32 / 50" and the name don't run together.
-    <div className="relative z-30 ml-auto min-w-0 max-w-[50%] shrink border-l border-border pl-2">
+    <div className="relative z-30 min-w-0">
       <div className="relative z-30 flex items-center gap-1">
         <span
           ref={nameRef}
@@ -109,7 +110,10 @@ export function ClassTitle({ classes, activeClassId, onSelectClass, onOpenSettin
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
             data-ink="menu"
-            className="absolute right-0 top-full z-30 mt-1.5 w-[clamp(14rem,24vmin,20rem)] rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
+            className={clsx(
+              'absolute top-full z-30 mt-1.5 w-[clamp(14rem,24vmin,20rem)] rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl',
+              side === 'left' ? 'right-0' : 'left-0',
+            )}
           >
             <div className="flex flex-col gap-1">
               {classes.map((cls) => (

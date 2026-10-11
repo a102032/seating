@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClassSettingsModal, type SettingsTab } from './components/ClassSettingsModal'
+import clsx from 'clsx'
 import { ChooseAvatarBanner, ChooseAvatarPicker } from './components/ChooseAvatars'
 import { ClassTitle } from './components/ClassTitle'
 import { GetReady } from './components/GetReady'
@@ -14,7 +15,7 @@ import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
 import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
-import { barClass } from './lib/topBar'
+import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
@@ -762,6 +763,7 @@ export default function App() {
       onOpenSettings={() => openSettings()}
       disabled={swapMode || attendanceMode || choosingAvatars}
       settingsDisabled={groupActivityOpen && groupsLocked}
+      side={panelSide}
     />
   )
 
@@ -831,10 +833,15 @@ export default function App() {
           {sideRail}
         </div>
 
-        {/* The bar: the goal meter with the class's name at its end, or the name alone with no goal -
-            a meter on screen is a meter the class will ask about every lesson, whether or not the
-            teacher wanted one. The timer, put away, is a clock at its start. */}
-        <div className="min-w-0" style={{ gridArea: 'bar' }}>
+        {/* The row along the top: the goal meter by the rail, an aisle, and the class's name and gear
+            in a tab in the far corner (2026-10-11, the teacher's mock-up). With no goal there is no
+            meter - a meter on screen is one the class will ask about every lesson, whether or not
+            the teacher wanted one - and the timer, put away, is a piece of its own by the rail. */}
+        <div
+          data-side={panelSide}
+          className={clsx('flex min-w-0', ROW_GAP, panelSide === 'left' ? 'flex-row' : 'flex-row-reverse')}
+          style={{ gridArea: 'bar' }}
+        >
           {goalLive ? (
             <PointsMeter
               classId={activeClass.id}
@@ -848,14 +855,16 @@ export default function App() {
               lifted={meterLifted}
               side={panelSide}
               leading={<TimerClock />}
-              title={classTitle}
             />
           ) : (
-            <div data-ink="panel" data-side={panelSide} className={barClass(panelSide)}>
-              <TimerClock />
-              {classTitle}
-            </div>
+            <>
+              <TimerClock frame={clockPieceClass} />
+              <div className="flex-1" />
+            </>
           )}
+          <div data-ink="panel" data-class-tab="" className={tabClass(panelSide)}>
+            {classTitle}
+          </div>
         </div>
 
         <div
