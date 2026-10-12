@@ -30,7 +30,7 @@ screen shape from 1024x500 to 1920x1080; separate pieces can.
 
 | What | Made by |
 |---|---|
-| Guardians, the class's marker on the trail, map landmarks, the five chests (closed and open), the key | The teacher, in Gemini, from the prompts here |
+| Guardians, the class's marker on the trail, map landmarks, the five chests (closed and open), the key | The teacher, in Google Flow (or Gemini), from the prompts here |
 | Prize pictures on the wheel (crayons, a book, a film, balloons...) | Flaticon, the app's own style |
 | Parchment, trail, wheel, ribbons, shadows, glows, sparkles | Code |
 | Cutting pictures out, tracing them to SVG, splitting them into moving parts | Claude, here |
@@ -99,5 +99,30 @@ Draw these five things spread out across the sheet, well apart, none touching or
 Plain, flat, pure white background. No ground, no shadows under them, no scenery behind them, no words, no labels, no numbers, no frame, no checkerboard. Wide picture, 16:9.
 ```
 
-The prompts after it (the dragon's pose sheet, the chests, the landmarks, the marker) are written once the style
-test is chosen.
+### What the first try taught (2026-10-12)
+
+Gemini didn't manage the sheet; **Google Flow** made a three-view sheet of the dragon that kept it exactly the same
+in every view, which is the skill the pose sheets need. Its face is right: friendly, big eyes, readable as a dragon
+even at thumbnail size, on a clean white that cuts out in seconds. What was off:
+
+- **Outlines and line detail** (a dark line round every shape, scale marks, belly stripes, wing ribs). Beside the
+  app's flat chest it looked like a different game, and traced it came out with wobbly, broken lines in 315 shapes
+  (about 350 KB, where the chest is 2 KB).
+- **A realistic body**: a long neck and long legs, standing like a horse. A round, big-headed, short-legged dragon
+  is cuter, reads bigger when small, and wobbles and sits down better.
+- **All green**, which would vanish into the map's forests.
+- The third view was the first one mirrored; the app can flip a picture, so one side view is enough.
+- 1376x768: ask Flow for its biggest size.
+
+### Prompt 2: the dragon again, flat (for Flow, with the first sheet attached)
+
+```
+Redraw this dragon as a cute flat vector mascot with NO outlines at all: every shape is a solid colour with one darker shade for its shadow side and one lighter shade for its highlight, light from the top left. No line work, no scale marks, no stripes drawn as lines, no texture, no gradients, no 3D. Keep its friendly face and big eyes. Make it round and chubby: a big head, a short round body, short stubby legs, a short curled tail and small wings. Teal body, pale yellow belly, golden horns and claws.
+
+Show the same dragon twice, well apart, not touching: sitting proudly with its chest puffed out and chin up, seen from the front and a little to the side; and standing, seen from the front.
+
+Plain, flat, pure white background. No ground, no shadows, no smoke, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+The prompts after it (the pose sheet, the chests, the landmarks, the marker) are written once the dragon's look is
+chosen.
