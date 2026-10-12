@@ -5,9 +5,11 @@ import { createPortal } from 'react-dom'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { FLOAT_SIZE, FLOAT_STRIP_SIZE, growForGetReady, resizeFloatingWindow } from '../hooks/useFloatingWindow'
+import { floatClockShown, useTimer } from '../hooks/useTimer'
 import { assetUrl } from '../lib/assets'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { findMover, type Mover } from '../lib/moveExtension'
+import { FloatClock } from './BigTimer'
 import { FloatGetReady } from './FloatGetReady'
 import { GRIP_ROOM, MoveGrip } from './MoveGrip'
 
@@ -135,6 +137,13 @@ export function FloatingGoal({
     }
   }, [])
   const grip = mover && <MoveGrip win={win} mover={mover} strip={strip} />
+
+  /**
+   * The app's clock, while it runs (2026-10-12). The window keeps its size: in the full window the
+   * class name steps aside and the buttons take the strip's smaller shapes to make room.
+   */
+  const clockShown = useTimer(floatClockShown)
+  const small = strip || clockShown
 
   /** Get Ready! is running here, in the window grown big. */
   const [readying, setReadying] = useState(false)
@@ -279,7 +288,7 @@ export function FloatingGoal({
       className={cn(
         buttonVariants({ variant: 'default' }),
         'relative h-auto min-h-0 min-w-0 flex-1 shadow-sm',
-        strip ? 'h-full rounded-xl px-1' : 'rounded-2xl px-1.5',
+        small ? 'h-full rounded-xl px-1' : 'rounded-2xl px-1.5',
         pressable,
       )}
       style={{ touchAction: 'manipulation' }}
@@ -289,7 +298,7 @@ export function FloatingGoal({
         alt=""
         draggable={false}
         className="max-w-none select-none"
-        style={{ width: strip ? '2.25rem' : 'min(4.5rem, 32vh)', height: strip ? '2.25rem' : 'min(4.5rem, 32vh)' }}
+        style={{ width: small ? '2.25rem' : 'min(4.5rem, 32vh)', height: small ? '2.25rem' : 'min(4.5rem, 32vh)' }}
       />
     </button>
   )
@@ -306,14 +315,14 @@ export function FloatingGoal({
       className={cn(
         buttonVariants({ variant: 'secondary' }),
         'h-auto min-h-0 min-w-0 flex-1 font-extrabold shadow-sm',
-        strip ? 'h-full rounded-xl px-1' : 'flex-col gap-1 rounded-2xl px-1.5',
+        small ? 'h-full rounded-xl px-1' : 'flex-col gap-1 rounded-2xl px-1.5',
         !canPick && 'opacity-40',
         pressable,
       )}
-      style={{ touchAction: 'manipulation', fontSize: strip ? '1rem' : 'clamp(1rem, 11vh, 1.5rem)' }}
+      style={{ touchAction: 'manipulation', fontSize: small ? '1rem' : 'clamp(1rem, 11vh, 1.5rem)' }}
     >
       {/* No room for the icon in the strip; the word carries it. */}
-      {!strip && <User className="size-[1.2em]" />}
+      {!small && <User className="size-[1.2em]" />}
       Pick
     </button>
   )
@@ -333,23 +342,25 @@ export function FloatingGoal({
       className={cn(
         buttonVariants({ variant: 'secondary' }),
         'h-auto min-h-0 min-w-0 flex-1 font-extrabold leading-tight whitespace-normal shadow-sm',
-        strip ? 'h-full rounded-xl px-1' : 'flex-col gap-1 rounded-2xl px-1.5',
+        small ? 'h-full rounded-xl px-1' : 'flex-col gap-1 rounded-2xl px-1.5',
         !getReady.canStart && 'opacity-40',
         pressable,
       )}
-      style={{ touchAction: 'manipulation', fontSize: strip ? '1rem' : 'clamp(1rem, 11vh, 1.5rem)' }}
+      style={{ touchAction: 'manipulation', fontSize: small ? '1rem' : 'clamp(1rem, 11vh, 1.5rem)' }}
     >
       <img
         src={assetUrl('/get-ready/taiko-drum.svg')}
         alt=""
         draggable={false}
-        className={cn('w-auto max-w-none shrink-0 select-none', strip ? 'h-9' : 'h-[1.5em]')}
+        className={cn('w-auto max-w-none shrink-0 select-none', small ? 'h-9' : 'h-[1.5em]')}
       />
-      {!strip && 'Get Ready!'}
+      {!small && 'Get Ready!'}
     </button>
   )
 
   const canvas = 'flex h-full w-full select-none bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]'
+
+  const clock = clockShown && <FloatClock win={win} strip={strip} tap={tap} />
 
   return createPortal(
     readying ? (
@@ -373,7 +384,8 @@ export function FloatingGoal({
           pickName
         ) : (
           <>
-            {count}
+            {/* The strip has room for the time or the count, and while the clock runs it is the time. */}
+            {clock || count}
             {addButton}
             {pickButton}
             {getReadyButton}
@@ -386,14 +398,15 @@ export function FloatingGoal({
         <div
           data-ink="panel"
           className={cn(
-            'flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-card/70 py-2 pr-3 shadow-sm',
+            'flex shrink-0 items-center gap-2.5 rounded-2xl border border-border bg-card/70 pr-3 shadow-sm',
+            clockShown ? 'py-1' : 'py-2',
             grip ? 'pl-1.5' : 'pl-3',
           )}
         >
           {grip}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-bold text-muted-foreground">{className}</div>
-            <div className="mt-1 h-3.5 overflow-hidden rounded-full bg-muted">
+            {!clockShown && <div className="truncate text-xs font-bold text-muted-foreground">{className}</div>}
+            <div className={cn('h-3.5 overflow-hidden rounded-full bg-muted', !clockShown && 'mt-1')}>
               <div
                 className="h-full rounded-full transition-[width] duration-500 ease-out"
                 style={{ width: `${pct}%`, background: FILL, backgroundSize: '200% 100%', backgroundPositionX: `${100 - pct}%` }}
@@ -404,19 +417,24 @@ export function FloatingGoal({
             src={treasure('chest-closed')}
             alt=""
             draggable={false}
-            className={clsx('h-8 w-8 shrink-0', waiting && 'float-chest-rattle')}
+            className={clsx('shrink-0', clockShown ? 'h-7 w-7' : 'h-8 w-8', waiting && 'float-chest-rattle')}
           />
           {count}
           {sizeButton}
         </div>
 
+        {clock}
         {waiting ? (
           celebrateButton
         ) : pick ? (
           pickName
         ) : (
           // Three equal columns, whatever each button's padding (2026-10-06, the teacher: the same size).
-          <div className="grid min-h-0 flex-1 grid-cols-3 gap-2">
+          // Under the clock they are a short row, so the time has the room.
+          <div
+            className={cn('grid min-h-0 grid-cols-3 gap-2', clockShown ? 'shrink-0' : 'flex-1')}
+            style={clockShown ? { height: 'clamp(2.75rem, 25vh, 4.5rem)' } : undefined}
+          >
             {addButton}
             {pickButton}
             {getReadyButton}

@@ -522,6 +522,55 @@ export function TimerClock({ frame }: { frame?: string }) {
   )
 }
 
+/**
+ * The clock in the floating window (2026-10-12, the teacher: the pages to work on were up full
+ * screen as a PDF, and the class needed to see five minutes counting down beside them; the big
+ * clock would have covered the PDF). It only shows a clock already set and started in the app:
+ * setting needs the face, and the floating window stays the size it is, never growing over the
+ * lesson by itself. Pause or play beside the time, and no X: a tap on the time takes it off the
+ * floating window while the clock carries on in the app, and a tap on "Time's up!" clears it
+ * everywhere. Orange, red, the pulse and the dance as on the board.
+ *
+ * It counts on the floating window's own clock (`timer.tick`), which the lesson in front of the
+ * app can't slow down, so the time over the PDF and the alarm keep time.
+ */
+export function FloatClock({ win, strip, tap }: { win: Window; strip: boolean; tap: (fn: () => void) => void }) {
+  const running = useTimer((s) => s.running)
+  const left = useTimer((s) => s.left)
+  const up = useTimer((s) => s.up)
+  const ref = useRef<HTMLDivElement>(null)
+  usePulseEachSecond(ref, left, running)
+  useEffect(() => {
+    if (!running) return
+    const id = win.setInterval(() => timer.tick(), 250)
+    return () => win.clearInterval(id)
+  }, [running, win])
+  return (
+    <div ref={ref} data-float-clock="" className={clsx('float-clock', strip && 'strip', endPhase({ left, up }), up && 'up')}>
+      <button
+        type="button"
+        className="float-clock-time"
+        onClick={() => tap(up ? timer.again : timer.hideInFloat)}
+        aria-label={up ? 'Time’s up' : 'Put the clock away'}
+        title={up ? 'Tap to clear it' : 'Tap to put it away'}
+      >
+        {up ? 'Time’s up!' : timeText(left)}
+      </button>
+      {!up && (
+        <button
+          type="button"
+          className="float-clock-go"
+          onClick={() => tap(running ? timer.pause : timer.start)}
+          aria-label={running ? 'Pause' : 'Start'}
+          title={running ? 'Pause' : 'Start'}
+        >
+          {running ? <PauseIcon /> : <PlayIcon />}
+        </button>
+      )}
+    </div>
+  )
+}
+
 /** X turns it off, as on a window. */
 function CloseIcon() {
   return (

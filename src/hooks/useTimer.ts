@@ -48,6 +48,8 @@ export interface TimerState extends Kept {
   left: number
   /** The gear's choices are showing in the face's place. */
   settings: boolean
+  /** Tapped off the floating window for this run; it comes back when the time is up or it starts again. */
+  floatHidden: boolean
 }
 
 const KEY = 'seating-chart-timer-settings-v1'
@@ -88,7 +90,7 @@ function save(kept: Kept) {
 }
 
 const kept = load()
-let state: TimerState = { ...kept, view: 'off', running: false, up: false, left: kept.seconds, settings: false }
+let state: TimerState = { ...kept, view: 'off', running: false, up: false, left: kept.seconds, settings: false, floatHidden: false }
 const listeners = new Set<() => void>()
 let endsAt = 0
 let tick: ReturnType<typeof setInterval> | null = null
@@ -111,13 +113,16 @@ function stopTicking() {
  * Chrome slows to one a second, never drifts. It tells the clocks only when the second changes.
  */
 function onTick() {
+  // A tick that outlives its clock (stopped a moment ago) must not ring the time's up twice.
+  if (!state.running) return
   const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
   if (left > 0) {
     if (left !== state.left) set({ left })
     return
   }
   stopTicking()
-  set({ left: 0, running: false, up: true })
+  // Time's up comes back on the floating window even if it was tapped away, so the class sees it.
+  set({ left: 0, running: false, up: true, floatHidden: false })
   if (state.sound !== 'none') playAlarm(state.sound)
 }
 
@@ -147,7 +152,19 @@ export const timer = {
     endsAt = Date.now() + left * 1000
     stopTicking()
     tick = setInterval(onTick, 250)
-    set({ running: true, up: false, left, settings: false })
+    set({ running: true, up: false, left, settings: false, floatHidden: false })
+  },
+  /**
+   * The floating window's own clock calls this as well: the app's page behind the lesson gets
+   * about one timer a second, and after a few minutes hidden Chrome may hold it to one a minute,
+   * so the time shown over the lesson, and the alarm, keep to the window that can be seen.
+   */
+  tick() {
+    if (state.running) onTick()
+  },
+  /** A tap on the time in the floating window takes it off there; the clock carries on in the app. */
+  hideInFloat() {
+    set({ floatHidden: true })
   },
   pause() {
     stopTicking()
@@ -194,6 +211,9 @@ function subscribe(listener: () => void) {
 export function useTimer<T>(select: (s: TimerState) => T): T {
   return useSyncExternalStore(subscribe, () => select(state))
 }
+
+/** Whether the floating window shows the clock: set and started in the app, and not tapped away. */
+export const floatClockShown = (s: TimerState) => !s.floatHidden && s.view !== 'off' && (s.running || s.up || s.left < s.seconds)
 
 /** The time as a clock shows it: 9:05, 10:00, 60:00. */
 export function timeText(seconds: number) {

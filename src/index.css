@@ -1385,6 +1385,123 @@ button {
   white-space: nowrap;
 }
 
+/* The clock in the floating window (BigTimer.tsx, FloatClock): the time as big as its row allows,
+   with pause or play beside it. Orange for the last 20 seconds and red for the last 10, as a solid
+   colour so it reads over a PDF from the back of the room; time's up dances, then breathes. */
+.float-clock {
+  container-type: size;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6cqh;
+  padding: 0 4cqh;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.float-clock button {
+  font-family: inherit;
+  touch-action: manipulation;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.float-clock button:active {
+  scale: 0.95;
+}
+
+.float-clock-time {
+  min-width: 0;
+  height: 100%;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  font-size: min(78cqh, 26cqw);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.float-clock.up .float-clock-time {
+  font-size: min(60cqh, 13cqw);
+}
+
+.float-clock-go {
+  flex: none;
+  height: 70cqh;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.float-clock-go svg {
+  width: 46%;
+  height: 46%;
+}
+
+.float-clock.ending {
+  background: #f97316;
+}
+
+.float-clock.last {
+  background: #ef4444;
+}
+
+.float-clock:is(.ending, .last) {
+  border-color: transparent;
+  color: #fff;
+}
+
+.float-clock:is(.ending, .last) .float-clock-go {
+  background: rgb(255 255 255 / 0.25);
+  color: #fff;
+}
+
+.float-clock.up {
+  animation:
+    timer-dance 0.4s ease-in-out 6,
+    timer-breathe 1.6s ease-in-out 2.4s infinite;
+}
+
+/* In the strip it is a pill, the height of the row. */
+.float-clock.strip {
+  container-type: normal;
+  flex: none;
+  align-self: stretch;
+  gap: 2px;
+  padding: 0 3px 0 8px;
+  border-radius: 0.75rem;
+}
+
+.float-clock.strip .float-clock-time {
+  font-size: 1.35rem;
+}
+
+.float-clock.strip.up .float-clock-time {
+  font-size: 1rem;
+  padding-right: 5px;
+}
+
+.float-clock.strip .float-clock-go {
+  height: 2.1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-clock.up {
+    animation: none;
+  }
+}
+
 /* The timer in Comic Book: inked, on paper, like its windows. */
 :root[data-theme='comic'] .timer-card {
   box-shadow:

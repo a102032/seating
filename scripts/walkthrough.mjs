@@ -1242,6 +1242,151 @@ const scenarios = {
    * the desks do: the name alone, no avatar, and the homeroom number after it only where two
    * students share the name (2026-10-08, from a lesson: two Amys couldn't be told apart).
    */
+  /**
+   * The app's clock in the floating window (2026-10-12): only once it is started in the app, at
+   * the window's own size, counting on the window's clock. Pause there pauses it in the app, a tap
+   * on the time takes it off the window, and time's up comes back there and is cleared there.
+   */
+  async 'the clock in the floating window'() {
+    const cls = makeClass('c1', 'Float', 12, { pointsGoal: 50, classPoints: 10 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559], storage: { 'seating-chart-timer-settings-v1': { seconds: 300 } } })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    const winErrors = []
+    win.on('pageerror', (e) => winErrors.push(e.message))
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await page.waitForTimeout(500)
+    const floatClock = win.locator('[data-float-clock]')
+    const boardCard = page.locator('[data-timer-card]')
+    check('float clock: none until a clock runs', (await floatClock.count()) === 0)
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(800)
+    // The page's clock from here, set going before the timer starts (one installed under a running
+    // timer leaves the real one ticking). It starts at nought, so past the tap guards first.
+    await page.clock.install()
+    await page.clock.runFor(1000)
+    check('float clock: none for a clock only opened, not started', (await floatClock.count()) === 0)
+    await boardCard.getByRole('button', { name: 'Start', exact: true }).click()
+    await page.clock.runFor(1300)
+    await page.waitForTimeout(300)
+    const layout = () =>
+      win.evaluate(() => {
+        const inside = (el) => {
+          const r = el.getBoundingClientRect()
+          return r.left >= 0 && r.top >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5
+        }
+        const canvas = document.querySelector('[data-ink=canvas]')
+        return {
+          size: [innerWidth, innerHeight],
+          scroll: [document.documentElement.scrollWidth - innerWidth, document.documentElement.scrollHeight - innerHeight],
+          allInside: [...canvas.querySelectorAll('button')].every(inside),
+          buttons: [...canvas.querySelectorAll('[aria-label="+1"], [data-float-get-ready]')].map((b) =>
+            Math.round(b.getBoundingClientRect().height),
+          ),
+          // +1, Pick and Get Ready!, each still a finger wide.
+          widths: [...canvas.querySelectorAll('[aria-label="+1"], [data-float-get-ready], [title="Pick a student"]')].map((b) =>
+            Math.round(b.getBoundingClientRect().width),
+          ),
+          time: Math.round(parseFloat(getComputedStyle(document.querySelector('.float-clock-time')).fontSize)),
+        }
+      })
+    const full = await layout()
+    const first = (await floatClock.innerText()).trim()
+    check(
+      'float clock: started on the board, it counts in the window, which keeps its size',
+      /^4:5\d$/.test(first) &&
+        full.size.join() === '340,180' &&
+        full.scroll.join() === '0,0' &&
+        full.allInside &&
+        full.buttons.every((h) => h >= 40),
+      `${first} ${JSON.stringify(full)}`,
+    )
+    await win.screenshot({ path: `${SHOTS}/float-clock.png` })
+    await floatClock.getByRole('button', { name: 'Pause' }).click()
+    await page.clock.runFor(300)
+    check("float clock: pause in the window pauses the app's clock", (await boardCard.locator('button[aria-label="Start"]').count()) === 1)
+    await page.clock.runFor(800)
+    await floatClock.getByRole('button', { name: 'Put the clock away' }).click()
+    await page.clock.runFor(300)
+    check(
+      'float clock: a tap on the time takes it off the window, and the clock stays in the app',
+      (await floatClock.count()) === 0 && (await boardCard.count()) === 1,
+    )
+    await page.clock.runFor(800)
+    await boardCard.getByRole('button', { name: 'Start', exact: true }).click()
+    await page.clock.runFor(500)
+    check('float clock: started again in the app, it comes back', (await floatClock.count()) === 1)
+    // The strip makes room for it, nothing past its edge.
+    await page.clock.runFor(800)
+    await win.getByRole('button', { name: 'Make it small' }).click()
+    await win.setViewportSize({ width: 290, height: 62 })
+    await page.clock.runFor(400)
+    await page.waitForTimeout(300)
+    const strip = await layout()
+    check(
+      "float clock: in the strip, the time takes the count's place, everything inside it and a finger wide",
+      strip.scroll.join() === '0,0' && strip.allInside && strip.widths.length === 3 && strip.widths.every((w) => w >= 40),
+      JSON.stringify(strip),
+    )
+    await win.screenshot({ path: `${SHOTS}/float-clock-strip.png` })
+    await page.clock.runFor(800)
+    await win.getByRole('button', { name: 'Make it big again' }).click()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await page.clock.runFor(400)
+    await page.waitForTimeout(300)
+    // Orange at 20 seconds, red at 10.
+    const [m, sec] = (await floatClock.innerText()).trim().split(':').map(Number)
+    await page.clock.runFor((m * 60 + sec - 19) * 1000)
+    await page.waitForTimeout(400)
+    const look = () =>
+      win.evaluate(() => {
+        const el = document.querySelector('[data-float-clock]')
+        return (
+          el && {
+            text: el.innerText.trim(),
+            cls: el.className,
+            bg: getComputedStyle(el).backgroundColor,
+            anims: el.getAnimations().map((a) => a.animationName ?? 'pulse'),
+          }
+        )
+      })
+    const orange = await look()
+    check(
+      'float clock: orange for the last 20 seconds',
+      /^0:1[89]$/.test(orange?.text ?? '') && orange.bg === 'rgb(249, 115, 22)',
+      JSON.stringify(orange),
+    )
+    await page.clock.runFor(10000)
+    await page.waitForTimeout(400)
+    const red = await look()
+    check('float clock: red for the last 10', /^0:0[89]$/.test(red?.text ?? '') && red.bg === 'rgb(239, 68, 68)', JSON.stringify(red))
+    await win.screenshot({ path: `${SHOTS}/float-clock-red.png` })
+    // Tapped away, time's up still comes back to the window, dancing; a tap there clears it everywhere.
+    await page.clock.runFor(1000)
+    await floatClock.getByRole('button', { name: 'Put the clock away' }).click()
+    await page.waitForTimeout(300)
+    await page.clock.runFor(10000)
+    await page.waitForTimeout(400)
+    const up = await look()
+    check(
+      "float clock: time's up comes back to the window, dancing",
+      up?.text === 'Time’s up!' && up.anims.includes('timer-dance'),
+      JSON.stringify(up),
+    )
+    await win.screenshot({ path: `${SHOTS}/float-clock-up.png` })
+    await page.clock.runFor(1000)
+    await floatClock.getByRole('button', { name: 'Time’s up' }).click({ force: true })
+    await page.waitForTimeout(300)
+    check(
+      "float clock: a tap on Time's up clears it in the app too",
+      (await floatClock.count()) === 0 &&
+        (await page.locator('.timer-up').count()) === 0 &&
+        (await page.locator('.timer-time').textContent()) === '5:00',
+    )
+    check('float clock: no errors in the floating window', winErrors.length === 0, winErrors.join('; '))
+    return page
+  },
+
   async 'Pick in the floating window'() {
     const pickInFloat = async (cls) => {
       const page = await open({ state: stateOf(cls), size: [1280, 559] })
