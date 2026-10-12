@@ -19,7 +19,7 @@ import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
-import { BigTimer, TimerClock } from './components/BigTimer'
+import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
 import { goalIsLive, MAX_CLASSES, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
@@ -844,7 +844,8 @@ export default function App() {
         {/* Plain boxes, deliberately. They were framer layout boxes so the panel glided when it
             moved to the other side - a once-a-term change - and that made framer measure the
             page on every render: every desk tap, every point, every picker flash. */}
-        <div className="flex min-h-0" style={{ gridArea: 'rail' }}>
+        {/* Above the timer's dim (TimerDim), with the class's tab: the teacher's own buttons stay bright. */}
+        <div className="relative z-[16] flex min-h-0" style={{ gridArea: 'rail' }}>
           {sideRail}
         </div>
 
@@ -877,7 +878,7 @@ export default function App() {
               <div className="flex-1" />
             </>
           )}
-          <div data-ink="panel" data-class-tab="" className={tabClass(panelSide)}>
+          <div data-ink="panel" data-class-tab="" className={clsx(tabClass(panelSide), 'relative z-[16]')}>
             {classTitle}
           </div>
         </div>
@@ -1135,6 +1136,7 @@ export default function App() {
       />
 
       {/* The timer, big over the board; put away, it is the clock in the bar. */}
+      <TimerDim />
       <BigTimer />
 
       {guide && settingsOpen && !splashOpen && (

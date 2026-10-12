@@ -30,7 +30,7 @@ const FONT_CSS = FONTS
       .join('\n')
   : ''
 
-const THEMES = ['light', 'dark', 'chalkboard', 'vibrant', 'comic']
+const THEMES = ['light', 'dark', 'chalk', 'vibrant', 'comic']
 const SIZES = [
   [1024, 640],
   [1280, 800],
@@ -1999,6 +1999,23 @@ const scenarios = {
       (await card.count()) === 1 && (await time()) === '10:00',
       await time(),
     )
+    // The board dims behind it (2026-10-12), but stays live: a desk under the shade still takes a
+    // tap and a star, and the rail stays above the shade.
+    const dimmed = await page.evaluate(() => {
+      const rail = document.querySelector('aside').getBoundingClientRect()
+      const onRail = document.elementFromPoint(rail.x + rail.width / 2, rail.y + rail.height / 2)
+      return { dim: document.querySelectorAll('.timer-dim').length, railOnTop: Boolean(onRail?.closest('aside')) }
+    })
+    await desk(page, 'Amy').click()
+    await award(page)
+    await page.waitForTimeout(1500)
+    check(
+      'timer: the board dims behind it, the rail stays bright, and a desk still takes a star',
+      dimmed.dim === 1 && dimmed.railOnTop && (await activeSaved(page)).classPoints === 6,
+      `${JSON.stringify(dimmed)} meter ${(await activeSaved(page)).classPoints}`,
+    )
+    await page.screenshot({ path: `${SHOTS}/timer-dim.png` })
+    await desk(page, 'Amy').click()
     // Never started: the rail's button turns it off again.
     await pause()
     await panelButton(page, 'Timer').click()
@@ -2076,16 +2093,78 @@ const scenarios = {
       (await card.count()) === 0 && /^13:5\d$/.test((await clock.innerText()).trim()),
       await clock.innerText(),
     )
-    await page.clock.runFor(14 * 60 * 1000)
-    const upText = (await clock.innerText()).trim()
+    check('timer: put away, the board is not dimmed', (await page.locator('.timer-dim').count()) === 0)
+    // The last 20 seconds are orange and the last 10 red, pulsing each second (2026-10-12): in the bar...
+    const phase = (sel) =>
+      page.evaluate((sel) => {
+        const el = document.querySelector(sel)
+        return {
+          cls: el.className,
+          bg: getComputedStyle(el).backgroundColor,
+          outline: getComputedStyle(el).outlineColor,
+          anims: el.getAnimations().map((a) => a.animationName ?? 'pulse'),
+        }
+      }, sel)
+    await page.clock.runFor(818500)
+    const barOrange = await phase('[data-timer-clock]')
+    check(
+      'timer: the last 20 seconds, the clock in the bar is orange',
+      (await clock.innerText()).trim().startsWith('0:19') && barOrange.cls.includes('ending') && barOrange.bg === 'rgb(249, 115, 22)',
+      JSON.stringify(barOrange),
+    )
+    await page.screenshot({ path: `${SHOTS}/timer-bar-orange.png` })
+    await page.clock.runFor(10000)
+    const barRed = await phase('[data-timer-clock]')
+    check(
+      'timer: the last 10 seconds, red and pulsing in the bar',
+      barRed.cls.includes('last') && barRed.bg === 'rgb(239, 68, 68)' && barRed.anims.includes('pulse'),
+      JSON.stringify(barRed),
+    )
+    // ...and big: orange at 20, red at 10 with the pulse.
+    await page.clock.runFor(800)
+    await clock.getByRole('button', { name: 'Open the timer' }).click({ force: true })
+    await page.clock.runFor(200)
+    const bigRed = await phase('[data-timer-card]')
+    check(
+      'timer: big in the last 10 seconds, the whole clock red',
+      bigRed.cls.includes('last') && bigRed.outline === 'rgb(239, 68, 68)' && (await page.locator('.timer-dim').count()) === 1,
+      JSON.stringify(bigRed),
+    )
+    await page.screenshot({ path: `${SHOTS}/timer-red.png` })
+    await page.clock.runFor(1000)
+    check('timer: big, it pulses as each second goes', (await phase('[data-timer-card]')).anims.includes('pulse'))
+    // Time's up: the clock dances as the alarm goes, then the rail's button is red.
+    await page.clock.runFor(10000)
+    const upText = await page.locator('.timer-up').count()
     const railRed = (await panelButton(page, 'Timer').getAttribute('class')).includes('rail-alarm')
-    check("timer: time's up in the bar, and the rail's button red", upText === 'Time’s up!' && railRed, `${upText} ${railRed}`)
+    const dancing = await phase('[data-timer-card]')
+    check(
+      "timer: time's up, the clock dances and the rail's button is red",
+      upText === 1 && railRed && dancing.anims.includes('timer-dance'),
+      `${upText} ${railRed} ${JSON.stringify(dancing)}`,
+    )
+    await page.waitForTimeout(400)
+    await page.screenshot({ path: `${SHOTS}/timer-up.png` })
+    await page.clock.runFor(1000)
+    await card.getByRole('button', { name: 'Put the timer away' }).click()
+    await page.clock.runFor(400)
+    const barUp = await phase('[data-timer-clock]')
+    check(
+      "timer: time's up in the bar, dancing",
+      (await clock.innerText()).trim() === 'Time’s up!' && barUp.anims.includes('timer-dance'),
+      JSON.stringify(barUp),
+    )
     await page.clock.runFor(1000)
     await clock.getByRole('button', { name: 'Open the timer' }).click({ force: true })
     await page.clock.runFor(1000)
     await page.locator('.timer-up').click({ force: true })
     await page.clock.runFor(300)
-    check("timer: a tap on Time's up puts the time back", (await page.locator('.timer-up').count()) === 0 && (await time()) === '14:00')
+    check(
+      "timer: a tap on Time's up puts the time back, and its colour",
+      (await page.locator('.timer-up').count()) === 0 &&
+        (await time()) === '14:00' &&
+        !/ending|last/.test(await card.getAttribute('class')),
+    )
     await page.clock.runFor(1000)
     await card.getByRole('button', { name: 'Turn the timer off' }).click()
     await page.clock.runFor(300)

@@ -838,9 +838,28 @@ button {
   }
 }
 
+/* Time's up: the clock dances as the alarm goes, then rests (BigTimer.tsx). Its own rotate and
+   scale, so it never fights the translate that puts the card where it was left. */
+@keyframes timer-dance {
+  0%,
+  100% {
+    rotate: 0deg;
+    scale: 1;
+  }
+  25% {
+    rotate: -5deg;
+    scale: 1.04;
+  }
+  75% {
+    rotate: 5deg;
+    scale: 1.04;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .side-rail .rail-alarm,
   .timer-clock.up,
+  .timer-card.up,
   .timer-dial .timer-up {
     animation: none;
   }
@@ -856,12 +875,39 @@ button {
   pointer-events: none;
 }
 
+/* The board dims behind the big timer (TimerDim). Only a shade, with no blur: taps go through it to
+   the desks, and the rail and the class's tab sit above it (z-16 in App.tsx). */
+.timer-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  background: rgb(15 23 42 / 0.5);
+  animation: timer-dim-in 0.25s ease-out both;
+}
+
+.timer-dim.closing {
+  animation: timer-dim-out 0.25s ease-in both;
+}
+
+@keyframes timer-dim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes timer-dim-out {
+  to {
+    opacity: 0;
+  }
+}
+
 .timer-card {
   --kk: var(--k, 1);
   --D: calc(min(64dvh, 50dvw) * var(--kk));
   --tap: max(30px, calc(var(--D) * 0.115));
   --side: max(34px, calc(var(--D) * 0.1));
-  --tw: var(--primary);
+  --tw: var(--tw-pick, var(--primary));
   position: absolute;
   left: 0;
   top: 0;
@@ -883,6 +929,41 @@ button {
   flex-direction: column;
   align-items: center;
   gap: calc(var(--D) * 0.015);
+}
+
+/* The last 20 seconds: the whole clock turns orange - its ring, a wash over the card, the wedge, the
+   time and the play button; the last 10 seconds red, with a pulse as each second goes (BigTimer.tsx).
+   Time's up stays red, and the card dances once as the alarm goes. */
+.timer-card.ending {
+  --end: #f97316;
+}
+
+.timer-card.last {
+  --end: #ef4444;
+}
+
+.timer-card:is(.ending, .last) {
+  --tw: var(--end);
+  background-color: color-mix(in srgb, var(--end) 16%, var(--card));
+  outline: max(4px, calc(var(--D) * 0.016)) solid var(--end);
+}
+
+.timer-card:is(.ending, .last) .timer-time {
+  color: var(--end);
+}
+
+.timer-card:is(.ending, .last) .timer-dial .timer-tint {
+  fill: var(--end);
+  fill-opacity: 0.16;
+}
+
+.timer-card:is(.ending, .last) .timer-round.go {
+  background: var(--end);
+  color: #fff;
+}
+
+.timer-card.up {
+  animation: timer-dance 0.4s ease-in-out 6;
 }
 
 /* The choices open at a size that can be read, whatever size the card is; Back puts it back. */
@@ -1274,16 +1355,27 @@ button {
   height: 52%;
 }
 
-.timer-clock.up {
-  background: #ef4444;
+/* Put away, the clock goes orange for the last 20 seconds and red for the last 10, as the big one does. */
+.timer-clock.ending {
+  background: #f97316;
   border-color: transparent;
-  color: #fff;
-  animation: timer-breathe 1.6s ease-in-out infinite;
 }
 
-.timer-clock.up .timer-open,
-.timer-clock.up .timer-bare {
+.timer-clock.last {
+  background: #ef4444;
+  border-color: transparent;
+}
+
+.timer-clock:is(.ending, .last) .timer-open,
+.timer-clock:is(.ending, .last) .timer-bare {
   color: #fff;
+}
+
+/* Time's up: it dances with the alarm, then breathes, red, until it is tapped. */
+.timer-clock.up {
+  animation:
+    timer-dance 0.4s ease-in-out 6,
+    timer-breathe 1.6s ease-in-out 2.4s infinite;
 }
 
 .timer-clock.up .timer-digits {

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Check, Minus, Plus, RotateCcw, Settings, Volume2, VolumeX } from 'lucide-react'
-import { useRef, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import {
   TIMER_COLORS,
   TIMER_MIN_SIZE,
@@ -11,6 +11,7 @@ import {
   type TimerSound,
   type TimerState,
 } from '../hooks/useTimer'
+import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 import { ALARM_SOUND_LABELS, playPickerTick } from '../lib/sound'
 import { MoveHandIcon } from './MoveHandIcon'
 import { BackIcon, MinimizeIcon } from './RailIcons'
@@ -43,8 +44,12 @@ function fresh(ms = TAP_GUARD_MS) {
  * The timer, big over the board (2026-10-09, the teacher; drawn after Classroom Screen's visual
  * timer): a 60-minute face numbered every five minutes with a tick a minute, the time left a
  * wedge shrinking back to the top, the time in numbers under it, Again on the left and a round
- * play button on the right. The board behind isn't dimmed and stays live, so a desk can be
- * tapped for a point while it runs.
+ * play button on the right. The board dims behind it (`TimerDim`) but stays live, so a desk can
+ * still be tapped for a point while it runs.
+ *
+ * The last 20 seconds turn the whole clock orange, the last 10 red with a pulse on every second,
+ * and time's up makes it dance as the alarm goes (2026-10-12, the teacher), so the room sees the
+ * end coming from anywhere in it. Put away in the bar, the clock there does the same.
  *
  * Like a window: its top strip has the hand (hold and slide to move it), the gear (its colour and
  * sound, in the face's place until Back), minimise (away into the goal meter's bar) and X (off).
@@ -62,6 +67,38 @@ export function BigTimer() {
       <TimerCard t={t} />
     </div>
   )
+}
+
+/**
+ * The board dims while the timer is big (2026-10-12, the teacher), so the clock is what the room
+ * looks at; put away in the bar, nothing dims. It is only a shade: taps go through it, so a desk
+ * can still be tapped for a point, and the rail and the class's tab sit above it, bright.
+ */
+export function TimerDim() {
+  const big = useTimer((s) => s.view === 'big')
+  const shown = useLingerWhileClosing(big)
+  if (!shown) return null
+  return <div aria-hidden="true" className={clsx('timer-dim', !big && 'closing')} />
+}
+
+/** The last 20 seconds are orange and the last 10 red; time's up stays red until it is tapped. */
+function endPhase(s: Pick<TimerState, 'left' | 'up'>) {
+  if (s.up || s.left <= 10) return 'last'
+  if (s.left <= 20) return 'ending'
+  return null
+}
+
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/**
+ * In the last 10 seconds the clock pulses once as each second goes, started by the second itself
+ * so the pulse and the number change together. `element.animate`, which the graphics chip runs.
+ */
+function usePulseEachSecond(ref: { current: HTMLElement | null }, left: number, running: boolean) {
+  useEffect(() => {
+    if (!running || left > 10 || left <= 0 || reducedMotion()) return
+    ref.current?.animate([{ scale: 1 }, { scale: 1.05, offset: 0.3 }, { scale: 1 }], { duration: 650, easing: 'ease-out' })
+  }, [ref, left, running])
 }
 
 function TimerCard({ t }: { t: TimerState }) {
@@ -84,12 +121,15 @@ function TimerCard({ t }: { t: TimerState }) {
   /** The tap that ends a slide sets nothing and presses nothing. */
   const swallow = useRef(false)
 
+  usePulseEachSecond(cardRef, t.left, t.running)
+
   const pos = t.pos ?? { x: 0.5, y: 0.5 }
   const style = {
     '--px': pos.x,
     '--py': pos.y,
     '--k': t.size,
-    ...(t.color !== 'theme' && { '--tw': TIMER_COLORS[t.color] }),
+    // The colour picked for the wedge, which the last seconds' orange and red take over.
+    ...(t.color !== 'theme' && { '--tw-pick': TIMER_COLORS[t.color] }),
   } as CSSProperties
 
   function begin(e: PointerEvent) {
@@ -211,7 +251,7 @@ function TimerCard({ t }: { t: TimerState }) {
   return (
     <div
       ref={cardRef}
-      className={clsx('timer-card', t.settings && 'setting')}
+      className={clsx('timer-card', t.settings && 'setting', endPhase(t), t.up && 'up')}
       style={style}
       data-timer-card=""
       role="dialog"
@@ -438,19 +478,22 @@ function TimerChoices({ t, onBack }: { t: TimerState; onBack: () => void }) {
 /**
  * Put away (the minimise button): a clock at the start of the goal meter's bar, the time alone,
  * with pause or play and X, the way Windows puts a window on the taskbar. A tap on the time opens
- * it big again where it was. Red and breathing when the time is up, until it is tapped.
+ * it big again where it was. Orange for the last 20 seconds and red for the last 10, as the big
+ * clock is; when the time is up it dances with the alarm, then breathes red until it is tapped.
  */
 export function TimerClock({ frame }: { frame?: string }) {
   const view = useTimer((s) => s.view)
   const up = useTimer((s) => s.up)
   const running = useTimer((s) => s.running)
   const left = useTimer((s) => s.left)
+  const clockRef = useRef<HTMLDivElement>(null)
+  usePulseEachSecond(clockRef, left, running && view === 'bar')
   if (view !== 'bar') return null
   const act = (fn: () => void) => () => {
     if (fresh()) fn()
   }
   const clock = (
-    <div className={clsx('timer-clock', up && 'up')} data-timer-clock="">
+    <div ref={clockRef} className={clsx('timer-clock', endPhase({ left, up }), up && 'up')} data-timer-clock="">
       <button type="button" className="timer-open" onClick={act(timer.open)} aria-label="Open the timer" title="Open the timer">
         <span className="timer-digits">{up ? 'Time’s up!' : timeText(left)}</span>
       </button>
