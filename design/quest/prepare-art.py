@@ -106,7 +106,8 @@ def nearest(cent, colour):
     return int(((cent - np.array(colour)) ** 2).sum(1).argmin())
 
 
-for name, file in [('dragon-guard', 'dragon-guard-chest.jpg'), ('dragon-palm-up', 'dragon-palm-up.jpg'),
+for name, file in [('dragon-guard', 'dragon-guard-chest.jpg'), ('dragon-holding-key', 'dragon-holding-key.jpg'),
+                   ('dragon-palm-up', 'dragon-palm-up.jpg'),
                    ('dragon-out-of-puff', 'dragon-out-of-puff.jpg'), ('dragon-asleep', 'dragon-asleep.jpg'),
                    ('knight', 'knight.webp')]:
     im = Image.open(SRC / file).convert('RGB')

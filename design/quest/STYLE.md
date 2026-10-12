@@ -202,8 +202,10 @@ the cut-out's pale edge is trimmed by two pixels. Flow drew all five the same si
 chest biggest. A mock-up of Our Quest at the board's size, with the trail, locks, glow and shadows drawn in code,
 showed them reading as one set.
 
-The pictures kept from Flow are in `flow/`: the chests, and the dragon asleep, on guard at a chest, palm up and out
-of puff. The one holding the key up is still to come as a file.
+The pictures kept from Flow are in `flow/`: the chests, and the dragon asleep, on guard at a chest, holding the key
+up, palm up and out of puff. Holding the key traced cleanly (about 380 shapes); its key is Flow's, a little more
+ornate than the app's own key drawn in code, so if the two look different side by side when it hands the key over
+(part 2), the key in its paw is cut out and the app's key drawn in its place.
 
 ### Prompt 6: the five chests, open (for Flow, with `flow/chests-closed.jpg` attached)
 
