@@ -215,7 +215,7 @@ if (await page.getByRole('dialog').count()) {
 }
 await page.getByRole('button', { name: 'Get Ready!' }).click()
 await wait(600)
-await page.locator('[data-drum="10"]').click()
+await page.locator('[data-drum="20"]').click()
 await wait(900)
 await page.locator('[data-get-ready] button[aria-label="Start"]').click()
 await measure('get ready: drum beating, shrinking', () => wait(7000))

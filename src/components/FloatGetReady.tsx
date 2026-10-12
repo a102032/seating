@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { assetUrl } from '../lib/assets'
-import { FLOAT_DRUMS, GET_READY_DRUMS, controlButtonHeight, controlButtonWidth } from '../lib/getReady'
+import { DRUMS_PER_ROW, FLOAT_DRUMS, GET_READY_DRUMS, controlButtonHeight, controlButtonWidth } from '../lib/getReady'
 import { primeTaiko } from '../lib/sound'
 import { flyStarsFrom } from '../lib/starFlight'
 import { SoundButton, StarMoment, type Layout } from './GetReady'
@@ -128,7 +128,7 @@ function Chest({ win }: { win: Window }) {
 }
 
 /**
- * The five drums as a snug rectangle filling the window, which is made exactly tall enough for
+ * The drums, two rows of four, as a snug rectangle filling the window, which is made exactly tall enough for
  * them (`floatDrumsHeight` measures with the same `FLOAT_DRUMS` numbers), with a way back out.
  * Sizes come from the window's width, so they follow it as it grows.
  */
@@ -150,7 +150,7 @@ function HowLong({
   const [openedAt] = useState(() => win.performance.now())
   const settled = () => win.performance.now() - openedAt >= TAP_GUARD_MS
   const { pad, gap, titleHeight, imageRatio, imageMax, numberRatio, numberMax } = FLOAT_DRUMS
-  const drum = `calc((100vw - ${2 * pad + 4 * gap}px) / 5)`
+  const drum = `calc((100vw - ${2 * pad + (DRUMS_PER_ROW - 1) * gap}px) / ${DRUMS_PER_ROW})`
 
   return (
     <div data-ink="panel" className="flex h-full w-full flex-col justify-center bg-card" style={{ padding: pad }}>
@@ -168,7 +168,7 @@ function HowLong({
           <X className="size-6" />
         </button>
       </div>
-      <div className="mt-2 flex shrink-0" style={{ gap }}>
+      <div className="mt-2 grid shrink-0" style={{ gap, gridTemplateColumns: `repeat(${DRUMS_PER_ROW}, minmax(0, 1fr))` }}>
         {GET_READY_DRUMS.map((n) => (
           <button
             key={n}
@@ -176,7 +176,7 @@ function HowLong({
             data-drum={n}
             onClick={() => settled() && onChoose(n)}
             className={clsx(
-              'flex min-w-0 flex-1 flex-col items-center rounded-2xl border-[3px] pt-3 pb-2.5 transition-transform active:scale-95',
+              'flex min-w-0 flex-col items-center rounded-2xl border-[3px] pt-3 pb-2.5 transition-transform active:scale-95',
               n === lastDrum ? 'border-primary bg-primary/15' : 'border-transparent bg-primary/5 dark:bg-white/10',
             )}
             style={{ touchAction: 'manipulation' }}

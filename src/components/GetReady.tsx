@@ -4,7 +4,14 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { assetUrl } from '../lib/assets'
 import { playGetReadyGo, playGetReadyTaps, playGetReadyTimeUp, playTaikoHit, primeTaiko } from '../lib/sound'
-import { GET_READY_DRUMS, GET_READY_FULL_SECONDS as FULL_SECONDS, nextRhythm, tapsAfterBeat, type Rhythm } from '../lib/getReady'
+import {
+  DRUMS_PER_ROW,
+  GET_READY_DRUMS,
+  GET_READY_FULL_SECONDS as FULL_SECONDS,
+  nextRhythm,
+  tapsAfterBeat,
+  type Rhythm,
+} from '../lib/getReady'
 import { flyStarsFrom } from '../lib/starFlight'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 
@@ -40,7 +47,7 @@ interface GetReadyProps {
 
 /**
  * Get Ready!: the teacher's handful of marbles, for the moment after an instruction ("Books out,
- * page 134, go"). "How long?" first - five drums, 10 to 30 seconds - then the board fades back
+ * page 134, go"). "How long?" first - eight drums, 20 to 90 seconds - then the board fades back
  * and one big star waits, still and silent, while the teacher explains. A tap on it starts a
  * taiko drum beating once a second, all the way to the end; the star stays full for five
  * seconds, then gets a little smaller on every beat until it is gone at the drum's end. Ready!
@@ -103,7 +110,7 @@ export function GetReady({
 }
 
 /**
- * Five drums in a row; a tap on one brings up the star. A tap outside closes it, but not in the
+ * The drums in two rows of four, 20 to 50 seconds and then 60 to 90; a tap on one brings up the star. A tap outside closes it, but not in the
  * moment after it opens: the second touch of the tap on Get Ready! lands where Get Ready! was,
  * outside the window.
  */
@@ -143,7 +150,10 @@ function HowLong({
           </div>
         </DialogHeader>
         <DialogBody>
-          <div className="flex justify-center gap-[clamp(0.5rem,1.4vw,1rem)]">
+          <div
+            className="mx-auto grid w-fit gap-[clamp(0.5rem,1.4vw,1rem)]"
+            style={{ gridTemplateColumns: `repeat(${DRUMS_PER_ROW}, auto)` }}
+          >
             {GET_READY_DRUMS.map((n) => (
               <button
                 key={n}
@@ -159,9 +169,9 @@ function HowLong({
                   src={assetUrl('/get-ready/taiko-drum.svg')}
                   alt=""
                   draggable={false}
-                  className="mb-1 h-[clamp(4rem,12vh,6rem)] w-auto select-none"
+                  className="mb-1 h-[clamp(3.25rem,10vh,5.5rem)] w-auto select-none"
                 />
-                <span className="font-bold leading-none text-foreground" style={{ fontSize: 'clamp(1.6rem, 4.6vh, 2.25rem)' }}>
+                <span className="font-bold leading-none text-foreground" style={{ fontSize: 'clamp(1.5rem, 4.2vh, 2.25rem)' }}>
                   {n}
                 </span>
                 <span className="text-sm font-bold text-muted-foreground">seconds</span>

@@ -273,7 +273,7 @@ const scenarios = {
     await panelButton(page, 'Unpick All').click()
     await panelButton(page, 'Get Ready!').click()
     await page.waitForTimeout(800)
-    await page.locator('[data-drum="10"]').click()
+    await page.locator('[data-drum="20"]').click()
     const star = page.locator('[data-get-ready] button[aria-label="Start"]')
     await page.waitForTimeout(800)
     await star.click()
@@ -361,7 +361,7 @@ const scenarios = {
     check('no points: leaving the groups asks nothing', (await page.getByRole('dialog').count()) === 0)
     await panelButton(page, 'Get Ready!').click()
     await page.waitForTimeout(800)
-    await page.locator('[data-drum="10"]').click()
+    await page.locator('[data-drum="20"]').click()
     await page.waitForTimeout(800)
     await star.click()
     await page.waitForTimeout(1500)
@@ -1009,19 +1009,19 @@ const scenarios = {
     }
     check('Get Ready!: the drum window fits every screen', overflows.length === 0, overflows.join('; '))
     await page.setViewportSize({ width: 1280, height: 559 })
-    await page.locator('[data-drum="10"]').click()
+    await page.locator('[data-drum="20"]').click()
     const star = page.locator('[data-get-ready] button[aria-label="Start"]')
     await star.click({ force: true }) // the drum tap's second touch, where the star appears
     await page.waitForTimeout(800)
     check('Get Ready!: the star waits for its own tap', await page.getByText('Tap the star to start').isVisible())
     await star.click()
-    await page.waitForTimeout(7200) // five seconds full, then two beats smaller on the 10-second drum
+    await page.waitForTimeout(8200) // five seconds full, then three beats smaller on the 20-second drum
     await page.getByRole('button', { name: 'Ready!', exact: true }).click()
     await page.waitForTimeout(2200)
     let c = await activeSaved(page)
     check(
-      'Get Ready!: Ready! two beats into the shrinking sends 3 of 5 to the goal, desks untouched',
-      c.classPoints === 13 && c.students[0].points === 2 && /You earned 3 stars!/.test(await page.locator('[data-get-ready]').innerText()),
+      'Get Ready!: Ready! three beats into the shrinking sends 4 of 5 to the goal, desks untouched',
+      c.classPoints === 14 && c.students[0].points === 2 && /You earned 4 stars!/.test(await page.locator('[data-get-ready]').innerText()),
       `meter ${c.classPoints}, Amy ${c.students[0].points}`,
     )
     await page.mouse.click(640, 300)
@@ -1041,7 +1041,7 @@ const scenarios = {
     const run = async (waitMs) => {
       await panelButton(page, 'Get Ready!').click()
       await page.waitForTimeout(900)
-      await page.locator('[data-drum="10"]').click()
+      await page.locator('[data-drum="20"]').click()
       await page.waitForTimeout(900)
       await page.evaluate(() => (window.__sounds = []))
       await page.locator('[data-get-ready] button[aria-label="Start"]').click()
@@ -1084,7 +1084,7 @@ const scenarios = {
       'speaker: one tap and the class is silent',
       (await speaker.getAttribute('data-get-ready-sound')) === 'off' && (await activeSaved(page)).getReadySilent === true,
     )
-    await page.locator('[data-drum="10"]').click()
+    await page.locator('[data-drum="20"]').click()
     await page.waitForTimeout(900)
     await page.evaluate(() => (window.__sounds = []))
     await page.locator('[data-get-ready] button[aria-label="Start"]').click()
@@ -1177,13 +1177,28 @@ const scenarios = {
     await win.waitForTimeout(150)
     const [drums] = await win.evaluate(() => window.__resizes)
     check(
-      'float Get Ready!: the window grows to a snug rectangle of drums',
-      Boolean(drums) && drums[0] > 600 && drums[1] < 300,
+      'float Get Ready!: the window grows for the drums, wider than tall',
+      Boolean(drums) && drums[0] > 600 && drums[1] < drums[0],
       JSON.stringify(drums),
     )
     check("float Get Ready!: the side panel's stands down meanwhile", await panelButton(page, 'Get Ready!').isDisabled())
     await win.setViewportSize({ width: drums[0], height: drums[1] })
     await win.waitForTimeout(800)
+    // Two rows of four, filling the window to its foot with nothing cut off (2026-10-12).
+    const fit = await win.evaluate(() => {
+      const ds = [...document.querySelectorAll('[data-drum]')].map((d) => d.getBoundingClientRect())
+      return {
+        drums: ds.length,
+        rows: new Set(ds.map((r) => Math.round(r.top))).size,
+        below: Math.round(innerHeight - Math.max(...ds.map((r) => r.bottom))),
+      }
+    })
+    check(
+      'float Get Ready!: a snug rectangle of eight drums, two rows',
+      fit.drums === 8 && fit.rows === 2 && fit.below >= 0 && fit.below <= 30,
+      JSON.stringify(fit),
+    )
+    await win.screenshot({ path: `${SHOTS}/float-drums.png` })
     const speaker = win.locator('[data-get-ready-sound]')
     await speaker.click()
     await win.waitForTimeout(300)
@@ -1192,7 +1207,7 @@ const scenarios = {
       (await speaker.getAttribute('data-get-ready-sound')) === 'off' && (await activeSaved(page)).getReadySilent === true,
     )
     await page.evaluate(() => (window.__sounds = []))
-    await win.locator('[data-drum="10"]').click()
+    await win.locator('[data-drum="20"]').click()
     await win.waitForTimeout(150)
     const star = (await win.evaluate(() => window.__resizes))[1]
     check('float Get Ready!: a drum grows the window for the star', Boolean(star) && star[1] >= 480, JSON.stringify(star))

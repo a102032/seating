@@ -130,7 +130,7 @@ export const TOUR: TourPart[] = [
     title: 'Get Ready!',
     intro: 'A star that shrinks while the class gets ready. The faster they are, the more stars they keep.',
     stops: [
-      { shot: 'howlong', at: 'drums', text: 'Pick how long the class has: 10 to 30 seconds.' },
+      { shot: 'howlong', at: 'drums', text: 'Pick how long the class has: 20 seconds up to a minute and a half.' },
       { shot: 'howlong', at: 'speaker', text: 'No sound, for a quiet room.' },
       { shot: 'star', at: 'star', text: 'Explain the job, then tap the star. A drum beats and the star shrinks.' },
       { shot: 'star', at: 'ready', text: 'Tap Ready! when the class is ready. What is left of the star goes into the class goal.' },

@@ -274,7 +274,7 @@ const all = {}
     speaker: '[aria-label*="Tap for"]',
   })
   await shot(page, 'howlong')
-  await page.click('[data-drum="15"]')
+  await page.click('[data-drum="30"]')
   await page.waitForTimeout(1400)
   await mark(page, [
     ['ready', '^Ready!$'],
