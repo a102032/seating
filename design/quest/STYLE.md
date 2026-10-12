@@ -199,4 +199,36 @@ The same five chests, same style, now open with no lid at all, full of treasure,
 Well apart, not touching. Plain, flat, pure white background. No shadows, no sparkles, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
 ```
 
-The prompts after these (the landmarks and the knight) are written once the chests are chosen.
+### The Treasure Quest Preview as the base (2026-10-12, recommended, waiting on the teacher)
+
+The teacher pointed back to the Treasure Quest Preview (a Claude artifact, 2026-10-07): "I liked it a lot". Its
+chests (closed and open, each rank richer, with a lock plate on the front whose keyholes fill gold as the keys go
+in), key, wheels, prize card, meter and Our Quest map are all drawn in code (`chestSVG`, `keySVG`, `wheelSVG`,
+`treasure`), so they are sharp on a 4K board, tiny, and move in parts. Put into the preview itself, the Flow dragon
+sat beside its chests and on its map as one set. So the plan recommended back: **build from the preview**, and Flow
+makes only what code draws badly. The Flow chests (above) and prompt 6 are then not needed.
+
+What changes from the preview to match the agreed plan (DECISIONS, "The plan, agreed"): the key waits for a tap
+rather than a two-second banner; a chest with all its keys opens on a tap; the odds are the agreed table; the wheel's
+small prizes keep the preview's bright slices, medium are silver and big gold; the guardian comes in at the Mega chest.
+The map's doodles stay faint ink, so the coloured things on it are the chests, the dragon and the knight.
+
+### Prompt 7: the knight on the trail (for Flow, with the dragon on guard attached)
+
+The class's marker, walking the trail from chest to chest. The visor is down so it could be anyone in the class.
+
+```
+Same flat style as this dragon: solid colours, each with one darker shade and one lighter shade, light from the top left. An original, friendly little knight riding a small round pony, walking to the right, seen from the side. Chunky and cute: a big round helmet with the visor down and a red plume, a small round shield, a short lance with a pennant flag.
+
+Plain, flat, pure white background. No ground, no shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 8: the map's landmarks, as ink doodles (for Flow, nothing attached)
+
+Traced, tinted to the map's ink and faded, like the preview's compass and hills.
+
+```
+Doodles for an old hand-drawn treasure map, in one colour only: dark brown ink lines on white, like a map in a storybook. No colour fill, no shading, no texture: simple, clean lines of an even thickness. Draw these seven, well apart, not touching: a castle with two towers and flags; a forest of three round trees; rolling hills; a little stone bridge over a stream; a windmill; a signpost; a rocky mountain with a cave at its foot.
+
+Plain, flat, pure white background. No words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
