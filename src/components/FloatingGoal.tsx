@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Maximize2, Minimize2, PartyPopper, User } from 'lucide-react'
+import { Maximize2, Minimize2, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { buttonVariants } from '@/components/ui/button'
@@ -9,7 +9,10 @@ import { floatClockShown, useTimer } from '../hooks/useTimer'
 import { assetUrl } from '../lib/assets'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { findMover, type Mover } from '../lib/moveExtension'
+import { CHESTS, type ChestNow } from '../lib/quest'
+import { playKeyClick } from '../lib/sound'
 import { FloatClock } from './BigTimer'
+import { ChestPicture, KeyPicture } from './quest/QuestPictures'
 import { FloatGetReady } from './FloatGetReady'
 import { GRIP_ROOM, MoveGrip } from './MoveGrip'
 
@@ -19,11 +22,15 @@ interface FloatingGoalProps {
   className: string
   classPoints: number
   goal: number
-  /** The goal was filled from here and its celebration is waiting for the app to be in front. */
-  waiting: boolean
+  /** The Quest's chest the class is on, and its gold locks. */
+  chest: ChestNow
+  /** Times the goal has been filled: a rise is a key, dropped into the chest here. */
+  goalsReached: number
+  /** Open the chest was tapped, and the app hasn't come forward yet. */
+  chestAsked: boolean
   onAdd: () => void
-  /** Ask for the app to come to the front, where the chest opens. */
-  onCelebrate: () => void
+  /** Ask for the app to come to the front, where the chest opens: it needs the whole board. */
+  onOpenChest: () => void
   /**
    * Pick Student as it stands: the name flashing past, then the one it landed on, with the
    * homeroom number where two students share the name ('' otherwise).
@@ -104,9 +111,11 @@ export function FloatingGoal({
   className,
   classPoints,
   goal,
-  waiting,
+  chest,
+  goalsReached,
+  chestAsked,
   onAdd,
-  onCelebrate,
+  onOpenChest,
   pick,
   canPick,
   onPick,
@@ -114,9 +123,23 @@ export function FloatingGoal({
   getReady,
 }: FloatingGoalProps) {
   const lastTap = useRef(0)
-  // Celebrate was tapped, but the app is still behind the lesson.
-  const [asked, setAsked] = useState(false)
-  if (!waiting && asked) setAsked(false)
+
+  /**
+   * A goal filled over the lesson wins its key here, with no tap to wait for (DECISIONS, "In the
+   * floating window"): a key drops into the window's own chest with the click. Paced on the
+   * window's own clock, since the app's page behind the lesson gets about one timer a second.
+   */
+  const [drops, setDrops] = useState(0)
+  const reachedBefore = useRef(goalsReached)
+  useEffect(() => {
+    if (goalsReached > reachedBefore.current) {
+      setDrops((n) => n + 1)
+      const timer = win.setTimeout(playKeyClick, 450)
+      reachedBefore.current = goalsReached
+      return () => win.clearTimeout(timer)
+    }
+    reachedBefore.current = goalsReached
+  }, [goalsReached, win])
 
   const [strip, setStrip] = useState(() => win.innerHeight < STRIP_BELOW)
   useEffect(() => {
@@ -169,8 +192,7 @@ export function FloatingGoal({
     getReady.onActiveChange(false)
   }
 
-  // Held full while the chest waits, as the meter on the board is.
-  const shown = waiting ? goal : classPoints
+  const shown = classPoints
   const pct = goal > 0 ? Math.min(100, (shown / goal) * 100) : 0
 
   /** Whether the last tap that counted was +1, so another +1 can follow it quickly. */
@@ -183,11 +205,6 @@ export function FloatingGoal({
     lastTap.current = now
     lastWasAdd.current = isAdd
     action()
-  }
-
-  function celebrate() {
-    setAsked(true)
-    onCelebrate()
   }
 
   function shrink() {
@@ -221,25 +238,38 @@ export function FloatingGoal({
     </button>
   )
 
-  // The jar is full. The party is the app's, full screen, so this only asks for it - and says
-  // where it is if the browser won't bring the app forward by itself.
-  const celebrateButton = (
+  // Every lock is gold. The chest opening and the wheel need the whole board, so +1 becomes Open
+  // the chest, which brings the app forward - and says where it is if the browser won't.
+  const openChestButton = (
     <button
       type="button"
       data-slot="button"
-      onClick={() => tap(celebrate)}
+      data-float-open-chest=""
+      onClick={() => tap(onOpenChest)}
       className={cn(
-        'float-celebrate-glow flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl bg-amber-400 font-extrabold text-amber-950 shadow-sm',
-        strip && 'h-full rounded-xl',
+        'float-celebrate-glow flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center rounded-2xl bg-amber-400 px-1 font-extrabold leading-tight text-amber-950 shadow-sm',
+        small && 'h-full rounded-xl',
         pressable,
       )}
-      style={{ touchAction: 'manipulation' }}
+      style={{ touchAction: 'manipulation', fontSize: small ? '0.85rem' : 'clamp(0.9rem, 9vh, 1.25rem)' }}
     >
-      <span className="flex items-center gap-2" style={{ fontSize: strip ? '1.05rem' : 'clamp(1.1rem, 18vh, 2.4rem)' }}>
-        <PartyPopper className="size-[1em]" /> {strip && asked ? 'Open the app' : 'Celebrate!'}
-      </span>
-      {!strip && asked && <span className="text-sm font-bold">Open the app to see it</span>}
+      {chestAsked ? 'Open the app' : 'Open the chest'}
     </button>
+  )
+
+  // The Quest's chest, with the key dropping in when a goal fills here.
+  const questChest = (size: string) => (
+    <span className={clsx('relative shrink-0', size)} title={`${CHESTS[chest.chest].name} chest: ${chest.have} of ${chest.need} keys`}>
+      <span
+        key={drops}
+        className={clsx('block h-full w-full', drops > 0 && 'quest-chest-click float-chest-click', chest.ready && 'float-chest-rattle')}
+      >
+        <ChestPicture chest={chest.chest} keys={chest.have} className="h-full w-full [&>svg]:h-full [&>svg]:w-full" />
+      </span>
+      {drops > 0 && (
+        <KeyPicture key={`k${drops}`} className="float-key-drop pointer-events-none absolute left-[10%] top-[-30%] h-[45%] w-[80%]" />
+      )}
+    </span>
   )
 
   // The desks are behind the lesson, so the pick is a name here: flashing past, then landed
@@ -378,15 +408,13 @@ export function FloatingGoal({
     ) : strip ? (
       <div data-ink="canvas" className={cn(canvas, 'items-center gap-1 p-1.5')}>
         {grip}
-        {waiting ? (
-          celebrateButton
-        ) : pick ? (
+        {pick ? (
           pickName
         ) : (
           <>
             {/* The strip has room for the time or the count, and while the clock runs it is the time. */}
             {clock || count}
-            {addButton}
+            {chest.ready ? openChestButton : addButton}
             {pickButton}
             {getReadyButton}
           </>
@@ -413,20 +441,13 @@ export function FloatingGoal({
               />
             </div>
           </div>
-          <img
-            src={treasure('chest-closed')}
-            alt=""
-            draggable={false}
-            className={clsx('shrink-0', clockShown ? 'h-7 w-7' : 'h-8 w-8', waiting && 'float-chest-rattle')}
-          />
+          {questChest(clockShown ? 'h-7 w-8' : 'h-9 w-10')}
           {count}
           {sizeButton}
         </div>
 
         {clock}
-        {waiting ? (
-          celebrateButton
-        ) : pick ? (
+        {pick ? (
           pickName
         ) : (
           // Three equal columns, whatever each button's padding (2026-10-06, the teacher: the same size).
@@ -435,7 +456,7 @@ export function FloatingGoal({
             className={cn('grid min-h-0 grid-cols-3 gap-2', clockShown ? 'shrink-0' : 'flex-1')}
             style={clockShown ? { height: 'clamp(2.75rem, 25vh, 4.5rem)' } : undefined}
           >
-            {addButton}
+            {chest.ready ? openChestButton : addButton}
             {pickButton}
             {getReadyButton}
           </div>

@@ -554,15 +554,100 @@ const scenarios = {
     return page
   },
 
+  /**
+   * The Quest (DECISIONS, "Treasure Quest"): a filled goal wins a key that waits for a tap and
+   * flies into the chest; the chest opens on a tap once every lock is gold; the wheel lands on a
+   * prize, which is kept; the Mega chest starts a new quest; and Our Quest opens from the chest.
+   */
+  async 'the quest'() {
+    const cls = makeClass('c1', 'Quest', 5, { pointsGoal: 5, classPoints: 0, pointsMode: 'goal' })
+    const page = await open({ state: stateOf(cls) })
+    await panelButton(page, 'Pick All').click()
+    await award(page)
+    await page.waitForTimeout(1500)
+    check('quest: a full goal brings up the key', (await page.locator('[data-key-moment]').count()) === 1)
+    let c = await activeSaved(page)
+    check('quest: the key is saved as the goal fills', c.quest?.keys === 1, JSON.stringify(c.quest))
+    await page.mouse.click(640, 400)
+    await page.waitForTimeout(1800)
+    check('quest: a tap sends the key into the chest', (await page.locator('[data-key-moment]').count()) === 0)
+    check('quest: the meter starts the next run', (await meterText(page)).trim() === '0 / 5', await meterText(page))
+
+    // The Wood chest needs one key: a tap opens it.
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(3600)
+    check('quest: the full chest opens with its wheel', (await page.locator('[data-chest-moment] [data-slice]').count()) === 8)
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(7600)
+    const dimmed = await page.locator('[data-chest-moment] [data-slice][opacity]').count()
+    check('quest: the wheel lands, and only its slice turns over', dimmed === 7, `${dimmed} faded`)
+    c = await activeSaved(page)
+    check(
+      'quest: the prize is kept with the opened chest',
+      c.quest?.opened?.length === 1 && Boolean(c.quest.opened[0].prize?.name),
+      JSON.stringify(c.quest),
+    )
+    await page.mouse.click(10, 10)
+    await page.waitForTimeout(800)
+    check('quest: a tap closes the chest', (await page.locator('[data-chest-moment]').count()) === 0)
+
+    // Not full: the chest opens Our Quest, which a tap closes.
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(900)
+    const map = await page.evaluate(() => {
+      const m = document.querySelector('[data-our-quest]')
+      return m && { stations: m.querySelectorAll('[data-quest-station]').length, over: m.scrollHeight - m.clientHeight }
+    })
+    check('quest: Our Quest shows five chests, and fits', map?.stations === 5 && map.over <= 0, JSON.stringify(map))
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(500)
+    check('quest: a tap closes Our Quest', (await page.locator('[data-our-quest]').count()) === 0)
+    await page.context().close()
+
+    // The Mega chest, opened, starts quest 2 with the keys left over.
+    const mega = makeClass('c2', 'Mega', 5, {
+      pointsGoal: 5,
+      pointsMode: 'goal',
+      quest: {
+        number: 1,
+        keys: 16,
+        opened: [0, 1, 2, 3].map((i) => ({ prize: { id: `p${i}`, name: 'Game time', size: 's' }, on: '2026-10-01' })),
+        keyDays: ['2026-10-01', '2026-10-05'],
+        startedOn: '2026-09-01',
+      },
+    })
+    const p2 = await open({ state: stateOf(mega) })
+    await p2.locator('[data-quest-chest]').click()
+    await p2.waitForTimeout(3600)
+    const gold = await p2.evaluate(
+      () =>
+        [...document.querySelectorAll('[data-chest-moment] [data-slice] path')].filter((e) => /gold/.test(e.getAttribute('fill') ?? ''))
+          .length,
+    )
+    check('quest: the Mega wheel is all gold', gold === 8, `${gold} gold`)
+    await p2.getByRole('button', { name: 'Spin!' }).click()
+    await p2.waitForTimeout(7600)
+    await p2.mouse.click(10, 10)
+    await p2.waitForTimeout(800)
+    const q = (await activeSaved(p2)).quest
+    check(
+      'quest: after the Mega chest, a new quest with the extra key',
+      q.number === 2 && q.keys === 1 && q.opened.length === 0,
+      JSON.stringify(q),
+    )
+    return p2
+  },
+
   /** Points past the goal carry into the next run, and the meter should show them once the chest shuts. */
   async 'meter shows the carried-over points after a celebration'() {
     const cls = makeClass('c1', 'Overflow', 5, { pointsGoal: 10, classPoints: 8, goalEnabled: true })
     const page = await open({ state: stateOf(cls) })
     await panelButton(page, 'Pick All').click()
     await award(page)
-    await page.waitForTimeout(1500)
+    // The key moment, past its guard against the board's second touch; then the key's flight home.
+    await page.waitForTimeout(2200)
     await page.mouse.click(640, 400)
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(2500)
     const c = await activeSaved(page)
     const shown = (await meterText(page)).trim()
     check(
@@ -1403,6 +1488,32 @@ const scenarios = {
     return page
   },
 
+  /** The Quest over the lesson: a key won from the float drops into its own chest, and a full chest is Open the chest. */
+  async 'the quest in the floating window'() {
+    const cls = makeClass('c1', 'Float quest', 3, { pointsGoal: 2, classPoints: 1, pointsMode: 'goal' })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await win.waitForTimeout(500)
+    await win.locator('button[aria-label="+1"]').click()
+    await win.waitForTimeout(300)
+    check("float quest: a full goal drops a key into the window's chest", (await win.locator('.float-key-drop').count()) === 1)
+    await win.waitForTimeout(900)
+    check('float quest: the key is won', (await activeSaved(page)).quest?.keys === 1)
+    const openChest = win.locator('[data-float-open-chest]')
+    check(
+      'float quest: a full chest makes +1 Open the chest',
+      (await openChest.count()) === 1 && (await win.locator('button[aria-label="+1"]').count()) === 0,
+    )
+    await win.screenshot({ path: `${SHOTS}/float-quest-open-chest.png` })
+    await openChest.click()
+    await page.bringToFront()
+    await page.waitForTimeout(3000)
+    check('float quest: Open the chest opens it in the app', (await page.locator('[data-chest-moment]').count()) === 1)
+    return page
+  },
+
   async 'Pick in the floating window'() {
     const pickInFloat = async (cls) => {
       const page = await open({ state: stateOf(cls), size: [1280, 559] })
@@ -1570,11 +1681,18 @@ const scenarios = {
     let groups = await made()
     const together = (g) =>
       g.every((d) => g.some((e) => e !== d && Math.abs((e % 6) - (d % 6)) <= 1 && Math.abs(Math.floor(e / 6) - Math.floor(d / 6)) <= 1))
-    check('by seats: four groups are the corners, everyone beside their group', groups.length === 4 && groups.every(together), JSON.stringify(groups))
+    check(
+      'by seats: four groups are the corners, everyone beside their group',
+      groups.length === 4 && groups.every(together),
+      JSON.stringify(groups),
+    )
     const corners = await page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((c) => c.getBoundingClientRect()))
     check(
       'by seats: four corners sit two by two, as in the room',
-      corners.length === 4 && Math.abs(corners[0].top - corners[1].top) < 2 && corners[2].top > corners[0].bottom - 2 && corners[1].left > corners[0].right - 2,
+      corners.length === 4 &&
+        Math.abs(corners[0].top - corners[1].top) < 2 &&
+        corners[2].top > corners[0].bottom - 2 &&
+        corners[1].left > corners[0].right - 2,
     )
     await deal(/^6/)
     groups = await made()
@@ -1587,8 +1705,11 @@ const scenarios = {
     // side, Group 1 the left-hand row.
     const rows = await page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((c) => c.getBoundingClientRect()))
     check(
-      'by seats: the six rows are six cards side by side, in the room\'s order',
-      rows.length === 6 && rows.every((r) => Math.abs(r.top - rows[0].top) < 2) && rows.every((r, i) => i === 0 || r.left > rows[i - 1].left) && groups[0][0] % 6 === 0,
+      "by seats: the six rows are six cards side by side, in the room's order",
+      rows.length === 6 &&
+        rows.every((r) => Math.abs(r.top - rows[0].top) < 2) &&
+        rows.every((r, i) => i === 0 || r.left > rows[i - 1].left) &&
+        groups[0][0] % 6 === 0,
     )
     await deal(/^Pairs/)
     groups = await made()
@@ -1645,12 +1766,18 @@ const scenarios = {
       (await page.locator('[data-group-id]').count()) === 0 && (await make.count()) === 1,
     )
     await page.waitForTimeout(700)
-    await page.getByRole('dialog').getByRole('button', { name: /I'll choose/ }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /I'll choose/ })
+      .click()
     await page.waitForTimeout(500)
     const start = page.locator('[data-group-builder] button', { hasText: 'Start' })
     check("I'll choose: two groups, and Start waits", (await page.locator('[data-frame]').count()) === 2 && (await start.isDisabled()))
     const tap = async (name) => {
-      await page.locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${name}`) }).first().click()
+      await page
+        .locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${name}`) })
+        .first()
+        .click()
       await page.waitForTimeout(30)
     }
     await page.locator('[data-frame="1"]').click({ position: { x: 20, y: 10 } })
@@ -1716,7 +1843,10 @@ const scenarios = {
     await next.getByRole('dialog').locator('[data-saved-groups="Writing"] button').first().click()
     await next.waitForTimeout(900)
     const g = (await activeSaved(next)).groups.map((x) => x.studentIds)
-    const toast = await next.locator('.fixed.bottom-5').textContent().catch(() => '')
+    const toast = await next
+      .locator('.fixed.bottom-5')
+      .textContent()
+      .catch(() => '')
     check(
       'saved groups: a student who left drops out, and the new ones join the smallest group',
       g.length === 2 && !g[0].includes('gone') && g[0].length === 6 && g[1].length === 6,
@@ -2423,7 +2553,7 @@ const scenarios = {
     let stops = 0
     let bad = 0
     const parts = []
-    for (let guard = 0; guard < 80; guard++) {
+    for (let guard = 0; guard < 100; guard++) {
       // Past the lit ring's own slide to its new place (0.2 s).
       await page.waitForTimeout(300)
       if (await page.locator('[data-tour-card]').count()) {
@@ -2449,11 +2579,11 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      'tour: 68 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 68 && bad === 0,
+      'tour: 76 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 76 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 6, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -2845,7 +2975,10 @@ const scenarios = {
         await page.getByRole('dialog').getByRole('button', { name: /^6/ }).first().click()
         await page.waitForTimeout(800)
         await look('group modal: who fills them')
-        await page.getByRole('dialog').getByRole('button', { name: /I'll choose/ }).click()
+        await page
+          .getByRole('dialog')
+          .getByRole('button', { name: /I'll choose/ })
+          .click()
         await page.waitForTimeout(500)
         const cut = await page.evaluate(() =>
           [...document.querySelectorAll('[data-group-builder] [data-frame-body], [data-group-builder] [data-student-id]')].some(

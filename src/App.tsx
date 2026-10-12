@@ -17,6 +17,9 @@ import { GroupBuilder } from './components/GroupBuilder'
 import { SaveGroupsModal } from './components/SaveGroupsModal'
 import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
+import { ChestMoment } from './components/quest/ChestMoment'
+import { OurQuest } from './components/quest/OurQuest'
+import { chestNow, prizesOf, questOf } from './lib/quest'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SideRail } from './components/SideRail'
@@ -111,6 +114,8 @@ export default function App() {
     resetClassGoal,
     setClassPoints,
     addToClassGoal,
+    openChest,
+    setPrizes,
     deleteStudent,
     swapSeats,
     seatClass,
@@ -231,14 +236,21 @@ export default function App() {
   /** The class goal in its own small window over the lesson, so a point doesn't mean switching apps. */
   const { win: floatWin, open: openFloat, close: closeFloat } = useFloatingWindow(theme)
   const appInFront = useAppInFront()
-  /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
-  const [goalWaiting, setGoalWaiting] = useState(false)
+  /** Our Quest, the treasure map, slid over the board (a tap on the meter's chest). */
+  const [questOpen, setQuestOpen] = useState(false)
+  /** A full chest opening, and which one: kept as it starts, since opening it moves the class to the next. */
+  const [chestOpening, setChestOpening] = useState<number | null>(null)
+  /** Open the chest was tapped in the floating window: the chest opens once the app is in front. */
+  const [chestAsked, setChestAsked] = useState(false)
   /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
   const [guide, setGuide] = useState<{ scope: GuideScope; index: number } | null>(null)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
   const [floatReadying, setFloatReadying] = useState(false)
   if (!floatWin && floatReadying) setFloatReadying(false)
   const goalLive = activeClass ? goalIsLive(activeClass) : false
+  /** The Quest's chest the class is on (lib/quest). */
+  const quest = activeClass ? questOf(activeClass) : null
+  const chest = quest ? chestNow(quest) : null
   /** How the class runs points: a class goal, each student's own stars, or none. */
   const pointsMode = activeClass ? pointsModeOf(activeClass) : 'goal'
   /** Stars stay on the desks: a student's own (student points), or waiting for All Stars In! (a class goal's). */
@@ -264,6 +276,7 @@ export default function App() {
     resetPointsSelection()
     // Another class is another set of groups; the activity closes rather than showing them.
     setGroupActivityOpen(false)
+    setQuestOpen(false)
     setGroupScheme(null)
     setGroupsLocked(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -500,6 +513,22 @@ export default function App() {
   }
 
   /** Class Settings opens on the class list, the part a teacher comes for most, unless asked for another section. */
+  /** A full chest opens on a tap: the big moment, with the wheel (components/quest/ChestMoment). */
+  function startChestOpening() {
+    if (!chest?.ready || chestOpening !== null) return
+    setChestAsked(false)
+    setChestOpening(chest.chest)
+  }
+
+  // Open the chest, tapped in the floating window: it opens the moment the app is in front.
+  useEffect(() => {
+    if (chestAsked && appInFront && chest?.ready && chestOpening === null) {
+      setChestAsked(false)
+      setChestOpening(chest.chest)
+    }
+    if (chestAsked && !chest?.ready) setChestAsked(false)
+  }, [chestAsked, appInFront, chest, chestOpening])
+
   function openSettings(section: SettingsSection = 'students') {
     setSettingsSection(section)
     setSettingsOpen(true)
@@ -959,10 +988,9 @@ export default function App() {
               classPoints={activeClass.classPoints ?? 0}
               goalsReached={activeClass.goalsReached ?? 0}
               goal={activeClass.pointsGoal ?? 0}
-              celebrationGifId={activeClass.celebrationGifId}
-              onOpenGoalSettings={() => openSettings('points')}
-              holdCelebration={!appInFront}
-              onWaitingChange={setGoalWaiting}
+              chest={chest!}
+              onTapChest={() => (chest?.ready ? startChestOpening() : setQuestOpen((open) => !open))}
+              holdKeyMoment={!appInFront}
               lifted={meterLifted}
               side={panelSide}
               leading={<TimerClock />}
@@ -1008,6 +1036,17 @@ export default function App() {
               showAllHomerooms={activeClass.showAllHomerooms === true}
               onTapDesk={handleTapDesk}
             />
+
+            {questOpen && quest && goalLive && (
+              <OurQuest
+                quest={quest}
+                onOpenChest={() => {
+                  setQuestOpen(false)
+                  startChestOpening()
+                }}
+                onClose={() => setQuestOpen(false)}
+              />
+            )}
 
             {/* The flip deck slides up over the seating chart and back down on the way out,
                 keeping the side panel's points buttons and the class goal meter in play. */}
@@ -1270,6 +1309,7 @@ export default function App() {
         onSetStarsOnDesks={(on) => setStarsOnDesks(activeClass.id, on)}
         onSetGoal={(goal) => setGoal(activeClass.id, goal)}
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
+        onSetPrizes={(prizes) => setPrizes(activeClass.id, prizes)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onClearDeskStars={() => clearDeskStars(activeClass.id)}
@@ -1321,17 +1361,38 @@ export default function App() {
 
       {tourOpen && <Tour onClose={() => setTourOpen(false)} />}
 
+      {chestOpening !== null && activeClass && (
+        <ChestMoment
+          chest={chestOpening}
+          prizes={prizesOf(activeClass)}
+          spinners={seatedIds.map((id) => ({ id, name: studentsById.get(id)?.name ?? '' }))}
+          onSpinnerPicked={(id) => recordPick(activeClass.id, id, today)}
+          onWon={(prize) => openChest(activeClass.id, prize)}
+          onClose={() => {
+            // The Mega chest ends the quest: a new one starts at the Wood chest.
+            if (chestOpening === 4) setToast({ id: Date.now(), text: 'A new quest begins!' })
+            setChestOpening(null)
+          }}
+          from={() => document.querySelector('[data-quest-chest]')}
+        />
+      )}
+
       {floatWin && goalLive && (
         <FloatingGoal
           win={floatWin}
           className={activeClass.name}
           classPoints={activeClass.classPoints ?? 0}
           goal={activeClass.pointsGoal ?? 0}
-          waiting={goalWaiting}
+          chest={chest!}
+          goalsReached={activeClass.goalsReached ?? 0}
+          chestAsked={chestAsked}
           onAdd={() => addToClassGoal(activeClass.id, 1)}
           // The browser may or may not bring the app forward for this. Either way the chest
-          // opens only once the app is in front, so the fanfare never plays behind the lesson.
-          onCelebrate={() => window.focus()}
+          // opens only once the app is in front: it needs the whole board.
+          onOpenChest={() => {
+            setChestAsked(true)
+            window.focus()
+          }}
           pick={
             picker.mode === 'student-flashing' || picker.mode === 'student-result'
               ? (() => {

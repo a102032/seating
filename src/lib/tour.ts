@@ -3,13 +3,25 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Six parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Seven parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
  * of these screens changes.
  */
-export type TourShot = 'board' | 'flip' | 'chooser' | 'who' | 'builder' | 'groups' | 'timer' | 'howlong' | 'star'
+export type TourShot =
+  | 'board'
+  | 'flip'
+  | 'chooser'
+  | 'who'
+  | 'builder'
+  | 'groups'
+  | 'timer'
+  | 'howlong'
+  | 'star'
+  | 'quest'
+  | 'key'
+  | 'wheel'
 
 export interface TourStop {
   /** The picture: one of the screens, or 'slides', the floating class goal drawn over a lesson slide. */
@@ -67,8 +79,8 @@ export const TOUR: TourPart[] = [
         at: 'desk',
         text: 'Tap a desk to pick that student, then the star to give a point. Tap the desk again to let them go.',
       },
-      { shot: 'board', at: 'meter', text: 'The class goal fills as the class earns stars. When it is full, the treasure chest opens.' },
-      { shot: 'board', at: 'chest', text: 'Tap the chest to change the goal.' },
+      { shot: 'board', at: 'meter', text: 'The class goal fills as the class earns stars. Each time it is full, the class wins a key.' },
+      { shot: 'board', at: 'chest', text: 'The chest needs keys. Tap it to see Our Quest. The Quest has its own part later.' },
       { shot: 'board', at: 'tab', text: 'Your class. Tap the arrow to switch to another class, or make a new one.' },
       { shot: 'board', at: 'gear', text: 'Class Settings: everything about this class. Help, and this tour, are in there.' },
       { shot: 'board', at: 'saved', text: 'Whether your classes are saved to your Google account. A cloud with a tick means they are.' },
@@ -144,12 +156,30 @@ export const TOUR: TourPart[] = [
     ],
   },
   {
+    title: 'The Quest',
+    intro: 'Fill the goal to win keys. Keys open five chests, and each chest has a prize wheel.',
+    stops: [
+      { shot: 'key', at: 'key', text: 'A full goal wins a key. It waits until someone taps it, then it flies into the chest.' },
+      { shot: 'quest', at: 'map', text: 'Our Quest: tap the chest on the goal to see the map. Tap anywhere to close it.' },
+      { shot: 'quest', at: 'opened', text: 'An opened chest shows the prize the class won.' },
+      { shot: 'quest', at: 'now', text: 'The chest the class is on, and its keys. Each chest needs one more key than the last.' },
+      { shot: 'quest', at: 'mega', text: 'The Mega chest is the last. Then a new quest begins.' },
+      {
+        shot: 'wheel',
+        at: 'wheel',
+        text: 'When every lock is gold, tap the chest. It opens, and a prize wheel comes out. Silver and gold slices are the better prizes.',
+      },
+      { shot: 'wheel', at: 'spinner', text: 'Pick a Spinner picks a student to spin.' },
+      { shot: 'wheel', at: 'spin', text: 'Spin! turns the wheel. Your prizes are in Class Settings, Points.' },
+    ],
+  },
+  {
     title: 'The floating class goal',
     intro: 'The class goal in a small window that stays on top of your slides and videos. It works in Chrome and Edge.',
     stops: [
       { shot: 'board', at: 'float', text: 'Tap Float to open the floating class goal.' },
       { shot: 'slides', at: 'window', text: 'It stays on top of your lesson, so you never have to leave your slides.' },
-      { shot: 'slides', at: 'plus', text: '+1 adds a point to the class goal.' },
+      { shot: 'slides', at: 'plus', text: '+1 adds a point to the class goal. A full goal drops a key into its chest.' },
       { shot: 'slides', at: 'pick', text: 'Pick picks a random student and shows their name.' },
       { shot: 'slides', at: 'ready', text: 'Get Ready!, right over your slides.' },
       { shot: 'slides', at: 'shrink', text: 'Make it a thin strip, or big again.' },

@@ -106,6 +106,13 @@ await page.addInitScript(
   },
   [state, theme],
 )
+// The Quest's measures reload into a class one star from its goal (set below, before the reload).
+await page.addInitScript(() => {
+  if (!sessionStorage.getItem('quest-patch')) return
+  const s = JSON.parse(localStorage.getItem('seating-chart-state-v1'))
+  Object.assign(s.classes[0], { classPoints: 49, pointsMode: 'goal' })
+  localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+})
 await page.goto(process.env.URL || 'http://localhost:4173/seating/')
 await page.locator('.splash-board button').first().click()
 await page.waitForTimeout(2500) // pictures loaded, entrance done
@@ -199,7 +206,10 @@ await measure('group activity: deal 4 groups', async () => {
   await wait(600)
   await page.getByRole('dialog').getByRole('button', { name: /^4/ }).first().click()
   await wait(800)
-  await page.getByRole('dialog').getByRole('button', { name: /Make them for me/ }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Make them for me/ })
+    .click()
   await wait(4000)
 })
 await measure('group activity: +1 on a card', async () => {
@@ -237,6 +247,30 @@ await wait(800)
 await measure('timer running, in the bar', async () => {
   await page.locator('[data-timer-card] button[aria-label="Put the timer away"]').click()
   await wait(3000)
+})
+// The Quest: a goal filled wins a key, tapped into the chest; the full Wood chest opens and its wheel spins.
+await page
+  .locator('[data-timer-card] button[aria-label="Turn the timer off"]')
+  .click()
+  .catch(() => {})
+await page.evaluate(() => sessionStorage.setItem('quest-patch', '1'))
+await page.reload()
+if (extraCss) await page.addStyleTag({ content: extraCss })
+await wait(1500)
+await measure('quest: a key won and tapped in', async () => {
+  await page.locator('[data-ink="desk"]').first().click()
+  await page.locator('aside button[aria-label="Award Point"]').click()
+  await wait(2500)
+  await page.mouse.click(700, 400)
+  await wait(1800)
+})
+await measure('quest: the chest opens', async () => {
+  await page.locator('[data-quest-chest]').click()
+  await wait(3600)
+})
+await measure('quest: the wheel spins', async () => {
+  await page.getByRole('button', { name: 'Spin!' }).click()
+  await wait(6600)
 })
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')

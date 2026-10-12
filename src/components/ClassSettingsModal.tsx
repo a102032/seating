@@ -22,7 +22,7 @@ import type { DayCount } from '../lib/participation'
 import type { Theme } from '../lib/theme'
 import { notePhotoCaution, photoCautionSeen } from '../lib/photos'
 import type { DeskPictures } from '../lib/stickers'
-import type { ClassData, PointsMode, Student } from '../types'
+import type { ClassData, PointsMode, QuestPrize, Student } from '../types'
 import { DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { GoogleG } from './Account'
 import { AddPhotosModal, type PhotoRequest } from './AddPhotosModal'
@@ -132,6 +132,8 @@ interface ClassSettingsModalProps {
   onSetStarsOnDesks: (on: boolean) => void
   onSetGoal: (goal: number) => void
   onSetCelebrationGif: (gifId: string) => void
+  /** The Quest's prize list, small, medium and big. */
+  onSetPrizes: (prizes: QuestPrize[]) => void
   onSetClassPoints: (points: number) => void
   onResetClassGoal: () => void
   onClearDeskStars: () => void
@@ -159,6 +161,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   const { open, onClose, section, onSection, activeClass, classes, cloud } = props
   const [helpOpen, setHelpOpen] = useState(false)
   const [choosingGif, setChoosingGif] = useState(false)
+  const [editingPrizes, setEditingPrizes] = useState(false)
   const [confirming, setConfirming] = useState<'delete' | 'empty' | 'clear' | 'photos' | 'remove-photos' | PointsMode | null>(null)
   const [photoRequest, setPhotoRequest] = useState<PhotoRequest | null>(null)
 
@@ -167,11 +170,13 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   if (shownSection !== section) {
     setShownSection(section)
     setChoosingGif(false)
+    setEditingPrizes(false)
   }
   const [wasOpen, setWasOpen] = useState(open)
   if (wasOpen !== open) {
     setWasOpen(open)
     setChoosingGif(false)
+    setEditingPrizes(false)
     setHelpOpen(false)
   }
 
@@ -270,8 +275,11 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onSetClassPoints={props.onSetClassPoints}
           onAskEmptyMeter={() => setConfirming('empty')}
           onAskClearStars={() => setConfirming('clear')}
+          onSetPrizes={props.onSetPrizes}
           choosingGif={choosingGif}
           onChoosingGif={setChoosingGif}
+          editingPrizes={editingPrizes}
+          onEditingPrizes={setEditingPrizes}
         />
       )
       break

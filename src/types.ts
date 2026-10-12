@@ -213,6 +213,14 @@ export interface ClassData {
   savedGroups?: SavedGroups[]
   /** The saved groups the groups on the board came from, so Save keeps changes in them. */
   groupsSavedAs?: string
+  /**
+   * The Quest (2026-10-12, DECISIONS "Treasure Quest"): every goal filled wins a key, and five
+   * chests a quest open with 1, 2, 3, 4 and 5 keys. Unset is a quest not yet begun. Only a class
+   * goal has one; student points and no points never win keys.
+   */
+  quest?: QuestState
+  /** The class's prizes for the wheel, small, medium and big (lib/quest's DEFAULT_PRIZES while unset). */
+  prizes?: QuestPrize[]
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }
@@ -256,3 +264,30 @@ export interface GroupPlace {
 }
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'
+
+/** A prize on the wheel: small, medium or big (a gold slice). */
+export type PrizeSize = 's' | 'm' | 'b'
+
+export interface QuestPrize {
+  id: string
+  name: string
+  size: PrizeSize
+}
+
+/**
+ * Where the class is on its quest. Kept as the keys won and the chests opened rather than "the
+ * chest we're on": a key won while a full chest waits to be opened carries into the next chest,
+ * and the chest a class is on is worked out from the two (lib/quest's chestNow).
+ */
+export interface QuestState {
+  /** Which quest: 1, then 2 after the Mega chest, and so on ("Our Quest 2"). */
+  number: number
+  /** Keys won in this quest, all of them, including those already used to open chests. */
+  keys: number
+  /** The chests opened in this quest, in order, with what the wheel gave. */
+  opened: { prize: QuestPrize; on: string }[]
+  /** The days the last two keys were won, so Points can say how long the last key took. */
+  keyDays: string[]
+  /** The day the quest began, which the first key is counted from. */
+  startedOn: string
+}

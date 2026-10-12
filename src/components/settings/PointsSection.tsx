@@ -1,9 +1,11 @@
-import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, RotateCcw, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
-import type { ClassData, PointsMode } from '../../types'
+import { lastKeyTook, prizeId, prizesOf, questOf, SIZE_NAMES } from '../../lib/quest'
+import type { ClassData, PointsMode, PrizeSize, QuestPrize } from '../../types'
+import { PrizeIcon } from '../quest/QuestPictures'
 import { Btn, NumberStepper, Tick } from './parts'
 
 interface PointsSectionProps {
@@ -16,9 +18,98 @@ interface PointsSectionProps {
   onSetClassPoints: (points: number) => void
   onAskEmptyMeter: () => void
   onAskClearStars: () => void
-  /** The celebration's pictures are up, in place of the section (with Back). */
+  onSetPrizes: (prizes: QuestPrize[]) => void
+  /** The celebration's pictures, or the prize list, are up in place of the section (with Back). */
   choosingGif: boolean
   onChoosingGif: (choosing: boolean) => void
+  editingPrizes: boolean
+  onEditingPrizes: (editing: boolean) => void
+}
+
+const PRIZE_SIZES: { size: PrizeSize; says: string }[] = [
+  { size: 's', says: 'Plain slices' },
+  { size: 'm', says: 'Silver slices' },
+  { size: 'b', says: 'Gold slices' },
+]
+
+/**
+ * The class's prizes for the Quest's wheels (DECISIONS, "Treasure Quest"): one list, each prize
+ * small, medium or big. Each chest's wheel is built from it by the agreed odds, so a teacher
+ * never sets up a wheel. A prize's name is typed (a board brings up its own keyboard, and this is
+ * set up ahead, at a desk); its picture is chosen from the name.
+ */
+function PrizeList({ prizes, onSetPrizes, onBack }: { prizes: QuestPrize[]; onSetPrizes: (p: QuestPrize[]) => void; onBack: () => void }) {
+  const [typed, setTyped] = useState<Record<PrizeSize, string>>({ s: '', m: '', b: '' })
+  function add(size: PrizeSize) {
+    const name = typed[size].trim()
+    if (!name) return
+    onSetPrizes([...prizes, { id: prizeId(), name, size }])
+    setTyped((t) => ({ ...t, [size]: '' }))
+  }
+  return (
+    <>
+      <div className="cs-page-head">
+        <h2 className="m-0 text-xl font-bold">Prizes</h2>
+        <p>What the wheel in each chest can give. Better chests have more silver and gold.</p>
+        <div className="cs-right">
+          <Btn small onClick={onBack}>
+            <ChevronLeft /> Back
+          </Btn>
+        </div>
+      </div>
+      <div className="cs-prizes">
+        {PRIZE_SIZES.map(({ size, says }) => {
+          const mine = prizes.filter((p) => p.size === size)
+          return (
+            <div key={size} className={`cs-prize-col cs-prize-${size}`} data-guide={`prizes-${size}`}>
+              <div className="cs-prize-head">
+                <b>{SIZE_NAMES[size]}</b>
+                <small>{says}</small>
+              </div>
+              <div className="cs-prize-list">
+                {mine.map((p) => (
+                  <div key={p.id} className="cs-prize-row">
+                    <PrizeIcon name={p.name} size={18} className="cs-prize-ic" />
+                    <span className="min-w-0 flex-1 break-words">{p.name}</span>
+                    <button
+                      type="button"
+                      className="cs-icon-btn !h-8 !w-8"
+                      aria-label={`Take out ${p.name}`}
+                      title="Take it out"
+                      // A wheel needs something to give: the last prize of all stays.
+                      disabled={prizes.length <= 1}
+                      onClick={() => onSetPrizes(prizes.filter((x) => x.id !== p.id))}
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <form
+                className="flex gap-1.5"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  add(size)
+                }}
+              >
+                <input
+                  className="cs-box min-w-0 flex-1"
+                  value={typed[size]}
+                  maxLength={40}
+                  placeholder="New prize"
+                  aria-label={`New ${SIZE_NAMES[size].toLowerCase()} prize`}
+                  onChange={(e) => setTyped((t) => ({ ...t, [size]: e.target.value }))}
+                />
+                <Btn small type="submit" disabled={!typed[size].trim()} aria-label="Add">
+                  <Plus /> Add
+                </Btn>
+              </form>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
 }
 
 const chestClosed = assetUrl('/treasure/chest-closed.svg')
@@ -64,8 +155,11 @@ export function PointsSection({
   onSetClassPoints,
   onAskEmptyMeter,
   onAskClearStars,
+  onSetPrizes,
   choosingGif,
   onChoosingGif,
+  editingPrizes,
+  onEditingPrizes,
 }: PointsSectionProps) {
   const mode = pointsModeOf(activeClass)
   const goalOn = goalIsLive(activeClass)
@@ -104,6 +198,8 @@ export function PointsSection({
       save.current(latest.current)
     }, COMMIT_DELAY_MS)
   }
+
+  if (editingPrizes) return <PrizeList prizes={prizesOf(activeClass)} onSetPrizes={onSetPrizes} onBack={() => onEditingPrizes(false)} />
 
   if (choosingGif) {
     const chosen = activeClass.celebrationGifId ?? ''
@@ -160,6 +256,8 @@ export function PointsSection({
   const gif = CELEBRATION_GIFS.find((g) => g.id === activeClass.celebrationGifId)
   const deskStars = activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0)
   const goalNow = activeClass.pointsGoal || goal
+  const prizes = prizesOf(activeClass)
+  const tookLine = lastKeyTook(questOf(activeClass))
   return (
     <>
       <div className="cs-page-head">
@@ -207,7 +305,7 @@ export function PointsSection({
           <div className="cs-row" data-guide="goal-row">
             <div className="cs-row-label">
               <b>Goal</b>
-              <small>Set the goal for your class: how many stars are needed to fill the chest.</small>
+              <small>How many stars fill the meter and win a key.{tookLine && <b className="cs-took"> {tookLine}</b>}</small>
             </div>
             {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}
             <NumberStepper value={goal} min={1} max={Math.max(999, activeClass.pointsGoal ?? 0)} label="Goal" onChange={changeGoal} />
@@ -220,6 +318,18 @@ export function PointsSection({
             <Btn onClick={() => onChoosingGif(true)}>
               <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
               {gif?.label ?? 'Treasure chest'} <ChevronRight />
+            </Btn>
+          </div>
+          <div className="cs-row" data-guide="prizes-row">
+            <div className="cs-row-label">
+              <b>Prizes</b>
+              <small>What the wheel in each chest can give.</small>
+            </div>
+            <Btn onClick={() => onEditingPrizes(true)}>
+              {(['s', 'm', 'b'] as const)
+                .map((size) => `${prizes.filter((p) => p.size === size).length} ${SIZE_NAMES[size].toLowerCase()}`)
+                .join(', ')}
+              <ChevronRight />
             </Btn>
           </div>
           {/* The one place the meter can be corrected: a point that landed by mistake had no way

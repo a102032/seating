@@ -2,29 +2,29 @@ import clsx from 'clsx'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { assetUrl } from '../lib/assets'
-import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
-import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
+import { CHESTS, type ChestNow } from '../lib/quest'
+import { playCoinTick } from '../lib/sound'
 import { landingIsLoud, landingIsSilent, starsLandingIn } from '../lib/starFlight'
-import { GoalCelebration } from './GoalCelebration'
 import { barClass } from '../lib/topBar'
+import { KeyMoment } from './quest/KeyMoment'
+import { ChestPicture, KeyPicture, KeyPips } from './quest/QuestPictures'
 
 interface PointsMeterProps {
   classId: string
   classPoints: number
   goal: number
-  /** Times the goal has been filled. A rise here is what opens the chest. */
+  /** Times the goal has been filled. A rise here is a key won for the Quest. */
   goalsReached: number
-  /** GIPHY id for the celebration, or empty for the treasure chest. */
-  celebrationGifId?: string
-  onOpenGoalSettings: () => void
+  /** The Quest's chest the class is on, at the meter's end, and how many of its locks are gold. */
+  chest: ChestNow
+  /** A tap on the chest: it opens when every lock is gold; otherwise Our Quest slides over the board. */
+  onTapChest: () => void
   /**
    * The app isn't in front of the class - the goal was filled from the floating window, over a
-   * lesson. The chest waits, full, until the app is showing again: the fanfare shouldn't play
-   * from behind the lesson with nothing for the class to see.
+   * lesson, where the key dropped into the window's own chest. The key moment doesn't play again
+   * here: the meter just shows the lock turned gold.
    */
-  holdCelebration: boolean
-  /** Whether a filled goal is waiting for the app to come back, so the floating window can say so. */
-  onWaitingChange: (waiting: boolean) => void
+  holdKeyMoment: boolean
   /**
    * Get Ready! is ending with stars on their way: the meter comes up above the faded board, so the
    * class sees them land in it.
@@ -36,10 +36,8 @@ interface PointsMeterProps {
   side: 'left' | 'right'
 }
 
-/** How full the meter has to get before the chest starts straining. */
-const RATTLE_FROM = 0.85
-/** From here the celebration gif is asked for again, in case the first try was made offline. */
-const PRELOAD_FROM = 0.7
+/** How full the meter has to get before the key at its end starts bobbing. */
+const NEAR_FROM = 0.85
 const CLOSE_UP_MS = 900
 
 const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
@@ -59,38 +57,32 @@ export function PointsMeter({
   classPoints,
   goal,
   goalsReached,
-  celebrationGifId,
-  onOpenGoalSettings,
-  holdCelebration,
-  onWaitingChange,
+  chest,
+  onTapChest,
+  holdKeyMoment,
   lifted = false,
   leading,
   side,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
-  // 'waiting' is a filled goal whose chest hasn't opened yet, because the app wasn't in front.
-  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing'>('idle')
-  const holdRef = useRef(holdCelebration)
-  const waitingChangeRef = useRef(onWaitingChange)
+  // 'key' is the key moment, waiting for its tap; 'closing' the bar going back to the next run.
+  const [phase, setPhase] = useState<'idle' | 'key' | 'closing'>('idle')
+  const [keysWon, setKeysWon] = useState(1)
+  /** Bumped as a key lands, so the chest gives its click and wiggle. */
+  const [clicks, setClicks] = useState(0)
+  const holdRef = useRef(holdKeyMoment)
   const phaseRef = useRef(phase)
-  /** The meter's real total, for picking up once the chest has shut. */
+  /** The meter's real total, for picking up once the key is in. */
   const latestPoints = useRef(classPoints)
   useEffect(() => {
-    holdRef.current = holdCelebration
-    waitingChangeRef.current = onWaitingChange
+    holdRef.current = holdKeyMoment
     phaseRef.current = phase
     latestPoints.current = classPoints
   })
-  const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
-  // Normally mirrors classPoints, but holds at full through the celebration so the bar
-  // doesn't snap back to the new run while the chest is still open.
+  // Normally mirrors classPoints, but holds at full through the key moment so the bar doesn't
+  // snap back to the new run while the key is still on its way.
   const [displayPoints, setDisplayPoints] = useState(classPoints)
-  // Null until the gif has actually decoded. The chest is what shows otherwise, so a slow
-  // or blocked network costs the moment nothing.
-  const [readyGif, setReadyGif] = useState<{ id: string; url: string } | null>(null)
-  /** Cuts the fanfare short when the teacher closes the celebration. */
-  const stopFanfare = useRef<(() => void) | null>(null)
 
   /** Meter moves waiting for a star still in the air (lib/starFlight). */
   const landings = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -102,16 +94,13 @@ export function PointsMeter({
     if (!prev || prev.classId !== classId) {
       landings.current.forEach(clearTimeout)
       landings.current = []
-      stopFanfare.current?.()
-      stopFanfare.current = null
       setDisplayPoints(classPoints)
       setPhase('idle')
       return
     }
 
     // A point from a desk sends a star flying into the jar first: the coin moves, the sound
-    // plays and a filled goal opens as it lands, not while it is still on the desk. Decided
-    // when it lands, so a second point in the air sees the chest the first one opened.
+    // plays and a filled goal wins its key as it lands, not while it is still on the desk.
     const wait = classPoints > prev.value || goalsReached > prev.reached ? starsLandingIn() : 0
     if (wait > 0) {
       const timer = setTimeout(() => {
@@ -124,28 +113,31 @@ export function PointsMeter({
   }, [classId, classPoints, goal, goalsReached])
 
   function land(prev: { value: number; reached: number }) {
-    // The chest is already open, or waiting to be: the bar stays full until it shuts, and
-    // what landed meanwhile is picked up then. A second party on top of the first would play
-    // two fanfares at once.
-    if (phaseRef.current === 'opening' || phaseRef.current === 'waiting') {
-      if ((classPoints > prev.value || goalsReached > prev.reached) && !landingIsSilent()) playCoinTick()
+    const sound = () => {
+      if (!landingIsSilent()) playCoinTick(landingIsLoud())
+    }
+    // A key is already waiting for its tap: the bar stays full until it is in, and what landed
+    // meanwhile is picked up then. A second goal filled meanwhile is one more key in the same moment.
+    if (phaseRef.current === 'key') {
+      if (goalsReached > prev.reached) setKeysWon((n) => n + goalsReached - prev.reached)
+      if (classPoints > prev.value || goalsReached > prev.reached) sound()
       return
     }
 
-    // The goal was filled: celebrate. This used to key off the total dropping, which is
-    // also what a reset or a correction looks like - so Reset Class Goal threw the party.
+    // The goal was filled: a key. This keys off the goals-reached count, never the total
+    // falling - a reset or a correction is a fall too.
     if (goalsReached > prev.reached) {
-      setDisplayPoints(goal)
+      sound()
       if (holdRef.current) {
-        // The last marble still lands with its tick; the party waits for the app.
-        if (!landingIsSilent()) playCoinTick()
-        setPhase('waiting')
+        // Filled from the floating window: the key went into its chest there. Here the lock is
+        // simply gold, and the bar starts the next run.
+        setDisplayPoints(classPoints)
+        setClicks((n) => n + 1)
         return
       }
-      setPhase('opening')
-      stopFanfare.current = playGoalCelebration()
-      const box = chestRef.current?.getBoundingClientRect()
-      setBurstOrigin(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null)
+      setDisplayPoints(goal)
+      setKeysWon(goalsReached - prev.reached)
+      setPhase('key')
       return
     }
 
@@ -155,72 +147,16 @@ export function PointsMeter({
       return
     }
 
-    // The coin moving and the count popping say a point landed. A "+1" also rose off the coin
-    // every time; the teacher took it out as one thing more than the moment needed.
+    // The coin moving and the count popping say a point landed.
     if (classPoints > prev.value) {
       setDisplayPoints(classPoints)
-      // A Get Ready! with its speaker off lands its stars in silence.
-      if (!landingIsSilent()) playCoinTick(landingIsLoud())
+      sound()
     }
   }
 
-  // A goal filled from the floating window opens the moment the app is in front again - when
-  // the teacher taps Celebrate there, or comes back to the app some other way.
-  useEffect(() => {
-    if (phase === 'waiting' && !holdCelebration) {
-      setPhase('opening')
-      stopFanfare.current = playGoalCelebration()
-      const box = chestRef.current?.getBoundingClientRect()
-      setBurstOrigin(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null)
-    }
-  }, [phase, holdCelebration])
-
-  useEffect(() => {
-    waitingChangeRef.current(phase === 'waiting')
-  }, [phase])
-  useEffect(() => () => waitingChangeRef.current(false), [])
-
-  // Decode the fanfare as soon as this class has a goal, so it's in memory long before the
-  // chest opens rather than starting a download at the moment it's needed.
-  useEffect(() => {
-    if (goal > 0) primeGoalFanfare()
-  }, [goal])
-
-  // Fetch the gif as soon as the meter is up, never when the chest opens: started then, it
-  // arrives halfway through, which looks broken. It used to wait until the meter was 70% full,
-  // so a goal filled from further back in one go - Pick All and + with a whole class, a Get
-  // Ready! prize, a Mystery Gift, All Stars In! - opened on the chest every time (the teacher,
-  // 2026-10-06). It is one gif, and the browser keeps it once it has it. Asked again on the
-  // way to the goal, in case the first try was made with no internet.
-  const hasGoal = goal > 0
-  const approaching = hasGoal && classPoints / goal >= PRELOAD_FROM
-  useEffect(() => {
-    if (!celebrationGifId || !hasGoal) return
-    const url = giphyUrl(celebrationGifId)
-    const img = new Image()
-    let cancelled = false
-    img.onload = () => {
-      if (!cancelled) setReadyGif({ id: celebrationGifId, url })
-    }
-    img.onerror = () => {
-      // A failed second try leaves a first one that worked alone.
-      if (!cancelled) setReadyGif((ready) => (ready?.id === celebrationGifId ? ready : null))
-    }
-    img.src = url
-    return () => {
-      cancelled = true
-    }
-  }, [celebrationGifId, hasGoal, approaching])
-
-  /**
-   * The celebration is over: shut the lid, send the coin home, then pick up the new total -
-   * points past the goal carry into the next run, and the bar used to sit at 0 over them
-   * until the next point landed.
-   */
-  function finishCelebration() {
-    if (phase !== 'opening') return
-    stopFanfare.current?.()
-    stopFanfare.current = null
+  /** The key is in: the lock turns gold, the bar empties, then picks up the new total. */
+  function keyLanded() {
+    setClicks((n) => n + 1)
     setPhase('closing')
     setDisplayPoints(0)
     setTimeout(() => {
@@ -229,11 +165,13 @@ export function PointsMeter({
     }, CLOSE_UP_MS)
   }
 
-  useEffect(() => () => stopFanfare.current?.(), [])
-
   const pct = goal > 0 ? Math.min(100, (displayPoints / goal) * 100) : 0
-  const open = phase === 'opening'
-  const rattling = !open && goal > 0 && pct / 100 >= RATTLE_FROM
+  const keyMoment = phase === 'key'
+  // While the key is on its way its lock isn't gold yet.
+  const have = keyMoment ? Math.max(0, chest.have - keysWon) : chest.have
+  const ready = !keyMoment && chest.ready
+  const near = goal > 0 && pct / 100 >= NEAR_FROM && !keyMoment
+  const tier = CHESTS[chest.chest]
 
   return (
     <div
@@ -241,8 +179,6 @@ export function PointsMeter({
       data-side={side}
       className={clsx(
         barClass(),
-        'transition-shadow',
-        open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
         // Above Get Ready!'s faded board (z-55), under the stars flying in (z-60). Only to be
         // seen: a tap on it goes through to the board, where it ends Get Ready!, rather than
         // opening the class list or a settings window under the faded board.
@@ -261,7 +197,6 @@ export function PointsMeter({
         animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
         transition={{ duration: 0.7 }}
       />
-
       {/*
         Everything that moves here is CSS, so the board's graphics chip runs it and the main
         processor is left free. It was framer-motion springs, plus a ring of nine sparkles
@@ -309,7 +244,7 @@ export function PointsMeter({
               data-goal-coin=""
               className={clsx(
                 'absolute h-[26px] w-[26px] max-w-none select-none drop-shadow',
-                open && 'animate-[spin_0.8s_linear_infinite]',
+                keyMoment && 'animate-[spin_0.8s_linear_infinite]',
               )}
               style={{ left: -13, top: -13 }}
             />
@@ -317,18 +252,28 @@ export function PointsMeter({
         </div>
       </div>
 
-      {/* Where it's going. Straining near the end, then open. */}
+      {/* The key this goal wins, waiting at the end of the track: it bobs as the class gets near.
+          Hidden while the big one is on the board. */}
+      <KeyPicture
+        className={clsx('h-[18px] w-9 shrink-0', near ? 'quest-key-near' : 'opacity-50')}
+        style={{ visibility: keyMoment ? 'hidden' : undefined }}
+      />
+
+      {/* The Quest's chest, with a little key for each lock. A tap opens Our Quest, or opens the
+          chest once every lock is gold; then it rattles until the teacher is ready. */}
       <button
         type="button"
-        onClick={onOpenGoalSettings}
-        title="Class goal settings"
-        className="shrink-0 rounded-xl p-0.5 transition-transform active:scale-90"
+        onClick={onTapChest}
+        title={ready ? `Open the ${tier.name} chest` : `Our Quest: ${tier.name} chest, ${have} of ${chest.need} keys`}
+        data-guide="quest-chest"
+        className="flex shrink-0 flex-col items-center gap-px rounded-xl px-1 transition-transform active:scale-90"
       >
-        {/* The rattle runs for as long as the class sits near the goal - a whole lesson,
-            sometimes - which is why it had to leave framer for CSS above all. */}
-        <div ref={chestRef} className={clsx(open ? 'meter-chest-open' : rattling && 'meter-chest-rattle')}>
-          <img src={treasure(open ? 'chest-open' : 'chest-closed')} alt="" draggable={false} className="h-8 w-8 select-none" />
+        <div ref={chestRef} data-quest-chest="" className={clsx(ready && 'meter-chest-rattle')}>
+          <div key={clicks} className={clicks ? 'quest-chest-click' : undefined}>
+            <ChestPicture chest={chest.chest} keys={have} className="h-[33px] w-[38px]" />
+          </div>
         </div>
+        <KeyPips need={chest.need} have={have} className="h-2" />
       </button>
 
       <span
@@ -339,15 +284,7 @@ export function PointsMeter({
         {displayPoints} / {goal}
       </span>
 
-      {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
-          be kept, so the chest could open on the gif the teacher had just switched away from. */}
-      {open && (
-        <GoalCelebration
-          origin={burstOrigin}
-          gifUrl={readyGif && readyGif.id === celebrationGifId ? readyGif.url : null}
-          onDone={finishCelebration}
-        />
-      )}
+      {keyMoment && <KeyMoment count={keysWon} target={() => chestRef.current} onLanded={keyLanded} />}
     </div>
   )
 }

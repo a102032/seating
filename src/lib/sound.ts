@@ -698,3 +698,48 @@ export function playGiftGold() {
   })
   playTone(ctx, master, { frequency: 3136, start: 0.42, duration: 0.7, type: 'sine', peakGain: 0.12 })
 }
+
+// --- The Quest ---------------------------------------------------------------------------------
+
+function questMaster(gain = 1) {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = gain
+  master.connect(ctx.destination)
+  return { ctx, master }
+}
+
+/**
+ * "You got a key!": a short bright jingle, four notes up and a ringing top. A medium moment
+ * (DECISIONS, "The plan, agreed"): bigger than a picker's chime, far short of the chest's fanfare,
+ * which belongs to the chest opening.
+ */
+export function playKeyJingle() {
+  const { ctx, master } = questMaster()
+  ;[1046.5, 1318.5, 1567.98, 2093].forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: i * 0.08, duration: i === 3 ? 0.7 : 0.18, type: 'triangle', peakGain: 0.2 })
+  })
+  playTone(ctx, master, { frequency: 3136, start: 0.3, duration: 0.6, type: 'sine', peakGain: 0.06 })
+}
+
+/** The key turning in its lock: a dry click and two notes up. */
+export function playKeyClick() {
+  const { ctx, master } = questMaster()
+  playNoiseBurst(ctx, master, 0, 0.035, 0.35)
+  playTone(ctx, master, { frequency: 1318.5, start: 0.06, duration: 0.25, type: 'triangle', peakGain: 0.16 })
+  playTone(ctx, master, { frequency: 1760, start: 0.13, duration: 0.4, type: 'triangle', peakGain: 0.16 })
+}
+
+/** The full chest straining before it bursts: quick wooden knocks, kept up near 1kHz for a board's speaker. */
+export function playChestKnocks(count = 7) {
+  const { ctx, master } = questMaster()
+  for (let i = 0; i < count; i++) {
+    playNoiseBurst(ctx, master, i * 0.13, 0.06, 0.28)
+    playTone(ctx, master, { frequency: 880 + (i % 2) * 120, start: i * 0.13, duration: 0.07, type: 'triangle', peakGain: 0.12 })
+  }
+}
+
+/** The wheel crossing a peg: the picker's own pop, so a spin sounds like a pick. */
+export function playWheelPeg() {
+  playPickerTick()
+}

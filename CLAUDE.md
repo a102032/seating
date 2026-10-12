@@ -15,8 +15,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
   Smart boards often read one touch as two.
 - **Nothing happens on a timer.** Cards don't flip back by themselves, and picks don't expire. The teacher or a
   tap decides when something ends.
-- **The class goal is the only big celebration.** Other good moments get something small (a pop, a short
-  sparkle), so the big one keeps its meaning.
+- **The Quest's chest opening is the only big celebration.** A goal filled is a key, a medium moment; other good
+  moments get something small (a pop, a short sparkle), so the big one keeps its meaning.
 - On-screen words are for young EFL readers: short, plain, and one idea per label.
 - Plain-language replies. Say what was verified and how. Send a screenshot after visual changes.
 - **Before the app goes to other teachers** there is a checklist in DECISIONS' to-do list (its last step, "ready for
@@ -129,6 +129,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
     `lib/tour.ts`, its pictures in `public/tour/` and where things are in them in `lib/tourRects.json`, both made by
     `scripts/tour-shots.mjs` - take them again when one of those screens changes.
   - `ui/`: shadcn primitives.
+- The Quest (the class goal's keys, five chests and the prize wheel; DECISIONS, "The Quest"): `lib/quest.ts` (keys, chests,
+  the odds, the prizes, `buildWheel`), `lib/questArt.ts` (the chests, key and wheel drawn in code as SVG text), and
+  `components/quest/`: `KeyMoment.tsx`, `ChestMoment.tsx` (the chest opening and the wheel), `OurQuest.tsx` (the map) and
+  `QuestPictures.tsx`. The knight, the sleeping dragon and the landmarks are in `public/quest/`, made by `design/quest/prepare-art.py`.
 - `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it
   to land (`starsLandingIn`) before the coin moves.
 - `src/lib/greetings.ts`: what the splash says to a signed-in teacher (by the clock, the day, special days and the class goals).

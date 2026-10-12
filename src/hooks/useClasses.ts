@@ -6,8 +6,9 @@ import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
+import { withChestOpened, withKeysWon } from '../lib/quest'
 import type { Theme } from '../lib/theme'
-import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
+import { type ClassData, type Gender, type GroupStatus, type PointsMode, type QuestPrize, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
 
 export const MAX_CLASSES = 5
@@ -130,12 +131,15 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
   const goal = c.pointsGoal ?? 0
   let goalsReached = c.goalsReached ?? 0
   let goalReachedOn = c.goalReachedOn
+  let keys = 0
   if (goal > 0 && classPoints >= goal) {
-    goalsReached += Math.floor(classPoints / goal)
+    keys = Math.floor(classPoints / goal)
+    goalsReached += keys
     classPoints %= goal
     goalReachedOn = dateKey()
   }
-  return { ...c, classPoints, goalsReached, goalReachedOn }
+  // Every goal filled wins the Quest a key (lib/quest).
+  return withKeysWon({ ...c, classPoints, goalsReached, goalReachedOn }, keys)
 }
 
 /**
@@ -613,6 +617,15 @@ export function useClasses() {
     [updateClass],
   )
 
+  /** A full chest opened on the board, and the prize its wheel landed on (lib/quest). */
+  const openChest = useCallback(
+    (classId: string, prize: QuestPrize) => updateClass(classId, (c) => withChestOpened(c, prize)),
+    [updateClass],
+  )
+
+  /** The class's prize list for the wheels, as edited in Points. */
+  const setPrizes = useCallback((classId: string, prizes: QuestPrize[]) => updateClass(classId, (c) => ({ ...c, prizes })), [updateClass])
+
   /** Clears the shared meter without touching any stars waiting on the desks. */
   const resetClassGoal = useCallback((classId: string) => updateClass(classId, (c) => ({ ...c, classPoints: 0 })), [updateClass])
 
@@ -755,6 +768,8 @@ export function useClasses() {
     resetClassGoal,
     setClassPoints,
     addToClassGoal,
+    openChest,
+    setPrizes,
     deleteStudent,
     swapSeats,
     seatClass,

@@ -47,6 +47,15 @@ const STATE = {
       pointsMode: 'goal',
       pointsGoal: 50,
       classPoints: 18,
+      // On the Quest: the Wood chest opened, the Bronze chest with one of its two keys.
+      goalsReached: 2,
+      quest: {
+        number: 1,
+        keys: 2,
+        opened: [{ prize: { id: 'p-music', name: 'Music time', size: 's' }, on: today }],
+        keyDays: [today, today],
+        startedOn: today,
+      },
       // Groups kept to use again, so the window shows where they are.
       savedGroups: [
         {
@@ -72,7 +81,7 @@ const TEACHER = { uid: 't1', firstName: 'Derek', email: 'derek@example.com', dir
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 
-async function open() {
+async function open(state = STATE) {
   const context = await browser.newContext({ viewport: { width: SIZE[0], height: SIZE[1] } })
   const page = await context.newPage()
   if (FONTS) {
@@ -95,7 +104,7 @@ async function open() {
       localStorage.setItem('seating-chart-theme-chosen-v1', '1')
       localStorage.setItem('seating-chart-guide-v1', JSON.stringify({ t1: true }))
     },
-    [STATE, TEACHER],
+    [state, TEACHER],
   )
   await page.goto(URL)
   await page.locator('.splash-board button', { hasText: '4B English' }).first().click()
@@ -140,7 +149,7 @@ const all = {}
   const page = await open()
   await page.evaluate(() => {
     // The meter is the bar holding the chest; the tab the box holding the gear.
-    const chest = document.querySelector('img[src*="chest-closed"]')
+    const chest = document.querySelector('[data-quest-chest]')
     let m = chest
     while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
     m?.setAttribute('data-tour-mark', 'meter')
@@ -162,7 +171,7 @@ const all = {}
     saved: 'aside [data-sync]',
     side: 'aside button[title^="Move panel"]',
     meter: '[data-tour-mark="meter"]',
-    chest: 'img[src*="chest-closed"]',
+    chest: '[data-quest-chest]',
     tab: '[data-tour-mark="tab"]',
     gear: 'button[aria-label="Class Settings"]',
     desk: '[data-tour-mark="desk"]',
@@ -237,7 +246,11 @@ const all = {}
   // Partway through, as a teacher would be: the first group full, the second lit with two in it.
   const tapIn = async (frame, names) => {
     await page.locator(`[data-frame="${frame}"]`).click({ position: { x: 20, y: 10 } })
-    for (const n of names) await page.locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${n}`) }).first().click()
+    for (const n of names)
+      await page
+        .locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${n}`) })
+        .first()
+        .click()
   }
   await tapIn(0, ['Amy', 'Tony', 'Brian', 'Cindy', 'Grace', 'Henry', 'Ivy'])
   await tapIn(1, ['Kevin', 'Daniel'])
@@ -254,7 +267,10 @@ const all = {}
   await page.waitForTimeout(700)
   await page.getByRole('dialog').getByRole('button', { name: /^4/ }).first().click()
   await page.waitForTimeout(900)
-  await page.getByRole('dialog').getByRole('button', { name: /Make them for me/ }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Make them for me/ })
+    .click()
   await page.waitForTimeout(4500)
   await mark(page, [
     ['new', '^New Groups$'],
@@ -335,6 +351,52 @@ const all = {}
     stop: '[data-tour-mark="stop"]',
   })
   await shot(page, 'star')
+  await page.context().close()
+}
+
+{
+  // The Quest: Our Quest on its map, the key moment, then a full chest opened and its wheel.
+  const page = await open()
+  await page.click('[data-quest-chest]')
+  await page.waitForTimeout(1200)
+  all.quest = await rects(page, {
+    map: '[data-our-quest]',
+    opened: '[data-quest-station="0"]',
+    now: '[data-quest-station="1"]',
+    mega: '[data-quest-station="4"]',
+  })
+  await shot(page, 'quest')
+  await page.context().close()
+}
+
+{
+  const nearly = structuredClone(STATE)
+  nearly.classes[0].classPoints = 49
+  const page = await open(nearly)
+  await page.locator('[data-ink="desk"]', { hasText: 'Amy' }).click()
+  await page.click('aside [aria-label="Award Point"]')
+  await page.waitForTimeout(2600)
+  all.key = await rects(page, { key: '[data-key-moment] .quest-key-float' })
+  await shot(page, 'key')
+  await page.context().close()
+}
+
+{
+  const full = structuredClone(STATE)
+  full.classes[0].quest.keys = 3
+  const page = await open(full)
+  await page.click('[data-quest-chest]')
+  await page.waitForTimeout(3600)
+  await mark(page, [
+    ['spinner', '^Pick a Spinner$'],
+    ['spin', '^Spin!$'],
+  ])
+  all.wheel = await rects(page, {
+    wheel: '[data-chest-moment] [data-slice]',
+    spinner: '[data-tour-mark="spinner"]',
+    spin: '[data-tour-mark="spin"]',
+  })
+  await shot(page, 'wheel')
   await page.context().close()
 }
 
