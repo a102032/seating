@@ -157,7 +157,7 @@ horns. The forests on the map are drawn in another green so it stands out. The p
 | On guard, the term's last goal | sitting, holding the key up | the key is part of the picture while it holds it |
 | On guard, at the chest | sitting, paw on a chest | Flow's chest is cut away and the app's chest goes under the paw |
 | Hit by a star | the guard pose, moved in code | a wobble and a flash: no picture needed |
-| Out of puff | **to redo**: the first came out sad | tired and happy, so the class never feels it made the dragon sad |
+| Out of puff | sitting, panting, tongue out, pink cheeks, a sweat drop, smiling | the first came out sad; redone tired and happy, so the class never feels it made the dragon sad |
 | Hands over the key | sitting, palm up | the key is its own piece on the palm, so it can fly to the chest |
 
 Flow's chests (in the guard pose and the open one) are drawn with outlines and wood grain, unlike the app's flat
@@ -182,7 +182,16 @@ Same flat style as this treasure chest: solid colours, each with one darker shad
 Well apart, not touching. Plain, flat, pure white background. No ground, no shadows, no sparkles, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
 ```
 
-### Prompt 6: the five chests, open (for Flow, with the closed chests attached)
+**Chosen** (2026-10-12): the flat set, `flow/chests-closed.jpg`. Flow also made one with thin dark outlines and
+keyholes, which doesn't match the meter's chest. The flat ones trace to 18 to 70 shapes (10 to 70 KB each) once
+the cut-out's pale edge is trimmed by two pixels. Flow drew all five the same size; the app sizes them, the Mega
+chest biggest. A mock-up of Our Quest at the board's size, with the trail, locks, glow and shadows drawn in code,
+showed them reading as one set.
+
+The pictures kept from Flow are in `flow/`: the chests, and the dragon asleep, on guard at a chest, palm up and out
+of puff. The one holding the key up is still to come as a file.
+
+### Prompt 6: the five chests, open (for Flow, with `flow/chests-closed.jpg` attached)
 
 ```
 The same five chests, same style, now open with no lid at all, full of treasure, more in each one: 1. a few gold coins; 2. gold coins and one big gem; 3. gold coins with a string of pearls hanging over the edge; 4. gold coins, gems and a gold cup; 5. overflowing with gold coins and gems, some spilling onto the floor, a crown on top.
