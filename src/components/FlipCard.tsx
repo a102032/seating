@@ -3,8 +3,9 @@ import { Gift, Star } from 'lucide-react'
 import { useMemo, type CSSProperties } from 'react'
 import { GIFT_REEL_LENGTH, GIFT_ROLL_MS, GIFT_STARS, type BonusKind, type GiftState } from '../hooks/useFlipDeck'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
-import { resolveAvatarSrc } from '../lib/stickers'
+import { hasNoPicture } from '../lib/stickers'
 import type { Gender, Student } from '../types'
+import { StudentPicture } from './StudentPicture'
 
 interface FlipCardProps {
   /** The card's identity: a student id, or a bonus card's made-up one. */
@@ -116,7 +117,7 @@ function StudentFace({
   showStars: boolean
   showHomeroom: boolean
 }) {
-  const avatarSrc = resolveAvatarSrc(student)
+  const pictured = !hasNoPicture(student)
   const points = student.points ?? 0
   return (
     <div
@@ -139,12 +140,12 @@ function StudentFace({
           {points}
         </div>
       )}
-      {avatarSrc && (
+      {pictured && (
         <div className="min-h-0 w-full flex-1 overflow-hidden rounded-lg border border-black/10 bg-white dark:border-white/10">
-          <img src={avatarSrc} alt="" draggable={false} className="h-full w-full object-contain select-none pointer-events-none" />
+          <StudentPicture student={student} className="h-full w-full object-contain select-none pointer-events-none" />
         </div>
       )}
-      {avatarSrc ? (
+      {pictured ? (
         <span
           className="w-full shrink-0 truncate px-0.5 text-center font-bold leading-tight text-card-foreground"
           style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}

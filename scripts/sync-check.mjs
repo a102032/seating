@@ -298,17 +298,17 @@ try {
 
   if (want('delete') && board && laptop) {
     // A new class on the laptop appears on the board; deleting it there takes it off the board.
+    // New Class is at the foot of Class Settings' list (2026-10-12), and starts the guide.
     await laptop.locator('button[aria-label="Class Settings"]').click()
-    await laptop.getByRole('tab', { name: 'Class' }).click()
-    await laptop.getByRole('dialog').getByRole('button', { name: 'New Class' }).click()
-    await laptop.keyboard.press('Escape')
+    await laptop.locator('[data-guide="new-class"]').click()
+    await laptop.waitForTimeout(500)
+    await laptop.getByRole('button', { name: 'Stop guide' }).click()
     const three = await waitFor(async () => (await boardState(board)).classes.length === 3)
     check('delete: a class made on the laptop appears on the board', Boolean(three))
-    await laptop.locator('button[aria-label="Class Settings"]').click()
-    await laptop.getByRole('tab', { name: 'Class' }).click()
-    await laptop.locator('button[aria-label="Lift the safety cover to reveal Delete Class"]').click()
-    await laptop.getByRole('dialog').getByRole('button', { name: 'Delete Class' }).first().click()
-    await laptop.locator('#confirm-typed-text').fill('Class 3')
+    const made = (await boardState(laptop)).classes.at(-1).name
+    await laptop.locator('[data-section-link="class"]').click()
+    await laptop.locator('[data-guide="delete"]').click()
+    await laptop.locator('#confirm-typed-text').fill(made)
     await laptop.getByRole('alertdialog').getByRole('button', { name: 'Delete Class' }).click()
     const two = await waitFor(async () => (await boardState(board)).classes.length === 2)
     check('delete: deleting it on the laptop takes it off the board', Boolean(two))
@@ -441,8 +441,8 @@ try {
       fresh.replace(/\s+/g, ' ').slice(0, 100),
     )
     await signIn(pc, AMY)
-    const setUp = await waitFor(async () => (await pc.getByRole('tab', { name: 'Class', selected: true }).count()) === 1)
-    check('first sign-in: a brand-new teacher goes straight to Class Settings, on the Class tab', Boolean(setUp))
+    const setUp = await waitFor(async () => (await pc.locator('.cs-page[data-section="class"]').count()) === 1)
+    check('first sign-in: a brand-new teacher goes straight to Class Settings, on Class', Boolean(setUp))
     await shot(pc, '11-first-sign-in')
     // The next day: her class, New Class and Switch Teacher, nothing else.
     await reopen(pc)

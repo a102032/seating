@@ -49,12 +49,28 @@ export function hasNoAvatar(student: Pick<Student, 'avatarId'>): boolean {
   return student.avatarId === NO_AVATAR
 }
 
+/** What a class's desks show: each student's character, their photo (or character), or names only. */
+export type DeskPictures = 'characters' | 'photos' | 'names'
+
+export function deskPicturesOf(cls: Pick<ClassData, 'avatarsOff' | 'photosOn'>): DeskPictures {
+  return cls.avatarsOff ? 'names' : cls.photosOn ? 'photos' : 'characters'
+}
+
 /**
- * The students as the board shows them: with the class's avatars switched off, every one by
- * name only, while their own picks stay in the roster for when avatars come back on.
+ * The students as the board shows them: names only while the class shows names, a photo only
+ * while it shows photos. Their own characters and photos stay in the roster either way, for when
+ * the class changes back.
  */
-export function studentsAsShown(cls: Pick<ClassData, 'students' | 'avatarsOff'>): Student[] {
-  return cls.avatarsOff ? cls.students.map((s) => ({ ...s, avatarId: NO_AVATAR })) : cls.students
+export function studentsAsShown(cls: Pick<ClassData, 'students' | 'avatarsOff' | 'photosOn'>): Student[] {
+  const shows = deskPicturesOf(cls)
+  if (shows === 'names') return cls.students.map((s) => ({ ...s, avatarId: NO_AVATAR, photo: undefined }))
+  if (shows === 'characters') return cls.students.map((s) => (s.photo ? { ...s, photo: undefined } : s))
+  return cls.students
+}
+
+/** Nothing to show but the name: no character, and no photo showing. */
+export function hasNoPicture(student: Pick<Student, 'avatarId' | 'photo'>): boolean {
+  return hasNoAvatar(student) && !student.photo
 }
 
 /** The image to show for a student right now, or null for a student with no avatar. */

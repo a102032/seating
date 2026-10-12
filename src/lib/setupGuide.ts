@@ -39,6 +39,8 @@ const g = (name: string) => `[data-guide="${name}"]`
 const hasStudents = ({ cls }: GuideContext) => cls.students.length > 0
 const goal = ({ cls }: GuideContext) => pointsModeOf(cls) === 'goal'
 const avatarsShown = ({ cls }: GuideContext) => !cls.avatarsOff && cls.students.length > 0
+const photosShown = ({ cls }: GuideContext) => cls.photosOn === true && !cls.avatarsOff && cls.students.length > 0
+const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photosOn && cls.students.length > 0
 
 export const GUIDE_STEPS: GuideStep[] = [
   { section: 'class', targets: [g('class-name')], text: 'Type the name of your class.', focus: '#class-name' },
@@ -104,11 +106,28 @@ export const GUIDE_STEPS: GuideStep[] = [
     when: hasStudents,
   },
 
-  { section: 'avatars', targets: [g('avatars-switch')], text: 'Leave avatars on, or turn them off to show names only.' },
+  {
+    section: 'avatars',
+    targets: [g('desk-pictures')],
+    text: ({ signedIn }) =>
+      signedIn
+        ? 'Choose what the desks show: characters, photos, or names only.'
+        : 'Choose what the desks show: characters, or names only.',
+  },
+  {
+    section: 'avatars',
+    targets: [g('add-photos')],
+    text: "Tap Add Photos and choose the class's photos. The app finds each face, then asks who it is.",
+    when: photosShown,
+    maybe: true,
+  },
   {
     section: 'avatars',
     targets: [g('give-character')],
-    text: 'Tap a character to give it to the whole class. Or Skip to keep them all different.',
+    text: ({ cls }) =>
+      cls.photosOn
+        ? 'Students with no photo show a character. Tap one to give it to the class, or Skip.'
+        : 'Tap a character to give it to the whole class. Or Skip to keep them all different.',
     when: avatarsShown,
     maybe: true,
   },
@@ -116,7 +135,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     section: 'avatars',
     targets: [g('let-choose')],
     text: 'Later, tap Let Students Choose and the children pick their own at the board.',
-    when: avatarsShown,
+    when: charactersShown,
     maybe: true,
   },
 

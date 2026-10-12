@@ -1,7 +1,8 @@
 import type { ClassData, Student } from '../types'
 import { dateKey } from './attendance'
 import { planFor, type Gap } from './layouts'
-import { hasNoAvatar, resolveAvatarSrc, studentsAsShown } from './stickers'
+import { photoUrl } from './photos'
+import { deskPicturesOf, hasNoAvatar, hasNoPicture, resolveAvatarSrc, studentsAsShown } from './stickers'
 
 /**
  * The seating chart as a picture: the room as it's laid out today, for a substitute or the
@@ -57,6 +58,15 @@ function deskPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
   ctx.closePath()
 }
 
+/**
+ * Whether the chart shows the students' photos: as the class chose for it (Class Settings' Google),
+ * or else as the board does. A substitute is who photos help most, so a class showing characters on
+ * the board can still print with photos.
+ */
+export function chartShowsPhotos(cls: Pick<ClassData, 'chartPhotos' | 'avatarsOff' | 'photosOn'>): boolean {
+  return cls.chartPhotos ?? deskPicturesOf(cls) === 'photos'
+}
+
 export async function drawSeatingChart(cls: ClassData, date: Date = new Date()): Promise<HTMLCanvasElement> {
   // The names are Andika on the board; a picture drawn before the face arrives would be in
   // whatever the browser falls back to.
@@ -64,16 +74,28 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
 
   const plan = planFor(cls)
   // As the board shows them: names only while the class's avatars are switched off.
-  const byId = new Map(studentsAsShown(cls).map((s) => [s.id, s]))
+  const withPhotos = chartShowsPhotos(cls)
+  const own = new Map(cls.students.map((s) => [s.id, s]))
+  const byId = new Map(
+    studentsAsShown(cls).map((s) => {
+      const photo = withPhotos ? own.get(s.id)?.photo : undefined
+      return [s.id, { ...s, photo }]
+    }),
+  )
   const seated: (Student | null)[] = plan.seats.map((_, i) => {
     const id = cls.seating[i]
     return (id && byId.get(id)) || null
   })
   const images = new Map<string, HTMLImageElement | null>()
+  // A photo this computer hasn't got yet prints as the student's character, as the desk shows it.
+  const photos = new Set<string>()
   await Promise.all(
     seated.map(async (s) => {
-      const src = s && resolveAvatarSrc(s)
-      if (s) images.set(s.id, src ? await loadImage(src) : null)
+      if (!s) return
+      const photo = s.photo ? await photoUrl(s.photo) : null
+      if (photo) photos.add(s.id)
+      const src = photo ?? resolveAvatarSrc(s.photo && hasNoAvatar(s) ? { id: s.id } : s)
+      images.set(s.id, src ? await loadImage(src) : null)
     }),
   )
 
@@ -139,7 +161,7 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
   // One name size for the whole class, set by the widest name, as on the board - bigger when no
   // desk has a picture to share it with.
   const pad = deskW * 0.06
-  const nameOnlyClass = seated.some(Boolean) && seated.every((s) => !s || hasNoAvatar(s))
+  const nameOnlyClass = seated.some(Boolean) && seated.every((s) => !s || hasNoPicture(s))
   const maxName = deskH * (nameOnlyClass ? 0.3 : 0.19)
   ctx.font = `700 100px ${FACE}`
   const widest = Math.max(1, ...seated.map((s) => (s ? ctx.measureText(s.name).width : 0)))
@@ -166,7 +188,7 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
     ctx.lineWidth = 3
     ctx.stroke()
 
-    if (hasNoAvatar(student)) {
+    if (hasNoPicture(student)) {
       // No avatar: the name in the middle, the homeroom number under it, as on the board (the
       // printed chart keeps every number - it's a list the teacher reads).
       ctx.textAlign = 'center'
@@ -195,7 +217,17 @@ export async function drawSeatingChart(cls: ClassData, date: Date = new Date()):
     const img = images.get(student.id)
     if (img) {
       const room = Math.min(deskW * 0.72, deskH - nameBand - deskH * 0.1)
-      ctx.drawImage(img, x + (deskW - room) / 2, y + deskH * 0.07, room, room)
+      const left = x + (deskW - room) / 2
+      const top = y + deskH * 0.07
+      if (photos.has(student.id)) {
+        // A photo is a circle on paper too, as on the board.
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(left + room / 2, top + room / 2, room / 2, 0, Math.PI * 2)
+        ctx.clip()
+        ctx.drawImage(img, left, top, room, room)
+        ctx.restore()
+      } else ctx.drawImage(img, left, top, room, room)
     }
 
     ctx.font = `700 ${nameSize}px ${FACE}`

@@ -20,9 +20,12 @@ import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 import type { RoomLayout } from '../lib/layouts'
 import type { DayCount } from '../lib/participation'
 import type { Theme } from '../lib/theme'
+import { notePhotoCaution, photoCautionSeen } from '../lib/photos'
+import type { DeskPictures } from '../lib/stickers'
 import type { ClassData, PointsMode, Student } from '../types'
 import { DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { GoogleG } from './Account'
+import { AddPhotosModal, type PhotoRequest } from './AddPhotosModal'
 import { ConfirmModal } from './ConfirmModal'
 import { PickStudentIcon } from './PickerIcons'
 import { AttendanceSection } from './settings/AttendanceSection'
@@ -110,7 +113,17 @@ interface ClassSettingsModalProps {
   onSeatClass: () => void
   onMixUpSeats: () => void
   // Avatars
-  onSetAvatarsOff: (off: boolean) => void
+  onSetDeskPictures: (shows: DeskPictures) => void
+  /** New photos saved in Drive, by student; the students' old ones go to Drive's bin. */
+  onPhotosSaved: (photos: Record<string, string>) => void
+  /** These students' photos taken away, to Drive's bin. */
+  onRemovePhotos: (studentIds: string[]) => void
+  /** Photos this computer hasn't got yet, and Get Photos to bring them down from Drive. */
+  photosNotHere: number
+  onGetPhotos: () => void
+  gettingPhotos: boolean
+  photosProblem: string | null
+  onSetChartPhotos: (on: boolean) => void
   onStudentsChoose: () => void
   studentsChooseBlocked: boolean
   onAssignAvatars: (themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) => void
@@ -146,7 +159,8 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   const { open, onClose, section, onSection, activeClass, classes, cloud } = props
   const [helpOpen, setHelpOpen] = useState(false)
   const [choosingGif, setChoosingGif] = useState(false)
-  const [confirming, setConfirming] = useState<'delete' | 'empty' | 'clear' | PointsMode | null>(null)
+  const [confirming, setConfirming] = useState<'delete' | 'empty' | 'clear' | 'photos' | 'remove-photos' | PointsMode | null>(null)
+  const [photoRequest, setPhotoRequest] = useState<PhotoRequest | null>(null)
 
   // Opening, or another section, starts with the celebration's pictures put away.
   const [shownSection, setShownSection] = useState(section)
@@ -168,6 +182,12 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   const go = (to: SettingsSection) => onSection(to)
   const next = (from: SettingsSection) => SETUP_SECTIONS[SETUP_SECTIONS.indexOf(from) + 1]
   const label = (id: SettingsSection) => SECTIONS.find((s) => s.id === id)!.label
+
+  function setDeskPictures(shows: DeskPictures) {
+    // The first time a teacher turns photos on here, the caution comes first.
+    if (shows === 'photos' && !photoCautionSeen(cloud.account?.uid)) setConfirming('photos')
+    else props.onSetDeskPictures(shows)
+  }
 
   function setPointsMode(mode: PointsMode) {
     // Leaving student points clears every desk's stars, so the teacher is asked first.
@@ -210,6 +230,8 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onUnseatAll={props.onUnseatAll}
           onSeatClass={props.onSeatClass}
           onMixUpSeats={props.onMixUpSeats}
+          onPhotoChosen={(file, student) => setPhotoRequest({ files: [file], only: student })}
+          onRemovePhoto={(studentId) => props.onRemovePhotos([studentId])}
           onNext={() => go(next('students'))}
         />
       )
@@ -219,7 +241,14 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
         <AvatarsSection
           key={activeClass.id}
           activeClass={activeClass}
-          onSetAvatarsOff={props.onSetAvatarsOff}
+          signedIn={cloud.account !== null}
+          onSetDeskPictures={setDeskPictures}
+          onPhotosChosen={(files) => setPhotoRequest({ files })}
+          onAskRemoveAllPhotos={() => setConfirming('remove-photos')}
+          photosNotHere={props.photosNotHere}
+          onGetPhotos={props.onGetPhotos}
+          gettingPhotos={props.gettingPhotos}
+          photosProblem={props.photosProblem}
           onStudentsChoose={() => {
             props.onStudentsChoose()
             onClose()
@@ -272,7 +301,14 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
       )
       break
     case 'google':
-      page = <GoogleSection activeClass={activeClass} cloud={cloud} onSwitchTeacher={props.onSwitchTeacher} />
+      page = (
+        <GoogleSection
+          activeClass={activeClass}
+          cloud={cloud}
+          onSwitchTeacher={props.onSwitchTeacher}
+          onSetChartPhotos={props.onSetChartPhotos}
+        />
+      )
       break
   }
 
@@ -386,6 +422,38 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
             props.onDeleteClass()
             onClose()
           }}
+        />
+        {/* Shown once, as a real stop: every school's rules differ, so the app reminds rather than decides. */}
+        <ConfirmModal
+          open={confirming === 'photos'}
+          title="Using student photos"
+          message="Check your school's rules before adding photos of students. Photos stay in your own Google Drive and only show in this app. Please don't share them anywhere else."
+          confirmLabel="I've checked, go on"
+          cancelLabel="Not now"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            notePhotoCaution(cloud.account?.uid)
+            props.onSetDeskPictures('photos')
+            setConfirming(null)
+          }}
+        />
+        <ConfirmModal
+          open={confirming === 'remove-photos'}
+          title="Remove All Photos?"
+          message={`Every photo in "${activeClass.name}" goes to the bin in your Google Drive. Each student's character stays.`}
+          confirmLabel="Yes, Remove All"
+          cancelLabel="No"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            props.onRemovePhotos(activeClass.students.filter((s) => s.photo).map((s) => s.id))
+            setConfirming(null)
+          }}
+        />
+        <AddPhotosModal
+          request={photoRequest}
+          activeClass={activeClass}
+          onClose={() => setPhotoRequest(null)}
+          onSaved={props.onPhotosSaved}
         />
         <ConfirmModal
           open={confirming === 'empty'}

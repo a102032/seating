@@ -3,7 +3,8 @@ import { useState } from 'react'
 import type { useCloudSync } from '../../hooks/useCloudSync'
 import { useDrive } from '../../hooks/useDrive'
 import { dateKey } from '../../lib/attendance'
-import { downloadPicture, drawSeatingChart, pictureBlob, pictureName } from '../../lib/chartPicture'
+import { Switch } from '@/components/ui/switch'
+import { chartShowsPhotos, downloadPicture, drawSeatingChart, pictureBlob, pictureName } from '../../lib/chartPicture'
 import { appFolder, FOLDER_NAME, savePicture, type DriveFile } from '../../lib/drive'
 import type { ClassData } from '../../types'
 import { GoogleG, Initial, SyncBadge } from '../Account'
@@ -29,13 +30,15 @@ interface GoogleSectionProps {
   activeClass: ClassData
   cloud: ReturnType<typeof useCloudSync>
   onSwitchTeacher: () => void
+  /** The printed chart with the students' photos, or not, whatever the board shows. */
+  onSetChartPhotos: (on: boolean) => void
 }
 
 /**
  * Everything Google in one place: the account, the seating chart as a picture, and the Drive
  * folder. Google Classroom was dropped (DECISIONS, Deliberately not building): a pasted roster does its job.
  */
-export function GoogleSection({ activeClass, cloud, onSwitchTeacher }: GoogleSectionProps) {
+export function GoogleSection({ activeClass, cloud, onSwitchTeacher, onSetChartPhotos }: GoogleSectionProps) {
   const { account } = cloud
   const drive = useDrive(account?.uid)
   const [drawing, setDrawing] = useState(false)
@@ -97,6 +100,13 @@ export function GoogleSection({ activeClass, cloud, onSwitchTeacher }: GoogleSec
               <small>A picture for a substitute, or the classroom door.</small>
             )}
           </div>
+          {/* Only once the class has photos: a substitute is who they help most. */}
+          {activeClass.students.some((s) => s.photo) && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-bold">
+              <Switch checked={chartShowsPhotos(activeClass)} onCheckedChange={onSetChartPhotos} aria-label="Photos on the chart" />
+              Photos
+            </label>
+          )}
           <Btn onClick={() => void savePictureHere()} disabled={drawing}>
             <ImageDown /> {drawing ? 'Drawing…' : 'Save as Picture to Print'}
           </Btn>

@@ -1,9 +1,10 @@
 import clsx from 'clsx'
 import { Star } from 'lucide-react'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
-import { hasNoAvatar, resolveAvatarSrc } from '../lib/stickers'
+import { hasNoPicture } from '../lib/stickers'
 import type { Student } from '../types'
 import { AbsentIcon } from './AbsentIcon'
+import { StudentPicture } from './StudentPicture'
 
 export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
 
@@ -60,7 +61,7 @@ export function Desk({
 }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
-  const nameOnly = student !== undefined && hasNoAvatar(student)
+  const nameOnly = student !== undefined && hasNoPicture(student)
   // The room above a centred name: from near the desk's top down to just above the name's
   // capitals, which start about a third of the name's size above the middle.
   const nameFont = `min(${nameSize}cqi, ${nameHeightCap}cqb)`
@@ -171,12 +172,7 @@ export function Desk({
                   // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
                   <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
                 ) : (
-                  <img
-                    src={resolveAvatarSrc(student) ?? undefined}
-                    alt=""
-                    draggable={false}
-                    className="h-full w-full object-contain select-none pointer-events-none"
-                  />
+                  <StudentPicture student={student} className="h-full w-full object-contain select-none pointer-events-none" />
                 )}
               </div>
 

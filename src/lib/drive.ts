@@ -46,7 +46,27 @@ export async function withDrive<T>(work: (token: string) => Promise<T>): Promise
   const cloud = await loadCloud()
   const token = await cloud.driveToken()
   try {
-    return await work(token)
+    const result = await work(token)
+    void emptyBin(token, cloud.signedInUid())
+    return result
+  } catch (error) {
+    if (error instanceof DriveError && (error.status === 401 || error.reason === 'scope')) cloud.forgetDriveToken()
+    throw error
+  }
+}
+
+/**
+ * `work` with a pass already in hand, or null without one: it never opens Google's window, so it
+ * can run away from a tap (bringing down a photo another computer added, while the hour lasts).
+ */
+export async function withDriveIfPassed<T>(work: (token: string) => Promise<T>): Promise<T | null> {
+  const cloud = await loadCloud()
+  const token = cloud.drivePassInHand()
+  if (!token) return null
+  try {
+    const result = await work(token)
+    void emptyBin(token, cloud.signedInUid())
+    return result
   } catch (error) {
     if (error instanceof DriveError && (error.status === 401 || error.reason === 'scope')) cloud.forgetDriveToken()
     throw error
@@ -319,6 +339,148 @@ export async function savePicture(token: string, cls: ClassData, picture: Blob, 
   })
   return { id: saved.id, name: saved.name, url: saved.webViewLink }
 }
+
+/**
+ * Students' photos (2026-10-12): "Class? Yes!" → "Student Photos" → a folder for each class, so a
+ * teacher looking in Drive finds them by class, and a class deleted takes its photos with it in
+ * one move. Each photo is the small square the app made, labelled with its class and student;
+ * the class keeps only the file's id. A new photo is always a new file, never the old one written
+ * over: every computer keeps its own copy by the id, and a new id is how they know to fetch it.
+ */
+const classPhotoFolders = new Map<string, string>()
+
+async function photoFolder(token: string, cls: ClassData): Promise<string> {
+  const known = classPhotoFolders.get(cls.id)
+  if (known) return known
+  const [found] = await findFiles(token, { kind: 'class-photos', classId: cls.id })
+  if (found) {
+    // A class renamed since its first photo: the folder follows, so Drive reads as the board does.
+    if (found.name !== cls.name) await google(token, `${DRIVE}/files/${found.id}?fields=id`, { method: 'PATCH' }, { name: cls.name })
+    classPhotoFolders.set(cls.id, found.id)
+    return found.id
+  }
+  let [parent] = await findFiles(token, { kind: 'photos' })
+  if (!parent) {
+    const made = await google<{ id: string }>(
+      token,
+      `${DRIVE}/files?fields=id`,
+      { method: 'POST' },
+      { name: 'Student Photos', mimeType: FOLDER, parents: [(await appFolder(token)).id], appProperties: { kind: 'photos' } },
+    )
+    parent = { id: made.id, name: 'Student Photos', url: '' }
+  }
+  const made = await google<{ id: string }>(
+    token,
+    `${DRIVE}/files?fields=id`,
+    { method: 'POST' },
+    { name: cls.name, mimeType: FOLDER, parents: [parent.id], appProperties: { kind: 'class-photos', classId: cls.id } },
+  )
+  classPhotoFolders.set(cls.id, made.id)
+  return made.id
+}
+
+/** A student's photo into their class's folder; its id comes back, for the class to keep. */
+export async function uploadPhoto(token: string, cls: ClassData, student: { id: string; name: string }, jpeg: Blob): Promise<string> {
+  const folderId = await photoFolder(token, cls)
+  const boundary = `classyes${Math.random().toString(36).slice(2)}`
+  const metadata = {
+    name: `${student.name}.jpg`,
+    parents: [folderId],
+    appProperties: { kind: 'photo', classId: cls.id, studentId: student.id },
+  }
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`,
+    jpeg,
+    `\r\n--${boundary}--`,
+  ])
+  const saved = await google<{ id: string }>(token, `${UPLOAD}/files?uploadType=multipart&fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body,
+  })
+  return saved.id
+}
+
+/** A photo's picture, for this computer to keep. */
+export async function downloadPhoto(token: string, id: string): Promise<Blob> {
+  const res = await fetch(`${DRIVE}/files/${id}?alt=media`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new DriveError(res.status, res.status === 404 ? 'gone' : String(res.status), res.statusText)
+  return res.blob()
+}
+
+/**
+ * Photos the teacher took out - one removed or replaced, a student or a class deleted - go to
+ * Drive's bin, so a child's photo never stays behind in the folder after it has left the class.
+ * Taking one out must never wait on Google's window, so they are noted here (by teacher: the
+ * files are only theirs to bin) and binned with the next pass, which every Drive action and every
+ * photo brought down gets.
+ */
+const BIN_KEY = 'seating-chart-photo-bin-v1'
+type BinItem = { file: string } | { classId: string }
+type Bin = Record<string, BinItem[]>
+
+function readBin(): Bin {
+  try {
+    return (JSON.parse(localStorage.getItem(BIN_KEY) ?? '{}') as Bin) ?? {}
+  } catch {
+    return {}
+  }
+}
+
+function writeBin(bin: Bin): void {
+  try {
+    if (Object.values(bin).some((items) => items.length > 0)) localStorage.setItem(BIN_KEY, JSON.stringify(bin))
+    else localStorage.removeItem(BIN_KEY)
+  } catch {
+    // Only tidiness: a photo left in the folder is still the teacher's own, in their own Drive.
+  }
+}
+
+export function binPhotos(uid: string, items: BinItem[]): void {
+  if (items.length === 0) return
+  const bin = readBin()
+  bin[uid] = [...(bin[uid] ?? []), ...items]
+  writeBin(bin)
+  // With a pass in hand they go now; otherwise with the next one.
+  void loadCloud().then((cloud) => {
+    const token = cloud.drivePassInHand()
+    if (token && cloud.signedInUid() === uid) void emptyBin(token, uid)
+  })
+}
+
+let emptying = false
+
+async function emptyBin(token: string, uid: string | null): Promise<void> {
+  if (!uid || emptying) return
+  const items = readBin()[uid] ?? []
+  if (items.length === 0) return
+  emptying = true
+  const done = new Set<BinItem>()
+  try {
+    for (const item of items) {
+      try {
+        if ('file' in item) await trashFile(token, item.file)
+        else {
+          const [folder] = await findFiles(token, { kind: 'class-photos', classId: item.classId })
+          if (folder) await trashFile(token, folder.id)
+          classPhotoFolders.delete(item.classId)
+        }
+        done.add(item)
+      } catch (error) {
+        // Gone already is binned; anything else waits for the next pass.
+        if (error instanceof DriveError && error.reason === 'gone') done.add(item)
+        else break
+      }
+    }
+  } finally {
+    emptying = false
+    const bin = readBin()
+    bin[uid] = (bin[uid] ?? []).filter((item) => ![...done].some((d) => JSON.stringify(d) === JSON.stringify(item)))
+    writeBin(bin)
+  }
+}
+
+const trashFile = (token: string, id: string) => google(token, `${DRIVE}/files/${id}?fields=id`, { method: 'PATCH' }, { trashed: true })
 
 /**
  * What went wrong with Drive, in words for the teacher, or null when there's nothing to say:

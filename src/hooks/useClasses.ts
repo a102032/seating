@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
-import { getTheme, hasNoAvatar, randomPose, stickerId } from '../lib/stickers'
+import { getTheme, hasNoAvatar, randomPose, stickerId, type DeskPictures } from '../lib/stickers'
 import { moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
@@ -556,8 +556,25 @@ export function useClasses() {
     [updateClass],
   )
 
-  const setAvatarsOff = useCallback(
-    (classId: string, off: boolean) => updateClass(classId, (c) => ({ ...c, avatarsOff: off })),
+  /** What the desks show: characters, photos or names. Every student's character and photo are kept either way. */
+  const setDeskPictures = useCallback(
+    (classId: string, shows: DeskPictures) =>
+      updateClass(classId, (c) => ({ ...c, avatarsOff: shows === 'names', photosOn: shows === 'photos' })),
+    [updateClass],
+  )
+
+  /** Photos saved to Drive for these students (a file's id each), or taken away (undefined). */
+  const setStudentPhotos = useCallback(
+    (classId: string, photos: Record<string, string | undefined>) =>
+      updateClass(classId, (c) => ({
+        ...c,
+        students: c.students.map((s) => (s.id in photos ? { ...s, photo: photos[s.id] } : s)),
+      })),
+    [updateClass],
+  )
+
+  const setChartPhotos = useCallback(
+    (classId: string, on: boolean) => updateClass(classId, (c) => ({ ...c, chartPhotos: on })),
     [updateClass],
   )
 
@@ -694,7 +711,9 @@ export function useClasses() {
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,
-    setAvatarsOff,
+    setDeskPictures,
+    setStudentPhotos,
+    setChartPhotos,
     setGetReady,
     setCelebrationGif,
     resetClassGoal,

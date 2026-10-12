@@ -34,10 +34,11 @@ import { useDrive } from '../../hooks/useDrive'
 import { starsWaitOnDesks } from '../../lib/points'
 import { parseRosterCsv, rosterFromRows } from '../../lib/csv'
 import { makeRosterSheet, readSheet, rosterSheets, type DriveFile } from '../../lib/drive'
-import { hasNoAvatar, resolveAvatarSrc } from '../../lib/stickers'
+import { deskPicturesOf, hasNoPicture } from '../../lib/stickers'
 import { MAX_DESKS, type ClassData, type Gender, type Student } from '../../types'
 import { GoogleG } from '../Account'
 import { AvatarPickerModal } from '../AvatarPickerModal'
+import { StudentPicture } from '../StudentPicture'
 import { ConfirmModal } from '../ConfirmModal'
 import { NoAvatarPicture } from '../NoAvatarPicture'
 import { PasteRosterModal } from '../PasteRosterModal'
@@ -60,6 +61,10 @@ interface StudentsSectionProps {
   onUnseatAll: () => void
   onSeatClass: () => void
   onMixUpSeats: () => void
+  /** A photo chosen from a student's own picture, for Add Photos' window to frame and save. */
+  onPhotoChosen: (file: File, student: Student) => void
+  /** The student's photo taken away (to Drive's bin). */
+  onRemovePhoto: (studentId: string) => void
   onNext: () => void
 }
 
@@ -99,6 +104,8 @@ export function StudentsSection({
   onUnseatAll,
   onSeatClass,
   onMixUpSeats,
+  onPhotoChosen,
+  onRemovePhoto,
   onNext,
 }: StudentsSectionProps) {
   const drive = useDrive(cloud.account?.uid)
@@ -119,11 +126,13 @@ export function StudentsSection({
   const [pending, setPending] = useState<{ students: Omit<Student, 'id'>[]; report: (text: string) => void } | null>(null)
   const [confirming, setConfirming] = useState<'mixup' | 'unseat' | 'remove-all' | Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
+  const [removingPhotoOf, setRemovingPhotoOf] = useState<Student | null>(null)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
   const count = activeClass.students.length
   const unseated = activeClass.students.filter((s) => !seatedIds.has(s.id)).length
   const showStars = starsWaitOnDesks(activeClass)
+  const showPhotos = deskPicturesOf(activeClass) === 'photos'
 
   /**
    * Who in a list isn't on the roster yet (same name and homeroom), so importing a file a second
@@ -409,6 +418,7 @@ export function StudentsSection({
               key={s.id}
               student={s}
               seated={seatedIds.has(s.id)}
+              showPhoto={showPhotos}
               editing={editingId === s.id}
               showStars={showStars}
               onEdit={() => {
@@ -479,7 +489,7 @@ export function StudentsSection({
       <ConfirmModal
         open={confirming === 'remove-all'}
         title="Remove All Students?"
-        message={`All ${count} ${count === 1 ? 'student' : 'students'} in "${activeClass.name}" are taken out, with their seats, attendance and participation record. This can't be undone.`}
+        message={`All ${count} ${count === 1 ? 'student' : 'students'} in "${activeClass.name}" are taken out, with their seats, attendance and participation record${activeClass.students.some((s) => s.photo) ? ', and their photos go to the bin in your Google Drive' : ''}. This can't be undone.`}
         confirmLabel="Yes, Remove All"
         cancelLabel="No"
         onCancel={() => setConfirming(null)}
@@ -546,6 +556,30 @@ export function StudentsSection({
           if (pickingAvatarFor) onUpdateStudent(pickingAvatarFor.id, { avatarId })
           setPickingAvatarFor(null)
         }}
+        photo={
+          showPhotos && pickingAvatarFor
+            ? {
+                onChoose: (file) => {
+                  setPickingAvatarFor(null)
+                  onPhotoChosen(file, pickingAvatarFor)
+                },
+                onAskRemove: () => setRemovingPhotoOf(pickingAvatarFor),
+              }
+            : undefined
+        }
+      />
+      <ConfirmModal
+        open={removingPhotoOf !== null}
+        title="Remove Photo?"
+        message={`${removingPhotoOf?.name ?? ''}'s photo goes to the bin in your Google Drive, and their character is on their desk.`}
+        confirmLabel="Remove Photo"
+        cancelLabel="No"
+        onCancel={() => setRemovingPhotoOf(null)}
+        onConfirm={() => {
+          if (removingPhotoOf) onRemovePhoto(removingPhotoOf.id)
+          setRemovingPhotoOf(null)
+          setPickingAvatarFor(null)
+        }}
       />
     </>
   )
@@ -606,6 +640,8 @@ function AddRow({ onAdd, onCancel }: { onAdd: (student: Omit<Student, 'id'>) => 
 interface RosterRowProps {
   student: Student
   seated: boolean
+  /** The class shows photos: a student's photo is their picture here too. */
+  showPhoto: boolean
   editing: boolean
   /**
    * Stars wait on the desks (student points, or a class goal's on the desks first), so the list
@@ -624,6 +660,7 @@ interface RosterRowProps {
 function RosterRow({
   student,
   seated,
+  showPhoto,
   editing,
   showStars,
   onEdit,
@@ -634,6 +671,7 @@ function RosterRow({
   onPickAvatar,
 }: RosterRowProps) {
   if (editing) return <EditRow {...{ student, seated, showStars, onCancelEdit, onSave, onUnseat, onRemove }} />
+  const shown = showPhoto ? student : { ...student, photo: undefined }
   return (
     <div className="cs-srow">
       <button
@@ -643,10 +681,10 @@ function RosterRow({
         title="Choose an avatar"
         aria-label={`Choose an avatar for ${student.name}`}
       >
-        {hasNoAvatar(student) ? (
+        {hasNoPicture(shown) ? (
           <NoAvatarPicture className="h-full w-full" />
         ) : (
-          <img src={resolveAvatarSrc(student) ?? undefined} alt="" draggable={false} className="h-full w-full object-contain select-none" />
+          <StudentPicture student={shown} className="h-full w-full object-contain select-none" />
         )}
       </button>
       <span className="cs-who">{student.name}</span>

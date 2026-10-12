@@ -1,45 +1,72 @@
-import { CircleCheck, Pointer } from 'lucide-react'
-import { useState } from 'react'
-import { Switch } from '@/components/ui/switch'
+import { CircleAlert, CircleCheck, CircleUserRound, CloudDownload, ImagePlus, Pointer, Trash2 } from 'lucide-react'
+import { useRef, useState } from 'react'
 import type { AvatarScope } from '../../hooks/useClasses'
-import { STICKER_THEMES, stickerSrc } from '../../lib/stickers'
+import { warmUpFaceFinder } from '../../lib/photoCrop'
+import { STICKER_THEMES, deskPicturesOf, stickerSrc, type DeskPictures } from '../../lib/stickers'
 import type { ClassData } from '../../types'
-import { Btn, NextButton, States } from './parts'
+import { NoAvatarPicture } from '../NoAvatarPicture'
+import { Btn, NextButton, Tick } from './parts'
 
 interface AvatarsSectionProps {
   activeClass: ClassData
-  onSetAvatarsOff: (off: boolean) => void
+  /** Signed in with Google: photos live in the teacher's own Drive, so they need it. */
+  signedIn: boolean
+  onSetDeskPictures: (shows: DeskPictures) => void
   /** Students come up to the board and choose their own (Choose Your Avatar); the window closes. */
   onStudentsChoose: () => void
   /** The group cards cover the desks: choosing waits until the activity is over. */
   studentsChooseBlocked: boolean
   onAssignAvatars: (themeId: string, options: { scope: AvatarScope; poses: 'mixed' | 'same' }) => void
+  /** Photos chosen with Add Photos: Add Photos' window takes them from here. */
+  onPhotosChosen: (files: File[]) => void
+  onAskRemoveAllPhotos: () => void
+  /** Photos this computer hasn't got yet, Get Photos to bring them down, and how that went. */
+  photosNotHere: number
+  onGetPhotos: () => void
+  gettingPhotos: boolean
+  photosProblem: string | null
   onNext: () => void
 }
 
+const SHOWS: { shows: DeskPictures; label: string; says: string }[] = [
+  { shows: 'characters', label: 'Characters', says: "Each student's own character." },
+  { shows: 'photos', label: 'Photos', says: 'A photo, or their character if none.' },
+  { shows: 'names', label: 'Names', says: 'Names only. Pictures are kept.' },
+]
+
 /**
- * Avatars, all in one place: on or off for the class (each student's own pick is kept either way),
- * a character for the whole class in one tap - right here, not in a second window - and the
- * children choosing their own at the board. One student's own avatar is chosen from their picture
- * in Students.
+ * Avatars, all in one place: what the desks show - characters, photos or names, each student's
+ * character and photo kept whichever it is - a character for the whole class in one tap, the
+ * children choosing their own at the board, and the class's photos. One student's own avatar or
+ * photo is chosen from their picture in Students.
  */
 export function AvatarsSection({
   activeClass,
-  onSetAvatarsOff,
+  signedIn,
+  onSetDeskPictures,
   onStudentsChoose,
   studentsChooseBlocked,
   onAssignAvatars,
+  onPhotosChosen,
+  onAskRemoveAllPhotos,
+  photosNotHere,
+  onGetPhotos,
+  gettingPhotos,
+  photosProblem,
   onNext,
 }: AvatarsSectionProps) {
   const [scope, setScope] = useState<AvatarScope>('all')
   const [poses, setPoses] = useState<'mixed' | 'same'>('mixed')
   const [given, setGiven] = useState<number | null>(null)
-  const off = activeClass.avatarsOff === true
+  const files = useRef<HTMLInputElement>(null)
+  const shows = deskPicturesOf(activeClass)
   const students = activeClass.students
   const boys = students.filter((s) => s.gender === 'boy').length
   const girls = students.filter((s) => s.gender === 'girl').length
   const none = students.length === 0
   const seated = activeClass.seating.some(Boolean)
+  const withPhoto = students.filter((s) => s.photo).length
+  const firstTheme = STICKER_THEMES[0]
 
   function give(themeId: string) {
     onAssignAvatars(themeId, { scope, poses })
@@ -49,41 +76,110 @@ export function AvatarsSection({
   return (
     <>
       <div className="cs-group">
-        <div className="cs-row">
-          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3" data-guide="avatars-switch">
-            <Switch
-              checked={!off}
-              onCheckedChange={(on) => {
-                onSetAvatarsOff(!on)
-                setGiven(null)
-              }}
-              aria-label="Avatars on the desks"
-            />
-            <span className="cs-row-label">
-              <b>Avatars on the desks</b>
-              <small>
-                <States
-                  on={!off}
-                  onText="On: each student's avatar is on their desk."
-                  offText="Off: names only. Each student's avatar is kept."
-                />
-              </small>
-            </span>
-          </label>
-          {/* Not with avatars off: the children would choose one and not see it. */}
-          <Btn
-            data-guide="let-choose"
-            disabled={off || !seated || studentsChooseBlocked}
-            title={off ? 'Turn avatars on first' : studentsChooseBlocked ? 'Finish the group activity first' : undefined}
-            onClick={onStudentsChoose}
-          >
-            <Pointer /> Let Students Choose
-          </Btn>
+        <div className="cs-row cs-wrap" data-guide="desk-pictures">
+          <div className="cs-row-label">
+            <b>On the desks</b>
+            <small>{SHOWS.find((s) => s.shows === shows)?.says}</small>
+          </div>
+          <div className="cs-choices" style={{ flex: '0 1 27rem' }}>
+            {SHOWS.map((s) => {
+              const needsSignIn = s.shows === 'photos' && !signedIn
+              return (
+                <button
+                  key={s.shows}
+                  type="button"
+                  className="cs-choice"
+                  aria-pressed={shows === s.shows}
+                  disabled={needsSignIn}
+                  title={needsSignIn ? 'Sign in with Google to use photos' : undefined}
+                  onClick={() => {
+                    onSetDeskPictures(s.shows)
+                    setGiven(null)
+                  }}
+                >
+                  {s.shows === 'characters' ? (
+                    <img src={stickerSrc(firstTheme.id, firstTheme.idle)} alt="" className="h-6 w-6 shrink-0" />
+                  ) : s.shows === 'photos' ? (
+                    <CircleUserRound className="h-6 w-6 shrink-0" />
+                  ) : (
+                    <NoAvatarPicture className="h-6 w-6 shrink-0" />
+                  )}
+                  {s.label}
+                  {shows === s.shows && <Tick />}
+                </button>
+              )
+            })}
+          </div>
         </div>
+        {shows === 'photos' ? (
+          <div className="cs-row" data-guide="add-photos">
+            <div className="cs-row-label">
+              <b>Photos</b>
+              <small>
+                {photosProblem ? (
+                  <span className="inline-flex items-center gap-1 text-destructive">
+                    <CircleAlert size={14} /> {photosProblem}
+                  </span>
+                ) : photosNotHere > 0 ? (
+                  `${photosNotHere} ${photosNotHere === 1 ? "isn't" : "aren't"} on this computer yet.`
+                ) : (
+                  `${withPhoto} of ${students.length} have a photo.${withPhoto === 0 ? ' Take them in class-list order.' : ''}`
+                )}
+              </small>
+            </div>
+            {photosNotHere > 0 && (
+              <Btn disabled={gettingPhotos} onClick={onGetPhotos}>
+                <CloudDownload /> {gettingPhotos ? 'Getting…' : 'Get Photos'}
+              </Btn>
+            )}
+            <Btn kind="quiet-red" small disabled={withPhoto === 0} onClick={onAskRemoveAllPhotos}>
+              <Trash2 /> Remove All
+            </Btn>
+            <Btn
+              kind="primary"
+              disabled={none}
+              onClick={() => {
+                warmUpFaceFinder()
+                files.current?.click()
+              }}
+            >
+              <ImagePlus /> Add Photos
+            </Btn>
+            <input
+              ref={files}
+              type="file"
+              multiple
+              accept="image/*,.heic,.heif"
+              className="hidden"
+              onChange={(e) => {
+                const chosen = Array.from(e.target.files ?? [])
+                e.target.value = ''
+                if (chosen.length > 0) onPhotosChosen(chosen)
+              }}
+            />
+          </div>
+        ) : (
+          <div className="cs-row" data-guide="let-choose">
+            <div className="cs-row-label">
+              <b>Let Students Choose</b>
+              <small>Each child comes up to the board, taps their desk and chooses a character.</small>
+            </div>
+            {/* Not with names only: the children would choose one and not see it. */}
+            <Btn
+              disabled={shows !== 'characters' || !seated || studentsChooseBlocked}
+              title={
+                shows !== 'characters' ? 'Show characters first' : studentsChooseBlocked ? 'Finish the group activity first' : undefined
+              }
+              onClick={onStudentsChoose}
+            >
+              <Pointer /> Let Students Choose
+            </Btn>
+          </div>
+        )}
         <div
           className="cs-row cs-stack"
           data-guide="give-character"
-          style={off || none ? { opacity: 0.4, pointerEvents: 'none' } : undefined}
+          style={shows === 'names' || none ? { opacity: 0.4, pointerEvents: 'none' } : undefined}
         >
           <div className="flex flex-wrap items-center gap-3">
             <div className="cs-row-label">
@@ -129,7 +225,11 @@ export function AvatarsSection({
             ))}
           </div>
           <span className="cs-hint cs-hide-short">
-            {given !== null ? 'Tap the same one again for new poses.' : 'To choose for one student, tap their picture in Students.'}
+            {given !== null
+              ? 'Tap the same one again for new poses.'
+              : shows === 'photos'
+                ? 'For students with no photo. To choose for one student, tap their picture in Students.'
+                : 'To choose for one student, tap their picture in Students.'}
           </span>
         </div>
       </div>

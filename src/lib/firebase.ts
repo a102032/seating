@@ -155,6 +155,24 @@ export function forgetDriveToken() {
   drivePass = null
 }
 
+/**
+ * The pass, only if one is already in hand: it never opens Google's window, so it can be used
+ * away from a tap - to bring down a photo another computer added, while the hour lasts.
+ */
+export function drivePassInHand(): string | null {
+  if (!connect().auth.currentUser) return null
+  if (import.meta.env.VITE_FIREBASE_EMULATOR) {
+    const test = (window as { __testGoogle?: { driveToken?: string; drivePassInHand?: boolean } }).__testGoogle
+    if (test?.driveToken) return test.drivePassInHand === false ? null : test.driveToken
+  }
+  return drivePass && drivePass.until > Date.now() ? drivePass.token : null
+}
+
+/** Who is signed in to Firebase on this browser right now, if anyone. */
+export function signedInUid(): string | null {
+  return connect().auth.currentUser?.uid ?? null
+}
+
 /** Who Firebase has signed in on this browser, once it has checked. */
 export function currentAccount(): Promise<Account | null> {
   return new Promise((resolve) => {

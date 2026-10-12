@@ -133,9 +133,16 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - `src/lib/`: `sound.ts` (every sound, synthesised with Web Audio), `groups.ts` (building and pruning groups),
   `theme.ts`, `stickers.ts` (avatars), `fitText.ts`, `localStore.ts`, `attendance.ts` (date keys, CSV),
   `noLongPressMenu.ts` (a long press, which a touch board makes a right-click, opens no menu - set on the page and the floating window).
-- Avatars switched off for a class (`avatarsOff`): draw students through `studentsAsShown` (`lib/stickers.ts`), as `App`'s
-  `studentsById` and the chart picture do, so anything new that shows a student's avatar shows names only then. The roster keeps
-  each student's own pick.
+- What a class's desks show (`deskPicturesOf`: characters, photos or names; `avatarsOff` and `photosOn`): draw students through
+  `studentsAsShown` (`lib/stickers.ts`), as `App`'s `studentsById` and the chart picture do, and a student's picture with
+  `StudentPicture.tsx` (their photo as a circle, else their character), so anything new that shows a student's avatar shows
+  names only, or photos, when the class does. The roster keeps each student's own pick and photo.
+- Student photos: `lib/photoCrop.ts` (opening a photo, iPhone's HEIC too, finding the face with MediaPipe on the computer, the
+  400px square), `lib/photos.ts` (each computer's copy in IndexedDB, `usePhoto`, wiped by Switch Teacher), `hooks/useClassPhotos.ts`
+  (bringing down photos another computer added), `lib/drive.ts` (the Student Photos folders, upload, download, and the bin for
+  photos taken out), `components/AddPhotosModal.tsx` (Add Photos: "Who is this?", the circles to check and fix) and
+  `settings/AvatarsSection.tsx`. Only the square ever leaves the computer, into the teacher's own Drive; a class keeps only each
+  file's id. The face is found, never recognised. Anything that removes a student or a class bins their photos (`binPhotos`).
 - Absent students: `App.tsx` builds `presentSeating` (absent desks as empty) for everything that chooses students.
   Anything new that picks, deals or awards should use it, not the raw `seating`.
 - `src/index.css`: the five themes as CSS custom properties, plus the keyframe classes.

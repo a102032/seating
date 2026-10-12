@@ -16,6 +16,12 @@ export interface Student {
   /** Chosen sticker as "theme/pose" (see lib/stickers.ts) - falls back to a character derived from the student id. */
   avatarId?: string
   /**
+   * The student's photo: the id of its file in the teacher's own Google Drive (lib/drive), never
+   * the picture itself. It shows only while the class shows photos (ClassData.photosOn); the
+   * student's character is kept beside it, for when the class shows characters again.
+   */
+  photo?: string
+  /**
    * Stars on the student's desk, floored at 0. In a class with student points (pointsMode
    * 'students') they are the student's own, kept until the teacher clears them. In a class goal
    * whose stars go on the desks first (starsOnDesks), they are this lesson's, waiting: All Stars
@@ -132,6 +138,17 @@ export interface ClassData {
    * plain names for a while shouldn't lose the characters the children chose. Unset is on.
    */
   avatarsOff?: boolean
+  /**
+   * Photos on the desks (2026-10-12): students with a photo show it, and the rest their character.
+   * One of three, with avatarsOff (lib/stickers' deskPicturesOf): characters, photos or names.
+   * Unset is characters.
+   */
+  photosOn?: boolean
+  /**
+   * The printed seating chart with the students' photos, whatever the board shows: a substitute
+   * is who photos help most. Unset follows the board.
+   */
+  chartPhotos?: boolean
   /**
    * Get Ready!'s prize: the class points a full star is worth, the same on every drum. Unset is 5.
    */

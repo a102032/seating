@@ -199,15 +199,28 @@ async function answer(route) {
   if (url.host === 'www.googleapis.com' && (m = /^\/drive\/v3\/files\/([^/]+)$/.exec(path)) && method === 'PATCH') {
     const f = drive.files.get(m[1])
     if (!f) return reply(error(404, 'notFound', 'File not found'))
-    Object.assign(f, { name: json().name ?? f.name, modifiedTime: new Date().toISOString() })
+    const patch = json()
+    Object.assign(f, { name: patch.name ?? f.name, trashed: patch.trashed ?? f.trashed, modifiedTime: new Date().toISOString() })
     return reply({ status: 200, body: view(f) })
+  }
+  // A file's own bytes (a student's photo), as Drive gives them with alt=media.
+  if (url.host === 'www.googleapis.com' && (m = /^\/drive\/v3\/files\/([^/]+)$/.exec(path)) && method === 'GET') {
+    const f = drive.files.get(m[1])
+    if (!f) return reply(error(404, 'notFound', 'File not found'))
+    if (url.searchParams.get('alt') !== 'media') return reply({ status: 200, body: view(f) })
+    return route.fulfill({ status: 200, contentType: f.mimeType, body: f.media })
   }
   if (url.host === 'www.googleapis.com' && path.startsWith('/upload/drive/v3/files')) {
     if (url.searchParams.get('uploadType') !== 'multipart') return reply(error(400, 'badRequest', 'uploadType'))
     const parsed = multipart(req.headers()['content-type'] ?? '', req.postDataBuffer() ?? Buffer.alloc(0))
     if (!parsed) return reply(error(400, 'badRequest', 'Malformed multipart body'))
-    if (parsed.mediaType !== 'image/png' || parsed.media.subarray(1, 4).toString() !== 'PNG')
+    // A seating chart is a PNG; a student's photo a JPEG, and only the small square.
+    const photo = parsed.meta.appProperties?.kind === 'photo'
+    if (photo && (parsed.mediaType !== 'image/jpeg' || parsed.media[0] !== 0xff || parsed.media[1] !== 0xd8))
+      return reply(error(400, 'badRequest', 'Not a JPEG'))
+    if (!photo && (parsed.mediaType !== 'image/png' || parsed.media.subarray(1, 4).toString() !== 'PNG'))
       return reply(error(400, 'badRequest', 'Not a PNG'))
+    if (photo) parsed.meta.mimeType = 'image/jpeg'
     if ((m = /^\/upload\/drive\/v3\/files\/([^/]+)$/.exec(path)) && method === 'PATCH') {
       const f = drive.files.get(m[1])
       if (!f) return reply(error(404, 'notFound', 'File not found'))
@@ -623,6 +636,199 @@ try {
       !/isn't switched on|needs your OK|didn't answer|Can't reach/.test(t) && /for a substitute/i.test(t),
     )
     await closeSettings()
+  }
+
+  if (want('photos')) {
+    // Pictures with no face in them, drawn here: the repo holds no photos of real people. With
+    // no face found, each is framed by a guess and marked Check, and saves the same.
+    const fakePhoto = (hue) =>
+      page.evaluate(async (h) => {
+        const c = document.createElement('canvas')
+        c.width = 900
+        c.height = 1200
+        const ctx = c.getContext('2d')
+        ctx.fillStyle = `hsl(${h} 60% 70%)`
+        ctx.fillRect(0, 0, 900, 1200)
+        ctx.fillStyle = `hsl(${h} 50% 35%)`
+        ctx.beginPath()
+        ctx.arc(450, 450, 200, 0, Math.PI * 2)
+        ctx.fill()
+        const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9))
+        return [...new Uint8Array(await blob.arrayBuffer())]
+      }, hue)
+    const file = async (name, hue) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.from(await fakePhoto(hue)) })
+    // Google's window answers again after the errors above.
+    drive.fail = null
+    await page.evaluate(() => delete window.__testGoogle.driveError)
+    const activeClass = () =>
+      page.evaluate(() => {
+        const st = JSON.parse(localStorage.getItem('seating-chart-state-v1'))
+        return st.classes.find((c) => c.id === st.activeClassId)
+      })
+
+    await settings('Avatars')
+    await dialog().locator('[data-guide="desk-pictures"] button', { hasText: 'Photos' }).click()
+    const caution = await page.getByRole('alertdialog').innerText()
+    check(
+      "photos: a caution first, about the school's rules",
+      /Check your school's rules/.test(caution) && /own Google Drive/.test(caution),
+    )
+    await page.getByRole('button', { name: "I've checked, go on" }).click()
+    await page.waitForTimeout(300)
+    check('photos: the class shows photos', (await activeClass()).photosOn === true)
+    await page
+      .locator('[data-guide="add-photos"] input[type=file]')
+      .setInputFiles([await file('IMG_0002.jpg', 200), await file('IMG_0001.jpg', 120), await file('Kevin.jpg', 30)])
+    await page.locator('.ph-yes').waitFor({ timeout: 20000 })
+    const first = await page.locator('.ph-yes').innerText()
+    await page.locator('.ph-yes').click()
+    await page.waitForTimeout(700)
+    const second = await page.locator('.ph-yes').innerText()
+    await page.locator('.ph-yes').click()
+    await page.locator('.ph-grid').waitFor()
+    await page.waitForTimeout(800)
+    check(
+      'photos: "Who is this?" offers the class list\'s next name, and a file named for a student needs no asking',
+      /Amy/.test(first) && /Tony/.test(second) && (await page.locator('.ph-tile').allInnerTexts()).some((t) => /Kevin/.test(t)),
+      `${first} / ${second}`,
+    )
+    check('photos: a photo with no face found says Check', (await page.locator('.ph-badge', { hasText: 'Check' }).count()) === 3)
+    await shot('09-photos-check')
+    await page.getByRole('button', { name: /Save 3 Photos/ }).click()
+    await waitFor(async () => (await page.locator('.ph-done').count()) > 0, 15000)
+    const photos = filesOf('photo')
+    const [parent] = filesOf('photos')
+    const [classFolder] = filesOf('class-photos')
+    check(
+      'photos: saved to Drive, in Class? Yes! / Student Photos / the class',
+      photos.length === 3 &&
+        parent?.name === 'Student Photos' &&
+        parent.parents[0] === filesOf('folder')[0]?.id &&
+        classFolder?.name === 'Grade 4 English' &&
+        photos.every((f) => f.parents[0] === classFolder.id),
+    )
+    const sizes = photos.map((f) => f.media.length)
+    check(
+      'photos: only the small square goes up, a JPEG of a few KB',
+      photos.every((f) => f.mimeType === 'image/jpeg' && f.media[0] === 0xff) && Math.max(...sizes) < 60_000,
+      `${sizes.join(', ')} bytes`,
+    )
+    let cls = await activeClass()
+    const byName = (n) => cls.students.find((st) => st.name === n)
+    check(
+      "photos: the class keeps only each file's id, on the right students",
+      ['Amy', 'Tony', 'Kevin'].every((n) => photos.some((f) => f.id === byName(n).photo && f.appProperties.studentId === byName(n).id)),
+    )
+    await page.getByRole('button', { name: 'Done' }).last().click()
+    // Add Photos fades out first; Escape then closes Class Settings.
+    await page.waitForTimeout(500)
+    await closeSettings()
+    await page.waitForTimeout(500)
+    check('photos: three desks show a photo', (await page.locator('[data-ink=desk] img.student-photo').count()) === 3)
+
+    // Another computer: a fresh browser, signed in to the same account, with no pass in hand. The
+    // class tap on the splash brings the photos down.
+    await page.waitForTimeout(2500)
+    const other = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const pc2 = await other.newPage()
+    await pc2.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }))
+    await pc2.route('https://www.googleapis.com/drive/**', answer)
+    await pc2.route('https://www.googleapis.com/upload/drive/**', answer)
+    await pc2.goto(URL)
+    await pc2.waitForTimeout(600)
+    await pc2.evaluate(
+      (token) =>
+        (window.__testGoogle = {
+          sub: 'drive-derek',
+          email: 'derek@yuteh.ntpc.edu.tw',
+          email_verified: true,
+          name: 'Derek Hoerler',
+          driveToken: token,
+          drivePassInHand: false,
+        }),
+      TOKEN,
+    )
+    await pc2
+      .locator('.splash-board')
+      .getByRole('button', { name: /Sign in with Google/ })
+      .click()
+    const before = drive.calls.filter((c) => c.startsWith('GET /drive/v3/files/')).length
+    await pc2.locator('.splash-board button', { hasText: 'Grade 4 English' }).click()
+    const shownThere = await waitFor(async () => (await pc2.locator('[data-ink=desk] img.student-photo').count()) === 3, 10000)
+    const downloads = drive.calls.filter((c) => c.startsWith('GET /drive/v3/files/')).length - before
+    check('photos: another computer brings them down at the class tap, and shows them', Boolean(shownThere), `${downloads} downloads`)
+    await pc2.screenshot({ path: `${SHOTS}/10-photos-other-computer.png` })
+    await pc2.reload()
+    await pc2.waitForTimeout(1500)
+    const callsAfter = drive.calls.filter((c) => c.startsWith('GET /drive/v3/files/')).length - before
+    check(
+      'photos: once there, they show after a reload with no download',
+      (await pc2.locator('[data-ink=desk] img.student-photo').count()) === 3 && callsAfter === downloads,
+    )
+    // Switch Teacher: the next teacher at this board never sees these photos.
+    await pc2.locator('button[aria-label="Class Settings"]').click()
+    await pc2.locator('[data-section-link="google"]').click()
+    await pc2.getByRole('dialog').getByRole('button', { name: 'Switch Teacher' }).click()
+    await pc2
+      .getByRole('alertdialog')
+      .getByRole('button', { name: /Switch/ })
+      .last()
+      .click()
+    await pc2.waitForTimeout(2500)
+    const left = await pc2.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const req = indexedDB.open('seating-chart-photos-v1', 1)
+          req.onsuccess = () => {
+            const count = req.result.transaction('photos').objectStore('photos').count()
+            count.onsuccess = () => resolve(count.result)
+          }
+          req.onerror = () => resolve(-1)
+        }),
+    )
+    check('photos: Switch Teacher wipes them from the board', left === 0, `${left} left`)
+    await other.close()
+
+    // One student's photo replaced: the old one goes to Drive's bin.
+    const oldTony = byName('Tony').photo
+    await settings('Students')
+    await dialog().getByRole('button', { name: 'Choose an avatar for Tony' }).click()
+    await page.locator('[role=dialog] input[type=file][accept^=image]').setInputFiles(await file('new-tony.jpg', 300))
+    await page.getByRole('button', { name: 'Save Photo' }).waitFor()
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Save Photo' }).click()
+    await waitFor(async () => drive.files.get(oldTony)?.trashed, 8000)
+    cls = await activeClass()
+    check(
+      'photos: a new photo for one student, and the old one goes to the bin',
+      byName('Tony').photo !== oldTony && drive.files.get(oldTony)?.trashed === true && !drive.files.get(byName('Tony').photo)?.trashed,
+    )
+    // Remove All Photos: every one to the bin, each student's character back.
+    await page.locator('[data-section-link="avatars"]').click()
+    await dialog()
+      .getByRole('button', { name: /Remove All/ })
+      .click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Yes, Remove All' }).click()
+    await waitFor(async () => filesOf('photo').length === 0, 8000)
+    cls = await activeClass()
+    check(
+      'photos: Remove All takes them off the class and puts them in the bin',
+      filesOf('photo').length === 0 && cls.students.every((st) => !st.photo),
+    )
+    await page.waitForTimeout(500)
+    await closeSettings()
+    await page.waitForTimeout(400)
+    check('photos: the desks show characters again', (await page.locator('[data-ink=desk] img.student-photo').count()) === 0)
+    // A class deleted takes its photo folder to the bin with it.
+    await settings('Class')
+    await dialog().locator('[data-guide="delete"]').click()
+    await page.getByRole('alertdialog').locator('input').fill('Grade 4 English')
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete Class' }).click()
+    await waitFor(async () => filesOf('class-photos').length === 0, 8000)
+    check(
+      'photos: deleting the class puts its photo folder in the bin',
+      filesOf('class-photos').length === 0 && filesOf('photos').length === 1,
+    )
   }
 
   if (want('fit')) {

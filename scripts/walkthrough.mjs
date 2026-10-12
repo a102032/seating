@@ -93,7 +93,11 @@ async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}
   lastPage = page
   page.errors = []
   page.on('pageerror', (e) => page.errors.push(e.message))
-  page.on('console', (m) => m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text()) && page.errors.push(m.text()))
+  // Google's face finder (Add Photos) reports its start on the error channel; it isn't one.
+  page.on(
+    'console',
+    (m) => m.type() === 'error' && !/Failed to load resource|net::ERR|XNNPACK delegate/.test(m.text()) && page.errors.push(m.text()),
+  )
   if (FONTS) {
     await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: FONT_CSS }))
     await page.route('https://fonts.gstatic.com/local/**', async (r) => {
@@ -1698,11 +1702,11 @@ const scenarios = {
         .evaluate((e) => parseFloat(getComputedStyle(e).fontSize))
     const besidePictures = await nameSize()
     await openSection(page, 'avatars')
-    await page.locator('[data-guide="avatars-switch"] [role="switch"]').click()
+    await page.locator('[data-guide="desk-pictures"] button', { hasText: 'Names' }).click()
     await page.waitForTimeout(300)
     let c = await activeSaved(page)
     check(
-      "no avatar: the switch turns the class's avatars off, every pick kept",
+      "no avatar: Names Only turns the class's avatars off, every pick kept",
       c.avatarsOff === true && c.students[0].avatarId === 'frog/superhero',
     )
     check(
@@ -1755,7 +1759,7 @@ const scenarios = {
     check('no avatar: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
     // Back on: every character where it was.
     await openSection(page, 'avatars')
-    await page.locator('[data-guide="avatars-switch"] [role="switch"]').click()
+    await page.locator('[data-guide="desk-pictures"] button', { hasText: 'Characters' }).click()
     await page.waitForTimeout(300)
     // One student's family would rather not: No Avatar in their own picker.
     await page.locator('[data-section-link="students"]').click()
@@ -1853,6 +1857,200 @@ const scenarios = {
    * list after asking, records and all; and the participation record goes out as a spreadsheet,
    * the quiet ones first.
    */
+  /**
+   * Student photos (2026-10-12): what the desks show is one of three, Characters, Photos or Names;
+   * the caution comes the first time; Add Photos asks "Who is this?" with the class list's next name
+   * lit, matches a file named for a student, and fits every screen, as does the window it opens
+   * from. Saving needs Google (drive-check tests it); here Firebase is kept out, so it says so.
+   * Photos already on this computer show as circles on the desks, the roster and the picker.
+   */
+  async 'student photos'() {
+    const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    /** A picture with no face in it, drawn in the page: the repo holds no photos of real people. */
+    const picture = async (name, hue) => ({
+      name,
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from(
+        await page.evaluate(async (h) => {
+          const c = Object.assign(document.createElement('canvas'), { width: 900, height: 1200 })
+          const ctx = c.getContext('2d')
+          ctx.fillStyle = `hsl(${h} 60% 70%)`
+          ctx.fillRect(0, 0, 900, 1200)
+          ctx.fillStyle = `hsl(${h} 50% 35%)`
+          ctx.beginPath()
+          ctx.arc(450, 450, 200, 0, Math.PI * 2)
+          ctx.fill()
+          const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9))
+          return [...new Uint8Array(await blob.arrayBuffer())]
+        }, hue),
+      ),
+    })
+    const pile = [
+      await picture('IMG_0003.jpg', 30),
+      await picture('IMG_0001.jpg', 120),
+      await picture('Kevin.jpg', 200),
+      await picture('IMG_0002.jpg', 300),
+    ]
+    const choice = (label) => page.locator('[data-guide="desk-pictures"] button', { hasText: label })
+
+    await openSection(page, 'avatars')
+    await choice('Photos').click()
+    await page.waitForTimeout(300)
+    const caution = await page.getByRole('alertdialog').innerText()
+    check("photos: the caution comes first, about the school's rules", /Check your school's rules/.test(caution))
+    await page.getByRole('button', { name: 'Not now' }).click()
+    await page.waitForTimeout(400)
+    check('photos: Not now leaves the class on characters', !(await activeSaved(page)).photosOn)
+    await choice('Photos').click()
+    await page.getByRole('button', { name: "I've checked, go on" }).click()
+    await page.waitForTimeout(400)
+    await choice('Characters').click()
+    await page.waitForTimeout(200)
+    await choice('Photos').click()
+    await page.waitForTimeout(300)
+    check(
+      'photos: the caution only the first time, and the class shows photos',
+      (await page.getByRole('alertdialog').count()) === 0 && (await activeSaved(page)).photosOn === true,
+    )
+    check(
+      'photos: Let Students Choose gives way to Add Photos',
+      (await page.locator('[data-guide="let-choose"]').count()) === 0 && (await page.locator('[data-guide="add-photos"]').count()) === 1,
+    )
+
+    await page.locator('[data-guide="add-photos"] input[type=file]').setInputFiles(pile)
+    await page.locator('.ph-yes').waitFor({ timeout: 20000 })
+    const first = await page.locator('.ph-yes').innerText()
+    await page.locator('.ph-yes').click()
+    await page.waitForTimeout(700)
+    // A child skipped when the photos were taken: the right name is tapped, and the guesses carry on from there.
+    await page.locator('.ph-name', { hasText: 'Emma' }).click()
+    await page.waitForTimeout(700)
+    const after = await page.locator('.ph-yes').innerText()
+    check(
+      'photos: the next name is lit, a file named for a student is matched, and a skip carries on from the name tapped',
+      /Amy/.test(first) && /Grace/.test(after),
+      `${first} / ${after}`,
+    )
+    // Back to the photo just named, named again, and on with the ones still to name.
+    await page.getByRole('button', { name: 'Back' }).click()
+    await page.waitForTimeout(700)
+    const again = await page.locator('.ph-yes').innerText()
+    await page.locator('.ph-yes').click()
+    await page.waitForTimeout(700)
+    check(
+      'photos: Back goes to the photo before, and naming it carries on with the rest',
+      /Emma/.test(again) && /Grace/.test(await page.locator('.ph-yes').innerText()) && (await page.locator('.ph-grid').count()) === 0,
+      again,
+    )
+    await page.getByRole('button', { name: 'Leave it out' }).click()
+    await page.locator('.ph-grid').waitFor()
+    await page.waitForTimeout(500)
+    const tiles = await page.locator('.ph-tile').allInnerTexts()
+    check(
+      'photos: every photo to check, named, with the one left out last',
+      tiles.length === 4 && /Amy/.test(tiles.join()) && /Kevin/.test(tiles.join()) && /Left out/.test(tiles[3]),
+      tiles.join(' | '),
+    )
+    await page.getByRole('button', { name: /Save 3 Photos/ }).click()
+    const problem = await page
+      .locator('.ph-page .text-destructive')
+      .innerText({ timeout: 8000 })
+      .catch(() => '')
+    check('photos: with no way to Google, Save says so and keeps the photos', /Can't reach Google/.test(problem), problem)
+    // Every screen of it fits, on every screen, in the theme with the biggest letters too.
+    const bad = []
+    const fits = async (label) => {
+      const o = await page.evaluate(() =>
+        Math.max(
+          0,
+          ...[...document.querySelectorAll('[role=dialog], .cs-page')].map((e) => e.scrollHeight - e.clientHeight),
+          ...[...document.querySelectorAll('[role=dialog]')].map((d) => Math.round(d.getBoundingClientRect().bottom - innerHeight)),
+        ),
+      )
+      if (o > 0) bad.push(`${label} ${o}px`)
+    }
+    for (const theme of ['vibrant', 'comic']) {
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)
+      await page.waitForTimeout(400)
+      for (const [w, h] of SCROLL_SIZES) {
+        await page.setViewportSize({ width: w, height: h })
+        await page.waitForTimeout(300)
+        await fits(`${theme} ${w}x${h} check`)
+        await page.locator('.ph-tile').first().click()
+        await page.locator('.ph-canvas canvas').waitFor()
+        await fits(`${theme} ${w}x${h} fix`)
+        await page.getByRole('button', { name: 'Change who it is' }).click()
+        await page.waitForTimeout(150)
+        await fits(`${theme} ${w}x${h} who`)
+        await page.locator('.ph-name', { hasText: 'Amy' }).click()
+        await page.waitForTimeout(600)
+      }
+    }
+    check('photos: Add Photos fits every screen, in every step', bad.length === 0, bad.slice(0, 6).join('; '))
+    await page.setViewportSize({ width: 1280, height: 559 })
+    await page.getByRole('button', { name: 'Close' }).click()
+    check('photos: closing with photos not saved asks first', /Leave without saving/.test(await page.getByRole('alertdialog').innerText()))
+    await page.getByRole('button', { name: 'Leave', exact: true }).click()
+    await page.waitForTimeout(500)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+
+    // Photos already on this computer: Amy's and Tony's, in its own copy, by their files' ids.
+    const jpeg = (await picture('x.jpg', 90)).buffer.toString('base64')
+    await page.evaluate(
+      ([b, cid]) =>
+        new Promise((resolve) => {
+          const req = indexedDB.open('seating-chart-photos-v1', 1)
+          req.onupgradeneeded = () => req.result.createObjectStore('photos')
+          req.onsuccess = () => {
+            const bytes = Uint8Array.from(atob(b), (ch) => ch.charCodeAt(0))
+            const tx = req.result.transaction('photos', 'readwrite')
+            tx.objectStore('photos').put(new Blob([bytes], { type: 'image/jpeg' }), 'p-amy')
+            tx.objectStore('photos').put(new Blob([bytes], { type: 'image/jpeg' }), 'p-tony')
+            tx.oncomplete = () => {
+              const st = JSON.parse(localStorage.getItem('seating-chart-state-v1'))
+              const c = st.classes.find((x) => x.id === cid)
+              c.students[0].photo = 'p-amy'
+              c.students[1].photo = 'p-tony'
+              localStorage.setItem('seating-chart-state-v1', JSON.stringify(st))
+              resolve()
+            }
+          }
+        }),
+      [jpeg, 'c1'],
+    )
+    await refresh(page)
+    const circles = () => page.locator('[data-ink=desk] img.student-photo').count()
+    check('photos: the photos on this computer show on their desks', (await circles()) === 2)
+    let over = await overflow(page)
+    check('photos: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    await openSection(page, 'students')
+    check('photos: and in the class list', (await page.locator('.cs-srow img.student-photo').count()) === 2)
+    await page.getByTitle('Choose an avatar').first().click()
+    await page.waitForTimeout(500)
+    check(
+      "photos: a student's own picker opens on their photo, with Change and Remove",
+      (await page.getByRole('button', { name: 'Change Photo' }).count()) === 1 &&
+        (await page.getByRole('button', { name: 'Remove Photo' }).count()) === 1,
+    )
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(400)
+    await page.locator('[data-section-link="avatars"]').click()
+    await choice('Names').click()
+    await page.waitForTimeout(200)
+    await choice('Characters').click()
+    await page.waitForTimeout(200)
+    const kept = await activeSaved(page)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    check(
+      'photos: Characters shows characters, and every photo is kept for later',
+      (await circles()) === 0 && kept.students[0].photo === 'p-amy' && kept.students[1].photo === 'p-tony',
+    )
+    return page
+  },
+
   async 'class settings: New Class, Remove All, and the participation export'() {
     const cls = makeClass('c1', 'Grade 4 English', 6, {
       pointsGoal: 50,
@@ -2526,6 +2724,14 @@ const scenarios = {
           await page.waitForTimeout(250)
           await look(`settings ${section}`)
         }
+        // Avatars with photos on: the Photos row in place of Let Students Choose, and the caution.
+        await page.locator('[data-section-link="avatars"]').click()
+        await page.locator('[data-guide="desk-pictures"] button', { hasText: 'Photos' }).click()
+        await page.waitForTimeout(300)
+        await look('photos caution')
+        await page.getByRole('button', { name: "I've checked, go on" }).click()
+        await page.waitForTimeout(300)
+        await look('settings avatars with photos')
         await page.locator('[data-section-link="points"]').click()
         await page.locator('[data-guide="celebration-row"] button').click()
         await page.waitForTimeout(300)

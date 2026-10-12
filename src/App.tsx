@@ -23,6 +23,7 @@ import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
 import { goalIsLive, MAX_CLASSES, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
+import { useClassPhotos } from './hooks/useClassPhotos'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
@@ -32,12 +33,13 @@ import { pickChances } from './lib/participation'
 import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
 import { homeroomsToShow } from './lib/sameNames'
+import { binPhotos } from './lib/drive'
 import { studentsAsShown } from './lib/stickers'
 import { applyTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn, dateKey } from './lib/attendance'
 import { planFor } from './lib/layouts'
 import { rememberInClass, resumesInClass } from './lib/resume'
-import { type Student } from './types'
+import { type ClassData, type Student } from './types'
 
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
@@ -89,7 +91,9 @@ export default function App() {
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,
-    setAvatarsOff,
+    setDeskPictures,
+    setStudentPhotos,
+    setChartPhotos,
     setGetReady,
     setCelebrationGif,
     resetClassGoal,
@@ -121,6 +125,21 @@ export default function App() {
    * the account hasn't got is read as it opens, since switching would lose them.
    */
   const [switchTeacher, setSwitchTeacher] = useState<{ unsent: boolean } | null>(null)
+
+  const photos = useClassPhotos(classes, activeClass, cloud.account?.uid)
+  /**
+   * A photo the teacher took out - removed, replaced, its student or class deleted - goes to the
+   * bin in their Drive, so a child's photo never stays behind after the child has left the class.
+   */
+  const binStudentPhotos = (cls: ClassData | undefined, studentIds: string[]) => {
+    const uid = cloud.account?.uid
+    if (!uid || !cls) return
+    const ids = new Set(studentIds)
+    binPhotos(
+      uid,
+      cls.students.flatMap((s) => (ids.has(s.id) && s.photo ? [{ file: s.photo }] : [])),
+    )
+  }
   const openSwitchTeacher = () => setSwitchTeacher({ unsent: cloud.status !== 'saved' && cloud.unsent() })
 
   const [swapMode, setSwapMode] = useState(false)
@@ -805,6 +824,14 @@ export default function App() {
               // closes by itself; if it's closed, the class is open anyway and the Saved mark
               // keeps Sign in again.
               if (cloud.needsSignIn) void cloud.signIn()
+              // The start of a lesson: photos another computer added come down now, opening
+              // Google's window only if there are some and the hour's pass has run out. Not on
+              // the same tap as reconnecting, which has the one window a tap may open.
+              else
+                void photos.getPhotos(
+                  classes.find((c) => c.id === id),
+                  true,
+                )
               setActiveClassId(id)
               setSplashOpen(false)
             }}
@@ -1091,12 +1118,28 @@ export default function App() {
         onSetShowAllHomerooms={(show) => setShowAllHomerooms(activeClass.id, show)}
         theme={theme}
         onSetTheme={(next) => setClassTheme(activeClass.id, next)}
-        onDeleteClass={() => deleteClass(activeClass.id)}
+        onDeleteClass={() => {
+          // The class's photo folder goes to Drive's bin with it, if it ever had one.
+          if (cloud.account) binPhotos(cloud.account.uid, [{ classId: activeClass.id }])
+          deleteClass(activeClass.id)
+        }}
         onAddStudents={(students) => addStudents(activeClass.id, students)}
-        onRemoveStudents={(studentIds) => deleteStudents(activeClass.id, studentIds)}
-        onReplaceStudents={(students) => replaceStudents(activeClass.id, students)}
+        onRemoveStudents={(studentIds) => {
+          binStudentPhotos(activeClass, studentIds)
+          deleteStudents(activeClass.id, studentIds)
+        }}
+        onReplaceStudents={(students) => {
+          binStudentPhotos(
+            activeClass,
+            activeClass.students.map((s) => s.id),
+          )
+          return replaceStudents(activeClass.id, students)
+        }}
         onUpdateStudent={(studentId, patch) => updateStudent(activeClass.id, studentId, patch)}
-        onDeleteStudent={(studentId) => deleteStudent(activeClass.id, studentId)}
+        onDeleteStudent={(studentId) => {
+          binStudentPhotos(activeClass, [studentId])
+          deleteStudent(activeClass.id, studentId)
+        }}
         onUnseatStudent={(studentId) => unseatStudent(activeClass.id, studentId)}
         onUnseatAll={() => unseatAll(activeClass.id)}
         onSeatClass={() => seatClass(activeClass.id)}
@@ -1106,7 +1149,23 @@ export default function App() {
           mixUpSeats(activeClass.id)
           playShuffle()
         }}
-        onSetAvatarsOff={(off) => setAvatarsOff(activeClass.id, off)}
+        onSetDeskPictures={(shows) => setDeskPictures(activeClass.id, shows)}
+        onPhotosSaved={(saved) => {
+          binStudentPhotos(
+            activeClass,
+            Object.keys(saved).filter((id) => activeClass.students.some((s) => s.id === id && s.photo && s.photo !== saved[id])),
+          )
+          setStudentPhotos(activeClass.id, saved)
+        }}
+        onRemovePhotos={(studentIds) => {
+          binStudentPhotos(activeClass, studentIds)
+          setStudentPhotos(activeClass.id, Object.fromEntries(studentIds.map((id) => [id, undefined])))
+        }}
+        photosNotHere={photos.notHere}
+        onGetPhotos={() => void photos.getPhotos(activeClass)}
+        gettingPhotos={photos.getting}
+        photosProblem={photos.problem}
+        onSetChartPhotos={(on) => setChartPhotos(activeClass.id, on)}
         onStudentsChoose={() => {
           // The desks have to be in view: the cards come down, and a pick or a selection on the
           // board goes, as for Attendance.

@@ -13,6 +13,7 @@ import type { Snapshot } from '../lib/firebase'
 import { replaceLocalState } from '../lib/localStore'
 import { forgetInClass } from '../lib/resume'
 import type { ClassData } from '../types'
+import { forgetAllPhotos } from '../lib/photos'
 
 /**
  * connecting: signed in, not yet heard from the account. saved: the account has everything.
@@ -463,6 +464,8 @@ export function useCloudSync({ classes, setClasses, activeClassId, setActiveClas
     }
     record.current = null
     saveAccount(null)
+    // The students' photos go from this computer too, so the next teacher never sees them.
+    await forgetAllPhotos()
     replaceLocalState(takeBoardStash())
     // The next teacher starts at the splash, not in a class that was open a moment ago.
     forgetInClass()
