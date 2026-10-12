@@ -124,5 +124,27 @@ Show the same dragon twice, well apart, not touching: sitting proudly with its c
 Plain, flat, pure white background. No ground, no shadows, no smoke, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
 ```
 
+### What the second try taught (2026-10-12)
+
+**Flat worked**: no outlines, and beside the app's chest it looks like one game. Flattened to nine colours before
+tracing, it came out in about 130 shapes and 95 KB, with clean edges. The sitting pose, chest out and chin up, is
+right for a guardian. But **Flow kept the first dragon's long body and its green**, though the prompt asked for
+chubby and teal: an attached picture pulls hard towards itself.
+
+- **Colour is fixed here, not in Flow.** A traced picture can be recoloured exactly; a quick try made it teal with a
+  pale yellow belly in one step (it also caught a wing and the snout, which a careful pass by part puts right).
+- **Shape has to come from Flow.** To change a body, say plainly that only the body changes, and if Flow still
+  copies it, try again with nothing attached.
+
+### Prompt 3: the same dragon, chubby (for Flow, with the second sheet attached)
+
+```
+Keep exactly this flat style with no outlines, and keep this dragon's face. Change only its body: make it a chibi, plush-toy dragon with a big round head almost as big as its body, a short round tummy, short stubby legs, small wings and a short tail. Teal body, pale yellow belly, golden horns and claws.
+
+Show it twice, well apart, not touching: sitting proudly with its chest puffed out and chin up, seen from the front and a little to the side; and standing, seen from the front.
+
+Plain, flat, pure white background. No ground, no shadows, no smoke, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
 The prompts after it (the pose sheet, the chests, the landmarks, the marker) are written once the dragon's look is
 chosen.
