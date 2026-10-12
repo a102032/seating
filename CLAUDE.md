@@ -19,9 +19,9 @@ that were built and deliberately taken out. It is imported at the bottom of this
   sparkle), so the big one keeps its meaning.
 - On-screen words are for young EFL readers: short, plain, and one idea per label.
 - Plain-language replies. Say what was verified and how. Send a screenshot after visual changes.
-- **Before the app goes to other teachers** there is a checklist at the top of DECISIONS' Next up, the Move extension on the
-  Chrome Web Store first. The teacher asked not to be allowed to forget it: whenever he talks about sharing the app, giving it
-  to colleagues or going public, bring the list up before anything else.
+- **Before the app goes to other teachers** there is a checklist in DECISIONS' to-do list (its last step, "ready for
+  teachers more widely"), the Move extension on the Chrome Web Store first. The teacher asked not to be allowed to forget
+  it: whenever he talks about sharing the app, giving it to colleagues or going public, bring the list up before anything else.
 
 ## Hard rules
 
@@ -159,6 +159,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
 
 - Comments explain *why*: the classroom reason, or the trap being avoided. Match the density of the file you're in.
 - When a decision is made or reversed, update `DECISIONS.md` in the same commit.
+- A new feature keeps the menus streamlined and the help up to date, in the same change (the teacher, 2026-10-12): its
+  settings find a place in Class Settings' sections without crowding them (nothing below the window's edge), its steps go
+  in the guide (`lib/setupGuide.ts`, with a `data-guide` mark on what it lights) and its stops in the tour (`lib/tour.ts`,
+  the pictures taken again with `scripts/tour-shots.mjs`).
 - Commit messages say what changed for the teacher, not just the code.
 - framer-motion traps: it never clears an inline `box-shadow` it has set (use a CSS class instead). On elements with
   `layout`/`layoutId`, drive opacity through `animate`, because a utility class loses.
