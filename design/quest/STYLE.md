@@ -146,5 +146,48 @@ Show it twice, well apart, not touching: sitting proudly with its chest puffed o
 Plain, flat, pure white background. No ground, no shadows, no smoke, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
 ```
 
-The prompts after it (the pose sheet, the chests, the landmarks, the marker) are written once the dragon's look is
-chosen.
+### The dragon's look, and its poses (2026-10-12)
+
+The teacher kept the second dragon's body and made its poses in Flow: green, a yellow belly, orange spikes, golden
+horns. The forests on the map are drawn in another green so it stands out. The poses, in the order of a term:
+
+| Moment | Picture | Notes |
+|---|---|---|
+| Asleep by the Mega chest, most of the term (a suggestion) | lying down, eyes shut | came out with a green belly and yellow spikes; recoloured here to match |
+| On guard, the term's last goal | sitting, holding the key up | the key is part of the picture while it holds it |
+| On guard, at the chest | sitting, paw on a chest | Flow's chest is cut away and the app's chest goes under the paw |
+| Hit by a star | the guard pose, moved in code | a wobble and a flash: no picture needed |
+| Out of puff | **to redo**: the first came out sad | tired and happy, so the class never feels it made the dragon sad |
+| Hands over the key | sitting, palm up | the key is its own piece on the palm, so it can fly to the chest |
+
+Flow's chests (in the guard pose and the open one) are drawn with outlines and wood grain, unlike the app's flat
+chest, so they are never used; the shared chests come from their own prompts, below.
+
+### Prompt 4: out of puff (for Flow, with the palm-up picture attached)
+
+```
+The same dragon, same style, same colours. Now it is tired but happy: sitting down heavily, leaning back a little, panting with its tongue out, pink cheeks, a big friendly smile with its eyes half closed, one small sweat drop. Not sad, not hurt.
+
+Plain, flat, pure white background. No ground, no shadows, no smoke, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 5: the five chests, closed (for Flow, with `chest-style-reference.png` attached)
+
+The chests have **no lock or keyhole**: the app draws the locks on them, one for each key the chest needs (1 to 5),
+each turning gold as its key goes in.
+
+```
+Same flat style as this treasure chest: solid colours, each with one darker shade and one lighter shade, no outlines, no wood grain, no texture, no gradients. Draw five closed treasure chests in a row, facing the front, each a little bigger and grander than the one before: 1. a plain wooden chest; 2. a wooden chest with bronze corners and bands; 3. a silver chest; 4. a gold chest; 5. a big, grand gold chest with purple trim and a few gems. No locks and no keyholes on any of them.
+
+Well apart, not touching. Plain, flat, pure white background. No ground, no shadows, no sparkles, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 6: the five chests, open (for Flow, with the closed chests attached)
+
+```
+The same five chests, same style, now open with no lid at all, full of treasure, more in each one: 1. a few gold coins; 2. gold coins and one big gem; 3. gold coins with a string of pearls hanging over the edge; 4. gold coins, gems and a gold cup; 5. overflowing with gold coins and gems, some spilling onto the floor, a crown on top.
+
+Well apart, not touching. Plain, flat, pure white background. No shadows, no sparkles, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+The prompts after these (the landmarks and the knight) are written once the chests are chosen.
