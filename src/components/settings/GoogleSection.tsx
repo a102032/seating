@@ -33,7 +33,7 @@ interface GoogleSectionProps {
 
 /**
  * Everything Google in one place: the account, the seating chart as a picture, and the Drive
- * folder. Google Classroom is to come, once the school's answer about it is in (Next up).
+ * folder. Google Classroom was dropped (DECISIONS, Deliberately not building): a pasted roster does its job.
  */
 export function GoogleSection({ activeClass, cloud, onSwitchTeacher }: GoogleSectionProps) {
   const { account } = cloud
