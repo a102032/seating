@@ -133,6 +133,18 @@ async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}
 const saved = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-state-v1')))
 
 /**
+ * A kind of groups in the Group Activity window, then "Make them for me" (2026-10-12: who fills
+ * the groups is the window's second question; Boys / Girls has none). Waits out the guard that
+ * keeps the board's double touch from answering it.
+ */
+async function makeThem(page, name) {
+  await page.getByRole('dialog').getByRole('button', { name }).first().click()
+  await page.waitForTimeout(800)
+  const make = page.getByRole('dialog').getByRole('button', { name: /Make them for me/ })
+  if (await make.count()) await make.click()
+}
+
+/**
  * Notes every recorded sound the page starts, and when on the sound card's clock, told apart by
  * its length: a drum hit (0.62 s), a bamboo tap (0.32 s) or a rim click (0.09 s). Passed as `before`.
  */
@@ -296,7 +308,7 @@ const scenarios = {
     // Group points go to each student in the group.
     await panelButton(page, 'Group Activity').click()
     await page.waitForTimeout(600)
-    await page.getByRole('button', { name: /^Pairs/ }).click()
+    await makeThem(page, /^Pairs/)
     await page.waitForTimeout(3500)
     const first = page.locator('[data-group-id]').first()
     const members = await first.locator('button[title^="Tap"]').allInnerTexts()
@@ -677,7 +689,7 @@ const scenarios = {
     const page = await open({ state: stateOf(cls) })
     await panelButton(page, 'Group Activity').click()
     await page.waitForTimeout(500)
-    await page.getByRole('button', { name: /^2/ }).first().click()
+    await makeThem(page, /^2/)
     await page.waitForTimeout(4500)
     const chip = page.locator('[data-status-target]').first()
     const box = await chip.boundingBox()
@@ -1460,7 +1472,7 @@ const scenarios = {
       await panelButton(page, 'Group Activity').click()
       await page.waitForTimeout(600)
       if (count >= 2) {
-        await page.getByRole('button', { name: /^Pairs/ }).click()
+        await makeThem(page, /^Pairs/)
         await page.waitForTimeout(5000)
         await page.screenshot({ path: `${SHOTS}/edge-${count}-pairs.png` })
       } else {
@@ -1482,7 +1494,7 @@ const scenarios = {
     const page = await open({ state: stateOf(cls) })
     await panelButton(page, 'Group Activity').click()
     await page.waitForTimeout(500)
-    await page.getByRole('button', { name: /^3/ }).first().click()
+    await makeThem(page, /^3/)
     await page.waitForTimeout(4500)
     await page.locator('[data-group-id] button[title="Give a point"]').first().click()
     await refresh(page)
@@ -1551,20 +1563,32 @@ const scenarios = {
         await panelButton(page, 'Group Activity').click()
       }
       await page.waitForTimeout(500)
-      await page.getByRole('dialog').getByRole('button', { name }).first().click()
+      await makeThem(page, name)
       await page.waitForTimeout(5000)
     }
-    await deal(/^4s/)
+    await deal(/^4/)
     let groups = await made()
     const together = (g) =>
       g.every((d) => g.some((e) => e !== d && Math.abs((e % 6) - (d % 6)) <= 1 && Math.abs(Math.floor(e / 6) - Math.floor(d / 6)) <= 1))
-    check('by seats: fours are squares, everyone beside their group', groups.length === 7 && groups.every(together), JSON.stringify(groups))
+    check('by seats: four groups are the corners, everyone beside their group', groups.length === 4 && groups.every(together), JSON.stringify(groups))
+    const corners = await page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((c) => c.getBoundingClientRect()))
+    check(
+      'by seats: four corners sit two by two, as in the room',
+      corners.length === 4 && Math.abs(corners[0].top - corners[1].top) < 2 && corners[2].top > corners[0].bottom - 2 && corners[1].left > corners[0].right - 2,
+    )
     await deal(/^6/)
     groups = await made()
     check(
       'by seats: six groups are the six rows',
       groups.length === 6 && groups.every((g) => g.every((d) => d % 6 === g[0] % 6)),
       JSON.stringify(groups),
+    )
+    // Laid out like the room (2026-10-12, the teacher): six rows of desks are six cards side by
+    // side, Group 1 the left-hand row.
+    const rows = await page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((c) => c.getBoundingClientRect()))
+    check(
+      'by seats: the six rows are six cards side by side, in the room\'s order',
+      rows.length === 6 && rows.every((r) => Math.abs(r.top - rows[0].top) < 2) && rows.every((r, i) => i === 0 || r.left > rows[i - 1].left) && groups[0][0] % 6 === 0,
     )
     await deal(/^Pairs/)
     groups = await made()
@@ -1595,6 +1619,110 @@ const scenarios = {
     const over = await overflow(page)
     check('groups by seats: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
     return page
+  },
+
+  /**
+   * The Group Activity window's second question and the groups chosen by hand (2026-10-12): the
+   * board's double touch can't answer the question, names go into the lit group and back to their
+   * desks, Start waits for everyone, and Save keeps the groups under a typed name to start again,
+   * with a student since removed dropping out and a new one joining the smallest group.
+   */
+  async "groups: I'll choose, and saved groups"() {
+    const cls = makeClass('c1', 'Choose', 12)
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    const two = page.getByRole('dialog').getByRole('button', { name: /^2/ }).first()
+    const box = await two.boundingBox()
+    await two.click()
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    const make = page.getByRole('dialog').getByRole('button', { name: /Make them for me/ })
+    const mb = await make.boundingBox()
+    await page.mouse.click(mb.x + 5, mb.y + 5)
+    await page.waitForTimeout(200)
+    check(
+      "groups: the board's double touch doesn't answer the second question",
+      (await page.locator('[data-group-id]').count()) === 0 && (await make.count()) === 1,
+    )
+    await page.waitForTimeout(700)
+    await page.getByRole('dialog').getByRole('button', { name: /I'll choose/ }).click()
+    await page.waitForTimeout(500)
+    const start = page.locator('[data-group-builder] button', { hasText: 'Start' })
+    check("I'll choose: two groups, and Start waits", (await page.locator('[data-frame]').count()) === 2 && (await start.isDisabled()))
+    const tap = async (name) => {
+      await page.locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${name}`) }).first().click()
+      await page.waitForTimeout(30)
+    }
+    await page.locator('[data-frame="1"]').click({ position: { x: 20, y: 10 } })
+    for (const n of NAMES.slice(0, 3)) await tap(n)
+    await page.locator('[data-frame="0"]').click({ position: { x: 20, y: 10 } })
+    for (const n of NAMES.slice(3, 12)) await tap(n)
+    const chip = page.locator('[data-frame="0"] [data-chip-id]').first()
+    const cb = await chip.boundingBox()
+    await chip.click()
+    await page.mouse.click(cb.x + cb.width / 2, cb.y + cb.height / 2)
+    await page.waitForTimeout(100)
+    check(
+      "I'll choose: a name tapped in a group goes back to its desk, once",
+      (await page.locator('[data-frame="0"] [data-chip-id]').count()) === 8 && (await start.isDisabled()),
+    )
+    await tap(NAMES[3])
+    await start.click()
+    await page.waitForTimeout(900)
+    let c = await activeSaved(page)
+    check(
+      "I'll choose: the groups as they were tapped in",
+      c.groups.length === 2 && c.groups[1].studentIds.join() === 'c1-s0,c1-s1,c1-s2' && c.groups[0].studentIds.length === 9,
+      c.groups.map((g) => g.studentIds.length).join('/'),
+    )
+    await page.getByRole('button', { name: /^Save$/ }).click()
+    await page.waitForTimeout(400)
+    await page.keyboard.type('Writing')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(400)
+    c = await activeSaved(page)
+    check('save: kept under the name typed', c.savedGroups?.length === 1 && c.savedGroups[0].name === 'Writing')
+    await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
+    await page.waitForTimeout(800)
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    await page.getByRole('dialog').locator('[data-saved-groups="Writing"] button').first().click()
+    await page.waitForTimeout(900)
+    const back = await activeSaved(page)
+    check(
+      'saved groups: Writing starts the same groups',
+      JSON.stringify(back.groups.map((g) => g.studentIds)) === JSON.stringify(c.groups.map((g) => g.studentIds)),
+    )
+    await page.context().close()
+
+    // A student who has left drops out; one who has joined goes to the smallest group.
+    const later = makeClass('c1', 'Choose', 12, {
+      savedGroups: [
+        {
+          id: 'w',
+          name: 'Writing',
+          savedAt: new Date().toISOString(),
+          madeBy: { kind: 'count', count: 2 },
+          groups: [
+            { name: 'Group 1', color: '#3b82f6', studentIds: ['c1-s0', 'c1-s1', 'c1-s2', 'c1-s3', 'c1-s4', 'gone'] },
+            { name: 'Group 2', color: '#ec4899', studentIds: ['c1-s5', 'c1-s6', 'c1-s7', 'c1-s8', 'c1-s9'] },
+          ],
+        },
+      ],
+    })
+    const next = await open({ state: stateOf(later), size: [1280, 559] })
+    await panelButton(next, 'Group Activity').click()
+    await next.waitForTimeout(500)
+    await next.getByRole('dialog').locator('[data-saved-groups="Writing"] button').first().click()
+    await next.waitForTimeout(900)
+    const g = (await activeSaved(next)).groups.map((x) => x.studentIds)
+    const toast = await next.locator('.fixed.bottom-5').textContent().catch(() => '')
+    check(
+      'saved groups: a student who left drops out, and the new ones join the smallest group',
+      g.length === 2 && !g[0].includes('gone') && g[0].length === 6 && g[1].length === 6,
+      `${g.map((x) => x.length).join('/')} | ${toast}`,
+    )
+    return next
   },
 
   /** Red, amber, green and grey belong to the statuses (Help, Ready, Done, Working), never to a group. */
@@ -1631,7 +1759,7 @@ const scenarios = {
     )
     await page.locator('button', { hasText: 'New Groups' }).first().click()
     await page.waitForTimeout(500)
-    await page.getByRole('button', { name: /^6/ }).first().click()
+    await makeThem(page, /^6/)
     await page.waitForTimeout(4500)
     const dealt = (await bandColors(page)).map(hex)
     check(
@@ -2321,8 +2449,8 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      'tour: 62 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 62 && bad === 0,
+      'tour: 68 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 68 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 6, parts.join(', '))
@@ -2430,10 +2558,13 @@ const scenarios = {
           await page.waitForTimeout(300)
           await panelButton(page, 'Group Activity').click()
           await page.waitForTimeout(500)
-          const split = page.getByRole('button', { name: new RegExp(`^${setName === 'table' ? 'Tables' : 'Rows'}`) })
-          const caption = (await split.textContent()) ?? ''
-          const groups = Number(caption.match(/(\d+) groups/)?.[1] ?? 0)
-          if (groups < 2 || groups > sets + (count > 30 ? 2 : 0)) bad.push(`${id}: split makes "${caption}"`)
+          // One group a table, offered only in a room of tables (a room of rows has 2 to 6 groups).
+          const split = page.getByRole('button', { name: /^Tables/ })
+          if (setName === 'table') {
+            const caption = (await split.textContent()) ?? ''
+            const groups = Number(caption.match(/(\d+) groups/)?.[1] ?? 0)
+            if (groups < 2 || groups > sets + (count > 30 ? 2 : 0)) bad.push(`${id}: split makes "${caption}"`)
+          } else if (await split.count()) bad.push(`${id}: Tables offered in a room of rows`)
           await page.keyboard.press('Escape')
           await page.waitForTimeout(500)
           if (size[0] === 1280) await page.screenshot({ path: `${SHOTS}/layout-${id}-${count}.png` })
@@ -2711,7 +2842,23 @@ const scenarios = {
         await panelButton(page, 'Group Activity').click()
         await page.waitForTimeout(600)
         await look('group modal')
-        await page.getByRole('button', { name: /^6/ }).first().click()
+        await page.getByRole('dialog').getByRole('button', { name: /^6/ }).first().click()
+        await page.waitForTimeout(800)
+        await look('group modal: who fills them')
+        await page.getByRole('dialog').getByRole('button', { name: /I'll choose/ }).click()
+        await page.waitForTimeout(500)
+        const cut = await page.evaluate(() =>
+          [...document.querySelectorAll('[data-group-builder] [data-frame-body], [data-group-builder] [data-student-id]')].some(
+            (el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1,
+          ),
+        )
+        if (cut) bad.push(`I'll choose: a name or a frame is cut off`)
+        await look("I'll choose")
+        await page.locator('[data-group-builder] button', { hasText: 'Cancel' }).click()
+        await page.waitForTimeout(400)
+        await panelButton(page, 'Group Activity').click()
+        await page.waitForTimeout(600)
+        await makeThem(page, /^6/)
         await page.waitForTimeout(4500)
         await look('6 groups')
         await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()

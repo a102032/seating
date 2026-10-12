@@ -47,6 +47,20 @@ const STATE = {
       pointsMode: 'goal',
       pointsGoal: 50,
       classPoints: 18,
+      // Groups kept to use again, so the window shows where they are.
+      savedGroups: [
+        {
+          id: 'g1',
+          name: 'Writing groups',
+          savedAt: new Date().toISOString(),
+          madeBy: { kind: 'count', count: 4 },
+          groups: [0, 1, 2, 3].map((g) => ({
+            name: `Group ${g + 1}`,
+            color: ['#3b82f6', '#ec4899', '#14b8a6', '#8b5cf6'][g],
+            studentIds: students.filter((_, i) => i % 4 === g).map((s) => s.id),
+          })),
+        },
+      ],
       attendance: { [today]: ['s3'] },
       attendanceTaken: [today],
       updatedAt: new Date().toISOString(),
@@ -189,29 +203,63 @@ const all = {}
   await page.click('button[title="Back to the seating chart"]')
   await page.waitForTimeout(1200)
 
-  // Group Activity: the window that chooses, then the cards.
+  // Group Activity: the window that chooses, its second question, the names chosen by hand, then the cards.
   await page.click('aside [aria-label="Group Activity"]')
   await page.waitForTimeout(700)
   await page.evaluate(() => {
     for (const l of document.querySelectorAll('[data-slot="dialog-content"] label')) {
       const sec = l.closest('section')
-      if (/How Many/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'count')
-      if (/Groups Of/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'size')
-      if (/Split By/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'split')
+      if (/Saved Groups/.test(l.textContent)) sec?.setAttribute('data-tour-mark', 'saved')
+      if (/New Groups/.test(l.textContent)) {
+        const grids = sec?.querySelectorAll(':scope > div')
+        grids?.[0]?.setAttribute('data-tour-mark', 'count')
+        grids?.[1]?.setAttribute('data-tour-mark', 'kinds')
+      }
     }
   })
   all.chooser = await rects(page, {
     window: '[data-slot="dialog-content"]',
+    saved: '[data-tour-mark="saved"]',
     count: '[data-tour-mark="count"]',
-    size: '[data-tour-mark="size"]',
-    split: '[data-tour-mark="split"]',
+    kinds: '[data-tour-mark="kinds"]',
   })
   await shot(page, 'chooser')
   await page.locator('[data-tour-mark="count"] button').nth(2).click()
+  await page.waitForTimeout(900)
+  await mark(page, [
+    ['make', '^Make them for me'],
+    ['choose', "^I'll choose"],
+  ])
+  all.who = await rects(page, { make: '[data-tour-mark="make"]', choose: '[data-tour-mark="choose"]' })
+  await shot(page, 'who')
+  await page.locator('[data-tour-mark="choose"]').click()
+  await page.waitForTimeout(600)
+  // Partway through, as a teacher would be: the first group full, the second lit with two in it.
+  const tapIn = async (frame, names) => {
+    await page.locator(`[data-frame="${frame}"]`).click({ position: { x: 20, y: 10 } })
+    for (const n of names) await page.locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${n}`) }).first().click()
+  }
+  await tapIn(0, ['Amy', 'Tony', 'Brian', 'Cindy', 'Grace', 'Henry', 'Ivy'])
+  await tapIn(1, ['Kevin', 'Daniel'])
+  await mark(page, [['bstart', '^Start$']])
+  all.builder = await rects(page, {
+    lit: '[data-group-builder] [data-frame="1"]',
+    chart: '[data-builder-chart]',
+    start: '[data-tour-mark="bstart"]',
+  })
+  await shot(page, 'builder')
+  await page.locator('[data-group-builder] button', { hasText: 'Cancel' }).click()
+  await page.waitForTimeout(500)
+  await page.click('aside [aria-label="Group Activity"]')
+  await page.waitForTimeout(700)
+  await page.getByRole('dialog').getByRole('button', { name: /^4/ }).first().click()
+  await page.waitForTimeout(900)
+  await page.getByRole('dialog').getByRole('button', { name: /Make them for me/ }).click()
   await page.waitForTimeout(4500)
   await mark(page, [
     ['new', '^New Groups$'],
     ['gshuffle', '^Shuffle$'],
+    ['gsave', '^Save$'],
     ['reset', '^Reset Points$'],
     ['lock', '^Lock$'],
     ['gexit', '^Exit Group Activity$'],
@@ -227,6 +275,7 @@ const all = {}
   all.groups = await rects(page, {
     new: '[data-tour-mark="new"]',
     shuffle: '[data-tour-mark="gshuffle"]',
+    save: '[data-tour-mark="gsave"]',
     reset: '[data-tour-mark="reset"]',
     lock: '[data-tour-mark="lock"]',
     exit: '[data-tour-mark="gexit"]',

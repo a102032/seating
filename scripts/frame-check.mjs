@@ -194,10 +194,12 @@ await measure('a mystery gift: dance, roll, send', async () => {
 })
 await page.getByTitle('Back to the seating chart').click()
 await wait(1500)
-await measure('group activity: deal 4s', async () => {
+await measure('group activity: deal 4 groups', async () => {
   await page.getByRole('button', { name: 'Group Activity' }).click()
   await wait(600)
-  await page.getByRole('dialog').getByRole('button', { name: /^4s/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^4/ }).first().click()
+  await wait(800)
+  await page.getByRole('dialog').getByRole('button', { name: /Make them for me/ }).click()
   await wait(4000)
 })
 await measure('group activity: +1 on a card', async () => {

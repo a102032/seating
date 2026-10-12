@@ -108,7 +108,9 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its
     colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity. Groups are made from the seats in
-    `lib/seatGroups.ts` (pairs side by side, squares of four, the room cut into patches); `lib/groups.ts` deals them and Shuffle mixes.
+    `lib/seatGroups.ts` (pairs side by side, the room cut into patches, and `placeGroups`, which numbers them and lays their
+    cards out like the room); `lib/groups.ts` deals them and Shuffle mixes. `GroupBuilder.tsx`: I'll choose, the names tapped
+    into the groups. `SaveGroupsModal.tsx`: Save, the groups kept with the class under a typed name (`savedGroups`).
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
     and the four rhythms of taps between the beats are in `lib/getReady.ts`, its sounds in `sound.ts` (`playGetReadyTaps`) and
     its stars' flight in `starFlight.ts` (`flyStarsFrom`).

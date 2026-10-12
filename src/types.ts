@@ -205,6 +205,14 @@ export interface ClassData {
    * say so in the Group Activity window's own words, and Shuffle still works after it.
    */
   groupsMadeBy?: GroupScheme
+  /**
+   * Groups the teacher kept to use again (2026-10-12, the teacher: writing groups, math groups,
+   * groups for the map manipulatives), named by the teacher. Started from the Group Activity
+   * window; six at most, so the window stays short.
+   */
+  savedGroups?: SavedGroups[]
+  /** The saved groups the groups on the board came from, so Save keeps changes in them. */
+  groupsSavedAs?: string
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }
@@ -224,6 +232,27 @@ export interface StudentGroup {
   studentIds: string[]
   /** Points earned this session, floored at 0. Zeroed when the activity finishes. */
   points: number
+  /**
+   * Where the card sits when the cards are laid out like the room (lib/seatGroups' placeGroups):
+   * its column and row of cards, and how many desks across the group sits, so its names go that
+   * many to a line. Only groups made from the seats have one; Shuffle keeps each card's.
+   */
+  place?: GroupPlace
+}
+
+/** A set of groups kept to use again: who is in each group, and where its card sits. Points and status are never kept. */
+export interface SavedGroups {
+  id: string
+  name: string
+  groups: Pick<StudentGroup, 'name' | 'color' | 'studentIds' | 'place'>[]
+  madeBy?: GroupScheme
+  savedAt: string
+}
+
+export interface GroupPlace {
+  column: number
+  row: number
+  across: number
 }
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'

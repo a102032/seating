@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
 import { getTheme, hasNoAvatar, randomPose, stickerId, type DeskPictures } from '../lib/stickers'
-import { moveStudent, type GroupScheme } from '../lib/groups'
+import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
@@ -618,10 +618,46 @@ export function useClasses() {
 
   // --- Group Activity -------------------------------------------------------------------
 
-  // A new deal says how it was made; a shuffle, a move or a prune keeps what made them.
+  // A new deal says how it was made, and which saved groups it came from if any; a shuffle, a
+  // move or a prune keeps both, so Save after them still keeps the changes in the same saved groups.
   const setGroups = useCallback(
-    (classId: string, groups: StudentGroup[], madeBy?: GroupScheme) =>
-      updateClass(classId, (c) => ({ ...c, groups, ...(madeBy ? { groupsMadeBy: madeBy } : {}) })),
+    (classId: string, groups: StudentGroup[], madeBy?: GroupScheme, savedAs?: string) =>
+      updateClass(classId, (c) => ({ ...c, groups, ...(madeBy ? { groupsMadeBy: madeBy, groupsSavedAs: savedAs } : {}) })),
+    [updateClass],
+  )
+
+  /**
+   * The groups on the board kept to use again, under the name the teacher typed: into the saved
+   * groups they came from (renamed if the name changed), or as new ones while there is room.
+   * Who is in each group and where its card sits; never points or statuses.
+   */
+  const saveGroups = useCallback(
+    (classId: string, name: string) =>
+      updateClass(classId, (c) => {
+        const groups = (c.groups ?? []).map((g) => ({
+          name: g.name,
+          color: g.color,
+          studentIds: g.studentIds,
+          ...(g.place ? { place: g.place } : {}),
+        }))
+        const list = c.savedGroups ?? []
+        const existing = list.find((s) => s.id === c.groupsSavedAs)
+        const kept = { name: name.trim(), groups, madeBy: c.groupsMadeBy, savedAt: new Date().toISOString() }
+        if (existing) return { ...c, savedGroups: list.map((s) => (s.id === existing.id ? { ...s, ...kept } : s)) }
+        if (list.length >= MAX_SAVED_GROUPS) return c
+        const id = crypto.randomUUID()
+        return { ...c, savedGroups: [...list, { id, ...kept }], groupsSavedAs: id }
+      }),
+    [updateClass],
+  )
+
+  const removeSavedGroups = useCallback(
+    (classId: string, savedId: string) =>
+      updateClass(classId, (c) => ({
+        ...c,
+        savedGroups: (c.savedGroups ?? []).filter((s) => s.id !== savedId),
+        ...(c.groupsSavedAs === savedId ? { groupsSavedAs: undefined } : {}),
+      })),
     [updateClass],
   )
 
@@ -733,6 +769,8 @@ export function useClasses() {
     setGroups,
     adjustGroupPoints,
     resetGroupPoints,
+    saveGroups,
+    removeSavedGroups,
     moveStudentToGroup,
     setGroupStatus,
     finishGroupActivity,
