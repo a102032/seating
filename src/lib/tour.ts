@@ -9,7 +9,7 @@ import RECTS from './tourRects.json'
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
  * of these screens changes.
  */
-export type TourShot = 'board' | 'flip' | 'chooser' | 'groups' | 'timer' | 'howlong' | 'star'
+export type TourShot = 'board' | 'flip' | 'chooser' | 'who' | 'builder' | 'groups' | 'timer' | 'howlong' | 'star'
 
 export interface TourStop {
   /** The picture: one of the screens, or 'slides', the floating class goal drawn over a lesson slide. */
@@ -60,7 +60,7 @@ export const TOUR: TourPart[] = [
       { shot: 'board', at: 'pickRow', text: 'Pick a Random Row lands on a whole row (a table, in a table layout).' },
       { shot: 'board', at: 'pickAll', text: 'Pick All picks the whole class. Once anyone is picked, it becomes Unpick All.' },
       { shot: 'board', at: 'flip', text: 'Flip Cards: students turn over a card to take a turn. Its part comes next.' },
-      { shot: 'board', at: 'groups', text: 'Group Activity: groups made from where students sit. It has its own part too.' },
+      { shot: 'board', at: 'groups', text: 'Group Activity: groups made for you, or chosen by you. It has its own part too.' },
       { shot: 'board', at: 'star', text: 'The star gives a point to everyone picked.' },
       {
         shot: 'board',
@@ -92,12 +92,17 @@ export const TOUR: TourPart[] = [
   },
   {
     title: 'Group Activity',
-    intro: 'Groups made from where students sit, each with its own card and points.',
+    intro: 'Groups made for you or chosen by you, each with its own card and points.',
     stops: [
-      { shot: 'chooser', at: 'window', text: 'Tap Group Activity, then choose how to make the groups.' },
-      { shot: 'chooser', at: 'count', text: 'How many groups: the room is cut into that many patches.' },
-      { shot: 'chooser', at: 'size', text: 'Or groups of 2, 3, 4 or 5, from students sitting together.' },
-      { shot: 'chooser', at: 'split', text: 'Or boys and girls, or one group for each row.' },
+      { shot: 'chooser', at: 'window', text: 'Tap Group Activity, then choose the groups.' },
+      { shot: 'chooser', at: 'saved', text: 'Groups you saved. Tap one to use it again.' },
+      { shot: 'chooser', at: 'count', text: 'How many groups.' },
+      { shot: 'chooser', at: 'kinds', text: 'Or pairs, or boys and girls.' },
+      { shot: 'who', at: 'make', text: 'Make them for me: groups from where students sit.' },
+      { shot: 'who', at: 'choose', text: "I'll choose: you put the students in the groups." },
+      { shot: 'builder', at: 'lit', text: 'Tap a group to fill it.' },
+      { shot: 'builder', at: 'chart', text: 'Then tap its students. Their names move into the group.' },
+      { shot: 'builder', at: 'start', text: 'Start when everyone has a group.' },
       { shot: 'groups', at: 'card', text: 'Each group gets a card in its own color.' },
       { shot: 'groups', at: 'status', text: 'A group taps here to say Working, Help, Ready or Done. Help turns the card red.' },
       { shot: 'groups', at: 'name', text: 'Tap a name, then tap another group to move that student.' },
@@ -105,6 +110,7 @@ export const TOUR: TourPart[] = [
       { shot: 'groups', at: 'pickGroup', text: 'While groups are up, this picker picks a group.' },
       { shot: 'groups', at: 'new', text: 'New Groups: choose again.' },
       { shot: 'groups', at: 'shuffle', text: 'Shuffle mixes everyone into new groups.' },
+      { shot: 'groups', at: 'save', text: 'Save keeps these groups, with a name, to use again.' },
       { shot: 'groups', at: 'reset', text: 'Reset Points puts every group back to 0.' },
       { shot: 'groups', at: 'lock', text: 'Lock freezes the names, so students can come up and tap their own status.' },
       { shot: 'groups', at: 'exit', text: 'Back to the desks. The groups are kept for next time.' },

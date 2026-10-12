@@ -1,4 +1,4 @@
-import type { Gender, GroupPlace, Student, StudentGroup } from '../types'
+import type { Gender, GroupPlace, SavedGroups, Student, StudentGroup } from '../types'
 import type { LayoutPlan } from './layouts'
 import { neighbourGroups, neighbourhoods, placeGroups, type Placed } from './seatGroups'
 
@@ -13,7 +13,7 @@ import { neighbourGroups, neighbourhoods, placeGroups, type Placed } from './sea
  * - `rows`: one group per row of desks, or per table in a table layout.
  *
  * Groups made from the seats are numbered, and their cards placed, the way they sit in the room
- * (seatGroups' placeGroups), from the side of the board the teacher counts from.
+ * (seatGroups' placeGroups), front of the room first, left to right.
  *
  * Counts and sizes are made from where the students sit, so nobody carries a chair across the
  * room (2026-10-05, the teacher's call); Shuffle is the way to mix them (`mix`).
@@ -119,7 +119,6 @@ function bySeats(
   scheme: { kind: 'count'; count: number } | { kind: 'size'; size: number } | { kind: 'rows' },
   seated: SeatedStudent[],
   plan: LayoutPlan,
-  fromRight = false,
 ): { members: string[][]; places: GroupPlace[] | null } {
   const where = placed(seated, plan)
   let groups: Placed[][]
@@ -130,7 +129,7 @@ function bySeats(
     where.forEach((p) => sets.set(p.seat.set, [...(sets.get(p.seat.set) ?? []), p]))
     groups = [...sets.values()]
   }
-  const { groups: ordered, places } = placeGroups(groups, fromRight)
+  const { groups: ordered, places } = placeGroups(groups)
   return { members: ordered.map((g) => g.map((p) => p.id)), places }
 }
 
@@ -212,7 +211,7 @@ function makeGroup(
  * from the roster. With `mix` (Shuffle) everyone is dealt at random instead, into as many cards
  * as are on the board, so Shuffle is the one way to mix a class up. `previous` keeps each card's
  * identity by position, and its place on the board, so a shuffle re-deals the chips without tearing
- * the cards down around them. `fromRight` numbers the groups from the right of the board.
+ * the cards down around them.
  */
 export function buildGroups(
   scheme: GroupScheme,
@@ -220,7 +219,7 @@ export function buildGroups(
   studentsById: Map<string, Student>,
   previous: StudentGroup[] | undefined,
   plan: LayoutPlan,
-  { mix = false, fromRight = false }: { mix?: boolean; fromRight?: boolean } = {},
+  { mix = false }: { mix?: boolean } = {},
 ): StudentGroup[] {
   const seated = seatedStudents(seating, studentsById)
   const ids = seated.map((s) => s.student.id)
@@ -229,8 +228,7 @@ export function buildGroups(
     members.map((m, i) => makeGroup(i, m, `Group ${i + 1}`, undefined, keepId(i), places?.[i]))
 
   if (mix && scheme.kind !== 'gender') {
-    const cards =
-      previous && previous.length > 0 ? previous.length : buildGroups(scheme, seating, studentsById, undefined, plan, { fromRight }).length
+    const cards = previous && previous.length > 0 ? previous.length : buildGroups(scheme, seating, studentsById, undefined, plan).length
     const members = deal(shuffled(ids), Math.max(1, Math.min(cards, ids.length)))
     // Every card keeps its place only if every card had one, so the board never mixes the two layouts.
     const places = previous && previous.length === members.length && previous.every((g) => g.place) ? previous.map((g) => g.place) : null
@@ -241,7 +239,7 @@ export function buildGroups(
     case 'count':
     case 'size':
     case 'rows': {
-      const { members, places } = bySeats(scheme, seated, plan, fromRight)
+      const { members, places } = bySeats(scheme, seated, plan)
       return numbered(members, places)
     }
     case 'gender': {
@@ -260,6 +258,61 @@ export function buildGroups(
       ]
     }
   }
+}
+
+/**
+ * How many groups "I'll choose" starts with: the count chosen, half the class for pairs (the
+ * last pair a three in an odd class), or a group for every table with someone at it. Counted
+ * over everyone at a desk, away today too, since groups chosen by hand are for the whole class.
+ */
+export function framesFor(scheme: GroupScheme, seating: (string | null)[], plan: LayoutPlan): number {
+  const seated = seating.map((id, desk) => (id ? desk : -1)).filter((desk) => desk >= 0)
+  if (scheme.kind === 'count') return Math.min(scheme.count, seated.length)
+  if (scheme.kind === 'size') return Math.max(1, Math.floor(seated.length / scheme.size))
+  if (scheme.kind === 'rows') return new Set(seated.map((desk) => plan.seats[desk]?.set ?? -1)).size
+  return 2
+}
+
+/** Groups the teacher made by hand ("I'll choose"), numbered in the order they were filled. No places: the board deals them in its usual grid. */
+export function handMadeGroups(members: string[][]): StudentGroup[] {
+  return members.filter((m) => m.length > 0).map((m, i) => makeGroup(i, m))
+}
+
+/** The most saved groups a class keeps, so the Group Activity window stays short. */
+export const MAX_SAVED_GROUPS = 6
+
+/**
+ * Saved groups brought back for today's lesson. A student no longer seated drops out, and a
+ * student seated since they were saved joins the smallest group (the first of them, on a tie),
+ * so nobody is left without a group; `joined` says who went where, for the line the teacher
+ * sees. Points and statuses start fresh.
+ */
+export function groupsFromSaved(
+  saved: SavedGroups,
+  seating: (string | null)[],
+): { groups: StudentGroup[]; joined: { studentId: string; groupName: string }[] } {
+  const seated = seating.filter((id): id is string => Boolean(id))
+  const here = new Set(seated)
+  const groups: StudentGroup[] = saved.groups
+    .map((g) => ({
+      id: crypto.randomUUID(),
+      name: g.name,
+      color: g.color,
+      studentIds: g.studentIds.filter((id) => here.has(id)),
+      points: 0,
+      ...(g.place ? { place: g.place } : {}),
+    }))
+    .filter((g) => g.studentIds.length > 0)
+  const grouped = new Set(groups.flatMap((g) => g.studentIds))
+  const joined: { studentId: string; groupName: string }[] = []
+  if (groups.length === 0) return { groups, joined }
+  for (const id of seated) {
+    if (grouped.has(id)) continue
+    const smallest = groups.reduce((a, b) => (b.studentIds.length < a.studentIds.length ? b : a))
+    smallest.studentIds = [...smallest.studentIds, id]
+    joined.push({ studentId: id, groupName: smallest.name })
+  }
+  return { groups, joined }
 }
 
 /**

@@ -77,8 +77,6 @@ export interface ToolsProps {
   onUpdateFlip: (patch: Partial<FlipDeckSettings>) => void
   groupChimes: boolean
   onSetGroupChimes: (on: boolean) => void
-  groupsFrom: 'left' | 'right'
-  onSetGroupsFrom: (side: 'left' | 'right') => void
 }
 
 interface ClassSettingsModalProps {

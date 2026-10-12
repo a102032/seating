@@ -366,11 +366,11 @@ function middle(values: number[]): number {
  * Each group is taken as the block of desks it covers. Blocks whose middles are closer than half
  * a block's width share a column of cards, and likewise for rows, so six rows of desks are six
  * cards side by side, the corners two by two, and pairs a grid of pairs. Groups are numbered
- * from the front of the room, starting on the side the teacher counts from. A room whose groups
+ * from the front of the room, left to right. A room whose groups
  * would share a card's place (students away scattered a pair across the room) gets no places,
  * and the board deals its cards in the usual grid, numbered the same way.
  */
-export function placeGroups(groups: Placed[][], fromRight: boolean): { groups: Placed[][]; places: GroupPlace[] | null } {
+export function placeGroups(groups: Placed[][]): { groups: Placed[][]; places: GroupPlace[] | null } {
   const live = groups.filter((g) => g.length > 0).map((g) => [...g].sort(byReading))
   if (live.length === 0) return { groups: [], places: null }
   const blocks = live.map((g) => {
@@ -396,7 +396,7 @@ export function placeGroups(groups: Placed[][], fromRight: boolean): { groups: P
     blocks.map((b) => b.y),
     middle(blocks.map((b) => b.depth)) / 2,
   )
-  const order = live.map((_, i) => i).sort((a, b) => row[a] - row[b] || (fromRight ? blocks[b].x - blocks[a].x : blocks[a].x - blocks[b].x))
+  const order = live.map((_, i) => i).sort((a, b) => row[a] - row[b] || blocks[a].x - blocks[b].x)
   const cells = new Set(live.map((_, i) => `${column[i]}:${row[i]}`))
   const places = cells.size === live.length ? order.map((i) => ({ column: column[i], row: row[i], across: blocks[i].across })) : null
   return { groups: order.map((i) => live[i]), places }

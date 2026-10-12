@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Lock, LockOpen, LogOut, Minus, Plus, RotateCcw, Shuffle, Star, Users } from 'lucide-react'
+import { Lock, LockOpen, LogOut, Minus, Plus, RotateCcw, Save, Shuffle, Star, Users } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { textWidthEm } from '../lib/fitText'
 import { groupTextColor } from '../lib/groups'
@@ -24,11 +24,6 @@ interface GroupActivityProps {
   groups: StudentGroup[]
   studentsById: Map<string, Student>
   /**
-   * The teacher counts from the right of the board (Group 1 is on the right), so cards that
-   * can't be laid out like the room fill the grid from the right too.
-   */
-  fromRight?: boolean
-  /**
    * Away today. They stay on their team's card - the team is whole again tomorrow - but
    * faded, and the pickers pass them by.
    */
@@ -48,6 +43,8 @@ interface GroupActivityProps {
   onMove: (studentId: string, groupId: string) => void
   onNewGroups: () => void
   onShuffle: () => void
+  /** Keep these groups to use again, under a name (SaveGroupsModal). */
+  onSave: () => void
   onExit: () => void
   onSetStatus: (groupId: string, status: GroupStatus) => void
   /** A soft chime when a group taps Need Help, Ready or Done. */
@@ -282,7 +279,6 @@ interface ChipSlot {
 export function GroupActivity({
   groups,
   studentsById,
-  fromRight = false,
   absentIds,
   dealTick,
   canShuffle,
@@ -293,6 +289,7 @@ export function GroupActivity({
   onMove,
   onNewGroups,
   onShuffle,
+  onSave,
   onExit,
   onSetStatus,
   chimes,
@@ -485,8 +482,6 @@ export function GroupActivity({
     : null
   const plan = roomPlan && roomPlan.chipScale >= gridPlan.chipScale ? roomPlan : gridPlan
   const { columns, chipScale, chrome, room } = plan
-  // A grid that isn't the room fills from the side Group 1 is on. Boys and Girls have no side.
-  const mirrored = !room && fromRight && groups.every((g) => g.name.startsWith('Group'))
   const d = DENSITY[chrome.density]
   const gridGap = board.width >= 640 ? chrome.gridGap : 8
   const chipFont = `calc(var(--chip-font) * ${chipScale})`
@@ -519,6 +514,14 @@ export function GroupActivity({
             title={canShuffle ? 'Mix everyone up' : 'Tap New Groups to shuffle'}
           >
             <Shuffle size={16} /> Shuffle
+          </TactileButton>
+          <TactileButton
+            onClick={onSave}
+            disabled={dealing || locked || groups.length === 0}
+            className="!px-3 !py-2"
+            title="Keep these groups to use again"
+          >
+            <Save size={16} /> Save
           </TactileButton>
           {scoring && (
             <TactileButton
@@ -569,7 +572,6 @@ export function GroupActivity({
               gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
               gridAutoRows: '1fr',
               gap: gridGap,
-              direction: mirrored ? 'rtl' : undefined,
             }}
           >
             {groups.map((group) => {
@@ -605,7 +607,6 @@ export function GroupActivity({
                   style={{
                     borderColor: group.color,
                     visibility: picking?.group.id === group.id ? 'hidden' : undefined,
-                    direction: mirrored ? 'ltr' : undefined,
                     ...(room && group.place ? { gridColumn: group.place.column + 1, gridRow: group.place.row + 1 } : {}),
                   }}
                 >

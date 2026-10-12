@@ -206,11 +206,13 @@ export interface ClassData {
    */
   groupsMadeBy?: GroupScheme
   /**
-   * Which side of the board Group 1 is on (2026-10-12, the teacher: he calls the right-hand row
-   * of desks Row 1, and Group 1 came out on the left). Groups are numbered from it, front of the
-   * room first. Unset is the left.
+   * Groups the teacher kept to use again (2026-10-12, the teacher: writing groups, math groups,
+   * groups for the map manipulatives), named by the teacher. Started from the Group Activity
+   * window; six at most, so the window stays short.
    */
-  groupsFrom?: 'left' | 'right'
+  savedGroups?: SavedGroups[]
+  /** The saved groups the groups on the board came from, so Save keeps changes in them. */
+  groupsSavedAs?: string
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }
@@ -236,6 +238,15 @@ export interface StudentGroup {
    * many to a line. Only groups made from the seats have one; Shuffle keeps each card's.
    */
   place?: GroupPlace
+}
+
+/** A set of groups kept to use again: who is in each group, and where its card sits. Points and status are never kept. */
+export interface SavedGroups {
+  id: string
+  name: string
+  groups: Pick<StudentGroup, 'name' | 'color' | 'studentIds' | 'place'>[]
+  madeBy?: GroupScheme
+  savedAt: string
 }
 
 export interface GroupPlace {

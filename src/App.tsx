@@ -13,6 +13,8 @@ import { Tour } from './components/Tour'
 import { GUIDE_STEPS, rememberGuideDone, shouldGuide, stepBefore, stepFrom, stepPlace, type GuideScope } from './lib/setupGuide'
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
+import { GroupBuilder } from './components/GroupBuilder'
+import { SaveGroupsModal } from './components/SaveGroupsModal'
 import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
@@ -28,7 +30,17 @@ import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
-import { buildGroups, pruneGroups, summarizeGroupPoints, type GroupScheme } from './lib/groups'
+import {
+  buildGroups,
+  framesFor,
+  groupsFromSaved,
+  handMadeGroups,
+  MAX_SAVED_GROUPS,
+  pruneGroups,
+  schemeLabel,
+  summarizeGroupPoints,
+  type GroupScheme,
+} from './lib/groups'
 import { pickChances } from './lib/participation'
 import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
@@ -91,7 +103,6 @@ export default function App() {
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,
-    setGroupsFrom,
     setDeskPictures,
     setStudentPhotos,
     setChartPhotos,
@@ -112,6 +123,8 @@ export default function App() {
     toggleAbsentInRecord,
     unseatedStudents,
     setGroups,
+    saveGroups,
+    removeSavedGroups,
     adjustGroupPoints,
     resetGroupPoints,
     moveStudentToGroup,
@@ -181,6 +194,9 @@ export default function App() {
   const [tourOpen, setTourOpen] = useState(false)
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
+  /** "I'll choose": the teacher taps the names into this many groups. */
+  const [groupBuilder, setGroupBuilder] = useState<{ scheme: GroupScheme; count: number } | null>(null)
+  const [saveGroupsOpen, setSaveGroupsOpen] = useState(false)
   const [groupActivityOpen, setGroupActivityOpen] = useState(false)
   /** How the current groups were made, so Shuffle can deal the same shape again. Null for saved groups. */
   const [groupScheme, setGroupScheme] = useState<GroupScheme | null>(null)
@@ -355,8 +371,6 @@ export default function App() {
 
   /** The saved groups as they stand today - anyone who has left their desk since is out. */
   const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], activeClass?.seating ?? []), [activeClass])
-  /** The teacher counts the groups from the right of the board: Group 1 is on the right. */
-  const fromRight = activeClass?.groupsFrom === 'right'
   /**
    * The pickers, while the group cards are up. The seating chart's picker lights up desks,
    * which are behind the cards and so invisible here, which is why the panel's two picker
@@ -384,12 +398,54 @@ export default function App() {
 
   function startGroups(scheme: GroupScheme) {
     if (!activeClassId) return
-    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, plan, { fromRight }), scheme)
+    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, plan), scheme)
     setGroupScheme(scheme)
     setDealWasShuffle(false)
     setDealTick((t) => t + 1)
     setGroupsLocked(false)
     openGroupActivity()
+  }
+
+  /** "I'll choose": the class's desks small on one side, the groups on the other, the names tapped in. */
+  function chooseGroups(scheme: GroupScheme) {
+    if (!activeClass) return
+    setGroupBuilder({ scheme, count: framesFor(scheme, seating, plan) })
+  }
+
+  /** The groups the teacher chose by hand, on the board as they were tapped in. Shuffle still mixes them, into as many cards. */
+  function startChosenGroups(members: string[][]) {
+    if (!activeClassId || !groupBuilder) return
+    setGroups(activeClassId, handMadeGroups(members), groupBuilder.scheme)
+    setGroupScheme(groupBuilder.scheme)
+    setGroupBuilder(null)
+    setDealWasShuffle(false)
+    setDealTick(0)
+    setGroupsLocked(false)
+    openGroupActivity()
+  }
+
+  /** Saved groups, brought back for today: anyone new joins the smallest group, and the teacher is told. */
+  function startSavedGroups(savedId: string) {
+    const saved = activeClass?.savedGroups?.find((s) => s.id === savedId)
+    if (!activeClassId || !activeClass || !saved) return
+    const { groups: fresh, joined } = groupsFromSaved(saved, seating)
+    if (fresh.length === 0) {
+      setToast({ id: Date.now(), text: `Nobody in "${saved.name}" has a desk in this class now.` })
+      return
+    }
+    const madeBy: GroupScheme = saved.madeBy ?? { kind: 'count', count: fresh.length }
+    setGroups(activeClassId, fresh, madeBy, saved.id)
+    setGroupScheme(madeBy)
+    setDealWasShuffle(false)
+    setDealTick(0)
+    setGroupsLocked(false)
+    openGroupActivity()
+    if (joined.length === 1) {
+      const who = studentsById.get(joined[0].studentId)?.name ?? 'A new student'
+      setToast({ id: Date.now(), text: `${who} joined ${joined[0].groupName}.` })
+    } else if (joined.length > 1) {
+      setToast({ id: Date.now(), text: `${joined.length} new students joined the smallest groups.` })
+    }
   }
 
   function updateGroupChimes(on: boolean) {
@@ -409,7 +465,7 @@ export default function App() {
   function shuffleGroups() {
     if (!activeClassId || !groupScheme) return
     // Shuffle mixes everyone at random, into the same number of cards: the seats made the first deal.
-    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, plan, { mix: true, fromRight }))
+    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, plan, { mix: true }))
     setDealWasShuffle(true)
     setDealTick((t) => t + 1)
   }
@@ -996,7 +1052,6 @@ export default function App() {
                   <GroupActivity
                     groups={groups}
                     studentsById={studentsById}
-                    fromRight={fromRight}
                     absentIds={absentIds}
                     dealTick={dealTick}
                     dealWasShuffle={dealWasShuffle}
@@ -1007,6 +1062,7 @@ export default function App() {
                     onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
                     onNewGroups={() => setGroupModalOpen(true)}
                     onShuffle={shuffleGroups}
+                    onSave={() => setSaveGroupsOpen(true)}
                     onExit={requestExitGroups}
                     onSetStatus={(groupId, status) => setGroupStatus(activeClass.id, groupId, status)}
                     chimes={groupChimes}
@@ -1048,8 +1104,38 @@ export default function App() {
         setName={plan.setName}
         lastGroups={groups}
         lastMadeBy={activeClass.groupsMadeBy}
+        savedGroups={activeClass.savedGroups ?? []}
         onStart={startGroups}
+        onChoose={chooseGroups}
         onContinue={continueGroups}
+        onStartSaved={startSavedGroups}
+        onRemoveSaved={(savedId) => removeSavedGroups(activeClass.id, savedId)}
+      />
+
+      {groupBuilder && (
+        <GroupBuilder
+          plan={plan}
+          seating={seating}
+          studentsById={studentsById}
+          absentIds={absentIds}
+          homerooms={homeroomTagged}
+          groupCount={groupBuilder.count}
+          pairs={groupBuilder.scheme.kind === 'size'}
+          title={schemeLabel(groupBuilder.scheme, groupBuilder.count, plan.setName)}
+          onStart={startChosenGroups}
+          onCancel={() => setGroupBuilder(null)}
+        />
+      )}
+
+      <SaveGroupsModal
+        open={saveGroupsOpen}
+        onClose={() => setSaveGroupsOpen(false)}
+        savedName={activeClass.savedGroups?.find((s) => s.id === activeClass.groupsSavedAs)?.name ?? null}
+        full={(activeClass.savedGroups?.length ?? 0) >= MAX_SAVED_GROUPS}
+        onSave={(name) => {
+          saveGroups(activeClass.id, name)
+          setToast({ id: Date.now(), text: `Saved as "${name}".` })
+        }}
       />
 
       <GroupExitModal
@@ -1202,8 +1288,6 @@ export default function App() {
           onUpdateFlip: deck.updateSettings,
           groupChimes,
           onSetGroupChimes: updateGroupChimes,
-          groupsFrom: activeClass.groupsFrom ?? 'left',
-          onSetGroupsFrom: (side) => setGroupsFrom(activeClass.id, side),
         }}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}
