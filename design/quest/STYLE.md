@@ -213,6 +213,14 @@ rather than a two-second banner; a chest with all its keys opens on a tap; the o
 small prizes keep the preview's bright slices, medium are silver and big gold; the guardian comes in at the Mega chest.
 The map's doodles stay faint ink, so the coloured things on it are the chests, the dragon and the knight.
 
+**Knight and Dragon's art is complete** (2026-10-12): the knight (`flow/knight.webp`) and the landmarks
+(`flow/landmarks.jpg`) came out right first time. In the preview's Our Quest at the board's size, the landmarks were
+made see-through from their ink (the darker the line, the more solid), tinted the map's ink (#8a5a2b) at 55%, and
+placed where the zigzag leaves room: the castle over the first chest, the forest under the second, the hills over
+the third, the bridge under the fourth and the mountain with its cave just behind the Mega chest, so the chest sits
+at the cave's mouth. The knight stands on the trail beside the chest the class is on, about 1.25 times its height;
+the dragon sleeps by the Mega chest. The windmill and signpost are spares for wider screens.
+
 ### Prompt 7: the knight on the trail (for Flow, with the dragon on guard attached)
 
 The class's marker, walking the trail from chest to chest. The visor is down so it could be anyone in the class.
