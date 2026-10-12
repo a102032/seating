@@ -3016,6 +3016,11 @@ const scenarios = {
         await page.locator('[data-guide="celebration-row"] button').click()
         await page.waitForTimeout(300)
         await look('settings celebration')
+        // The Quest's prize list, in place of Points, as the celebration's pictures are.
+        await page.getByRole('button', { name: 'Back' }).first().click()
+        await page.locator('[data-guide="prizes-row"] button').click()
+        await page.waitForTimeout(300)
+        await look('settings prizes')
         await page.keyboard.press('Escape')
         await page.waitForTimeout(600)
         check(`nothing scrolls: ${where}`, bad.length === 0 && page.errors.length === 0, [...bad, ...page.errors].join('; '))
