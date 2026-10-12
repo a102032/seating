@@ -1848,6 +1848,112 @@ const scenarios = {
   },
 
   /**
+   * The fixes of 2026-10-12: New Class at the foot of Class Settings' list makes a class and walks
+   * its setup (Back crossing into the section before), greyed at five; Remove All empties the class
+   * list after asking, records and all; and the participation record goes out as a spreadsheet,
+   * the quiet ones first.
+   */
+  async 'class settings: New Class, Remove All, and the participation export'() {
+    const cls = makeClass('c1', 'Grade 4 English', 6, {
+      pointsGoal: 50,
+      classPoints: 0,
+      participation: { '2026-10-05': { 'c1-s0': [2, 1], 'c1-s1': [1, 0] }, '2026-10-06': { 'c1-s0': [1, 0] } },
+      attendance: { '2026-10-06': ['c1-s2'] },
+      attendanceTaken: ['2026-10-06'],
+    })
+    const page = await open({ state: stateOf(cls), size: [1024, 500] })
+
+    // The record as a spreadsheet: totals first, the fewest turns at the top, Away where they were away.
+    await openSection(page, 'participation')
+    const [download] = await Promise.all([page.waitForEvent('download'), page.locator('[data-guide="part-export"]').click()])
+    const csv = readFileSync(await download.path(), 'utf8').split('\n')
+    check(
+      'participation export: a row per student, the quiet ones first, every lesson',
+      download.suggestedFilename() === 'Grade 4 English participation.csv' &&
+        csv[0] ===
+          'Homeroom,Name,Times picked,Times given points,2026-10-05 picked,2026-10-05 points,2026-10-06 picked,2026-10-06 points' &&
+        csv
+          .slice(1)
+          .map((r) => r.split(',')[1])
+          .join() === 'Brian,Cindy,Kevin,Mulan,Tony,Amy' &&
+        csv.includes('3,Kevin,0,0,0,0,Away,') &&
+        csv.includes('1,Amy,3,1,2,1,1,0'),
+      csv.join(' / '),
+    )
+    check('participation export: Update in Drive beside it, signed in', await page.locator('[data-guide="part-drive"]').isEnabled())
+
+    // Remove All: No changes nothing; Yes empties the list, seats and records.
+    await page.locator('[data-section-link="students"]').click()
+    await page.waitForTimeout(300)
+    await page.locator('[data-guide="remove-all"]').click()
+    await page.waitForTimeout(300)
+    const asked = await page.getByRole('alertdialog').innerText()
+    await page.getByRole('button', { name: 'No', exact: true }).click()
+    await page.waitForTimeout(300)
+    let c = await activeSaved(page)
+    check(
+      'remove all: it asks first, and No keeps everyone',
+      /Remove All Students\?/.test(asked) && /All 6 students/.test(asked) && c.students.length === 6,
+    )
+    await page.locator('[data-guide="remove-all"]').click()
+    await page.waitForTimeout(300)
+    await page.getByRole('button', { name: 'Yes, Remove All' }).click()
+    await page.waitForTimeout(500)
+    c = await activeSaved(page)
+    check(
+      'remove all: the list, seats, attendance and record are empty',
+      c.students.length === 0 &&
+        c.seating.every((s) => s === null) &&
+        Object.values(c.attendance ?? {}).every((ids) => ids.length === 0) &&
+        Object.values(c.participation ?? {}).every((day) => Object.keys(day).length === 0) &&
+        (await page.locator('.cs-page').innerText()).includes('The class list is empty.') &&
+        (await page.locator('[data-guide="remove-all"]').count()) === 0,
+      JSON.stringify({ n: c.students.length, att: c.attendance, part: c.participation }),
+    )
+
+    // New Class, at the foot of the list: a second class, on Class, its setup walked.
+    await page.locator('[data-guide="new-class"]').click()
+    await page.waitForTimeout(800)
+    const s = await saved(page)
+    const bubble = page.locator('[data-guide-bubble]')
+    const where = () => bubble.locator('span').first().innerText()
+    check(
+      'new class: made and opened on Class, with the guide',
+      s.classes.length === 2 &&
+        s.activeClassId !== 'c1' &&
+        (await page.locator('.cs-page[data-section="class"]').count()) === 1 &&
+        (await bubble.locator('p').innerText()) === 'Type the name of your class.',
+    )
+    // Back from Students' first step goes back into Class, the window with it.
+    for (let i = 0; i < 5; i++) {
+      await page.locator('[data-guide-next]').click()
+      await page.waitForTimeout(400)
+    }
+    const students = await where()
+    await page.locator('[data-guide-back]').click()
+    await page.waitForTimeout(500)
+    check(
+      'guide: Back crosses into the section before',
+      students === 'Students · 1 of 6' &&
+        (await where()) === 'Class · 5 of 5' &&
+        (await page.locator('.cs-page[data-section="class"]').count()) === 1,
+      `${students} -> ${await where()}`,
+    )
+    await page.locator('[data-guide-stop]').click()
+    await page.waitForTimeout(300)
+    const over = await overflow(page)
+    check('new class: nothing scrolls', over.page <= 0 && over.section <= 0, JSON.stringify(over))
+    await page.context().close()
+
+    // Five classes, the most a teacher keeps: greyed, saying so.
+    const five = await open({ state: stateOf(...[1, 2, 3, 4, 5].map((i) => makeClass(`c${i}`, `Class ${i}`, 3))), size: [1024, 500] })
+    await openSection(five, 'class')
+    const nc = five.locator('[data-guide="new-class"]')
+    check('new class: greyed at five classes', (await nc.isDisabled()) && (await nc.innerText()).includes('5 classes at most'))
+    return five
+  },
+
+  /**
    * The guide through Class Settings (2026-10-11): New Class on the splash walks the whole setup,
    * one thing lit at a time, every bubble inside the window at the floor size, ending on the
    * tour's offer; a tap on the faded part does nothing; Guide me walks only the section that is
@@ -1883,6 +1989,17 @@ const scenarios = {
     await page.mouse.click(80, 300)
     await page.waitForTimeout(300)
     check('guide: a tap on the fade does nothing', (await where()) === 'Class · 1 of 5')
+    // Back (2026-10-12): greyed on the first step, and one step back from the next.
+    const firstBackGreyed = await page.locator('[data-guide-back]').isDisabled()
+    await next()
+    const second = await where()
+    await page.locator('[data-guide-back]').click()
+    await page.waitForTimeout(500)
+    check(
+      'guide: Back goes to the step before, and is greyed on the first',
+      firstBackGreyed && second === 'Class · 2 of 5' && (await where()) === 'Class · 1 of 5',
+      `${firstBackGreyed}, ${second}, ${await where()}`,
+    )
     let steps = 0
     let offScreen = 0
     const seen = []
@@ -2011,6 +2128,18 @@ const scenarios = {
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 6, parts.join(', '))
+    // Back from the last card goes to the last stop of the last part, and Next comes back to it.
+    const place = () => page.locator('[data-tour-bubble] span').first().innerText()
+    await page.locator('[data-tour-action="back"]').click()
+    await page.waitForTimeout(300)
+    const lastStop = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
+    await page.locator('[data-tour-action="next"]').click()
+    await page.waitForTimeout(300)
+    check(
+      'tour: Back on the last card, to the last stop',
+      /^(.+) · (\d+) of \2$/.test(lastStop) && (await page.locator('[data-tour-card] h3').innerText()) === 'That’s the tour!',
+      lastStop,
+    )
     await page.locator('[data-tour-action="done"]').click()
     await page.waitForTimeout(300)
     // Stopped in Group Activity, it offers to go on from there.
@@ -2032,6 +2161,15 @@ const scenarios = {
       'tour: stopped, it picks up where it left off',
       /You were up to\s+Group Activity/.test(offer) && resumed === 'Group Activity',
       `${offer.replace(/\s+/g, ' ')} -> ${resumed}`,
+    )
+    // The card between parts has Back too (2026-10-12): to the last stop of the part before.
+    await page.locator('[data-tour-action="back"]').click()
+    await page.waitForTimeout(300)
+    const before = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
+    check(
+      'tour: Back on the card between parts, to the last stop of the part before',
+      new RegExp(`^${parts[0]} · (\\d+) of \\1$`).test(before),
+      before,
     )
     await page.keyboard.press('Escape')
     await page.waitForTimeout(300)

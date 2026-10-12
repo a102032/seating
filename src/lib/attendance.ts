@@ -69,7 +69,10 @@ export function attendanceRows(cls: ClassData): string[][] {
 }
 
 export function attendanceToCsv(cls: ClassData): string {
-  return attendanceRows(cls)
-    .map((row) => row.map(csvCell).join(','))
-    .join('\n')
+  return rowsToCsv(attendanceRows(cls))
+}
+
+/** Rows of cells as a CSV file's text, for any record the teacher exports. */
+export function rowsToCsv(rows: string[][]): string {
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n')
 }

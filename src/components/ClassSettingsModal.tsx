@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Hand,
   Map as MapIcon,
+  Plus,
   School,
   Signpost,
   Smile,
@@ -84,6 +85,9 @@ interface ClassSettingsModalProps {
   classes: ClassData[]
   cloud: ReturnType<typeof useCloudSync>
   onSwitchTeacher: () => void
+  /** Another class, made and opened on Class with the whole setup walked through; greyed at the most a teacher keeps. */
+  onNewClass: () => void
+  canAddClass: boolean
   /** Help: the guide through the section that is open, or the tour of the whole app. */
   onGuide: () => void
   onTour: () => void
@@ -263,6 +267,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onSetCount={props.onSetParticipation}
           onClearDay={props.onClearParticipationDay}
           onClearAll={props.onClearParticipation}
+          uid={cloud.account?.uid}
         />
       )
       break
@@ -345,6 +350,24 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
             {SECTIONS.map((s) => (
               <SectionLink key={s.id} section={s} current={section === s.id} onClick={() => go(s.id)} />
             ))}
+            {/* New Class, at the foot of the list and set apart from the sections, which are all about
+                this class (2026-10-12, the teacher: Class Settings is where a teacher looks for it). */}
+            <button
+              type="button"
+              className="cs-nav-item cs-nav-new"
+              data-guide="new-class"
+              disabled={!props.canAddClass}
+              title={props.canAddClass ? undefined : 'A teacher keeps 5 classes at most'}
+              onClick={props.onNewClass}
+            >
+              <span className="cs-ic">
+                <Plus size={20} />
+              </span>
+              <span>
+                New Class
+                {!props.canAddClass && <small>5 classes at most</small>}
+              </span>
+            </button>
           </nav>
           <div className="cs-page" data-section={section}>
             {page}

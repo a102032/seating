@@ -1,5 +1,5 @@
 import type { ClassData } from '../types'
-import { dateKey } from './attendance'
+import { dateKey, rowsToCsv } from './attendance'
 
 /**
  * Who has had a turn: a quiet record, for the teacher only, of how many times each student was
@@ -48,6 +48,36 @@ export function participationDates(c: ClassData): string[] {
     .filter(([, counts]) => Object.keys(counts).length > 0)
     .map(([day]) => day)
     .sort()
+}
+
+/**
+ * The whole record as a spreadsheet (2026-10-12, the teacher: "we need this"), as attendance has
+ * one: a row per student with their totals, the fewest turns first as in the report, so who has
+ * been quiet over the weeks is at the top; then each day on record as two columns, picked and
+ * given a point. "Away" on a day they were away with nothing on record, so a child who wasn't
+ * there doesn't read as quiet. The CSV export and the Sheet in Google Drive both hold exactly this.
+ */
+export function participationRows(c: ClassData): string[][] {
+  const dates = participationDates(c)
+  const header = ['Homeroom', 'Name', 'Times picked', 'Times given points', ...dates.flatMap((d) => [`${d} picked`, `${d} points`])]
+  const rows = c.students.map((s) => {
+    let picked = 0
+    let points = 0
+    const days = dates.flatMap((d) => {
+      const count = c.participation?.[d]?.[s.id]
+      if (!count) return c.attendance?.[d]?.includes(s.id) ? ['Away', ''] : ['0', '0']
+      picked += count[0]
+      points += count[1]
+      return [String(count[0]), String(count[1])]
+    })
+    return { name: s.name, turns: picked + points, cells: [s.homeroom, s.name, String(picked), String(points), ...days] }
+  })
+  rows.sort((a, b) => a.turns - b.turns || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+  return [header, ...rows.map((r) => r.cells)]
+}
+
+export function participationToCsv(c: ClassData): string {
+  return rowsToCsv(participationRows(c))
 }
 
 /**

@@ -10,7 +10,7 @@ import { FlipDeck } from './components/FlipDeck'
 import { FloatingGoal } from './components/FloatingGoal'
 import { SetupGuide } from './components/SetupGuide'
 import { Tour } from './components/Tour'
-import { GUIDE_STEPS, rememberGuideDone, shouldGuide, stepFrom, stepPlace, type GuideScope } from './lib/setupGuide'
+import { GUIDE_STEPS, rememberGuideDone, shouldGuide, stepBefore, stepFrom, stepPlace, type GuideScope } from './lib/setupGuide'
 import { GroupActivity } from './components/GroupActivity'
 import { GroupActivityModal } from './components/GroupActivityModal'
 import { GroupExitModal } from './components/GroupExitModal'
@@ -437,6 +437,15 @@ export default function App() {
       endGuide()
       return
     }
+    setGuide({ scope, index })
+    const section = GUIDE_STEPS[index].section
+    if (section) openSettings(section)
+  }
+
+  /** Back to the step before that applies, in its own section; on the first step there is none. */
+  function guideBack(scope: GuideScope, from: number) {
+    const index = activeClass ? stepBefore(from, scope, { ...guideContext, showing: () => false }) : null
+    if (index === null) return
     setGuide({ scope, index })
     const section = GUIDE_STEPS[index].section
     if (section) openSettings(section)
@@ -1072,6 +1081,8 @@ export default function App() {
         classes={classes}
         cloud={cloud}
         onSwitchTeacher={openSwitchTeacher}
+        onNewClass={newClass}
+        canAddClass={classes.length < MAX_CLASSES}
         onGuide={() => startGuide(settingsSection)}
         onTour={openTour}
         onRename={(name) => renameClass(activeClass.id, name)}
@@ -1152,6 +1163,8 @@ export default function App() {
           // Next (it's done) and Skip (leave it as it is) both move on to the next thing.
           onNext={() => guideTo(guide.scope, guide.index + 1)}
           onSkip={() => guideTo(guide.scope, guide.index + 1)}
+          onBack={() => guideBack(guide.scope, guide.index)}
+          canGoBack={stepBefore(guide.index, guide.scope, { ...guideContext, showing: () => false }) !== null}
           onStop={endGuide}
           onTour={openTour}
         />

@@ -2146,6 +2146,11 @@ button {
 .cs-nav-item[aria-current='page'] { background: var(--card); color: var(--card-foreground); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); }
 .cs-nav-item .cs-ic { width: 24px; display: grid; place-items: center; flex: none; }
 .cs-nav-item .cs-ic svg { width: 20px; height: 20px; }
+/* New Class sits at the list's foot, ruled off from the sections: an action, not a place to go. */
+.cs-nav-new { margin-top: auto; border-top: 1px solid var(--border); border-radius: 0 0 12px 12px; padding-top: 9px; }
+.cs-nav-new:disabled { opacity: 0.5; cursor: default; }
+.cs-nav-new:disabled:hover { background: none; }
+.cs-nav-new small { display: block; font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
 .cs-page { padding: 14px 20px 16px; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: auto; }
 .cs-page-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cs-page-head > p { margin: 0; font-size: 16px; color: var(--card-foreground); }

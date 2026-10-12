@@ -7,7 +7,8 @@ import { pointsModeOf } from './points'
  * at a time, everything else faded and closed to taps until Next or Skip). It runs two ways:
  * Help's "Guide me through this section" walks the section that is open and finishes there; a new
  * class walks the whole setup, Class to Points, and ends by offering the tour. Next and Skip both
- * move on - Next because it's done, Skip to leave it as it is. Nothing moves on by itself.
+ * move on - Next because it's done, Skip to leave it as it is - and Back goes to the step before
+ * (2026-10-12, the teacher: a step read too fast had no way back). Nothing moves on by itself.
  */
 export type GuideScope = 'all' | SettingsSection
 
@@ -51,6 +52,12 @@ export const GUIDE_STEPS: GuideStep[] = [
     text: 'Delete Class removes this class and everything in it. It asks first.',
     only: 'section',
   },
+  {
+    section: 'class',
+    targets: [g('new-class')],
+    text: 'New Class, at the bottom of this list, makes another class and walks you through it.',
+    only: 'section',
+  },
 
   {
     section: 'students',
@@ -89,6 +96,13 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   { section: 'students', targets: [g('mixup')], text: 'Mix Up Seats gives everyone a new, random seat.' },
   { section: 'students', targets: [g('unseat')], text: 'Unseat All takes everyone out of their seat, to start the seating plan again.' },
+  {
+    section: 'students',
+    targets: [g('remove-all')],
+    text: 'Remove All empties the class list, if the wrong list went in. It asks first.',
+    only: 'section',
+    when: hasStudents,
+  },
 
   { section: 'avatars', targets: [g('avatars-switch')], text: 'Leave avatars on, or turn them off to show names only.' },
   {
@@ -190,6 +204,18 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     section: 'participation',
+    targets: [g('part-drive')],
+    text: 'Update in Drive keeps a Google Sheet of who had a turn up to date.',
+    when: (ctx) => hasStudents(ctx) && ctx.signedIn,
+  },
+  {
+    section: 'participation',
+    targets: [g('part-export')],
+    text: 'Export saves the whole record as a file for Excel.',
+    when: hasStudents,
+  },
+  {
+    section: 'participation',
     targets: [g('clear-day')],
     text: 'Clear This Day takes the day out of the record, like after a test lesson.',
     when: hasStudents,
@@ -236,6 +262,12 @@ const holds = (step: GuideStep, ctx: GuideContext) => !step.when || step.when(ct
 /** The step at or after `from` that applies now, or null past the end. */
 export function stepFrom(from: number, scope: GuideScope, ctx: GuideContext): number | null {
   for (let i = from; i < GUIDE_STEPS.length; i++) if (inScope(GUIDE_STEPS[i], scope) && holds(GUIDE_STEPS[i], ctx)) return i
+  return null
+}
+
+/** The step before `from` that applies now, or null at the start: where Back goes. */
+export function stepBefore(from: number, scope: GuideScope, ctx: GuideContext): number | null {
+  for (let i = from - 1; i >= 0; i--) if (inScope(GUIDE_STEPS[i], scope) && holds(GUIDE_STEPS[i], ctx)) return i
   return null
 }
 

@@ -1,5 +1,6 @@
 import type { ClassData } from '../types'
 import { attendanceRows } from './attendance'
+import { participationRows } from './participation'
 import { loadCloud } from './cloud'
 
 /**
@@ -243,25 +244,40 @@ export async function readSheet(token: string, id: string): Promise<string[][]> 
  * every export. It holds what the CSV export holds - a row per student, a column per day on
  * record, an A where they were away, and their total.
  */
-export async function updateAttendanceSheet(token: string, cls: ClassData): Promise<DriveFile> {
-  const name = `${cls.name} – Attendance`
-  let [file] = await findFiles(token, { kind: 'attendance', classId: cls.id })
+export const updateAttendanceSheet = (token: string, cls: ClassData) =>
+  updateRecordSheet(token, cls, { kind: 'attendance', title: 'Attendance', rows: attendanceRows(cls), frozenColumns: 2 })
+
+/**
+ * The class's participation Sheet, the same way: what the CSV export holds - a row per student
+ * with their totals, then each day's picks and points. The names and totals stay put.
+ */
+export const updateParticipationSheet = (token: string, cls: ClassData) =>
+  updateRecordSheet(token, cls, { kind: 'participation', title: 'Participation', rows: participationRows(cls), frozenColumns: 4 })
+
+/** A record of the class's as a Sheet in the folder, "Grade 4 English – Attendance", found again by its labels. */
+async function updateRecordSheet(
+  token: string,
+  cls: ClassData,
+  record: { kind: string; title: string; rows: string[][]; frozenColumns: number },
+): Promise<DriveFile> {
+  const name = `${cls.name} – ${record.title}`
+  let [file] = await findFiles(token, { kind: record.kind, classId: cls.id })
   const fresh = !file
-  if (!file) file = await createSheet(token, name, { kind: 'attendance', classId: cls.id })
+  if (!file) file = await createSheet(token, name, { kind: record.kind, classId: cls.id })
   else if (file.name !== name) await google(token, `${DRIVE}/files/${file.id}?fields=id`, { method: 'PATCH' }, { name })
 
-  const rows = attendanceRows(cls)
+  const rows = record.rows
   const tab = await firstTab(token, file.id)
   const needRows = Math.max(rows.length + 5, tab.gridProperties?.rowCount ?? 0, 50)
   const needColumns = Math.max((rows[0]?.length ?? 0) + 2, tab.gridProperties?.columnCount ?? 0, 26)
-  const title = fresh ? 'Attendance' : tab.title
+  const title = fresh ? record.title : tab.title
   await batch(token, file.id, [
     {
       updateSheetProperties: {
         properties: {
           sheetId: tab.sheetId,
           title,
-          gridProperties: { rowCount: needRows, columnCount: needColumns, frozenRowCount: 1, frozenColumnCount: 2 },
+          gridProperties: { rowCount: needRows, columnCount: needColumns, frozenRowCount: 1, frozenColumnCount: record.frozenColumns },
         },
         fields: 'title,gridProperties(rowCount,columnCount,frozenRowCount,frozenColumnCount)',
       },

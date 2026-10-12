@@ -1,11 +1,15 @@
 import clsx from 'clsx'
-import { Check, ChevronLeft, ChevronRight, Minus, Plus, Pointer, Star } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Download, Minus, Plus, Pointer, Star } from 'lucide-react'
 import { type ReactNode, useMemo, useRef, useState } from 'react'
+import { useDrive } from '../../hooks/useDrive'
 import { dateKey } from '../../lib/attendance'
-import { type DayCount, participationDates } from '../../lib/participation'
+import { updateParticipationSheet } from '../../lib/drive'
+import { type DayCount, participationDates, participationToCsv } from '../../lib/participation'
 import type { ClassData } from '../../types'
 import { AbsentIcon } from '../AbsentIcon'
+import { GoogleG } from '../Account'
 import { ConfirmModal } from '../ConfirmModal'
+import { DriveLink, DriveProblem } from './GoogleSection'
 import { Btn } from './parts'
 
 interface ParticipationSectionProps {
@@ -16,6 +20,8 @@ interface ParticipationSectionProps {
   onClearDay: (day: string) => void
   /** The whole record back to nothing. */
   onClearAll: () => void
+  /** The signed-in teacher, whose Drive the record can go to. */
+  uid?: string
 }
 
 /**
@@ -55,7 +61,8 @@ function dayLabel(key: string): string {
  * students at the end. For the teacher only - it never shows on the board. Clear This Day and Start
  * Over are at the top, where they are seen, rather than under the list.
  */
-export function ParticipationSection({ activeClass, onSetCount, onClearDay, onClearAll }: ParticipationSectionProps) {
+export function ParticipationSection({ activeClass, onSetCount, onClearDay, onClearAll, uid }: ParticipationSectionProps) {
+  const drive = useDrive(uid)
   const today = dateKey()
   const dates = useMemo(() => participationDates(activeClass), [activeClass])
   // Every day with a record, and today even before anything has happened in it.
@@ -69,6 +76,17 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
   const [editing, setEditing] = useState<string | null>(null)
   const [heldOrder, setHeldOrder] = useState<string[] | null>(null)
   const [confirming, setConfirming] = useState<'day' | 'all' | null>(null)
+
+  // The whole record, every day, as attendance's Export does (2026-10-12, the teacher: "we need this").
+  function downloadCsv() {
+    const blob = new Blob([participationToCsv(activeClass)], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${activeClass.name.trim() || 'class'} participation.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   function showDay(next: string) {
     setDay(next)
@@ -226,6 +244,33 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
             </div>
           )
         })}
+      </div>
+      {/* The whole record, every lesson, at the foot: the row above is the day's (2026-10-12, the
+          teacher: "we need this"). One Sheet per class in the teacher's Drive folder, brought up to
+          date in place as attendance's is; the file stays, for anyone not signed in. */}
+      <div className="cs-foot">
+        {drive.problem ? (
+          <DriveProblem text={drive.problem.text} />
+        ) : drive.done ? (
+          <DriveLink file={drive.done.file} />
+        ) : (
+          <span className="cs-hint">The whole record, every lesson:</span>
+        )}
+        <div className="cs-right">
+          {uid && (
+            <Btn
+              small
+              data-guide="part-drive"
+              disabled={dates.length === 0 || drive.busy !== null}
+              onClick={() => void drive.run('participation', (token) => updateParticipationSheet(token, activeClass))}
+            >
+              <GoogleG size={18} /> {drive.busy ? 'Updating…' : 'Update in Drive'}
+            </Btn>
+          )}
+          <Btn small data-guide="part-export" disabled={dates.length === 0} onClick={downloadCsv}>
+            <Download /> Export
+          </Btn>
+        </div>
       </div>
 
       <ConfirmModal

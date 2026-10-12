@@ -4,7 +4,7 @@ import { tmpdir } from 'os'
 const require = createRequire(import.meta.url)
 const { chromium } = require('/opt/node22/lib/node_modules/playwright/index.js')
 // Google Drive and Sheets, end to end, against a stand-in for Google built into this script: the
-// seating chart picture, the roster sheet and its import, the attendance Sheet, the folder, and
+// seating chart picture, the roster sheet and its import, the attendance and participation Sheets, the folder, and
 // what the teacher reads when Google says no. Signing in uses Firebase's emulators, as
 // scripts/sync-check.mjs does - start them and serve the emulator build the same way (see its
 // header), then:
@@ -279,6 +279,7 @@ function makeClass(id, name) {
     updatedAt: new Date().toISOString(),
     attendance: { '2026-09-29': [`${id}-s1`], '2026-09-30': [] },
     attendanceTaken: ['2026-09-29', '2026-09-30'],
+    participation: { '2026-09-29': { [`${id}-s0`]: [2, 1], [`${id}-s2`]: [1, 0] } },
   }
 }
 
@@ -307,9 +308,10 @@ const shot = async (name) => {
   await page.waitForTimeout(400)
   await page.screenshot({ path: `${SHOTS}/${name}.png` })
 }
-const settings = async (tab) => {
+/** Class Settings, on one of its sections (the list down its left, since 2026-10-11). */
+const settings = async (section) => {
   await page.locator('button[aria-label="Class Settings"]').click()
-  await page.getByRole('tab', { name: tab }).click()
+  await page.locator(`[data-section-link="${section.toLowerCase()}"]`).click()
   await page.waitForTimeout(300)
 }
 const closeSettings = async () => {
@@ -379,7 +381,7 @@ try {
       /Derek/.test(text) && /Switch Teacher/.test(text) && /Saved|Connecting/.test(text),
     )
     await dialog()
-      .getByRole('button', { name: /Save to Google Drive/ })
+      .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
     const saved = await waitFor(async () => /Saved to/.test(await dialog().innerText()))
     check('drive: the picture is saved, and says where', Boolean(saved))
@@ -389,7 +391,7 @@ try {
     await shot('02-google-tab-saved')
     const firstBytes = pics[0]?.media?.length
     await dialog()
-      .getByRole('button', { name: /Save to Google Drive/ })
+      .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
     await waitFor(async () => drive.calls.filter((c) => c.startsWith('PATCH /upload')).length === 1)
     check(
@@ -488,11 +490,7 @@ try {
   }
 
   if (want('attendance')) {
-    await settings('Students')
-    await dialog()
-      .getByRole('button', { name: /View \/ Edit Attendance/ })
-      .click()
-    await page.waitForTimeout(400)
+    await settings('Attendance')
     await dialog()
       .getByRole('button', { name: /Update in Drive/ })
       .click()
@@ -541,31 +539,88 @@ try {
     await closeSettings()
   }
 
+  // Who had a turn (2026-10-12): its own Sheet, the same way - totals first, the quiet ones at the top.
+  if (want('participation')) {
+    await settings('Participation')
+    await dialog()
+      .getByRole('button', { name: /Update in Drive/ })
+      .click()
+    const linked = await waitFor(async () => /Saved to Grade 4 English – Participation/.test(await dialog().innerText()))
+    check('participation: Update in Drive makes the Sheet, and links to it', Boolean(linked))
+    const [sheet] = filesOf('participation')
+    const rows = trimmed(sheet?.sheet.tabs[0].values ?? [])
+    const students = await page.evaluate(
+      () => JSON.parse(localStorage.getItem('seating-chart-state-v1')).classes.find((c) => c.name === 'Grade 4 English').students,
+    )
+    check(
+      'participation: a row per student, their totals, then each lesson',
+      rows[0]?.join('|') === 'Homeroom|Name|Times picked|Times given points|2026-09-29 picked|2026-09-29 points' &&
+        rows.length === students.length + 1,
+      `${rows[0]?.join('|')}; ${rows.length - 1} rows`,
+    )
+    check(
+      'participation: the quiet ones first, the most turns last',
+      rows[rows.length - 1]?.join('|') === '401|Amy|2|1|2|1' && rows[rows.length - 2]?.slice(1).join('|') === 'Kevin|1|0|1|0',
+      rows
+        .slice(-2)
+        .map((r) => r.join('|'))
+        .join(' / '),
+    )
+    check(
+      'participation: Tony was away that day',
+      rows
+        .find((r) => r[1] === 'Tony')
+        ?.slice(2)
+        .join('|') === '0|0|Away',
+      rows.find((r) => r[1] === 'Tony')?.join('|'),
+    )
+    check(
+      'participation: heading row, names and totals stay put',
+      sheet?.sheet.tabs[0].frozenRows === 1 && sheet.sheet.tabs[0].frozenColumns === 4,
+    )
+    check(
+      'participation: its own Sheet, not the attendance one',
+      filesOf('attendance').every((f) => f.id !== sheet?.id),
+    )
+    await shot('07-participation-drive')
+    const firstId = sheet?.id
+    await page.waitForTimeout(400)
+    await dialog()
+      .getByRole('button', { name: /Update in Drive/ })
+      .click()
+    await page.waitForTimeout(1200)
+    check(
+      'participation: updating again keeps the same Sheet',
+      filesOf('participation').length === 1 && filesOf('participation')[0].id === firstId,
+    )
+    await closeSettings()
+  }
+
   if (want('errors')) {
     await settings('Google')
     drive.fail = error(403, 'accessNotConfigured', 'Google Drive API has not been used in project 323152163178 before or it is disabled.')
     await dialog()
-      .getByRole('button', { name: /Save to Google Drive/ })
+      .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
     const off = await waitFor(async () => /isn't switched on/.test(await dialog().innerText()))
     check('errors: Drive switched off says so', Boolean(off))
     await shot('07-error-off')
     drive.fail = error(403, 'insufficientPermissions', 'Request had insufficient authentication scopes.')
     await dialog()
-      .getByRole('button', { name: /Save to Google Drive/ })
+      .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
     const scope = await waitFor(async () => /needs your OK/.test(await dialog().innerText()))
     check('errors: Drive not allowed says how to fix it', Boolean(scope))
     drive.fail = null
     await page.evaluate(() => (window.__testGoogle.driveError = 'auth/popup-closed-by-user'))
     await dialog()
-      .getByRole('button', { name: /Save to Google Drive/ })
+      .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
     await page.waitForTimeout(600)
     const t = await dialog().innerText()
     check(
       "errors: closing Google's window says nothing",
-      !/isn't switched on|needs your OK|didn't answer|Can't reach/.test(t) && /For a substitute/.test(t),
+      !/isn't switched on|needs your OK|didn't answer|Can't reach/.test(t) && /for a substitute/i.test(t),
     )
     await closeSettings()
   }

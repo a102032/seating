@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { GuideContext, GuideStep } from '../lib/setupGuide'
@@ -12,6 +12,9 @@ interface SetupGuideProps {
   context: Omit<GuideContext, 'showing'>
   onNext: () => void
   onSkip: () => void
+  /** The step before; greyed on the first. */
+  onBack: () => void
+  canGoBack: boolean
   onStop: () => void
   /** The last word of a new class's walk: Show me starts the tour. */
   onTour: () => void
@@ -115,12 +118,12 @@ function place(hole: Box, win: Box, w: number, h: number): { left: number; top: 
 
 /**
  * The guide, drawn over Class Settings: one thing lit with an amber ring, the rest of the window
- * faded and closed to taps, and a sky-blue bubble beside it saying what to do, with Skip and Next.
+ * faded and closed to taps, and a sky-blue bubble beside it saying what to do, with Back, Skip and Next.
  * The lit thing is used as it is. It follows its target as menus open and the list scrolls, reading
  * where it is once a frame while the guide is up: setup happens at a desk, not mid-lesson, so that
  * small cost is fine here.
  */
-export function SetupGuide({ step, where, finish, context, onNext, onSkip, onStop, onTour }: SetupGuideProps) {
+export function SetupGuide({ step, where, finish, context, onNext, onSkip, onBack, canGoBack, onStop, onTour }: SetupGuideProps) {
   const [frame, setFrame] = useState<{ hole: Box | 'covered' | 'missing'; win: Box; text: string } | null>(null)
   const [bubbleSize, setBubbleSize] = useState({ w: 384, h: 140 })
   const bubbleRef = useRef<HTMLDivElement>(null)
@@ -238,6 +241,17 @@ export function SetupGuide({ step, where, finish, context, onNext, onSkip, onSto
         </div>
         <p className="m-0 text-base font-bold leading-snug [@media(max-height:540px)]:text-[15px]">{text}</p>
         <div className="flex justify-end gap-2">
+          {/* Back on the left, as in the tour's bubble, away from the two that go on. */}
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={!canGoBack}
+            data-guide-back=""
+            className="mr-auto inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 font-bold hover:bg-white/60 disabled:opacity-35 disabled:hover:bg-transparent"
+            style={{ color: GUIDE.navy, touchAction: 'manipulation' }}
+          >
+            <ArrowLeft size={18} /> Back
+          </button>
           <button
             type="button"
             onClick={last ? onStop : onSkip}

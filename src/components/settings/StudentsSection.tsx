@@ -117,7 +117,7 @@ export function StudentsSection({
   const [note, setNote] = useState<{ text: string; added?: string[]; problem?: boolean } | null>(null)
   // A list waiting on Replace them / Add to them, because the class already has students.
   const [pending, setPending] = useState<{ students: Omit<Student, 'id'>[]; report: (text: string) => void } | null>(null)
-  const [confirming, setConfirming] = useState<'mixup' | 'unseat' | Student | null>(null)
+  const [confirming, setConfirming] = useState<'mixup' | 'unseat' | 'remove-all' | Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
@@ -277,6 +277,14 @@ export function StudentsSection({
     <>
       <div className="cs-page-head">
         <p>{count ? `${count} ${count === 1 ? 'student' : 'students'} in this class.` : 'Nobody here yet.'}</p>
+        {/* The wrong list in, and Take them out gone with the window (2026-10-12, the teacher: there
+            was no plain way to empty a class). Beside the count it empties, by Import, where a
+            teacher looks after a wrong import; quiet red like Delete Class, and it asks first. */}
+        {count > 0 && (
+          <Btn kind="quiet-red" small onClick={() => setConfirming('remove-all')} data-guide="remove-all">
+            <Trash2 /> Remove All
+          </Btn>
+        )}
         {count > MAX_DESKS && (
           <span className="cs-pill cs-warn">
             <TriangleAlert size={13} /> {count - MAX_DESKS} more than the {MAX_DESKS} desks
@@ -466,6 +474,20 @@ export function StudentsSection({
           onMixUpSeats()
           setConfirming(null)
           setNote({ text: 'New seats for everyone.' })
+        }}
+      />
+      <ConfirmModal
+        open={confirming === 'remove-all'}
+        title="Remove All Students?"
+        message={`All ${count} ${count === 1 ? 'student' : 'students'} in "${activeClass.name}" are taken out, with their seats, attendance and participation record. This can't be undone.`}
+        confirmLabel="Yes, Remove All"
+        cancelLabel="No"
+        onCancel={() => setConfirming(null)}
+        onConfirm={() => {
+          onRemoveStudents(activeClass.students.map((s) => s.id))
+          setConfirming(null)
+          setEditingId(null)
+          setNote({ text: 'The class list is empty. Paste or import the right list.' })
         }}
       />
       <ConfirmModal

@@ -103,7 +103,20 @@ function FloatMock() {
   )
 }
 
-function Card({ step, title, children, buttons }: { step: string; title: string; children?: ReactNode; buttons: ReactNode }) {
+function Card({
+  step,
+  title,
+  children,
+  buttons,
+  onStop,
+}: {
+  step: string
+  title: string
+  children?: ReactNode
+  buttons: ReactNode
+  /** Stop tour at the card's top, where the bubble has it, leaving the bottom row to Back and going on. */
+  onStop?: () => void
+}) {
   return (
     <div
       role="dialog"
@@ -112,9 +125,20 @@ function Card({ step, title, children, buttons }: { step: string; title: string;
       className="absolute left-1/2 top-1/2 flex w-[min(30rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-2.5 rounded-[22px] px-[22px] py-5 shadow-[0_20px_50px_rgba(12,45,87,0.25)]"
       style={{ background: SKY, color: NAVY }}
     >
-      <span className="text-[13px] font-bold" style={{ color: BLUE }}>
-        {step}
-      </span>
+      <div className="flex items-center justify-between gap-2 text-[13px] font-bold" style={{ color: BLUE }}>
+        <span>{step}</span>
+        {onStop && (
+          <button
+            type="button"
+            onClick={onStop}
+            data-tour-action="stop-here"
+            className="rounded-lg px-2 py-0.5 opacity-75 hover:bg-white/60 hover:opacity-100"
+            style={{ color: NAVY }}
+          >
+            Stop tour
+          </button>
+        )}
+      </div>
       <h3 className="m-0 text-2xl font-bold leading-tight">{title}</h3>
       {children}
       <div className="mt-1 flex flex-wrap justify-end gap-2">{buttons}</div>
@@ -122,13 +146,13 @@ function Card({ step, title, children, buttons }: { step: string; title: string;
   )
 }
 
-function Quiet({ children, onClick, data }: { children: ReactNode; onClick: () => void; data?: string }) {
+function Quiet({ children, onClick, data, className }: { children: ReactNode; onClick: () => void; data?: string; className?: string }) {
   return (
     <button
       type="button"
       data-tour-action={data}
       onClick={onClick}
-      className="rounded-xl px-3.5 py-2 font-bold hover:bg-white/60"
+      className={`inline-flex items-center gap-1 rounded-xl px-3.5 py-2 font-bold hover:bg-white/60 ${className ?? ''}`}
       style={{ color: NAVY, touchAction: 'manipulation' }}
     >
       {children}
@@ -152,8 +176,9 @@ function Go({ children, onClick, data }: { children: ReactNode; onClick: () => v
 
 /**
  * The tour: a picture of each screen over the whole app, one thing lit at a time with a bubble
- * saying what it does, and between parts a card saying what comes next, with Keep going, Skip this
- * part and Stop here. Stopped partway, it offers to pick up where it left off next time.
+ * saying what it does, and between parts a card saying what comes next, with Back, Skip this part
+ * and Keep going (2026-10-12, the teacher: the card had no way back). Stopped partway, it offers to
+ * pick up where it left off next time.
  */
 export function Tour({ onClose }: { onClose: () => void }) {
   const [at, setAt] = useState<Phase>(() => ({ phase: loadTourResume() !== null ? 'resume' : 'start', part: 0, stop: 0 }))
@@ -276,7 +301,11 @@ export function Tour({ onClose }: { onClose: () => void }) {
     else setAt({ phase: 'end', part: 0, stop: 0 })
   }
   const back = () => {
-    if (at.stop > 0) setAt({ ...at, stop: at.stop - 1 })
+    if (at.phase === 'intro' || at.phase === 'end') {
+      // From the card between parts (or the last one), to the last stop of the part before it.
+      const before = at.phase === 'end' ? TOUR.length - 1 : at.part - 1
+      setAt({ phase: 'stop', part: before, stop: TOUR[before].stops.length - 1 })
+    } else if (at.stop > 0) setAt({ ...at, stop: at.stop - 1 })
     else if (at.part > 0) setAt({ phase: 'intro', part: at.part, stop: 0 })
   }
   const skip = () => setAt(at.part + 1 < TOUR.length ? { phase: 'intro', part: at.part + 1, stop: 0 } : { phase: 'end', part: 0, stop: 0 })
@@ -415,10 +444,11 @@ export function Tour({ onClose }: { onClose: () => void }) {
         <Card
           step={`Next, part ${at.part + 1} of ${TOUR.length}:`}
           title={part.title}
+          onStop={stop}
           buttons={
             <>
-              <Quiet onClick={stop} data="stop-here">
-                Stop here
+              <Quiet onClick={back} data="back" className="mr-auto">
+                <ArrowLeft size={18} /> Back
               </Quiet>
               <Quiet onClick={skip} data="skip">
                 Skip this part
@@ -437,9 +467,14 @@ export function Tour({ onClose }: { onClose: () => void }) {
           step="All six parts"
           title="That’s the tour!"
           buttons={
-            <Go onClick={stop} data="done">
-              Done <Check size={18} />
-            </Go>
+            <>
+              <Quiet onClick={back} data="back" className="mr-auto">
+                <ArrowLeft size={18} /> Back
+              </Quiet>
+              <Go onClick={stop} data="done">
+                Done <Check size={18} />
+              </Go>
+            </>
           }
         >
           <p className="m-0 text-base">

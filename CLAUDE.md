@@ -74,15 +74,15 @@ checks the live URL. Confirm it went green before saying something is live. It a
   `lib/firebase.ts` is Firebase itself, loaded only when needed; `lib/cloud.ts` loads it and keeps the account record,
   the put-aside board classes and the sign-in error words. `components/Account.tsx`: the Saved mark, Switch Teacher
   and the question. `firestore.rules` is a copy of the rules in the Firebase console.
-- Google Drive and Sheets: `lib/drive.ts` (the folder, the roster sheet, reading a sheet, the attendance Sheet, the
-  picture upload, error words), `hooks/useDrive.ts` (one action at a time, with its link or its problem),
+- Google Drive and Sheets: `lib/drive.ts` (the folder, the roster sheet, reading a sheet, the attendance and participation
+  Sheets, the picture upload, error words), `hooks/useDrive.ts` (one action at a time, with its link or its problem),
   `lib/chartPicture.ts` (the seating chart picture, drawn on a canvas from the class's plan),
   `components/settings/GoogleSection.tsx` (Class Settings' Google section) and `components/RosterSheetsModal.tsx`. Only Google's
   drive.file permission; every Drive action starts from a tap, because Google's window may need to open.
 - `src/hooks/usePicker.ts`: Pick Student / Pick Row on the desks (its round of students is kept with the class, `pickRound`).
   `useGroupPicker.ts`: the same during Group Activity.
 - `src/lib/participation.ts`: who had a turn - the record of picks and points, day by day, for the teacher only (never on the
-  board), and `pickChances`, the better chance the pickers give students picked less often. `components/settings/ParticipationSection.tsx`
+  board), `participationRows` (the record as a spreadsheet, for Export and Update in Drive), and `pickChances`, the better chance the pickers give students picked less often. `components/settings/ParticipationSection.tsx`
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
 - Points, per class (`pointsMode`, read through `lib/points.ts`: `pointsModeOf`, `goalIsLive`, `starsWaitOnDesks`): a class
   goal (the default, where the Quest will live), student points (each student's own stars on their desk, until Clear All
@@ -100,7 +100,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
     gear), in its own tab in the top corner away from the rail, an aisle apart from the goal meter (`lib/topBar.ts`), with the meter or without.
   - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`SECTIONS`: Class, Students, Avatars,
-    Points; Tools; Attendance, Participation; Google), each in `components/settings/` and built from `settings/parts.tsx`, laid out
+    Points; Tools; Attendance, Participation; Google, with New Class ruled off at its foot), each in `components/settings/` and built from `settings/parts.tsx`, laid out
     by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of
     thing scrolls. Every change saves as it is made, and Done closes it. Help in its title bar: the guide and the tour.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
@@ -121,8 +121,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `PasteRosterModal.tsx`: a list pasted in from Excel or a Google Sheet. `lib/csv.ts` finds the columns in a paste, a CSV or an
     Excel file (`lib/xlsx.ts` reads an .xlsx in the browser, loaded only when one is chosen).
   - `ChooseAvatars.tsx`: Choose Your Avatar, the bar over the board and the big two-step picker a child uses at their desk.
-  - `SetupGuide.tsx`: the guide through Class Settings, one thing lit and the rest faded and closed to taps, a bubble with Skip
-    and Next; its steps (by section, and a new class's whole walk) are in `lib/setupGuide.ts`. Anything it points at carries a
+  - `SetupGuide.tsx`: the guide through Class Settings, one thing lit and the rest faded and closed to taps, a bubble with Back,
+    Skip and Next; its steps (by section, and a new class's whole walk) are in `lib/setupGuide.ts`. Anything it points at carries a
     `data-guide` mark. `Tour.tsx`: the tour of the app, pictures of each screen with one thing lit; its parts and words are in
     `lib/tour.ts`, its pictures in `public/tour/` and where things are in them in `lib/tourRects.json`, both made by
     `scripts/tour-shots.mjs` - take them again when one of those screens changes.
