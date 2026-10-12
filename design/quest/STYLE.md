@@ -52,6 +52,20 @@ Show the favourites in the chat first. Then upload the full-size files to GitHub
 `design` folder, choose **Add file → Upload files**, drop them in and press **Commit changes**. That goes on main
 and runs the deploy, which rebuilds the same app; nothing in the app changes.
 
+**Then `prepare-art.py` turns them into the app's pieces** (2026-10-12), so every piece can be made again from the
+teacher's originals in `flow/` rather than by hand:
+
+```
+python3 -m venv /tmp/qv && /tmp/qv/bin/pip install vtracer pillow numpy
+/tmp/qv/bin/python -I design/quest/prepare-art.py design/quest/flow <out folder>
+```
+
+It cuts each picture out of Flow's white (white the drawing encloses too), pulls the cut in two pixels so no pale
+halo traces against the parchment, flattens it to ten exact colours and traces it to SVG; it takes Flow's chest out
+from under the guard pose's paw, recolours the sleeping dragon to match the others, and makes the landmarks
+see-through in the map's ink. A new pose or picture is a line in it. The poses come out at 100 to 270 KB as SVG,
+fine for pictures loaded only when the Quest opens.
+
 ## Before a piece goes in
 
 - It follows every line of "The look".
@@ -199,7 +213,7 @@ The same five chests, same style, now open with no lid at all, full of treasure,
 Well apart, not touching. Plain, flat, pure white background. No shadows, no sparkles, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
 ```
 
-### The Treasure Quest Preview as the base (2026-10-12, recommended, waiting on the teacher)
+### The Treasure Quest Preview as the base (2026-10-12, agreed)
 
 The teacher pointed back to the Treasure Quest Preview (a Claude artifact, 2026-10-07): "I liked it a lot". Its
 chests (closed and open, each rank richer, with a lock plate on the front whose keyholes fill gold as the keys go
