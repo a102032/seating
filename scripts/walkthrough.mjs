@@ -2449,8 +2449,8 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      'tour: 62 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 62 && bad === 0,
+      'tour: 68 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 68 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 6, parts.join(', '))
