@@ -4,7 +4,7 @@ import { GET_READY_PRIZES } from '../../lib/getReady'
 import type { PointsMode } from '../../types'
 import { PickStudentIcon } from '../PickerIcons'
 import { DrumIcon, FlipIcon, GroupIcon } from '../RailIcons'
-import { Btn, SwitchRow } from './parts'
+import { Btn, SwitchRow, Tick } from './parts'
 
 export interface PickerSettingsValue {
   allowRepeats: boolean
@@ -26,6 +26,8 @@ interface ToolsSectionProps {
   onUpdateFlip: (patch: Partial<FlipDeckSettings>) => void
   groupChimes: boolean
   onSetGroupChimes: (on: boolean) => void
+  groupsFrom: 'left' | 'right'
+  onSetGroupsFrom: (side: 'left' | 'right') => void
 }
 
 /**
@@ -46,6 +48,8 @@ export function ToolsSection({
   onUpdateFlip,
   groupChimes,
   onSetGroupChimes,
+  groupsFrom,
+  onSetGroupsFrom,
 }: ToolsSectionProps) {
   const gifts = pointsMode !== 'none'
   return (
@@ -166,10 +170,31 @@ export function ToolsSection({
               guide="chimes"
               label="Status chimes"
               on={groupChimes}
-              onText="On: a chime when a group taps Help, Ready or Done."
-              offText="Off: the group cards change color with no sound."
+              onText="On: a chime for Help, Ready and Done."
+              offText="Off: the cards change color with no sound."
               onChange={onSetGroupChimes}
             />
+            {/* The side the teacher counts the rows from (he calls the right-hand row Row 1), so Group 1
+                is the group sitting there. It numbers the next groups made. */}
+            <div className="cs-row" data-guide="group-side">
+              <div className="cs-row-label">
+                <b>Group 1 is on the</b>
+              </div>
+              <div className="cs-choices" style={{ flex: '0 1 10rem' }}>
+                {(['left', 'right'] as const).map((side) => (
+                  <button
+                    key={side}
+                    type="button"
+                    className="cs-choice"
+                    aria-pressed={groupsFrom === side}
+                    onClick={() => onSetGroupsFrom(side)}
+                  >
+                    {side === 'left' ? 'Left' : 'Right'}
+                    {groupsFrom === side && <Tick />}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

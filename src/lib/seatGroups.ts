@@ -1,3 +1,4 @@
+import type { GroupPlace } from '../types'
 import type { LayoutPlan, Seat } from './layouts'
 
 /**
@@ -29,8 +30,8 @@ function groupsApart(a: Placed[], b: Placed[]): number {
   return best
 }
 
-/** Front of the room first, left to right: the order chips sit in on a card, and groups are numbered in. */
-function byReading(a: Placed, b: Placed): number {
+/** Front of the room first, left to right: the order chips sit in on a card. */
+export function byReading(a: Placed, b: Placed): number {
   return a.seat.row - b.seat.row || a.seat.column - b.seat.column
 }
 
@@ -334,4 +335,69 @@ function mendStrays(groups: Placed[][]): Placed[][] {
     current = mended
   }
   return current
+}
+
+/**
+ * Values that sit close together share a line: sorted, and a new line starts wherever the next
+ * one is more than `within` past the one before. Returns each value's line, counted from the
+ * smallest.
+ */
+function lines(values: number[], within: number): number[] {
+  const sorted = values.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v)
+  const out = values.map(() => 0)
+  let line = 0
+  sorted.forEach(({ v, i }, n) => {
+    if (n > 0 && v - sorted[n - 1].v > within) line++
+    out[i] = line
+  })
+  return out
+}
+
+function middle(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)]
+}
+
+/**
+ * The groups numbered, and their cards placed, the way they sit in the room (2026-10-12, the
+ * teacher: his six rows came out as three cards across and two down, and the row whose front
+ * desk was empty was numbered last, because groups were numbered by their front-most student).
+ *
+ * Each group is taken as the block of desks it covers. Blocks whose middles are closer than half
+ * a block's width share a column of cards, and likewise for rows, so six rows of desks are six
+ * cards side by side, the corners two by two, and pairs a grid of pairs. Groups are numbered
+ * from the front of the room, starting on the side the teacher counts from. A room whose groups
+ * would share a card's place (students away scattered a pair across the room) gets no places,
+ * and the board deals its cards in the usual grid, numbered the same way.
+ */
+export function placeGroups(groups: Placed[][], fromRight: boolean): { groups: Placed[][]; places: GroupPlace[] | null } {
+  const live = groups.filter((g) => g.length > 0).map((g) => [...g].sort(byReading))
+  if (live.length === 0) return { groups: [], places: null }
+  const blocks = live.map((g) => {
+    const xs = g.map((s) => s.seat.column)
+    const ys = g.map((s) => s.seat.row)
+    const left = Math.min(...xs)
+    const right = Math.max(...xs) + 1
+    const top = Math.min(...ys)
+    const bottom = Math.max(...ys) + 1
+    return {
+      x: (left + right) / 2,
+      y: (top + bottom) / 2,
+      width: right - left,
+      depth: bottom - top,
+      across: new Set(g.map((s) => Math.floor(s.seat.column))).size,
+    }
+  })
+  const column = lines(
+    blocks.map((b) => b.x),
+    middle(blocks.map((b) => b.width)) / 2,
+  )
+  const row = lines(
+    blocks.map((b) => b.y),
+    middle(blocks.map((b) => b.depth)) / 2,
+  )
+  const order = live.map((_, i) => i).sort((a, b) => row[a] - row[b] || (fromRight ? blocks[b].x - blocks[a].x : blocks[a].x - blocks[b].x))
+  const cells = new Set(live.map((_, i) => `${column[i]}:${row[i]}`))
+  const places = cells.size === live.length ? order.map((i) => ({ column: column[i], row: row[i], across: blocks[i].across })) : null
+  return { groups: order.map((i) => live[i]), places }
 }

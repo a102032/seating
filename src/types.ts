@@ -205,6 +205,12 @@ export interface ClassData {
    * say so in the Group Activity window's own words, and Shuffle still works after it.
    */
   groupsMadeBy?: GroupScheme
+  /**
+   * Which side of the board Group 1 is on (2026-10-12, the teacher: he calls the right-hand row
+   * of desks Row 1, and Group 1 came out on the left). Groups are numbered from it, front of the
+   * room first. Unset is the left.
+   */
+  groupsFrom?: 'left' | 'right'
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }
@@ -224,6 +230,18 @@ export interface StudentGroup {
   studentIds: string[]
   /** Points earned this session, floored at 0. Zeroed when the activity finishes. */
   points: number
+  /**
+   * Where the card sits when the cards are laid out like the room (lib/seatGroups' placeGroups):
+   * its column and row of cards, and how many desks across the group sits, so its names go that
+   * many to a line. Only groups made from the seats have one; Shuffle keeps each card's.
+   */
+  place?: GroupPlace
+}
+
+export interface GroupPlace {
+  column: number
+  row: number
+  across: number
 }
 
 export type AlarmSound = 'ding' | 'chime' | 'bell' | 'trainWhistle' | 'guitar' | 'rooster'

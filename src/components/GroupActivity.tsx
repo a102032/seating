@@ -24,6 +24,11 @@ interface GroupActivityProps {
   groups: StudentGroup[]
   studentsById: Map<string, Student>
   /**
+   * The teacher counts from the right of the board (Group 1 is on the right), so cards that
+   * can't be laid out like the room fill the grid from the right too.
+   */
+  fromRight?: boolean
+  /**
    * Away today. They stay on their team's card - the team is whole again tomorrow - but
    * faded, and the pickers pass them by.
    */
@@ -162,6 +167,14 @@ interface LayoutPlan {
   columns: number
   chipScale: number
   chrome: CardChrome
+  /** Laid out like the room (cards at their groups' places), with how many chips fit on a line. */
+  room?: { rows: number; perLine: number }
+}
+
+/** What planning a room-shaped board needs from a card: how many names, and how many desks across its group sits. */
+interface RoomCard {
+  size: number
+  across: number
 }
 
 /**
@@ -211,6 +224,35 @@ function planLayout(sizes: number[], chipEm: number, board: BoardMetrics): Layou
   return fallback
 }
 
+/**
+ * The cards laid out the way the groups sit in the room (2026-10-12, the teacher: six rows of
+ * desks should be six cards side by side, not three across and two down), each card's names that
+ * many to a line as its desks are - one under another for a row of desks. Planned like
+ * planLayout but with the room's columns and rows of cards; null if it can't fit the board at
+ * all, and the caller only uses it if the names are as big as the usual grid would make them.
+ */
+function planRoom(cards: RoomCard[], columns: number, rows: number, chipEm: number, board: BoardMetrics): LayoutPlan | null {
+  if (board.width === 0 || cards.length === 0) return null
+  const chromes = (['normal', 'compact', 'tight'] as const).map((density) => cardChrome(density, board.headerFontPx))
+  const width = board.width - GRID_PAD_PX
+  const height = board.height - GRID_PAD_PX
+  for (const chipScale of CHIP_SCALES) {
+    const chipW = chipEm * board.fontPx * chipScale
+    const chipH = CHIP_HEIGHT_EM * board.fontPx * chipScale
+    for (const chrome of chromes) {
+      const gap = board.width >= 640 ? chrome.gridGap : 8
+      const cardW = (width - (columns - 1) * gap) / columns
+      const inner = cardW - CARD_BORDER_PX - chrome.bodyPad
+      if (inner < chipW) continue
+      const perLine = Math.floor((inner + chrome.chipGap) / (chipW + chrome.chipGap))
+      const lines = Math.max(1, ...cards.map((c) => Math.ceil(c.size / Math.max(1, Math.min(c.across, perLine)))))
+      const cardH = CARD_BORDER_PX + chrome.header + chrome.bodyPad + lines * chipH + (lines - 1) * chrome.chipGap + chrome.footer
+      if (rows * cardH + (rows - 1) * gap <= height) return { columns, chipScale, chrome, room: { rows, perLine } }
+    }
+  }
+  return null
+}
+
 /** Columns for a given number of cards, chosen so the grid is always full - no half-empty last row. */
 function columnsFor(count: number): number {
   if (count <= 3) return count
@@ -240,6 +282,7 @@ interface ChipSlot {
 export function GroupActivity({
   groups,
   studentsById,
+  fromRight = false,
   absentIds,
   dealTick,
   canShuffle,
@@ -425,11 +468,25 @@ export function GroupActivity({
   const liftedChip = locked ? null : lifted
   const dealing = dealt !== Infinity
   const inStack = dealing ? slots.filter((s) => s.index >= dealt) : []
-  const { columns, chipScale, chrome } = planLayout(
-    groups.map((g) => g.studentIds.length),
-    chipEm,
-    board,
-  )
+  const sizes = groups.map((g) => g.studentIds.length)
+  const gridPlan = planLayout(sizes, chipEm, board)
+  // Laid out like the room when every card has a place of its own, and only if the names are as
+  // big as the usual grid would make them: names are what is read from the back of the room.
+  const places = groups.map((g) => g.place)
+  const placed = places.every((p) => p) && new Set(places.map((p) => `${p!.column}:${p!.row}`)).size === places.length
+  const roomPlan = placed
+    ? planRoom(
+        groups.map((g) => ({ size: g.studentIds.length, across: g.place!.across })),
+        Math.max(...places.map((p) => p!.column)) + 1,
+        Math.max(...places.map((p) => p!.row)) + 1,
+        chipEm,
+        board,
+      )
+    : null
+  const plan = roomPlan && roomPlan.chipScale >= gridPlan.chipScale ? roomPlan : gridPlan
+  const { columns, chipScale, chrome, room } = plan
+  // A grid that isn't the room fills from the side Group 1 is on. Boys and Girls have no side.
+  const mirrored = !room && fromRight && groups.every((g) => g.name.startsWith('Group'))
   const d = DENSITY[chrome.density]
   const gridGap = board.width >= 640 ? chrome.gridGap : 8
   const chipFont = `calc(var(--chip-font) * ${chipScale})`
@@ -508,7 +565,12 @@ export function GroupActivity({
         <div className="flex h-full flex-col overflow-hidden" onClick={() => pick && onDismissPick()}>
           <div
             className="my-auto grid p-0.5 text-base"
-            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: gridGap }}
+            style={{
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+              gridAutoRows: '1fr',
+              gap: gridGap,
+              direction: mirrored ? 'rtl' : undefined,
+            }}
           >
             {groups.map((group) => {
               const fg = groupTextColor(group.color)
@@ -543,6 +605,8 @@ export function GroupActivity({
                   style={{
                     borderColor: group.color,
                     visibility: picking?.group.id === group.id ? 'hidden' : undefined,
+                    direction: mirrored ? 'ltr' : undefined,
+                    ...(room && group.place ? { gridColumn: group.place.column + 1, gridRow: group.place.row + 1 } : {}),
                   }}
                 >
                   {/* The colour band is the group's name tag - it's what the class will call them. */}
@@ -595,7 +659,18 @@ export function GroupActivity({
                         style={{ borderColor: group.color }}
                       />
                     )}
-                    <div className={clsx('flex flex-wrap content-start justify-center', d.chipGap)} style={{ fontSize: chipFont }}>
+                    {/* Laid out like the room, the names go as many to a line as the group's desks
+                        do: one under another for a row of desks, two by two for a square. */}
+                    <div
+                      className={clsx('mx-auto flex flex-wrap content-start justify-center', d.chipGap)}
+                      style={{
+                        fontSize: chipFont,
+                        maxWidth:
+                          room && group.place
+                            ? `calc(${Math.max(1, Math.min(group.place.across, room.perLine)) * chipEm}em + ${Math.max(1, Math.min(group.place.across, room.perLine)) * chrome.chipGap}px)`
+                            : undefined,
+                      }}
+                    >
                       {group.studentIds.length === 0 && (
                         <span className="w-full py-3 text-center text-sm font-medium text-muted-foreground">
                           Empty - tap here to move someone in

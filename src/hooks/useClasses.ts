@@ -625,6 +625,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setGroupsFrom = useCallback(
+    (classId: string, side: 'left' | 'right') => updateClass(classId, (c) => ({ ...c, groupsFrom: side })),
+    [updateClass],
+  )
+
   const adjustGroupPoints = useCallback(
     (classId: string, groupId: string, delta: number) =>
       updateClass(classId, (c) => ({
@@ -711,6 +716,7 @@ export function useClasses() {
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,
+    setGroupsFrom,
     setDeskPictures,
     setStudentPhotos,
     setChartPhotos,

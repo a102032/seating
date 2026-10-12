@@ -91,6 +91,7 @@ export default function App() {
     setPointsMode,
     clearDeskStars,
     setShowAllHomerooms,
+    setGroupsFrom,
     setDeskPictures,
     setStudentPhotos,
     setChartPhotos,
@@ -354,6 +355,8 @@ export default function App() {
 
   /** The saved groups as they stand today - anyone who has left their desk since is out. */
   const groups = useMemo(() => pruneGroups(activeClass?.groups ?? [], activeClass?.seating ?? []), [activeClass])
+  /** The teacher counts the groups from the right of the board: Group 1 is on the right. */
+  const fromRight = activeClass?.groupsFrom === 'right'
   /**
    * The pickers, while the group cards are up. The seating chart's picker lights up desks,
    * which are behind the cards and so invisible here, which is why the panel's two picker
@@ -381,7 +384,7 @@ export default function App() {
 
   function startGroups(scheme: GroupScheme) {
     if (!activeClassId) return
-    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, plan), scheme)
+    setGroups(activeClassId, buildGroups(scheme, presentSeating, studentsById, groups, plan, { fromRight }), scheme)
     setGroupScheme(scheme)
     setDealWasShuffle(false)
     setDealTick((t) => t + 1)
@@ -406,7 +409,7 @@ export default function App() {
   function shuffleGroups() {
     if (!activeClassId || !groupScheme) return
     // Shuffle mixes everyone at random, into the same number of cards: the seats made the first deal.
-    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, plan, { mix: true }))
+    setGroups(activeClassId, buildGroups(groupScheme, presentSeating, studentsById, groups, plan, { mix: true, fromRight }))
     setDealWasShuffle(true)
     setDealTick((t) => t + 1)
   }
@@ -993,6 +996,7 @@ export default function App() {
                   <GroupActivity
                     groups={groups}
                     studentsById={studentsById}
+                    fromRight={fromRight}
                     absentIds={absentIds}
                     dealTick={dealTick}
                     dealWasShuffle={dealWasShuffle}
@@ -1198,6 +1202,8 @@ export default function App() {
           onUpdateFlip: deck.updateSettings,
           groupChimes,
           onSetGroupChimes: updateGroupChimes,
+          groupsFrom: activeClass.groupsFrom ?? 'left',
+          onSetGroupsFrom: (side) => setGroupsFrom(activeClass.id, side),
         }}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}
