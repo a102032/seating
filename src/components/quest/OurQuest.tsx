@@ -285,8 +285,13 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         const life = d.life
           ? ` class="q-${d.life}" style="animation-delay:${(GUST_START + (1 - (b.l + d.w / 2) / tb.width) * GUST_CROSS).toFixed(2)}s;`
           : ' style="'
+        const box = `position:absolute;left:${b.l.toFixed(1)}px;top:${b.t.toFixed(1)}px;width:${d.w.toFixed(1)}px;height:${d.h.toFixed(1)}px;`
+        // What sways is a picture already in the ink (doodle-*-ink.svg), not an ink mask, so the
+        // graphics chip turns it as it is rather than the mask being painted again every frame.
         placed.push(
-          `<span${life}position:absolute;left:${b.l.toFixed(1)}px;top:${b.t.toFixed(1)}px;width:${d.w.toFixed(1)}px;height:${d.h.toFixed(1)}px;background:${INK};-webkit-mask:url('${art(d.name)}') center/contain no-repeat;mask:url('${art(d.name)}') center/contain no-repeat"></span>`,
+          d.life
+            ? `<img alt="" draggable="false"${life}${box}object-fit:contain" src="${art(d.name.replace('.svg', '-ink.svg'))}">`
+            : `<span${life}${box}background:${INK};-webkit-mask:url('${art(d.name)}') center/contain no-repeat;mask:url('${art(d.name)}') center/contain no-repeat"></span>`,
         )
         // The cottage's chimney smokes: three puffs rising and fading, one after another.
         if (d.name === 'doodle-house-plain.svg')
@@ -488,7 +493,7 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         </button>
       </div>
       <div ref={trail} className="our-quest-trail relative flex min-h-0 flex-1 items-center justify-between gap-[0.6vw] px-[0.6vw]">
-        <div ref={doodles} className="pointer-events-none absolute inset-0 z-0 opacity-55" aria-hidden />
+        <div ref={doodles} className="our-quest-doodles pointer-events-none absolute inset-0 z-0" aria-hidden />
         <svg ref={path} className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" aria-hidden />
         {/* Where every quest starts: the castle (drawn with the doodles), an empty place here. */}
         <div data-quest-start="" className="our-quest-start relative shrink-0" aria-hidden />

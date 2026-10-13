@@ -3593,6 +3593,12 @@ button {
     scale: 1.012 1.035;
   }
 }
+/* The map's doodles are faded one by one, not as a layer: a faded layer with anything moving in it
+   is drawn again whole on every frame, which took a gust from 59 frames a second to 46 on a 4K-like
+   board. What fades in and out by itself has its own fade, scaled to match (the layer was at 55%). */
+.our-quest-doodles > :not(.q-zzz, .q-snort, .q-smoke, .q-wisp) {
+  opacity: 0.55;
+}
 /* The map's life (OurQuest.tsx): all gentle, slow, and only while the map is open. */
 .q-zzz {
   position: absolute;
@@ -3609,7 +3615,7 @@ button {
     transform: translate(0, 0) scale(0.6);
   }
   25% {
-    opacity: 0.85;
+    opacity: 0.47;
   }
   100% {
     opacity: 0;
@@ -3635,7 +3641,7 @@ button {
     transform: translate(0, 0) scale(0.4);
   }
   3% {
-    opacity: 0.9;
+    opacity: 0.5;
   }
   14% {
     opacity: 0;
@@ -3655,7 +3661,7 @@ button {
     transform: translate(-50%, 0) scale(0.5);
   }
   20% {
-    opacity: 0.8;
+    opacity: 0.44;
   }
   100% {
     opacity: 0;
@@ -3691,10 +3697,10 @@ button {
     transform: translateX(var(--from));
   }
   3% {
-    opacity: 0.4;
+    opacity: 0.22;
   }
   15% {
-    opacity: 0.4;
+    opacity: 0.22;
   }
   17% {
     opacity: 0;
