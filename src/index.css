@@ -2531,14 +2531,8 @@ button {
   width: clamp(52px, min(15cqh, 9cqw), 150px);
   aspect-ratio: 120 / 104;
 }
-/* The dragon asleep beside the Mega chest, below its mountain. */
+/* The dragon, asleep at the foot of its mountain; its place and size are set by the map's layout. */
 .our-quest-dragon {
-  position: absolute;
-  z-index: 2;
-  width: clamp(60px, min(19cqh, 11cqw), 190px);
-  height: auto;
-  top: 100%;
-  right: 55%;
   filter: drop-shadow(0 3px 2px rgba(80, 50, 20, 0.25));
 }
 .our-quest-knight {
@@ -2570,4 +2564,21 @@ button {
 }
 .quest-face-in {
   animation: quest-face-in 0.35s ease-out;
+}
+/* The prize card arriving: it pops up from small, a little past full size and back. */
+@keyframes quest-prize-in {
+  0% {
+    scale: 0.3;
+    opacity: 0;
+  }
+  70% {
+    scale: 1.06;
+    opacity: 1;
+  }
+  100% {
+    scale: 1;
+  }
+}
+.quest-prize-in {
+  animation: quest-prize-in 0.65s cubic-bezier(0.3, 1.2, 0.5, 1);
 }

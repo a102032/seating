@@ -54,6 +54,7 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
   const trail = useRef<HTMLDivElement>(null)
   const path = useRef<SVGSVGElement>(null)
   const knight = useRef<HTMLImageElement>(null)
+  const dragonRef = useRef<HTMLImageElement>(null)
   const doodles = useRef<HTMLDivElement>(null)
 
   // Drawn from where the chests really are, so again whenever the map changes size.
@@ -137,36 +138,30 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
         w: mountainW,
         h: mountainW * 0.75,
       }
+      // One tree, one size, everywhere (2026-10-13, the teacher: mixed trees looked cluttered).
+      const pine = (x: number, y: number): D => ({ name: 'doodle-pine.svg', x, y, w: u * 0.4, h: u * 0.55 })
+      // A dense forest is the same tree, three or four together, in one or two places.
+      const clump = (x: number, y: number): D[] => [pine(x - u * 0.3, y), pine(x + u * 0.05, y - u * 0.18), pine(x + u * 0.38, y + u * 0.02), pine(x + u * 0.05, y + u * 0.3)]
       const want: D[] = [
-        mountain,
-        { name: 'doodle-pine.svg', x: mountain.x - mountainW * 0.62, y: mountain.y + mountainW * 0.12, w: u * 0.4, h: u * 0.55 },
-        { name: 'doodle-pine.svg', x: mountain.x + mountainW * 0.6, y: mountain.y + mountainW * 0.16, w: u * 0.34, h: u * 0.46 },
         { name: 'landmark-castle.png', x: cx(start), y: yOf(start) - u * 0.15, w: u * 1.15, h: u * 1.1 },
         { name: 'doodle-grass.svg', x: cx(start) - u * 0.35, y: start.b + u * 0.45, w: u * 0.5, h: u * 0.36 },
         { name: 'doodle-grass.svg', x: cx(start) + u * 0.35, y: start.b + u * 0.55, w: u * 0.4, h: u * 0.3 },
-        // The forest: the three trees above the trail, and single pines packed around below it.
-        { name: 'doodle-forest.svg', x: woodBronze.x - u * 0.55, y: woodBronze.y - u * 0.75, w: u * 1, h: u * 0.85 },
-        { name: 'doodle-pine.svg', x: woodBronze.x - u * 1.25, y: woodBronze.y - u * 0.55, w: u * 0.42, h: u * 0.58 },
-        { name: 'doodle-pine.svg', x: woodBronze.x + u * 0.45, y: woodBronze.y + u * 0.55, w: u * 0.45, h: u * 0.62 },
-        { name: 'doodle-pine.svg', x: woodBronze.x + u * 0.9, y: woodBronze.y + u * 0.7, w: u * 0.36, h: u * 0.5 },
-        { name: 'doodle-forest.svg', x: woodBronze.x + u * 0.15, y: woodBronze.y + u * 1.25, w: u * 0.85, h: u * 0.72 },
         { name: 'doodle-pond.svg', x: cx(stations[1]), y: stations[1].b + u * 0.75, w: u * 1.15, h: u * 0.78 },
         { name: 'landmark-hills.png', x: cx(stations[2]), y: stations[2].t - u * 0.45, w: u * 1.3, h: u * 0.6 },
         { name: 'landmark-bridge.png', x: silverGold.x, y: silverGold.y + u * 0.1, w: u * 1.05, h: u * 0.62 },
-        { name: 'doodle-pine.svg', x: cx(stations[3]) - u * 0.4, y: stations[3].b + u * 0.6, w: u * 0.42, h: u * 0.58 },
-        { name: 'doodle-pine.svg', x: cx(stations[3]) + u * 0.15, y: stations[3].b + u * 0.75, w: u * 0.36, h: u * 0.5 },
       ]
       const taken: Box[] = [...stations, ...(knightBox ? [knightBox] : [])]
-      const dragon = box.querySelector('.our-quest-dragon')
-      if (dragon) taken.push(rel(dragon.getBoundingClientRect()))
       const head = box.parentElement?.querySelector('[data-quest-head]')?.getBoundingClientRect()
       const top = head ? head.bottom - tb.top : 0
       const placed: string[] = []
-      const place = (d: D, force = false) => {
-        // Kept on the map: a landmark near an edge moves in rather than going.
+      /** Where a doodle lands: kept on the map, a landmark near an edge moving in rather than going. */
+      const at = (d: D): Box => {
         const x = Math.min(tb.width - d.w / 2, Math.max(d.w / 2, d.x))
         const y = Math.min(tb.height - d.h / 2, Math.max(top + d.h / 2, d.y))
-        const b: Box = { l: x - d.w / 2, t: y - d.h / 2, r: x + d.w / 2, b: y + d.h / 2 }
+        return { l: x - d.w / 2, t: y - d.h / 2, r: x + d.w / 2, b: y + d.h / 2 }
+      }
+      const place = (d: D, force = false) => {
+        const b = at(d)
         if (!force && taken.some((o) => overlaps(o, b))) return false
         taken.push(b)
         placed.push(
@@ -174,34 +169,53 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
         )
         return true
       }
+
+      // The dragon's mountain above the Mega chest, and the dragon asleep at its foot, a little in
+      // front of it (2026-10-13, the teacher: off by the chest it felt far and removed).
+      const mBox = at(mountain)
+      place(mountain, true)
+      const dragon = dragonRef.current
+      if (dragon) {
+        const dw = mountainW * 0.95
+        const dh = dw * (566 / 1122)
+        const l = Math.max(0, mBox.l - dw * 0.35)
+        const t = mBox.b - dh * 0.95
+        dragon.style.width = `${dw}px`
+        dragon.style.transform = `translate(${l.toFixed(1)}px, ${t.toFixed(1)}px)`
+        taken.push({ l, t, r: l + dw, b: t + dh })
+      }
+      place(pine(mBox.r + u * 0.1, mBox.b - u * 0.35))
+
       // The castle is the start: it stands there whatever is near it.
       for (const d of want) place(d, d.name === 'landmark-castle.png')
 
-      // Then the rest of the map, so no part of it is bare, like a real map: dense woods the trail
-      // runs through between the castle and Bronze, a smaller wood below the dragon's mountain,
-      // and open land elsewhere with a tuft of grass here and there. A loose grid, each cell a
-      // cluster of pines in the woods and every third one a tuft in the open, placed the same way
-      // every time (from the cell), so the map doesn't change from one opening to the next.
+      // The two dense forests: four trees together or none, nudged to the nearest open spot.
+      // One on the way from the castle to Bronze, one below Gold.
+      const placeClump = (x: number, y: number) => {
+        for (const [dx, dy] of [[0, 0], [0, -0.6], [0, 0.6], [-0.6, 0], [0.6, 0], [-0.6, -0.6], [0.6, 0.6], [-0.6, 0.6], [0.6, -0.6], [0, -1.2], [0, 1.2]]) {
+          const ds = clump(x + dx * u, y + dy * u)
+          const boxes = ds.map(at)
+          if (boxes.some((b) => taken.some((o) => overlaps(o, b)))) continue
+          ds.forEach((d) => place(d, true))
+          return
+        }
+      }
+      placeClump(woodBronze.x - u * 0.6, woodBronze.y - u * 1.1)
+      placeClump(cx(stations[3]), stations[3].b + u * 0.9)
+
+      // Then single trees scattered evenly over the rest of the map, with a tuft of grass here and
+      // there: a loose grid, every other cell, placed the same way every time (from the cell), so
+      // the map doesn't change from one opening to the next.
       const cell = u * 1.2
-      const inWoods = (x: number, y: number) =>
-        (x > start.l && x < cx(stations[1]) + u * 0.6) || (x > cx(stations[3]) + u * 0.6 && y > yOf(chests[4]) - u * 0.2)
       const cols = Math.ceil(tb.width / cell)
       const rows = Math.ceil((tb.height - top) / cell)
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
+          if ((r + c) % 2) continue
           const seed = Math.abs(Math.sin((r + 1) * 12.9898 + (c + 1) * 78.233) * 43758.5453) % 1
-          const x = (c + 0.5) * cell + (seed - 0.5) * cell * 0.4
-          const y = top + (r + 0.5) * cell + (((seed * 7) % 1) - 0.5) * cell * 0.3
-          if (inWoods(x, y)) {
-            // Three pines packed together, the middle one tallest; the forest group now and then.
-            if (seed < 0.3) place({ name: 'doodle-forest.svg', x, y, w: u * 0.85, h: u * 0.72 })
-            else {
-              const k = 0.85 + seed * 0.3
-              place({ name: 'doodle-pine.svg', x, y: y - u * 0.08, w: u * 0.42 * k, h: u * 0.58 * k })
-              place({ name: 'doodle-pine.svg', x: x - u * 0.3, y: y + u * 0.08, w: u * 0.34 * k, h: u * 0.47 * k })
-              place({ name: 'doodle-pine.svg', x: x + u * 0.3, y: y + u * 0.1, w: u * 0.32 * k, h: u * 0.44 * k })
-            }
-          } else if ((r * 2 + c) % 3 === 0) place({ name: 'doodle-grass.svg', x, y, w: u * 0.42, h: u * 0.3 })
+          const x = (c + 0.5) * cell + (seed - 0.5) * cell * 0.5
+          const y = top + (r + 0.5) * cell + (((seed * 7) % 1) - 0.5) * cell * 0.4
+          place(seed < 0.7 ? pine(x, y) : { name: 'doodle-grass.svg', x, y, w: u * 0.42, h: u * 0.3 })
         }
       }
       if (doodles.current) doodles.current.innerHTML = placed.join('')
@@ -263,9 +277,6 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
                 done ? 'done' : here ? 'now' : 'future',
               )}
             >
-              {i === 4 && (
-                <img src={art('dragon-asleep.svg')} alt="" draggable={false} className="our-quest-dragon pointer-events-none select-none" />
-              )}
               <div className="quest-sc relative">
                 {ready ? (
                   <button
@@ -307,6 +318,14 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
             </div>
           )
         })}
+        {/* The dragon, asleep at the foot of its mountain (placed with the doodles). */}
+        <img
+          ref={dragonRef}
+          src={art('dragon-asleep.svg')}
+          alt=""
+          draggable={false}
+          className="our-quest-dragon pointer-events-none absolute left-0 top-0 z-[2] h-auto max-w-none select-none"
+        />
         {/* The class, walking the trail. */}
         <img
           ref={knight}
