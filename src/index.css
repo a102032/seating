@@ -2526,28 +2526,12 @@ button {
   background: #fff8dc;
   color: #b45309;
 }
-/* The landmarks: the teacher's ink doodles, faint, so the coloured things on the map are the chests,
-   the knight and the dragon. Above a low chest, below a high one. */
-.our-quest-landmark {
-  position: absolute;
-  left: 50%;
-  translate: -50% 0;
-  width: clamp(60px, min(19cqh, 12cqw), 190px);
-  height: auto;
-  opacity: 0.55;
-  z-index: -1;
+/* Where the quest starts: room for the castle, a chest's width. */
+.our-quest-start {
+  width: clamp(52px, min(15cqh, 9cqw), 150px);
+  aspect-ratio: 120 / 104;
 }
-.our-quest-station.low .our-quest-landmark {
-  bottom: calc(100% + 1.5cqh);
-}
-.our-quest-station.high .our-quest-landmark {
-  top: calc(100% + 1cqh);
-}
-/* The mountain stands behind the Mega chest, the chest at its cave's mouth. */
-.our-quest-station.mega .our-quest-landmark {
-  bottom: 38%;
-  width: clamp(90px, min(34cqh, 19cqw), 300px);
-}
+/* The dragon asleep beside the Mega chest, below its mountain. */
 .our-quest-dragon {
   position: absolute;
   z-index: 2;
@@ -2557,43 +2541,8 @@ button {
   right: 55%;
   filter: drop-shadow(0 3px 2px rgba(80, 50, 20, 0.25));
 }
-/* The knight beside the chest the class is on, about one and a quarter times its height. */
 .our-quest-knight {
-  position: absolute;
-  bottom: 0;
-  right: 92%;
-  height: 125%;
-  width: auto;
-  max-width: none;
   filter: drop-shadow(0 3px 2px rgba(80, 50, 20, 0.25));
-}
-
-/* The floating window: a key won over the lesson drops into the window's own chest, all CSS. */
-@keyframes float-key-drop {
-  0% {
-    translate: 0 -60%;
-    scale: 1.6;
-    opacity: 0;
-  }
-  25% {
-    opacity: 1;
-  }
-  80% {
-    translate: 0 70%;
-    scale: 0.7;
-    opacity: 1;
-  }
-  100% {
-    translate: 0 80%;
-    scale: 0.5;
-    opacity: 0;
-  }
-}
-.float-key-drop {
-  animation: float-key-drop 0.55s cubic-bezier(0.45, 0, 0.35, 1) forwards;
-}
-.float-chest-click {
-  animation-delay: 0.45s;
 }
 
 /* Class Settings, Points: the Quest's prize list, three columns; only a column's own list scrolls. */

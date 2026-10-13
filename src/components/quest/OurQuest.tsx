@@ -8,6 +8,9 @@ import { ChestPicture, KeyPips, PrizeIcon } from './QuestPictures'
 
 interface OurQuestProps {
   quest: QuestState
+  /** The meter as it stands, for how far along the trail the knight is. */
+  classPoints: number
+  goal: number
   /** The chest is full: a tap on it opens it. */
   onOpenChest: () => void
   onClose: () => void
@@ -18,27 +21,42 @@ const art = (name: string) => assetUrl(`/quest/${name}`)
 /** Low, high, low, high, and the Mega chest in the middle at the end. */
 const ROW = ['low', 'high', 'low', 'high', 'mega'] as const
 
+/** The map's ink: the doodles are drawn in it, faint, so the coloured things on the map are the chests, the knight and the dragon. */
+const INK = '#8a5a2b'
+
+type Box = { l: number; t: number; r: number; b: number }
+const overlaps = (a: Box, b: Box) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b
+
 /**
- * The landmarks, where the zigzag leaves room (design/quest/STYLE.md): the castle over the first
- * chest, the forest under the second, the hills over the third, the bridge under the fourth, and
- * the mountain with its cave just behind the Mega chest, so the chest sits at the cave's mouth.
+ * How far the knight has walked toward the chest the class is on: the keys already in its locks
+ * and the meter on its way to the next one, as a share of the keys it needs (2026-10-13, the
+ * teacher). With 1 of Silver's 3 keys in and the meter at 27 of 30, that is 1.9 of 3. It reaches
+ * the chest only when every lock is gold.
  */
-const LANDMARKS = ['landmark-castle.png', 'landmark-forest.png', 'landmark-hills.png', 'landmark-bridge.png', 'landmark-mountain-cave.png']
+export function walked(have: number, need: number, ready: boolean, classPoints: number, goal: number): number {
+  if (ready) return 1
+  const meter = goal > 0 ? Math.min(1, Math.max(0, classPoints / goal)) : 0
+  return Math.min(1, (have + meter) / need)
+}
 
 /**
  * Our Quest (DECISIONS, "Treasure Quest"): a tap on the meter's chest slides the quest over the
- * board, on an old treasure map - the chests opened so far with what was inside, the one now with
- * its keys, and the Mega chest at the end. The chests zigzag and a dotted trail winds between
- * them, dark ink for the way walked and faint ahead; the knight stands by the chest the class is
- * on and the dragon sleeps by the Mega chest. It never scrolls: everything is a share of the map,
- * and it stays until it is tapped closed.
+ * board, on an old treasure map - the castle where every quest starts, the chests opened so far
+ * with what was inside, the one now with its keys, and the Mega chest at the end, with the dragon
+ * asleep by its mountain. The chests zigzag and a dotted trail winds between them, dark ink for
+ * the way walked and faint ahead, and the knight stands on the trail as far along as the class
+ * has got. It never scrolls: everything is placed from where the chests really are, and a doodle
+ * that would touch a chest, a label or the knight is left out. It stays until it is tapped closed.
  */
-export function OurQuest({ quest, onOpenChest, onClose }: OurQuestProps) {
+export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: OurQuestProps) {
   const now = chestNow(quest)
+  const t = walked(now.have, now.need, now.ready, classPoints, goal)
   const trail = useRef<HTMLDivElement>(null)
   const path = useRef<SVGSVGElement>(null)
+  const knight = useRef<HTMLImageElement>(null)
+  const doodles = useRef<HTMLDivElement>(null)
 
-  // The trail is drawn from where the chests really are, so again whenever the map changes size.
+  // Drawn from where the chests really are, so again whenever the map changes size.
   useLayoutEffect(() => {
     const box = trail.current
     const svg = path.current
@@ -46,31 +64,154 @@ export function OurQuest({ quest, onOpenChest, onClose }: OurQuestProps) {
     const draw = () => {
       const tb = box.getBoundingClientRect()
       if (!tb.width) return
-      const chests = [...box.querySelectorAll('[data-quest-station] .quest-sc')].map((e) => {
-        const r = e.getBoundingClientRect()
-        return { l: r.left - tb.left, r: r.right - tb.left, y: r.top - tb.top + r.height * 0.55 }
-      })
+      const rel = (r: DOMRect): Box => ({ l: r.left - tb.left, t: r.top - tb.top, r: r.right - tb.left, b: r.bottom - tb.top })
+      const start = rel(box.querySelector('[data-quest-start]')!.getBoundingClientRect())
+      const chests = [...box.querySelectorAll('[data-quest-station] .quest-sc')].map((e) => rel(e.getBoundingClientRect()))
+      const stations = [...box.querySelectorAll('[data-quest-station]')].map((e) => rel(e.getBoundingClientRect()))
+      const u = chests[0].r - chests[0].l
       const gap = Math.max(8, tb.width * 0.012)
+      const ends = [start, ...chests]
+      const yOf = (b: Box) => b.t + (b.b - b.t) * 0.55
+
+      // One segment from each place to the next: the castle to Wood, Wood to Bronze, and on.
       svg.setAttribute('viewBox', `0 0 ${tb.width} ${tb.height}`)
-      svg.innerHTML = chests
-        .slice(1)
-        .map((b, i) => {
-          const a = chests[i]
-          const x1 = a.r + gap
-          const x2 = b.l - gap
-          if (x2 - x1 < 14) return ''
-          const dx = (x2 - x1) * 0.5
-          const walked = i + 1 <= now.chest
-          return `<path d="M${x1.toFixed(1)} ${a.y.toFixed(1)} C${(x1 + dx).toFixed(1)} ${a.y.toFixed(1)} ${(x2 - dx).toFixed(1)} ${b.y.toFixed(1)} ${x2.toFixed(1)} ${b.y.toFixed(1)}" fill="none" stroke="${walked ? '#7a4a1f' : '#cfb07a'}" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round"/>`
-        })
-        .join('')
+      const segs = ends.slice(1).map((b, i) => {
+        const a = ends[i]
+        const x1 = a.r + gap
+        const x2 = b.l - gap
+        const dx = Math.max(0, x2 - x1) * 0.5
+        return `M${x1.toFixed(1)} ${yOf(a).toFixed(1)} C${(x1 + dx).toFixed(1)} ${yOf(a).toFixed(1)} ${(x2 - dx).toFixed(1)} ${yOf(b).toFixed(1)} ${x2.toFixed(1)} ${yOf(b).toFixed(1)}`
+      })
+      const dot = (d: string, ink: string) =>
+        `<path d="${d}" fill="none" stroke="${ink}" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round"/>`
+      svg.innerHTML = segs.map((d, i) => dot(d, i < now.chest ? '#7a4a1f' : '#cfb07a')).join('')
+
+      // The knight, on the segment toward the chest the class is on, its feet on the trail. It
+      // walks between the two chests' edges, so it never stands on either.
+      const k = knight.current
+      let knightBox: Box | null = null
+      const seg = svg.querySelectorAll('path')[now.chest] as SVGPathElement | undefined
+      if (k && seg) {
+        const h = u * 1.25
+        const w = h
+        k.style.height = `${h}px`
+        const len = seg.getTotalLength()
+        const lo = Math.min(0.45, w / 2 / Math.max(1, len))
+        const at = len * (lo + t * (1 - 2 * lo))
+        const p = seg.getPointAtLength(at)
+        k.style.transform = `translate(${(p.x - w / 2).toFixed(1)}px, ${(p.y - h * 0.9).toFixed(1)}px)`
+        knightBox = { l: p.x - w / 2, t: p.y - h * 0.9, r: p.x + w / 2, b: p.y + h * 0.1 }
+        // The way walked so far on this segment is dark too.
+        if (at > 0) {
+          const pts: string[] = []
+          for (let s = 0; s <= 24; s++) {
+            const q = seg.getPointAtLength((at * s) / 24)
+            pts.push(`${q.x.toFixed(1)} ${q.y.toFixed(1)}`)
+          }
+          svg.insertAdjacentHTML('beforeend', dot(`M${pts.join(' L')}`, '#7a4a1f'))
+        }
+      }
+
+      // The doodles, placed like a map: grass where the quest starts, a dense forest the trail
+      // runs through between Wood and Bronze, a pond at its edge, hills over Silver, a bridge on
+      // the way to Gold, and the dragon's mountain above the Mega chest, pines on its slopes. Each
+      // is a size in chests (u) and a centre; one that would touch a chest, a label, the knight,
+      // the dragon or another doodle, or leave the map, is left out.
+      const point = (i: number, f: number) => {
+        const sp = svg.querySelectorAll('path')[i] as SVGPathElement | undefined
+        if (!sp) return { x: 0, y: 0 }
+        const q = sp.getPointAtLength(sp.getTotalLength() * f)
+        return { x: q.x, y: q.y }
+      }
+      const mega = chests[4]
+      const megaCx = (mega.l + mega.r) / 2
+      const woodBronze = point(1, 0.5)
+      const silverGold = point(3, 0.5)
+      const cx = (b: Box) => (b.l + b.r) / 2
+      type D = { name: string; x: number; y: number; w: number; h: number; ink?: boolean }
+      const mountainW = u * 1.75
+      const mountain = {
+        name: 'landmark-mountain-cave.png',
+        x: megaCx,
+        y: stations[4].t - mountainW * 0.38,
+        w: mountainW,
+        h: mountainW * 0.75,
+      }
+      const want: D[] = [
+        mountain,
+        { name: 'doodle-pine.svg', x: mountain.x - mountainW * 0.62, y: mountain.y + mountainW * 0.12, w: u * 0.4, h: u * 0.55 },
+        { name: 'doodle-pine.svg', x: mountain.x + mountainW * 0.6, y: mountain.y + mountainW * 0.16, w: u * 0.34, h: u * 0.46 },
+        { name: 'landmark-castle.png', x: cx(start), y: yOf(start) - u * 0.15, w: u * 1.15, h: u * 1.1 },
+        { name: 'doodle-grass.svg', x: cx(start) - u * 0.35, y: start.b + u * 0.45, w: u * 0.5, h: u * 0.36 },
+        { name: 'doodle-grass.svg', x: cx(start) + u * 0.35, y: start.b + u * 0.55, w: u * 0.4, h: u * 0.3 },
+        // The forest: the three trees above the trail, and single pines packed around below it.
+        { name: 'doodle-forest.svg', x: woodBronze.x - u * 0.55, y: woodBronze.y - u * 0.75, w: u * 1, h: u * 0.85 },
+        { name: 'doodle-pine.svg', x: woodBronze.x - u * 1.25, y: woodBronze.y - u * 0.55, w: u * 0.42, h: u * 0.58 },
+        { name: 'doodle-pine.svg', x: woodBronze.x + u * 0.45, y: woodBronze.y + u * 0.55, w: u * 0.45, h: u * 0.62 },
+        { name: 'doodle-pine.svg', x: woodBronze.x + u * 0.9, y: woodBronze.y + u * 0.7, w: u * 0.36, h: u * 0.5 },
+        { name: 'doodle-forest.svg', x: woodBronze.x + u * 0.15, y: woodBronze.y + u * 1.25, w: u * 0.85, h: u * 0.72 },
+        { name: 'doodle-pond.svg', x: cx(stations[1]), y: stations[1].b + u * 0.75, w: u * 1.15, h: u * 0.78 },
+        { name: 'landmark-hills.png', x: cx(stations[2]), y: stations[2].t - u * 0.45, w: u * 1.3, h: u * 0.6 },
+        { name: 'landmark-bridge.png', x: silverGold.x, y: silverGold.y + u * 0.1, w: u * 1.05, h: u * 0.62 },
+        { name: 'doodle-pine.svg', x: cx(stations[3]) - u * 0.4, y: stations[3].b + u * 0.6, w: u * 0.42, h: u * 0.58 },
+        { name: 'doodle-pine.svg', x: cx(stations[3]) + u * 0.15, y: stations[3].b + u * 0.75, w: u * 0.36, h: u * 0.5 },
+      ]
+      const taken: Box[] = [...stations, ...(knightBox ? [knightBox] : [])]
+      const dragon = box.querySelector('.our-quest-dragon')
+      if (dragon) taken.push(rel(dragon.getBoundingClientRect()))
+      const head = box.parentElement?.querySelector('[data-quest-head]')?.getBoundingClientRect()
+      const top = head ? head.bottom - tb.top : 0
+      const placed: string[] = []
+      const place = (d: D, force = false) => {
+        // Kept on the map: a landmark near an edge moves in rather than going.
+        const x = Math.min(tb.width - d.w / 2, Math.max(d.w / 2, d.x))
+        const y = Math.min(tb.height - d.h / 2, Math.max(top + d.h / 2, d.y))
+        const b: Box = { l: x - d.w / 2, t: y - d.h / 2, r: x + d.w / 2, b: y + d.h / 2 }
+        if (!force && taken.some((o) => overlaps(o, b))) return false
+        taken.push(b)
+        placed.push(
+          `<span style="position:absolute;left:${b.l.toFixed(1)}px;top:${b.t.toFixed(1)}px;width:${d.w.toFixed(1)}px;height:${d.h.toFixed(1)}px;background:${INK};-webkit-mask:url('${art(d.name)}') center/contain no-repeat;mask:url('${art(d.name)}') center/contain no-repeat"></span>`,
+        )
+        return true
+      }
+      // The castle is the start: it stands there whatever is near it.
+      for (const d of want) place(d, d.name === 'landmark-castle.png')
+
+      // Then the rest of the map, so no part of it is bare, like a real map: dense woods the trail
+      // runs through between the castle and Bronze, a smaller wood below the dragon's mountain,
+      // and open land elsewhere with a tuft of grass here and there. A loose grid, each cell a
+      // cluster of pines in the woods and every third one a tuft in the open, placed the same way
+      // every time (from the cell), so the map doesn't change from one opening to the next.
+      const cell = u * 1.2
+      const inWoods = (x: number, y: number) =>
+        (x > start.l && x < cx(stations[1]) + u * 0.6) || (x > cx(stations[3]) + u * 0.6 && y > yOf(chests[4]) - u * 0.2)
+      const cols = Math.ceil(tb.width / cell)
+      const rows = Math.ceil((tb.height - top) / cell)
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const seed = Math.abs(Math.sin((r + 1) * 12.9898 + (c + 1) * 78.233) * 43758.5453) % 1
+          const x = (c + 0.5) * cell + (seed - 0.5) * cell * 0.4
+          const y = top + (r + 0.5) * cell + (((seed * 7) % 1) - 0.5) * cell * 0.3
+          if (inWoods(x, y)) {
+            // Three pines packed together, the middle one tallest; the forest group now and then.
+            if (seed < 0.3) place({ name: 'doodle-forest.svg', x, y, w: u * 0.85, h: u * 0.72 })
+            else {
+              const k = 0.85 + seed * 0.3
+              place({ name: 'doodle-pine.svg', x, y: y - u * 0.08, w: u * 0.42 * k, h: u * 0.58 * k })
+              place({ name: 'doodle-pine.svg', x: x - u * 0.3, y: y + u * 0.08, w: u * 0.34 * k, h: u * 0.47 * k })
+              place({ name: 'doodle-pine.svg', x: x + u * 0.3, y: y + u * 0.1, w: u * 0.32 * k, h: u * 0.44 * k })
+            }
+          } else if ((r * 2 + c) % 3 === 0) place({ name: 'doodle-grass.svg', x, y, w: u * 0.42, h: u * 0.3 })
+        }
+      }
+      if (doodles.current) doodles.current.innerHTML = placed.join('')
     }
     draw()
     const ro = new ResizeObserver(draw)
     ro.observe(box)
     void document.fonts?.ready.then(draw)
     return () => ro.disconnect()
-  }, [now.chest, quest])
+  }, [now.chest, t, quest])
 
   // Slides in from the side, as the flip cards do.
   const sheet = useRef<HTMLDivElement>(null)
@@ -88,7 +229,7 @@ export function OurQuest({ quest, onOpenChest, onClose }: OurQuestProps) {
       className="our-quest absolute inset-0 z-[20] flex flex-col overflow-hidden rounded-[22px] px-[18px] pb-[14px] pt-3 text-[#3b2410] shadow-[-6px_0_24px_rgba(30,42,68,0.15)]"
       onClick={onClose}
     >
-      <div className="relative z-[1] flex items-center gap-3">
+      <div data-quest-head="" className="relative z-[1] flex items-center gap-3">
         <h2 className="m-0 font-bold" style={{ fontSize: 'clamp(1.1rem, 3vmin, 1.7rem)' }}>
           {quest.number > 1 ? `Our Quest ${quest.number}` : 'Our Quest'}
         </h2>
@@ -103,7 +244,10 @@ export function OurQuest({ quest, onOpenChest, onClose }: OurQuestProps) {
         </button>
       </div>
       <div ref={trail} className="our-quest-trail relative flex min-h-0 flex-1 items-center justify-between gap-[0.6vw] px-[0.6vw]">
-        <svg ref={path} className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden />
+        <div ref={doodles} className="pointer-events-none absolute inset-0 z-0 opacity-55" aria-hidden />
+        <svg ref={path} className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" aria-hidden />
+        {/* Where every quest starts: the castle (drawn with the doodles), an empty place here. */}
+        <div data-quest-start="" className="our-quest-start relative shrink-0" aria-hidden />
         {CHESTS.map((tier, i) => {
           const done = i < now.chest
           const here = i === now.chest
@@ -119,20 +263,10 @@ export function OurQuest({ quest, onOpenChest, onClose }: OurQuestProps) {
                 done ? 'done' : here ? 'now' : 'future',
               )}
             >
-              {/* The landmark, in faint map ink, in the room the zigzag leaves. */}
-              <img
-                src={art(LANDMARKS[i])}
-                alt=""
-                draggable={false}
-                className={clsx('our-quest-landmark pointer-events-none select-none', `lm-${i}`)}
-              />
               {i === 4 && (
                 <img src={art('dragon-asleep.svg')} alt="" draggable={false} className="our-quest-dragon pointer-events-none select-none" />
               )}
               <div className="quest-sc relative">
-                {here && (
-                  <img src={art('knight.svg')} alt="" draggable={false} className="our-quest-knight pointer-events-none select-none" />
-                )}
                 {ready ? (
                   <button
                     type="button"
@@ -173,6 +307,15 @@ export function OurQuest({ quest, onOpenChest, onClose }: OurQuestProps) {
             </div>
           )
         })}
+        {/* The class, walking the trail. */}
+        <img
+          ref={knight}
+          src={art('knight.svg')}
+          alt=""
+          draggable={false}
+          data-quest-knight=""
+          className="our-quest-knight pointer-events-none absolute left-0 top-0 z-[2] w-auto max-w-none select-none"
+        />
       </div>
     </div>
   )

@@ -1040,6 +1040,8 @@ export default function App() {
             {questOpen && quest && goalLive && (
               <OurQuest
                 quest={quest}
+                classPoints={activeClass.classPoints ?? 0}
+                goal={activeClass.pointsGoal ?? 0}
                 onOpenChest={() => {
                   setQuestOpen(false)
                   startChestOpening()
