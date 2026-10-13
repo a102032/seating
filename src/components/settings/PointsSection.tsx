@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Plus, RotateCcw, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
-import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
+import { CELEBRATION_GIFS, celebrationGifsOf, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
 import { lastKeyTook, prizeId, prizesOf, questOf, SIZE_NAMES } from '../../lib/quest'
 import type { ClassData, PointsMode, PrizeSize, QuestPrize } from '../../types'
@@ -14,7 +14,8 @@ interface PointsSectionProps {
   onSetPointsMode: (mode: PointsMode) => void
   onSetStarsOnDesks: (on: boolean) => void
   onSetGoal: (goal: number) => void
-  onSetCelebrationGif: (gifId: string) => void
+  /** The class's favourite celebration GIFs: one plays beside the prize when a chest's wheel lands. */
+  onSetCelebrationGifs: (gifIds: string[]) => void
   onSetClassPoints: (points: number) => void
   onAskEmptyMeter: () => void
   onAskClearStars: () => void
@@ -151,7 +152,7 @@ export function PointsSection({
   onSetPointsMode,
   onSetStarsOnDesks,
   onSetGoal,
-  onSetCelebrationGif,
+  onSetCelebrationGifs,
   onSetClassPoints,
   onAskEmptyMeter,
   onAskClearStars,
@@ -202,12 +203,13 @@ export function PointsSection({
   if (editingPrizes) return <PrizeList prizes={prizesOf(activeClass)} onSetPrizes={onSetPrizes} onBack={() => onEditingPrizes(false)} />
 
   if (choosingGif) {
-    const chosen = activeClass.celebrationGifId ?? ''
+    const chosen = celebrationGifsOf(activeClass)
+    const toggle = (id: string) => onSetCelebrationGifs(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id])
     return (
       <>
         <div className="cs-page-head">
           <h2 className="m-0 text-xl font-bold">Celebration</h2>
-          <p>What fills the board when the class fills the chest.</p>
+          <p>Pick your favourites. When a chest&rsquo;s wheel lands, one dances beside the prize, a different one each time.</p>
           <div className="cs-right">
             <Btn small onClick={() => onChoosingGif(false)}>
               <ChevronLeft /> Back
@@ -215,36 +217,20 @@ export function PointsSection({
           </div>
         </div>
         <div className="cs-pics cs-gifs">
-          <button
-            type="button"
-            className="cs-pic"
-            aria-pressed={chosen === ''}
-            onClick={() => {
-              onSetCelebrationGif('')
-              onChoosingGif(false)
-            }}
-          >
+          {/* No GIF: the prize card alone. */}
+          <button type="button" className="cs-pic" aria-pressed={chosen.length === 0} onClick={() => onSetCelebrationGifs([])}>
             <span className="cs-gif-tile bg-amber-50 p-1.5">
               <img src={chestOpen} alt="" className="!object-contain" />
             </span>
-            {chosen === '' && <Tick />}
-            <span className="w-full truncate">Treasure</span>
+            {chosen.length === 0 && <Tick />}
+            <span className="w-full truncate">No GIF</span>
           </button>
           {CELEBRATION_GIFS.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className="cs-pic"
-              aria-pressed={chosen === g.id}
-              onClick={() => {
-                onSetCelebrationGif(g.id)
-                onChoosingGif(false)
-              }}
-            >
+            <button key={g.id} type="button" className="cs-pic" aria-pressed={chosen.includes(g.id)} onClick={() => toggle(g.id)}>
               <span className="cs-gif-tile">
                 <img src={gifThumbUrl(g.id)} alt="" loading="lazy" />
               </span>
-              {chosen === g.id && <Tick />}
+              {chosen.includes(g.id) && <Tick />}
               <span className="w-full truncate">{g.label}</span>
             </button>
           ))}
@@ -253,7 +239,7 @@ export function PointsSection({
     )
   }
 
-  const gif = CELEBRATION_GIFS.find((g) => g.id === activeClass.celebrationGifId)
+  const favourites = celebrationGifsOf(activeClass)
   const deskStars = activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0)
   const goalNow = activeClass.pointsGoal || goal
   const prizes = prizesOf(activeClass)
@@ -313,11 +299,16 @@ export function PointsSection({
           <div className="cs-row" data-guide="celebration-row">
             <div className="cs-row-label">
               <b>Celebration</b>
-              <small>Pick a celebration animation when the class achieves their goal.</small>
+              <small>The GIFs that dance beside the prize when a chest&rsquo;s wheel lands.</small>
             </div>
             <Btn onClick={() => onChoosingGif(true)}>
-              <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
-              {gif?.label ?? 'Treasure chest'} <ChevronRight />
+              <img src={favourites[0] ? gifThumbUrl(favourites[0]) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
+              {favourites.length === 0
+                ? 'No GIF'
+                : favourites.length === 1
+                  ? CELEBRATION_GIFS.find((g) => g.id === favourites[0])?.label
+                  : `${favourites.length} GIFs`}{' '}
+              <ChevronRight />
             </Btn>
           </div>
           <div className="cs-row" data-guide="prizes-row">

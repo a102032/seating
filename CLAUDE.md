@@ -114,7 +114,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
     and the four rhythms of taps between the beats are in `lib/getReady.ts`, its sounds in `sound.ts` (`playGetReadyTaps`) and
     its stars' flight in `starFlight.ts` (`flyStarsFrom`).
-  - `PointsMeter.tsx` / `GoalCelebration.tsx`: the class goal. `FloatingGoal.tsx`: the goal floating over the lesson
+  - `PointsMeter.tsx`: the class goal (its key moment and chest opening are the Quest's, below). `FloatingGoal.tsx`: the goal floating over the lesson
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`), with +1, Pick and Get Ready!
     (`FloatGetReady.tsx`, the app's own star in the window grown big), and the app's clock while it runs (`FloatClock` in
     `BigTimer.tsx`: shown, never set, at the window's own size). CSS animations only in there, and timers on the

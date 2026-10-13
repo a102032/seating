@@ -173,11 +173,17 @@ export interface ClassData {
    */
   showAllHomerooms?: boolean
   /**
-   * Which celebration plays when the goal is reached: a GIPHY id from lib/celebrationGifs,
-   * or unset for the treasure chest. The chest is also the fallback whenever a chosen gif
-   * hasn't loaded, so a bad network never leaves the moment blank.
+   * The one celebration GIF a class had before the Quest (a GIPHY id from lib/celebrationGifs).
+   * Read as the first of celebrationGifIds when that is unset.
    */
   celebrationGifId?: string
+  /**
+   * The teacher's favourite celebration GIFs (2026-10-13): one plays beside the prize when a chest's
+   * wheel lands, a different one each time. Empty is none: the prize card alone.
+   */
+  celebrationGifIds?: string[]
+  /** The GIF the last chest played, so the next one is a different one. */
+  celebrationGifLast?: string
   /**
    * Stars a class had to earn for one class point, and the stars banked toward the next. No longer
    * used (2026-10-11, the teacher: a bigger goal is the same challenge, with one setting fewer):

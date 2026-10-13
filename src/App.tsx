@@ -20,6 +20,7 @@ import { PointsMeter } from './components/PointsMeter'
 import { ChestMoment } from './components/quest/ChestMoment'
 import { OurQuest } from './components/quest/OurQuest'
 import { chestNow, prizesOf, questOf } from './lib/quest'
+import { nextCelebrationGif } from './lib/celebrationGifs'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { SideRail } from './components/SideRail'
@@ -110,7 +111,8 @@ export default function App() {
     setStudentPhotos,
     setChartPhotos,
     setGetReady,
-    setCelebrationGif,
+    setCelebrationGifs,
+    noteCelebrationGif,
     resetClassGoal,
     setClassPoints,
     addToClassGoal,
@@ -239,7 +241,7 @@ export default function App() {
   /** Our Quest, the treasure map, slid over the board (a tap on the meter's chest). */
   const [questOpen, setQuestOpen] = useState(false)
   /** A full chest opening, and which one: kept as it starts, since opening it moves the class to the next. */
-  const [chestOpening, setChestOpening] = useState<number | null>(null)
+  const [chestOpening, setChestOpening] = useState<{ chest: number; gifId: string | null } | null>(null)
   /** Open the chest was tapped in the floating window: the chest opens once the app is in front. */
   const [chestAsked, setChestAsked] = useState(false)
   /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
@@ -517,14 +519,22 @@ export default function App() {
   function startChestOpening() {
     if (!chest?.ready || chestOpening !== null) return
     setChestAsked(false)
-    setChestOpening(chest.chest)
+    openTheChest()
+  }
+
+  /** The chest, and the GIF its prize will have: a favourite the last chest didn't play. */
+  function openTheChest() {
+    if (!chest || !activeClass) return
+    const gifId = nextCelebrationGif(activeClass)
+    if (gifId) noteCelebrationGif(activeClass.id, gifId)
+    setChestOpening({ chest: chest.chest, gifId })
   }
 
   // Open the chest, tapped in the floating window: it opens the moment the app is in front.
   useEffect(() => {
     if (chestAsked && appInFront && chest?.ready && chestOpening === null) {
       setChestAsked(false)
-      setChestOpening(chest.chest)
+      openTheChest()
     }
     if (chestAsked && !chest?.ready) setChestAsked(false)
   }, [chestAsked, appInFront, chest, chestOpening])
@@ -1310,7 +1320,7 @@ export default function App() {
         onSetPointsMode={(mode) => setPointsMode(activeClass.id, mode)}
         onSetStarsOnDesks={(on) => setStarsOnDesks(activeClass.id, on)}
         onSetGoal={(goal) => setGoal(activeClass.id, goal)}
-        onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
+        onSetCelebrationGifs={(gifIds) => setCelebrationGifs(activeClass.id, gifIds)}
         onSetPrizes={(prizes) => setPrizes(activeClass.id, prizes)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
@@ -1365,14 +1375,15 @@ export default function App() {
 
       {chestOpening !== null && activeClass && (
         <ChestMoment
-          chest={chestOpening}
+          chest={chestOpening.chest}
+          gifId={chestOpening.gifId}
           prizes={prizesOf(activeClass)}
           spinners={seatedIds.map((id) => ({ id, name: studentsById.get(id)?.name ?? '' }))}
           onSpinnerPicked={(id) => recordPick(activeClass.id, id, today)}
           onWon={(prize) => openChest(activeClass.id, prize)}
           onClose={() => {
             // The Mega chest ends the quest: a new one starts at the Wood chest.
-            if (chestOpening === 4) setToast({ id: Date.now(), text: 'A new quest begins!' })
+            if (chestOpening.chest === 4) setToast({ id: Date.now(), text: 'A new quest begins!' })
             setChestOpening(null)
           }}
           from={() => document.querySelector('[data-quest-chest]')}

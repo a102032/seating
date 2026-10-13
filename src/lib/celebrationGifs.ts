@@ -1,3 +1,5 @@
+import type { ClassData } from '../types'
+
 /**
  * A fixed, hand-picked list - deliberately not a GIPHY search box. A search field in a
  * classroom app makes the teacher responsible for whatever it returns in front of thirty
@@ -44,4 +46,18 @@ export function gifUrl(id: string): string {
 /** Small and animated, for the picker - a grid of full-size gifs would be tens of megabytes. */
 export function gifThumbUrl(id: string): string {
   return `https://i.giphy.com/media/${id}/200w.gif`
+}
+
+/** The class's favourites; a class from before the Quest has its one GIF as its only favourite. */
+export function celebrationGifsOf(c: ClassData): string[] {
+  const ids = c.celebrationGifIds ?? (c.celebrationGifId ? [c.celebrationGifId] : [])
+  return ids.filter((id) => CELEBRATION_GIFS.some((g) => g.id === id))
+}
+
+/** The GIF for this chest: one of the favourites, never the one the last chest played (unless it is the only one). */
+export function nextCelebrationGif(c: ClassData): string | null {
+  const ids = celebrationGifsOf(c)
+  if (ids.length === 0) return null
+  const fresh = ids.length > 1 ? ids.filter((id) => id !== c.celebrationGifLast) : ids
+  return fresh[Math.floor(Math.random() * fresh.length)]
 }

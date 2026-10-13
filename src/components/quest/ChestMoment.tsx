@@ -1,11 +1,22 @@
+import clsx from 'clsx'
 import { User } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { buildWheel, CHESTS, type Slice } from '../../lib/quest'
 import { pointerSVG, wheelSVG } from '../../lib/questArt'
-import { playChestKnocks, playGoalCelebration, playKeyClick, playPickerLand, playPickerTick, playWheelPeg } from '../../lib/sound'
+import { gifUrl } from '../../lib/celebrationGifs'
+import {
+  playBonus,
+  playChestKnocks,
+  playGiftGold,
+  playGoalCelebration,
+  playKeyClick,
+  playPickerLand,
+  playPickerTick,
+  playWheelPeg,
+} from '../../lib/sound'
 import type { QuestPrize } from '../../types'
-import { ChestPicture } from './QuestPictures'
+import { ChestPicture, PrizeIcon } from './QuestPictures'
 
 interface ChestMomentProps {
   /** Which chest: 0 Wood to 4 Mega. */
@@ -21,6 +32,8 @@ interface ChestMomentProps {
   onClose: () => void
   /** Where the chest flies in from: the meter's chest. */
   from: () => HTMLElement | null
+  /** The celebration GIF that joins the prize card: one of the class's favourites, or none. */
+  gifId: string | null
 }
 
 const SPIN_MS = 6000
@@ -73,7 +86,7 @@ function confetti(layer: HTMLElement, x: number, y: number, count: number, gold:
  * six seconds, popping over each slice and crawling through the last two, and only the slice it
  * lands on turns over. Everything that moves is element.animate or CSS.
  */
-export function ChestMoment({ chest, prizes, spinners, onSpinnerPicked, onWon, onClose, from }: ChestMomentProps) {
+export function ChestMoment({ chest, prizes, spinners, onSpinnerPicked, onWon, onClose, from, gifId }: ChestMomentProps) {
   const slices: Slice[] = useMemo(() => buildWheel(chest, prizes), [chest, prizes])
   const [win, setWin] = useState<number | null>(null)
   const wheelSvg = useMemo(() => wheelSVG(chest, slices, win), [chest, slices, win])
@@ -85,7 +98,23 @@ export function ChestMoment({ chest, prizes, spinners, onSpinnerPicked, onWon, o
   const layer = useRef<HTMLDivElement>(null)
   const dim = useRef<HTMLDivElement>(null)
   const rays = useRef<HTMLDivElement>(null)
-  const [step, setStep] = useState<'arriving' | 'wheel' | 'picking' | 'spinning' | 'won'>('arriving')
+  const [step, setStep] = useState<'arriving' | 'wheel' | 'picking' | 'spinning' | 'won' | 'prize'>('arriving')
+  /** The GIF, once it has loaded (fetched as the chest opens, so it is ready by the prize). */
+  const [gifReady, setGifReady] = useState<string | null>(null)
+  /** The prize has had its moment: the card may turn over to the GIF. */
+  const [flipTime, setFlipTime] = useState(false)
+
+  useEffect(() => {
+    if (!gifId) return
+    const url = gifUrl(gifId)
+    const img = new Image()
+    let live = true
+    img.onload = () => live && setGifReady(url)
+    img.src = url
+    return () => {
+      live = false
+    }
+  }, [gifId])
   const [open, setOpen] = useState(false)
   const [spinner, setSpinner] = useState<{ name: string; landed: boolean } | null>(null)
   const stepAt = useRef(performance.now())
@@ -208,10 +237,23 @@ export function ChestMoment({ chest, prizes, spinners, onSpinnerPicked, onWon, o
     setWin(i)
     setStep('won')
     onWon(slices[i].prize)
+    // The slice turns over; then the prize fills the screen, alone (2026-10-13, the teacher).
+    later(() => showPrize(i), 1100)
+  }
+
+  function showPrize(i: number) {
+    const { size } = slices[i]
+    setStep('prize')
+    if (size === 'b') playGiftGold()
+    else playBonus()
+    if (layer.current) confetti(layer.current, innerWidth / 2, innerHeight * 0.42, size === 'b' ? 150 : 90, size === 'b')
+    // A few seconds of the prize alone, then the card turns over to the class's GIF, the prize's
+    // name under it (2026-10-13, the teacher): the prize lands first, then the party.
+    later(() => setFlipTime(true), 2600)
   }
 
   function close() {
-    if (step !== 'won' || guarded()) return
+    if (step !== 'prize' || guarded()) return
     stopFanfare.current?.()
     stopFanfare.current = null
     onClose()
@@ -286,14 +328,69 @@ export function ChestMoment({ chest, prizes, spinners, onSpinnerPicked, onWon, o
           </button>
         </div>
       </div>
-      {/* The prize reveal waits on the teacher's answer about the celebration GIF (DECISIONS,
-          "Still open"). Until then the prize's name shows under the wheel, and a tap closes. */}
-      {won && (
-        <div
-          className="absolute bottom-[3vh] left-1/2 z-[3] -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-[1em] py-[0.2em] font-bold text-[#3b2410]"
-          style={{ fontSize: 'clamp(1.2rem, 4.5vmin, 2.6rem)' }}
-        >
-          {won.prize.name}!
+      {/* The prize fills the screen until it is tapped: the card, then, turned over, the class's
+          GIF with the prize's name under it. With no GIF (none chosen, or not loaded) it stays as it is. */}
+      {won && step === 'prize' && (
+        <div className="absolute inset-0 z-[3] flex items-center justify-center bg-[rgba(17,12,44,0.6)] px-[3vw]" data-prize="">
+          <div className="quest-prize-in" style={{ perspective: '1600px' }}>
+            <div className={clsx('quest-flip grid', flipTime && gifReady && 'quest-flipped')} data-prize-card="">
+              {(['front', 'back'] as const).map((face) => (
+                <div
+                  key={face}
+                  className={clsx(
+                    'quest-face flex flex-col items-center justify-center gap-[clamp(6px,1.5vh,14px)] rounded-[32px] border-8 px-5 py-[clamp(12px,2.5vh,26px)] text-center shadow-[0_24px_60px_rgba(0,0,0,0.45)]',
+                    face === 'back' && 'quest-face-back',
+                  )}
+                  style={{
+                    width: 'min(62vw, 34rem)',
+                    borderColor: won.size === 'b' ? '#f59e0b' : won.size === 'm' ? '#94a3b8' : '#a78bfa',
+                    background:
+                      won.size === 'b'
+                        ? 'radial-gradient(circle at 50% 30%, #fffbe6 0%, #fde68a 60%, #fbbf24 100%)'
+                        : won.size === 'm'
+                          ? 'linear-gradient(160deg, #ffffff, #e2e8f0)'
+                          : '#ffffff',
+                  }}
+                  data-prize-gif={face === 'back' ? '' : undefined}
+                >
+                  {face === 'front' ? (
+                    <div
+                      className="grid aspect-square place-items-center rounded-full"
+                      style={{
+                        width: 'clamp(80px, 24vh, 190px)',
+                        background: won.size === 'b' ? '#ffffff' : won.size === 'm' ? '#f1f5f9' : '#f3ecff',
+                        color: won.size === 'b' ? '#d97706' : won.size === 'm' ? '#475569' : '#7c3aed',
+                      }}
+                    >
+                      <PrizeIcon
+                        name={won.prize.name}
+                        size={80}
+                        className="[&>svg]:h-[clamp(46px,13vh,110px)] [&>svg]:w-[clamp(46px,13vh,110px)]"
+                      />
+                    </div>
+                  ) : (
+                    gifReady && (
+                      <img
+                        src={gifReady}
+                        alt=""
+                        className="block min-h-0 rounded-2xl object-contain"
+                        style={{ maxHeight: '46vh', maxWidth: '100%' }}
+                      />
+                    )
+                  )}
+                  <div
+                    className="font-bold leading-[1.05] [text-wrap:balance]"
+                    style={{
+                      fontSize: face === 'front' ? 'clamp(1.8rem, 7vmin, 4rem)' : 'clamp(1.4rem, 5vmin, 3rem)',
+                      color: won.size === 'b' ? '#7c2d12' : '#2e2350',
+                    }}
+                  >
+                    {won.prize.name}!
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
       <div ref={layer} className="pointer-events-none fixed inset-0 z-[4]" />

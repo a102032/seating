@@ -2582,3 +2582,19 @@ button {
 .quest-prize-in {
   animation: quest-prize-in 0.65s cubic-bezier(0.3, 1.2, 0.5, 1);
 }
+/* The prize card turning over to the class's GIF: both faces in one cell, the back turned away. */
+.quest-flip {
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0.1, 0.25, 1.15);
+}
+.quest-flipped {
+  transform: rotateY(180deg);
+}
+.quest-face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.quest-face-back {
+  transform: rotateY(180deg);
+}

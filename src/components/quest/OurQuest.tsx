@@ -133,15 +133,22 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
       const mountainW = u * 1.75
       const mountain = {
         name: 'landmark-mountain-cave.png',
-        x: megaCx,
-        y: stations[4].t - mountainW * 0.38,
+        // To the chest's left, so the dragon has room at its back foot, on the right.
+        x: megaCx - mountainW * 0.3,
+        // Raised a little, so the dragon can lie low at its foot and still clear the chest below.
+        y: stations[4].t - mountainW * 0.55,
         w: mountainW,
         h: mountainW * 0.75,
       }
       // One tree, one size, everywhere (2026-10-13, the teacher: mixed trees looked cluttered).
-      const pine = (x: number, y: number): D => ({ name: 'doodle-pine.svg', x, y, w: u * 0.4, h: u * 0.55 })
+      const pine = (x: number, y: number): D => ({ name: 'doodle-pine.svg', x, y, w: u * 0.56, h: u * 0.76 })
       // A dense forest is the same tree, three or four together, in one or two places.
-      const clump = (x: number, y: number): D[] => [pine(x - u * 0.3, y), pine(x + u * 0.05, y - u * 0.18), pine(x + u * 0.38, y + u * 0.02), pine(x + u * 0.05, y + u * 0.3)]
+      const clump = (x: number, y: number): D[] => [
+        pine(x - u * 0.42, y),
+        pine(x + u * 0.07, y - u * 0.25),
+        pine(x + u * 0.53, y + u * 0.03),
+        pine(x + u * 0.07, y + u * 0.42),
+      ]
       const want: D[] = [
         { name: 'landmark-castle.png', x: cx(start), y: yOf(start) - u * 0.15, w: u * 1.15, h: u * 1.1 },
         { name: 'doodle-grass.svg', x: cx(start) - u * 0.35, y: start.b + u * 0.45, w: u * 0.5, h: u * 0.36 },
@@ -176,15 +183,17 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
       place(mountain, true)
       const dragon = dragonRef.current
       if (dragon) {
-        const dw = mountainW * 0.95
+        // Asleep at the mountain's back foot, curled against its far slope, clear of the cave
+        // (the cave is the middle of its foot; 2026-10-13, the teacher).
+        const dw = mountainW * 0.8
         const dh = dw * (566 / 1122)
-        const l = Math.max(0, mBox.l - dw * 0.35)
-        const t = mBox.b - dh * 0.95
+        const l = Math.min(tb.width - dw, mBox.l + mountainW * 0.66)
+        const t = mBox.b - dh * 0.6
         dragon.style.width = `${dw}px`
         dragon.style.transform = `translate(${l.toFixed(1)}px, ${t.toFixed(1)}px)`
         taken.push({ l, t, r: l + dw, b: t + dh })
       }
-      place(pine(mBox.r + u * 0.1, mBox.b - u * 0.35))
+      place(pine(mBox.l - u * 0.3, mBox.b - u * 0.4))
 
       // The castle is the start: it stands there whatever is near it.
       for (const d of want) place(d, d.name === 'landmark-castle.png')
@@ -192,7 +201,19 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
       // The two dense forests: four trees together or none, nudged to the nearest open spot.
       // One on the way from the castle to Bronze, one below Gold.
       const placeClump = (x: number, y: number) => {
-        for (const [dx, dy] of [[0, 0], [0, -0.6], [0, 0.6], [-0.6, 0], [0.6, 0], [-0.6, -0.6], [0.6, 0.6], [-0.6, 0.6], [0.6, -0.6], [0, -1.2], [0, 1.2]]) {
+        for (const [dx, dy] of [
+          [0, 0],
+          [0, -0.6],
+          [0, 0.6],
+          [-0.6, 0],
+          [0.6, 0],
+          [-0.6, -0.6],
+          [0.6, 0.6],
+          [-0.6, 0.6],
+          [0.6, -0.6],
+          [0, -1.2],
+          [0, 1.2],
+        ]) {
           const ds = clump(x + dx * u, y + dy * u)
           const boxes = ds.map(at)
           if (boxes.some((b) => taken.some((o) => overlaps(o, b)))) continue
@@ -206,7 +227,7 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
       // Then single trees scattered evenly over the rest of the map, with a tuft of grass here and
       // there: a loose grid, every other cell, placed the same way every time (from the cell), so
       // the map doesn't change from one opening to the next.
-      const cell = u * 1.2
+      const cell = u * 1.45
       const cols = Math.ceil(tb.width / cell)
       const rows = Math.ceil((tb.height - top) / cell)
       for (let r = 0; r < rows; r++) {

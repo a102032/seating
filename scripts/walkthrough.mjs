@@ -578,9 +578,10 @@ const scenarios = {
     await page.waitForTimeout(3600)
     check('quest: the full chest opens with its wheel', (await page.locator('[data-chest-moment] [data-slice]').count()) === 8)
     await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(7600)
+    await page.waitForTimeout(9000)
     const dimmed = await page.locator('[data-chest-moment] [data-slice][opacity]').count()
     check('quest: the wheel lands, and only its slice turns over', dimmed === 7, `${dimmed} faded`)
+    check('quest: the prize fills the screen', (await page.locator('[data-chest-moment] [data-prize]').count()) === 1)
     c = await activeSaved(page)
     check(
       'quest: the prize is kept with the opened chest',
@@ -626,7 +627,7 @@ const scenarios = {
     )
     check('quest: the Mega wheel is all gold', gold === 8, `${gold} gold`)
     await p2.getByRole('button', { name: 'Spin!' }).click()
-    await p2.waitForTimeout(7600)
+    await p2.waitForTimeout(9000)
     await p2.mouse.click(10, 10)
     await p2.waitForTimeout(800)
     const q = (await activeSaved(p2)).quest

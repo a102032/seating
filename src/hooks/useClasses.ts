@@ -588,8 +588,15 @@ export function useClasses() {
     [updateClass],
   )
 
-  const setCelebrationGif = useCallback(
-    (classId: string, gifId: string) => updateClass(classId, (c) => ({ ...c, celebrationGifId: gifId })),
+  /** The class's favourite celebration GIFs, as chosen in Points. */
+  const setCelebrationGifs = useCallback(
+    (classId: string, gifIds: string[]) => updateClass(classId, (c) => ({ ...c, celebrationGifIds: gifIds, celebrationGifId: undefined })),
+    [updateClass],
+  )
+
+  /** The GIF a chest just played, so the next chest plays another. */
+  const noteCelebrationGif = useCallback(
+    (classId: string, gifId: string) => updateClass(classId, (c) => ({ ...c, celebrationGifLast: gifId })),
     [updateClass],
   )
 
@@ -764,7 +771,8 @@ export function useClasses() {
     setStudentPhotos,
     setChartPhotos,
     setGetReady,
-    setCelebrationGif,
+    setCelebrationGifs,
+    noteCelebrationGif,
     resetClassGoal,
     setClassPoints,
     addToClassGoal,

@@ -131,7 +131,7 @@ interface ClassSettingsModalProps {
   onSetPointsMode: (mode: PointsMode) => void
   onSetStarsOnDesks: (on: boolean) => void
   onSetGoal: (goal: number) => void
-  onSetCelebrationGif: (gifId: string) => void
+  onSetCelebrationGifs: (gifIds: string[]) => void
   /** The Quest's prize list, small, medium and big. */
   onSetPrizes: (prizes: QuestPrize[]) => void
   onSetClassPoints: (points: number) => void
@@ -271,7 +271,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onSetPointsMode={setPointsMode}
           onSetStarsOnDesks={props.onSetStarsOnDesks}
           onSetGoal={props.onSetGoal}
-          onSetCelebrationGif={props.onSetCelebrationGif}
+          onSetCelebrationGifs={props.onSetCelebrationGifs}
           onSetClassPoints={props.onSetClassPoints}
           onAskEmptyMeter={() => setConfirming('empty')}
           onAskClearStars={() => setConfirming('clear')}

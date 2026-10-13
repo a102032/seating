@@ -157,7 +157,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'points',
     targets: [g('celebration-row')],
-    text: 'Pick a celebration for when the class fills the chest.',
+    text: 'Pick your favourite GIFs. When a chest opens, one dances beside the prize.',
     when: goal,
     maybe: true,
   },

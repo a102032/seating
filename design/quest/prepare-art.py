@@ -4,13 +4,15 @@
     /tmp/qv/bin/python -I design/quest/prepare-art.py design/quest/flow <out folder>
 
 What it makes, and why each step is there (design/quest/STYLE.md has the story):
-- The dragon's poses and the knight, cut out of Flow's white and traced to SVG, so they stay sharp on a 4K board.
+- The dragon's poses, cut out of Flow's white and traced to SVG, so they stay sharp on a 4K board.
   The white is flooded in from the edges, and white the drawing encloses (under a wing, between legs) goes too.
   The cut is pulled in two pixels, or the JPEG's soft edge against white traces as a pale halo on the parchment.
   Each picture is flattened to a few exact colours first: traced as it comes, JPEG noise makes hundreds of shapes.
 - The guard pose has Flow's chest taken out (it is drawn with outlines and wood grain, unlike the app's), so the
   app's own chest goes under the paw.
 - The sleeping dragon came out with a green belly and yellow spikes; it is recoloured to match the other poses.
+- The knight on the trail is no longer Flow's: the teacher chose his own cute knight (public/quest/knight.svg), and the
+  map's pond, pine and grass are his own line drawings too (public/quest/doodle-*.svg); the app draws them in ink.
 - The landmarks are line art: the darker the ink, the more solid, so they sit on the parchment in the map's own ink.
 """
 import sys
@@ -108,8 +110,7 @@ def nearest(cent, colour):
 
 for name, file in [('dragon-guard', 'dragon-guard-chest.jpg'), ('dragon-holding-key', 'dragon-holding-key.jpg'),
                    ('dragon-palm-up', 'dragon-palm-up.jpg'),
-                   ('dragon-out-of-puff', 'dragon-out-of-puff.jpg'), ('dragon-asleep', 'dragon-asleep.jpg'),
-                   ('knight', 'knight.webp')]:
+                   ('dragon-out-of-puff', 'dragon-out-of-puff.jpg'), ('dragon-asleep', 'dragon-asleep.jpg')]:
     im = Image.open(SRC / file).convert('RGB')
     a = np.asarray(im).astype(int)
     keep = cutout(a)
