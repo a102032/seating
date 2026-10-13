@@ -171,6 +171,13 @@ await measure('the knight walks after a star', async () => {
   await page.locator('aside button[title="Award Point"]').click()
   await wait(3300)
 })
+// Our Quest open: the knight's walk, then the dragon breathing, the chimney, the flags and a gust.
+await measure('our quest: open, a gust passes', async () => {
+  await page.locator('button[aria-label="Our Quest"]').click()
+  await wait(7000)
+})
+await page.mouse.click(700, 300)
+await wait(800)
 await measure('pick student', async () => {
   await page.getByRole('button', { name: 'Pick a Random Student' }).click()
   await wait(3500)

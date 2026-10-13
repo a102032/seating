@@ -58,6 +58,18 @@ const ROW = ['low', 'high', 'low', 'high', 'mega'] as const
 /** The map's ink: the doodles are drawn in it, faint, so the coloured things on the map are the chests, the knight and the dragon. */
 const INK = '#8a5a2b'
 
+/**
+ * The map comes alive a little while it is open (2026-10-13, the teacher): the dragon breathes and
+ * snores, a gust now and then sways the trees and the reeds, the cottage's chimney smokes and the
+ * castle's flags wave. All CSS (index.css, the q- classes), gentle and slow, and only while the map
+ * is open; nothing moves with reduced motion on. A gust comes every 14 seconds, the first a few
+ * seconds after the map opens, once the knight has walked.
+ */
+const GUST_START = 4
+const GUST_CROSS = 2.4
+/** A castle flag, its pole's pennant, in the map's ink. */
+const FLAG = `<svg viewBox="0 0 38 21" width="100%" height="100%"><path d="M2 3 C 12 1, 20 6, 35 9 C 22 11, 13 16, 2 18" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg>`
+
 type Box = { l: number; t: number; r: number; b: number }
 const overlaps = (a: Box, b: Box) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b
 
@@ -223,7 +235,7 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
       const silverGold = point(3, 0.5)
       const goldMega = point(4, 0.5)
       const cx = (b: Box) => (b.l + b.r) / 2
-      type D = { name: string; x: number; y: number; w: number; h: number; ink?: boolean }
+      type D = { name: string; x: number; y: number; w: number; h: number; ink?: boolean; life?: 'sway' | 'reeds' }
       const mountainW = u * 1.75
       const mountain = {
         name: 'landmark-mountain-cave.png',
@@ -235,7 +247,7 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         h: mountainW * 0.75,
       }
       // One tree, one size, everywhere (2026-10-13, the teacher: mixed trees looked cluttered).
-      const pine = (x: number, y: number): D => ({ name: 'doodle-pine.svg', x, y, w: u * 0.56, h: u * 0.76 })
+      const pine = (x: number, y: number): D => ({ name: 'doodle-pine.svg', x, y, w: u * 0.56, h: u * 0.76, life: 'sway' })
       // A dense forest is the same tree, three or four together, in one or two places.
       const clump = (x: number, y: number): D[] => [
         pine(x - u * 0.42, y),
@@ -244,15 +256,15 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         pine(x + u * 0.07, y + u * 0.42),
       ]
       const want: D[] = [
-        { name: 'landmark-castle.png', x: cx(start), y: yOf(start) - u * 0.15, w: u * 1.15, h: u * 1.1 },
+        { name: 'landmark-castle-still.png', x: cx(start), y: yOf(start) - u * 0.15, w: u * 1.15, h: u * 1.1 },
         { name: 'doodle-grass.svg', x: cx(start) - u * 0.35, y: start.b + u * 0.45, w: u * 0.5, h: u * 0.36 },
         { name: 'doodle-grass.svg', x: cx(start) + u * 0.35, y: start.b + u * 0.55, w: u * 0.4, h: u * 0.3 },
-        { name: 'doodle-pond.svg', x: cx(stations[1]), y: stations[1].b + u * 0.75, w: u * 1.15, h: u * 0.78 },
-        { name: 'doodle-house.svg', x: cx(stations[2]) + u * 0.1, y: stations[2].t - u * 0.5, w: u * 0.85, h: u * 0.85 },
+        { name: 'doodle-pond.svg', x: cx(stations[1]), y: stations[1].b + u * 0.75, w: u * 1.15, h: u * 0.78, life: 'reeds' },
+        { name: 'doodle-house-plain.svg', x: cx(stations[2]) + u * 0.1, y: stations[2].t - u * 0.5, w: u * 0.85, h: u * 0.85 },
         { name: 'doodle-crossroads.svg', x: bronzeSilver.x, y: bronzeSilver.y - u * 0.55, w: u * 0.8, h: u * 0.85 },
         { name: 'landmark-bridge.png', x: silverGold.x, y: silverGold.y + u * 0.1, w: u * 1.05, h: u * 0.62 },
-        { name: 'doodle-apple.svg', x: cx(stations[3]) - u * 1.1, y: stations[3].t - u * 0.35, w: u * 0.62, h: u * 0.66 },
-        { name: 'doodle-apple.svg', x: cx(stations[3]) - u * 0.5, y: stations[3].t - u * 0.55, w: u * 0.62, h: u * 0.66 },
+        { name: 'doodle-apple.svg', x: cx(stations[3]) - u * 1.1, y: stations[3].t - u * 0.35, w: u * 0.62, h: u * 0.66, life: 'sway' },
+        { name: 'doodle-apple.svg', x: cx(stations[3]) - u * 0.5, y: stations[3].t - u * 0.55, w: u * 0.62, h: u * 0.66, life: 'sway' },
       ]
       const taken: Box[] = [...stations, ...(knightBox ? [knightBox] : [])]
       const head = box.parentElement?.querySelector('[data-quest-head]')?.getBoundingClientRect()
@@ -268,9 +280,20 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         const b = at(d)
         if (!force && taken.some((o) => overlaps(o, b))) return false
         taken.push(b)
+        // A tree or the reeds sway as a gust passes, the right of the map first, as the wind blows
+        // from the right (the gust's wisps cross the map in GUST_CROSS seconds).
+        const life = d.life
+          ? ` class="q-${d.life}" style="animation-delay:${(GUST_START + (1 - (b.l + d.w / 2) / tb.width) * GUST_CROSS).toFixed(2)}s;`
+          : ' style="'
         placed.push(
-          `<span style="position:absolute;left:${b.l.toFixed(1)}px;top:${b.t.toFixed(1)}px;width:${d.w.toFixed(1)}px;height:${d.h.toFixed(1)}px;background:${INK};-webkit-mask:url('${art(d.name)}') center/contain no-repeat;mask:url('${art(d.name)}') center/contain no-repeat"></span>`,
+          `<span${life}position:absolute;left:${b.l.toFixed(1)}px;top:${b.t.toFixed(1)}px;width:${d.w.toFixed(1)}px;height:${d.h.toFixed(1)}px;background:${INK};-webkit-mask:url('${art(d.name)}') center/contain no-repeat;mask:url('${art(d.name)}') center/contain no-repeat"></span>`,
         )
+        // The cottage's chimney smokes: three puffs rising and fading, one after another.
+        if (d.name === 'doodle-house-plain.svg')
+          for (let i = 0; i < 3; i++)
+            placed.push(
+              `<span class="q-smoke" style="left:${(b.l + d.w * 0.7).toFixed(1)}px;top:${(b.t + d.h * 0.2).toFixed(1)}px;width:${(u * 0.14).toFixed(1)}px;height:${(u * 0.14).toFixed(1)}px;animation-delay:${(i * 1.4).toFixed(1)}s"></span>`,
+            )
         return true
       }
 
@@ -289,11 +312,31 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         dragon.style.width = `${dw}px`
         dragon.style.transform = `translate(${l.toFixed(1)}px, ${t.toFixed(1)}px)`
         taken.push({ l, t, r: l + dw, b: t + dh })
+        // Asleep: a zzz rising from its head now and then, and a puff of smoke from its nose once in
+        // a while (it breathes in its own CSS, .our-quest-dragon). Its head is at the picture's left.
+        for (let i = 0; i < 3; i++)
+          placed.push(
+            `<span class="q-zzz" style="left:${(l + dw * 0.14).toFixed(1)}px;top:${(t + dh * 0.12).toFixed(1)}px;font-size:${(dh * (0.26 + i * 0.07)).toFixed(1)}px;animation-delay:${(i * 0.9).toFixed(1)}s">z</span>`,
+          )
+        placed.push(
+          `<span class="q-snort" style="left:${(l - dh * 0.12).toFixed(1)}px;top:${(t + dh * 0.5).toFixed(1)}px;width:${(dh * 0.22).toFixed(1)}px;height:${(dh * 0.22).toFixed(1)}px"></span>`,
+        )
       }
       place(pine(mBox.l - u * 0.3, mBox.b - u * 0.4))
 
-      // The castle is the start: it stands there whatever is near it, its wall beside it.
+      // The castle is the start: it stands there whatever is near it. Its flags wave, drawn in code on
+      // its towers' poles (the picture's own flags are taken out of landmark-castle-still.png).
       place(want[0], true)
+      {
+        const c = at(want[0])
+        const s = Math.min(want[0].w / 276, want[0].h / 261)
+        const ox = c.l + (want[0].w - 276 * s) / 2
+        const oy = c.t + (want[0].h - 261 * s) / 2
+        for (const fx of [39, 239])
+          placed.push(
+            `<span class="q-flag" style="left:${(ox + fx * s).toFixed(1)}px;top:${(oy + 1 * s).toFixed(1)}px;width:${(38 * s).toFixed(1)}px;height:${(21 * s).toFixed(1)}px;animation-delay:${fx === 39 ? 0 : -0.7}s">${FLAG}</span>`,
+          )
+      }
       // A landmark that has no room where it would go first tries the next place on its list.
       const placeOne = (name: string, w: number, h: number, spots: { x: number; y: number }[]) =>
         spots.some((p) => place({ name, x: p.x, y: p.y, w, h }))
@@ -351,6 +394,14 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
           place(seed < 0.7 ? pine(x, y) : { name: 'doodle-grass.svg', x, y, w: u * 0.42, h: u * 0.3 })
         }
       }
+      // Now and then a gust: wisps of wind blowing across the map from the right, as the trees sway.
+      for (const [y, d] of [
+        [0.3, 0],
+        [0.62, 0.5],
+      ])
+        placed.push(
+          `<svg class="q-wisp" viewBox="0 0 120 24" style="top:${(tb.height * y).toFixed(1)}px;width:${(u * 1.6).toFixed(1)}px;--from:${(tb.width + 10).toFixed(0)}px;--to:${(-u * 1.8).toFixed(0)}px;animation-delay:${(GUST_START + d).toFixed(1)}s"><path d="M4 12 C 30 4, 58 20, 88 10 C 102 5, 112 12, 105 17 C 99 21, 92 15, 97 11 M24 19 C 38 15, 50 21, 64 18" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/></svg>`,
+        )
       if (doodles.current) doodles.current.innerHTML = placed.join('')
     }
     draw()
