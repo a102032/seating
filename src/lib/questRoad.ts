@@ -1,12 +1,11 @@
 /**
  * The goal bar as a strip of the quest's map (2026-10-13, the teacher's idea, from the shoebox
  * scrolls he and his brother made as children: a long drawn scene wound past a cut-out character).
- * The whole bar is parchment; the knight walks along it as stars come in, and the land slides the
- * other way, so the class sees itself travelling. Each key is one stretch of road; a key won rolls
- * the land on to the next stretch.
- *
- * Three speeds (the teacher's): the knight walks slowly across the bar, the land (every doodle)
- * slides back at 45% of his walk, and the trail under his feet at 15%.
+ * The whole bar is parchment, and each key is one stretch of road across it. **The land and the
+ * trail stay still while the knight walks** along the trail as stars come in; when he reaches the
+ * key, the knight, the trail and the land all slide back to the start together, like the scroll's
+ * rolls turning, revealing the next stretch (2026-10-13, the teacher: everything moving at once,
+ * at three speeds, was too much; it was tried that way first).
  *
  * What the road passes is the map's, in the map's order, each landmark once (the teacher: don't
  * overuse any one doodle): the castle where the quest starts, a wood and the pond on the way to
@@ -16,9 +15,13 @@
  * tree. An adventure after Knight and Dragon is a new list here and new pictures, not new code.
  */
 
-/** How far the land and the trail slide for the knight's whole walk across one stretch. */
-export const LAND_SPEED = 0.45
-export const TRAIL_SPEED = 0.15
+/**
+ * How far the land and the trail slide back while the knight walks one stretch, as a share of his
+ * walk: none, so the world stays still under him (the teacher's call). Kept as numbers so a slide
+ * can be tried again by changing them.
+ */
+export const LAND_SPEED = 0
+export const TRAIL_SPEED = 0
 
 /** Where the trail runs, from the bar's top: low in the 56px bar, so the doodles stand above it. */
 export function trailY(x: number) {

@@ -42,8 +42,15 @@ function writeSeen(classId: string, quest: number, at: number) {
     // A board that can't keep it replays from the start next time; nothing else depends on it.
   }
 }
-/** The knight's walk since the map was last open: quick when it is short, never more than a few seconds. */
-const replayMs = (distance: number) => Math.min(3000, Math.max(1200, distance * 1800))
+/** The knight's height, in chests: small beside the sleeping dragon (2026-10-13, the teacher: he was a tad too big). */
+const KNIGHT = 0.9
+/** The share of each chest's stretch, on the replay, that is the walk past the chest to the next stretch. */
+const PAST = 0.15
+/** Where the class is on the replay's route: the chest it is on and how far along that stretch. */
+const routeAt = (chest: number, t: number) => chest + (chest < CHESTS.length - 1 ? t * (1 - PAST) : t)
+
+/** The knight's walking pace on the replay, in the map's pixels a second. */
+const PACE = 320
 
 /** Low, high, low, high, and the Mega chest in the middle at the end. */
 const ROW = ['low', 'high', 'low', 'high', 'mega'] as const
@@ -84,7 +91,7 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
   const dragonRef = useRef<HTMLImageElement>(null)
   const doodles = useRef<HTMLDivElement>(null)
   /** Puts the knight on the trail at a place in chests, once the map is drawn (for the replay). */
-  const placeKnight = useRef<((at: number) => void) | null>(null)
+  const placeKnight = useRef<{ distance: (at: number) => number; place: (d: number) => void } | null>(null)
   const replaying = useRef(false)
 
   // Drawn from where the chests really are, so again whenever the map changes size.
@@ -123,7 +130,7 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
       let knightBox: Box | null = null
       const seg = svg.querySelectorAll('path')[now.chest] as SVGPathElement | undefined
       if (k && seg) {
-        const h = u * 1.25
+        const h = u * KNIGHT
         const w = h
         k.style.height = `${h}px`
         const len = seg.getTotalLength()
@@ -143,20 +150,58 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
           svg.insertAdjacentHTML('beforeend', dot(`M${pts.join(' L')}`, '#7a4a1f'))
         }
       }
-      // For the replay: the knight anywhere along the whole trail, a place in chests (a whole
-      // number is at a chest, reached from the segment before it).
-      placeKnight.current = (v: number) => {
+      // For the replay: the knight anywhere along the whole trail (`routeAt`). Each chest's
+      // stretch ends with a short walk straight past the chest to the next stretch's start, so he
+      // walks by a chest rather than jumping from one side of it to the other, at one pace all the
+      // way (2026-10-13, the teacher).
+      placeKnight.current = (() => {
         const paths = svg.querySelectorAll('path')
-        const i = Math.max(0, Math.min(CHESTS.length - 1, Math.ceil(v) - 1))
-        const f = Math.max(0, Math.min(1, v - i))
-        const sp = paths[i] as SVGPathElement | undefined
-        if (!k || !sp) return
-        const h = u * 1.25
-        const len = sp.getTotalLength()
-        const lo = Math.min(0.45, h / 2 / Math.max(1, len))
-        const q = sp.getPointAtLength(len * (lo + f * (1 - 2 * lo)))
-        k.style.transform = `translate(${(q.x - h / 2).toFixed(1)}px, ${(q.y - h * 0.9).toFixed(1)}px)`
-      }
+        const h = u * KNIGHT
+        const on = (i: number, f: number) => {
+          const sp = paths[i] as SVGPathElement | undefined
+          if (!sp) return null
+          const len = sp.getTotalLength()
+          const lo = Math.min(0.45, h / 2 / Math.max(1, len))
+          return sp.getPointAtLength(len * (lo + f * (1 - 2 * lo)))
+        }
+        // The route as distances, so he walks at one pace along the trail and past each chest.
+        const parts: { len: number; at: (f: number) => { x: number; y: number } | null }[] = []
+        for (let i = 0; i < CHESTS.length; i++) {
+          const sp = paths[i] as SVGPathElement | undefined
+          const len = sp ? sp.getTotalLength() : 0
+          const lo = Math.min(0.45, h / 2 / Math.max(1, len))
+          parts.push({ len: len * (1 - 2 * lo), at: (f) => on(i, f) })
+          if (i < CHESTS.length - 1) {
+            const a = on(i, 1)
+            const b = on(i + 1, 0)
+            parts.push({
+              len: a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0,
+              at: (f) => (a && b ? { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f } : null),
+            })
+          }
+        }
+        /** How far along the route a place is: the chest's stretch, then the walk past it. */
+        const distance = (v: number) => {
+          const i = Math.max(0, Math.min(CHESTS.length - 1, Math.floor(v)))
+          const x = Math.max(0, Math.min(1, v - i))
+          let d = 0
+          for (let j = 0; j < i * 2; j++) d += parts[j].len
+          if (i === CHESTS.length - 1) return d + x * parts[i * 2].len
+          if (x <= 1 - PAST) return d + (x / (1 - PAST)) * parts[i * 2].len
+          return d + parts[i * 2].len + ((x - (1 - PAST)) / PAST) * parts[i * 2 + 1].len
+        }
+        const place = (d: number) => {
+          for (const part of parts) {
+            if (d <= part.len || part === parts[parts.length - 1]) {
+              const q = part.at(part.len ? Math.min(1, d / part.len) : 1)
+              if (k && q) k.style.transform = `translate(${(q.x - h / 2).toFixed(1)}px, ${(q.y - h * 0.9).toFixed(1)}px)`
+              return
+            }
+            d -= part.len
+          }
+        }
+        return { distance, place }
+      })()
 
       // The doodles, placed like a map and in the goal bar's order: the castle and its wall where
       // the quest starts, a dense forest between Wood and Bronze, a pond at its edge, a cottage over
@@ -323,16 +368,20 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
     return seen && seen.quest === quest.number ? seen.at : 0
   })
   useEffect(() => {
-    const to = now.chest + t
+    const to = routeAt(now.chest, t)
     const from = Math.min(seenFrom, to)
     writeSeen(classId, quest.number, to)
     if (to - from < 0.02 || !placeKnight.current || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-    const ms = replayMs(to - from)
+    const route = placeKnight.current
+    const d0 = route.distance(from)
+    const d1 = route.distance(to)
+    // An even walking pace, as on the goal bar: a short walk takes a second or so, a long one a few.
+    const ms = Math.min(4500, Math.max(1200, ((d1 - d0) / PACE) * 1000))
     const start = performance.now() + 450 // once the map has slid in
     let raf = 0
     let steps: ReturnType<typeof setInterval> | undefined
     replaying.current = true
-    placeKnight.current(from)
+    route.place(d0)
     const frame = (now: number) => {
       const x = Math.min(1, Math.max(0, (now - start) / ms))
       if (x > 0 && !steps) {
@@ -340,7 +389,7 @@ export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClo
         steps = setInterval(playFootstep, 420)
       }
       const e = x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2
-      placeKnight.current?.(from + (to - from) * e)
+      route.place(d0 + (d1 - d0) * e)
       if (x < 1) raf = requestAnimationFrame(frame)
       else {
         clearInterval(steps)

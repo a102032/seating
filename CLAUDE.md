@@ -132,7 +132,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `ui/`: shadcn primitives.
 - The Quest (the class goal's keys, five chests and the prize wheel; DECISIONS, "The Quest"): `lib/quest.ts` (keys, chests,
   the odds, the prizes, `buildWheel`), `lib/questArt.ts` (the chests, key and wheel drawn in code as SVG text), `lib/questRoad.ts`
-  (what the goal bar's road passes, and its three speeds), and `components/quest/`: `QuestRoad.tsx` (the bar's parchment, land
+  (what the goal bar's road passes, and how it moves), and `components/quest/`: `QuestRoad.tsx` (the bar's parchment, land
   and trail), `KeyMoment.tsx`, `ChestQuestion.tsx` (a full chest asking), `ChestMoment.tsx` (the chest opening and the wheel),
   `OurQuest.tsx` (the map, and the knight's walk since it was last seen) and `QuestPictures.tsx`. The knight, the sleeping dragon and the landmarks are in `public/quest/`, made by `design/quest/prepare-art.py`.
 - `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it

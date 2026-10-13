@@ -55,8 +55,9 @@ const treasure = (name: string) => assetUrl(`/treasure/${name}.svg`)
 /**
  * The class goal, as a strip of the quest's map (2026-10-13, the teacher's design; lib/questRoad).
  * The knight is the class: each star walks him on toward the key at the bar's end, slowly, with
- * soft footsteps, while the land slides the other way. The key won goes into the chest past it by
- * itself, and the land rolls on to the next stretch with a new key ahead. A tap on the map at the
+ * soft footsteps, along a trail that stays still under him. The key won goes into the chest past it
+ * by itself, and he, the trail and the land slide back to the start together, with the next stretch
+ * and a new key ahead. A tap on the map at the
  * bar's start opens Our Quest; a tap on the chest opens the goal's settings, or the chest itself
  * once every lock is gold.
  *
@@ -83,7 +84,15 @@ export function PointsMeter({
   // 'arriving' is the knight walking up to the key; 'key' the key moment; 'rolling' the land
   // going on to the next stretch.
   const [phase, setPhase] = useState<'idle' | 'arriving' | 'key' | 'rolling'>('idle')
-  const [keysWon, setKeysWon] = useState(1)
+  /**
+   * The goals filled that the bar shows: it catches up with goalsReached only as each key lands
+   * (or straight away, for one won in the floating window). Until then the knight stays on the
+   * stretch he is on and the lock stays empty, even though the class's data already has the key -
+   * reading the new count while the last star was still in the air jumped the land a stretch
+   * ahead, then back, then rolled it on (2026-10-13, the teacher).
+   */
+  const [shownReached, setShownReached] = useState(goalsReached)
+  const latestReached = useRef(goalsReached)
   /** Bumped as a key lands, so the chest gives its click and wiggle. */
   const [clicks, setClicks] = useState(0)
   const [motion, setMotion] = useState<RoadMotion>('none')
@@ -97,6 +106,7 @@ export function PointsMeter({
     holdRef.current = holdKeyMoment
     phaseRef.current = phase
     latestPoints.current = classPoints
+    latestReached.current = goalsReached
     settledRef.current = onSettled
   })
   // Normally mirrors classPoints, but holds at full through the key moment so the knight stays at
@@ -147,6 +157,7 @@ export function PointsMeter({
       timers.current.forEach(clearTimeout)
       timers.current = []
       setDisplayPoints(classPoints)
+      setShownReached(goalsReached)
       setPhase('idle')
       setMotion('none')
       return
@@ -168,7 +179,6 @@ export function PointsMeter({
     // A key is already on its way: the knight stays at the key until it is in, and what landed
     // meanwhile is picked up then. A second goal filled meanwhile is one more key in the same moment.
     if (phaseRef.current === 'arriving' || phaseRef.current === 'key') {
-      if (goalsReached > prev.reached) setKeysWon((n) => n + goalsReached - prev.reached)
       if (classPoints > prev.value || goalsReached > prev.reached) sound()
       return
     }
@@ -182,13 +192,13 @@ export function PointsMeter({
         // simply gold, and the land rolls on.
         setClicks((n) => n + 1)
         setDisplayPoints(classPoints)
+        setShownReached(goalsReached)
         setPhase('rolling')
-        walk(ROLL_MS, 'roll', true)
+        setMotion('roll')
         later(ROLL_MS, settle)
         return
       }
       // The knight walks up to the key, and then it is his.
-      setKeysWon(goalsReached - prev.reached)
       setDisplayPoints(goal)
       setPhase('arriving')
       walk(WALK_MS, 'move', silent)
@@ -215,7 +225,9 @@ export function PointsMeter({
     setClicks((n) => n + 1)
     setPhase('rolling')
     setDisplayPoints(latestPoints.current)
-    walk(ROLL_MS, 'roll')
+    setShownReached(latestReached.current)
+    // He is carried back with the land, not walking: the knight, the trail and the land slide together.
+    setMotion('roll')
     later(ROLL_MS, settle)
   }
 
@@ -264,9 +276,12 @@ export function PointsMeter({
   const waiting = phase === 'arriving' || phase === 'key'
   const p = goal > 0 ? Math.min(1, Math.max(0, displayPoints / goal)) : 0
   // While the key is on its way its lock isn't gold yet, and the knight is still on its stretch.
-  const have = waiting ? Math.max(0, chest.have - keysWon) : chest.have
-  const k = Math.max(0, questKeys - (waiting ? keysWon : 0))
-  const ready = phase === 'idle' && chest.ready
+  // Keys won that haven't gone into the chest on the bar yet: their locks aren't gold, and the
+  // knight is still on their stretch.
+  const pending = Math.max(0, goalsReached - shownReached)
+  const have = Math.max(0, chest.have - pending)
+  const k = Math.max(0, questKeys - pending)
+  const ready = phase === 'idle' && pending === 0 && chest.ready
   const near = p >= NEAR_FROM && !waiting
   const tier = CHESTS[chest.chest]
   const knightX = geo ? geo.x0 + p * (geo.x1 - geo.x0) - 18 : 0
@@ -355,7 +370,7 @@ export function PointsMeter({
         </div>
       )}
 
-      {keyMoment && <KeyMoment count={keysWon} target={() => chestRef.current} onLanded={keyLanded} />}
+      {keyMoment && <KeyMoment count={Math.max(1, pending)} target={() => chestRef.current} onLanded={keyLanded} />}
     </div>
   )
 }

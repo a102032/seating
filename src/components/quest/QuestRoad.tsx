@@ -24,7 +24,8 @@ const INK = '#8a5a2b'
 
 /**
  * The goal bar's parchment and everything drawn on it (lib/questRoad): the land and the trail,
- * each a layer slid by a transform at its own speed, and the way walked in dark ink, cut off at the
+ * each a layer slid by a transform (still while the knight walks, together when a key rolls the
+ * road on), and the way walked in dark ink, cut off at the
  * knight by two opposite transforms rather than a width, so the graphics chip moves all of it and
  * nothing is measured again. Only the stretches either side of the one the class is on are drawn.
  */
