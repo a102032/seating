@@ -165,6 +165,12 @@ await measure('give +1 three times', async () => {
     }
   }
 })
+// The knight's walk along the goal bar after a star, with the land and the trail sliding by.
+await measure('the knight walks after a star', async () => {
+  await desk('Tony').click()
+  await page.locator('aside button[title="Award Point"]').click()
+  await wait(3300)
+})
 await measure('pick student', async () => {
   await page.getByRole('button', { name: 'Pick a Random Student' }).click()
   await wait(3500)
@@ -248,7 +254,7 @@ await measure('timer running, in the bar', async () => {
   await page.locator('[data-timer-card] button[aria-label="Put the timer away"]').click()
   await wait(3000)
 })
-// The Quest: a goal filled wins a key, tapped into the chest; the full Wood chest opens and its wheel spins.
+// The Quest: a goal filled wins a key, which goes into the chest by itself; the full Wood chest asks, opens and its wheel spins.
 await page
   .locator('[data-timer-card] button[aria-label="Turn the timer off"]')
   .click()
@@ -257,15 +263,14 @@ await page.evaluate(() => sessionStorage.setItem('quest-patch', '1'))
 await page.reload()
 if (extraCss) await page.addStyleTag({ content: extraCss })
 await wait(1500)
-await measure('quest: a key won and tapped in', async () => {
+await measure('quest: a key won, and the land rolls on', async () => {
   await page.locator('[data-ink="desk"]').first().click()
   await page.locator('aside button[aria-label="Award Point"]').click()
-  await wait(2500)
-  await page.mouse.click(700, 400)
-  await wait(1800)
+  // The star, the knight's walk up to the key, the key's two seconds and flight, the roll.
+  await wait(10500)
 })
 await measure('quest: the chest opens', async () => {
-  await page.locator('[data-quest-chest]').click()
+  await page.getByRole('button', { name: 'Open it now' }).click()
   await wait(3600)
 })
 await measure('quest: the wheel spins', async () => {

@@ -555,28 +555,51 @@ const scenarios = {
   },
 
   /**
-   * The Quest (DECISIONS, "Treasure Quest"): a filled goal wins a key that waits for a tap and
-   * flies into the chest; the chest opens on a tap once every lock is gold; the wheel lands on a
-   * prize, which is kept; the Mega chest starts a new quest; and Our Quest opens from the chest.
+   * The Quest (DECISIONS, "Treasure Quest"): the goal bar is a strip of the quest's map, the knight
+   * walking it as stars land; a filled goal wins a key that goes into the chest by itself, and the
+   * land rolls on; a full chest asks to be opened (Later leaves it rattling, a tap opens it); the
+   * wheel lands on a prize, which is kept; the map opens Our Quest and the chest the goal's
+   * settings; and the Mega chest starts a new quest.
    */
   async 'the quest'() {
     const cls = makeClass('c1', 'Quest', 5, { pointsGoal: 5, classPoints: 0, pointsMode: 'goal' })
     const page = await open({ state: stateOf(cls) })
+    check(
+      'quest: the goal bar is the map, with the knight on it',
+      (await page.locator('[data-quest-road] [data-quest-knight]').count()) === 1,
+    )
+    const knightX = () => page.locator('[data-quest-knight]').evaluate((e) => e.getBoundingClientRect().left)
+    const x0 = await knightX()
     await panelButton(page, 'Pick All').click()
     await award(page)
+    // The stars land, then the knight walks up to the key.
     await page.waitForTimeout(1500)
-    check('quest: a full goal brings up the key', (await page.locator('[data-key-moment]').count()) === 1)
+    check('quest: the knight walks as the stars land', (await knightX()) > x0 + 20, `${x0} -> ${await knightX()}`)
     let c = await activeSaved(page)
     check('quest: the key is saved as the goal fills', c.quest?.keys === 1, JSON.stringify(c.quest))
-    await page.mouse.click(640, 400)
-    await page.waitForTimeout(1800)
-    check('quest: a tap sends the key into the chest', (await page.locator('[data-key-moment]').count()) === 0)
+    await page.waitForTimeout(2500)
+    check('quest: the knight reaches the key, and it comes up', (await page.locator('[data-key-moment]').count()) === 1)
+    // No tap: the key goes into the chest by itself, and the land rolls on.
+    await page.waitForTimeout(3200)
+    check('quest: the key goes into the chest by itself', (await page.locator('[data-key-moment]').count()) === 0)
     check('quest: the meter starts the next run', (await meterText(page)).trim() === '0 / 5', await meterText(page))
+    await page.waitForTimeout(3600)
+    check('quest: the knight is back at the start of the road', Math.abs((await knightX()) - x0) < 4, `${x0} vs ${await knightX()}`)
 
-    // The Wood chest needs one key: a tap opens it.
+    // The Wood chest needs one key: full, it asks.
+    check('quest: a full chest asks to be opened', (await page.locator('[data-chest-question]').count()) === 1)
+    await page.screenshot({ path: `${SHOTS}/quest-chest-question.png` })
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Later' }).click()
+    await page.waitForTimeout(400)
+    check(
+      'quest: Later leaves it rattling on the bar',
+      (await page.locator('[data-chest-question]').count()) === 0 &&
+        (await page.locator('[data-quest-chest].meter-chest-rattle').count()) === 1,
+    )
     await page.locator('[data-quest-chest]').click()
     await page.waitForTimeout(3600)
-    check('quest: the full chest opens with its wheel', (await page.locator('[data-chest-moment] [data-slice]').count()) === 8)
+    check('quest: a tap opens the full chest, with its wheel', (await page.locator('[data-chest-moment] [data-slice]').count()) === 8)
     await page.getByRole('button', { name: 'Spin!' }).click()
     await page.waitForTimeout(9000)
     const dimmed = await page.locator('[data-chest-moment] [data-slice][opacity]').count()
@@ -592,18 +615,40 @@ const scenarios = {
     await page.waitForTimeout(800)
     check('quest: a tap closes the chest', (await page.locator('[data-chest-moment]').count()) === 0)
 
-    // Not full: the chest opens Our Quest, which a tap closes.
-    await page.locator('[data-quest-chest]').click()
+    // The map at the bar's start opens Our Quest, which a tap closes.
+    await page.locator('button[aria-label="Our Quest"]').click()
     await page.waitForTimeout(900)
     const map = await page.evaluate(() => {
       const m = document.querySelector('[data-our-quest]')
       return m && { stations: m.querySelectorAll('[data-quest-station]').length, over: m.scrollHeight - m.clientHeight }
     })
-    check('quest: Our Quest shows five chests, and fits', map?.stations === 5 && map.over <= 0, JSON.stringify(map))
+    check('quest: the map opens Our Quest, five chests, and it fits', map?.stations === 5 && map.over <= 0, JSON.stringify(map))
     await page.mouse.click(640, 300)
     await page.waitForTimeout(500)
     check('quest: a tap closes Our Quest', (await page.locator('[data-our-quest]').count()) === 0)
+
+    // Not full, the chest opens the goal's settings.
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(700)
+    check("quest: the chest opens the goal's settings", (await page.getByText('Prizes', { exact: true }).count()) >= 1)
     await page.context().close()
+
+    // A chest put off for later asks again the next time the class is opened.
+    const full = makeClass('c3', 'Full', 5, {
+      pointsGoal: 5,
+      pointsMode: 'goal',
+      quest: {
+        number: 1,
+        keys: 3,
+        opened: [{ prize: { id: 'p0', name: 'Game time', size: 's' }, on: '2026-10-01' }],
+        keyDays: [],
+        startedOn: '2026-09-01',
+      },
+    })
+    const p3 = await open({ state: stateOf(full) })
+    await p3.waitForTimeout(900)
+    check('quest: opening a class with a full chest asks', (await p3.locator('[data-chest-question]').count()) === 1)
+    await p3.context().close()
 
     // The Mega chest, opened, starts quest 2 with the keys left over.
     const mega = makeClass('c2', 'Mega', 5, {
@@ -618,7 +663,8 @@ const scenarios = {
       },
     })
     const p2 = await open({ state: stateOf(mega) })
-    await p2.locator('[data-quest-chest]').click()
+    await p2.waitForTimeout(900)
+    await p2.getByRole('button', { name: 'Open it now' }).click()
     await p2.waitForTimeout(3600)
     const gold = await p2.evaluate(
       () =>
@@ -645,10 +691,8 @@ const scenarios = {
     const page = await open({ state: stateOf(cls) })
     await panelButton(page, 'Pick All').click()
     await award(page)
-    // The key moment, past its guard against the board's second touch; then the key's flight home.
-    await page.waitForTimeout(2200)
-    await page.mouse.click(640, 400)
-    await page.waitForTimeout(2500)
+    // The knight's walk to the key, the key moment, the key's flight home, and the land rolling on.
+    await page.waitForTimeout(11000)
     const c = await activeSaved(page)
     const shown = (await meterText(page)).trim()
     check(
@@ -2580,8 +2624,8 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      'tour: 76 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 76 && bad === 0,
+      'tour: 81 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 81 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
@@ -2604,7 +2648,8 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    for (let i = 0; i < 18; i++) await page.locator('[data-tour-action="next"]').click()
+    // Through the board's 20 stops, to the card before Flip Cards.
+    for (let i = 0; i < 20; i++) await page.locator('[data-tour-action="next"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
     await page.locator('button[aria-label="Class Settings"]').click()

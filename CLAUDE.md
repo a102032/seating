@@ -14,7 +14,8 @@ that were built and deliberately taken out. It is imported at the bottom of this
 - They use it by touch at a smartboard, so avoid anything that needs typing, double-tapping, dragging or hovering.
   Smart boards often read one touch as two.
 - **Nothing happens on a timer.** Cards don't flip back by themselves, and picks don't expire. The teacher or a
-  tap decides when something ends.
+  tap decides when something ends. The one exception, on purpose: the Quest's key goes into its chest by itself
+  after two seconds (a short ending that always plays the same way).
 - **The Quest's chest opening is the only big celebration.** A goal filled is a key, a medium moment; other good
   moments get something small (a pop, a short sparkle), so the big one keeps its meaning.
 - On-screen words are for young EFL readers: short, plain, and one idea per label.
@@ -114,7 +115,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
     and the four rhythms of taps between the beats are in `lib/getReady.ts`, its sounds in `sound.ts` (`playGetReadyTaps`) and
     its stars' flight in `starFlight.ts` (`flyStarsFrom`).
-  - `PointsMeter.tsx`: the class goal (its key moment and chest opening are the Quest's, below). `FloatingGoal.tsx`: the goal floating over the lesson
+  - `PointsMeter.tsx`: the class goal, a strip of the quest's map with the knight walking it (its road, key moment and chest opening are the Quest's, below). `FloatingGoal.tsx`: the goal floating over the lesson
     (Chrome/Edge's always-on-top window, opened by `hooks/useFloatingWindow.ts`), with +1, Pick and Get Ready!
     (`FloatGetReady.tsx`, the app's own star in the window grown big), and the app's clock while it runs (`FloatClock` in
     `BigTimer.tsx`: shown, never set, at the window's own size). CSS animations only in there, and timers on the
@@ -130,9 +131,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
     `scripts/tour-shots.mjs` - take them again when one of those screens changes.
   - `ui/`: shadcn primitives.
 - The Quest (the class goal's keys, five chests and the prize wheel; DECISIONS, "The Quest"): `lib/quest.ts` (keys, chests,
-  the odds, the prizes, `buildWheel`), `lib/questArt.ts` (the chests, key and wheel drawn in code as SVG text), and
-  `components/quest/`: `KeyMoment.tsx`, `ChestMoment.tsx` (the chest opening and the wheel), `OurQuest.tsx` (the map) and
-  `QuestPictures.tsx`. The knight, the sleeping dragon and the landmarks are in `public/quest/`, made by `design/quest/prepare-art.py`.
+  the odds, the prizes, `buildWheel`), `lib/questArt.ts` (the chests, key and wheel drawn in code as SVG text), `lib/questRoad.ts`
+  (what the goal bar's road passes, and its three speeds), and `components/quest/`: `QuestRoad.tsx` (the bar's parchment, land
+  and trail), `KeyMoment.tsx`, `ChestQuestion.tsx` (a full chest asking), `ChestMoment.tsx` (the chest opening and the wheel),
+  `OurQuest.tsx` (the map, and the knight's walk since it was last seen) and `QuestPictures.tsx`. The knight, the sleeping dragon and the landmarks are in `public/quest/`, made by `design/quest/prepare-art.py`.
 - `src/lib/starFlight.ts`: the star that flies from a desk or flip card into the goal meter's coin; `PointsMeter` waits for it
   to land (`starsLandingIn`) before the coin moves.
 - `src/lib/greetings.ts`: what the splash says to a signed-in teacher (by the clock, the day, special days and the class goals).

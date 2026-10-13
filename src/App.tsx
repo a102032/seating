@@ -18,6 +18,7 @@ import { SaveGroupsModal } from './components/SaveGroupsModal'
 import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
 import { ChestMoment } from './components/quest/ChestMoment'
+import { ChestQuestion } from './components/quest/ChestQuestion'
 import { OurQuest } from './components/quest/OurQuest'
 import { chestNow, prizesOf, questOf } from './lib/quest'
 import { nextCelebrationGif } from './lib/celebrationGifs'
@@ -244,6 +245,10 @@ export default function App() {
   const [chestOpening, setChestOpening] = useState<{ chest: number; gifId: string | null } | null>(null)
   /** Open the chest was tapped in the floating window: the chest opens once the app is in front. */
   const [chestAsked, setChestAsked] = useState(false)
+  /** "You have all the keys! Open the chest?" on the board. */
+  const [askingChest, setAskingChest] = useState(false)
+  /** Classes whose full chest was put off with Later: it rattles on the bar until the class is next opened. */
+  const chestLater = useRef(new Set<string>())
   /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
   const [guide, setGuide] = useState<{ scope: GuideScope; index: number } | null>(null)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
@@ -529,6 +534,28 @@ export default function App() {
     if (gifId) noteCelebrationGif(activeClass.id, gifId)
     setChestOpening({ chest: chest.chest, gifId })
   }
+
+  /**
+   * A full chest asks to be opened (components/quest/ChestQuestion): when its last key is in, when
+   * the class is opened with it full (the next lesson, after Later), and when the app comes back in
+   * front after the floating window filled it.
+   */
+  function askAboutChest() {
+    if (!activeClass || !chest?.ready || !goalLive || splashOpen || !appInFront) return
+    if (chestLater.current.has(activeClass.id) || chestOpening !== null || chestAsked) return
+    setAskingChest(true)
+  }
+  useEffect(() => {
+    if (splashOpen || !activeClassId) return
+    chestLater.current.delete(activeClassId)
+    askAboutChest()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeClassId, splashOpen])
+  useEffect(() => {
+    if (appInFront) askAboutChest()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appInFront])
+  if (askingChest && !chest?.ready) setAskingChest(false)
 
   // Open the chest, tapped in the floating window: it opens the moment the app is in front.
   useEffect(() => {
@@ -999,7 +1026,10 @@ export default function App() {
               goalsReached={activeClass.goalsReached ?? 0}
               goal={activeClass.pointsGoal ?? 0}
               chest={chest!}
-              onTapChest={() => (chest?.ready ? startChestOpening() : setQuestOpen((open) => !open))}
+              questKeys={quest?.keys ?? 0}
+              onTapMap={() => setQuestOpen((open) => !open)}
+              onTapChest={() => (chest?.ready ? startChestOpening() : openSettings('points'))}
+              onSettled={askAboutChest}
               holdKeyMoment={!appInFront}
               lifted={meterLifted}
               side={panelSide}
@@ -1049,6 +1079,7 @@ export default function App() {
 
             {questOpen && quest && goalLive && (
               <OurQuest
+                classId={activeClass.id}
                 quest={quest}
                 classPoints={activeClass.classPoints ?? 0}
                 goal={activeClass.pointsGoal ?? 0}
@@ -1372,6 +1403,20 @@ export default function App() {
       )}
 
       {tourOpen && <Tour onClose={() => setTourOpen(false)} />}
+
+      {askingChest && chest && activeClass && (
+        <ChestQuestion
+          chest={chest.chest}
+          onOpen={() => {
+            setAskingChest(false)
+            startChestOpening()
+          }}
+          onLater={() => {
+            setAskingChest(false)
+            chestLater.current.add(activeClass.id)
+          }}
+        />
+      )}
 
       {chestOpening !== null && activeClass && (
         <ChestMoment

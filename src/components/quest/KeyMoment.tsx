@@ -14,13 +14,16 @@ interface KeyMomentProps {
 
 /** The board reads one touch as two: the tap that filled the goal mustn't send the key on its way. */
 const TAP_GUARD_MS = 700
+/** How long the key shows before it goes into the chest by itself. */
+const SHOWN_MS = 2000
 
 /**
  * A goal filled: a key. A medium moment (DECISIONS, "The plan, agreed"): a big key comes to the
  * middle of the board over a light dim, with "You got a key!" and a short jingle, no GIF and no
- * fanfare. It waits for a tap, which a student can make ("Who wants to put the key in?"), then
- * flies into the chest at the meter's end; a click, and one lock turns gold. Nothing here is on
- * a timer: the key waits as long as the teacher wants.
+ * fanfare. After two seconds it flies into the chest at the bar's end by itself; a click, and one
+ * lock turns gold. It used to wait for a tap, and the teacher found it a lot of taps and a way to
+ * miss the quest altogether (2026-10-13): a short ending that always plays the same way is the
+ * one thing in the app allowed to move on by itself. A tap sends it sooner.
  */
 export function KeyMoment({ count, target, onLanded }: KeyMomentProps) {
   const keyRef = useRef<HTMLDivElement>(null)
@@ -31,6 +34,15 @@ export function KeyMoment({ count, target, onLanded }: KeyMomentProps) {
   useEffect(() => {
     landedRef.current = onLanded
   })
+
+  const sendRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    sendRef.current = send
+  })
+  useEffect(() => {
+    const t = setTimeout(() => sendRef.current(), SHOWN_MS)
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     shownAt.current = performance.now()

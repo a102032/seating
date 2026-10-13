@@ -1,12 +1,15 @@
 import clsx from 'clsx'
 import { X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { chestNow, CHESTS } from '../../lib/quest'
+import { playFootstep } from '../../lib/sound'
 import type { QuestState } from '../../types'
 import { ChestPicture, KeyPips, PrizeIcon } from './QuestPictures'
 
 interface OurQuestProps {
+  /** Whose quest: the board remembers where each class last saw its knight. */
+  classId: string
   quest: QuestState
   /** The meter as it stands, for how far along the trail the knight is. */
   classPoints: number
@@ -17,6 +20,30 @@ interface OurQuestProps {
 }
 
 const art = (name: string) => assetUrl(`/quest/${name}`)
+
+/**
+ * Where each class last saw its knight on the map, on this board only (the replay is for the class
+ * watching, so the teacher looking at it on a laptop doesn't use it up): the quest and how far along
+ * the trail, in chests (1.5 is halfway from Wood to Bronze).
+ */
+const SEEN_KEY = 'seating-chart-quest-seen-v1'
+type Seen = Record<string, { quest: number; at: number }>
+function readSeen(): Seen {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as Seen
+  } catch {
+    return {}
+  }
+}
+function writeSeen(classId: string, quest: number, at: number) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ ...readSeen(), [classId]: { quest, at } }))
+  } catch {
+    // A board that can't keep it replays from the start next time; nothing else depends on it.
+  }
+}
+/** The knight's walk since the map was last open: quick when it is short, never more than a few seconds. */
+const replayMs = (distance: number) => Math.min(3000, Math.max(1200, distance * 1800))
 
 /** Low, high, low, high, and the Mega chest in the middle at the end. */
 const ROW = ['low', 'high', 'low', 'high', 'mega'] as const
@@ -48,7 +75,7 @@ export function walked(have: number, need: number, ready: boolean, classPoints: 
  * has got. It never scrolls: everything is placed from where the chests really are, and a doodle
  * that would touch a chest, a label or the knight is left out. It stays until it is tapped closed.
  */
-export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: OurQuestProps) {
+export function OurQuest({ classId, quest, classPoints, goal, onOpenChest, onClose }: OurQuestProps) {
   const now = chestNow(quest)
   const t = walked(now.have, now.need, now.ready, classPoints, goal)
   const trail = useRef<HTMLDivElement>(null)
@@ -56,6 +83,9 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
   const knight = useRef<HTMLImageElement>(null)
   const dragonRef = useRef<HTMLImageElement>(null)
   const doodles = useRef<HTMLDivElement>(null)
+  /** Puts the knight on the trail at a place in chests, once the map is drawn (for the replay). */
+  const placeKnight = useRef<((at: number) => void) | null>(null)
+  const replaying = useRef(false)
 
   // Drawn from where the chests really are, so again whenever the map changes size.
   useLayoutEffect(() => {
@@ -100,7 +130,8 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
         const lo = Math.min(0.45, w / 2 / Math.max(1, len))
         const at = len * (lo + t * (1 - 2 * lo))
         const p = seg.getPointAtLength(at)
-        k.style.transform = `translate(${(p.x - w / 2).toFixed(1)}px, ${(p.y - h * 0.9).toFixed(1)}px)`
+        // Mid-replay, a redraw (the map settling, the fonts arriving) leaves the walking knight be.
+        if (!replaying.current) k.style.transform = `translate(${(p.x - w / 2).toFixed(1)}px, ${(p.y - h * 0.9).toFixed(1)}px)`
         knightBox = { l: p.x - w / 2, t: p.y - h * 0.9, r: p.x + w / 2, b: p.y + h * 0.1 }
         // The way walked so far on this segment is dark too.
         if (at > 0) {
@@ -111,6 +142,20 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
           }
           svg.insertAdjacentHTML('beforeend', dot(`M${pts.join(' L')}`, '#7a4a1f'))
         }
+      }
+      // For the replay: the knight anywhere along the whole trail, a place in chests (a whole
+      // number is at a chest, reached from the segment before it).
+      placeKnight.current = (v: number) => {
+        const paths = svg.querySelectorAll('path')
+        const i = Math.max(0, Math.min(CHESTS.length - 1, Math.ceil(v) - 1))
+        const f = Math.max(0, Math.min(1, v - i))
+        const sp = paths[i] as SVGPathElement | undefined
+        if (!k || !sp) return
+        const h = u * 1.25
+        const len = sp.getTotalLength()
+        const lo = Math.min(0.45, h / 2 / Math.max(1, len))
+        const q = sp.getPointAtLength(len * (lo + f * (1 - 2 * lo)))
+        k.style.transform = `translate(${(q.x - h / 2).toFixed(1)}px, ${(q.y - h * 0.9).toFixed(1)}px)`
       }
 
       // The doodles, placed like a map and in the goal bar's order: the castle and its wall where
@@ -269,6 +314,48 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
     void document.fonts?.ready.then(draw)
     return () => ro.disconnect()
   }, [now.chest, t, quest])
+
+  // The knight walks the trail from where the class last saw him on this board to where they are
+  // now (2026-10-13, the teacher), with soft footsteps: a short walk, never more than a few seconds.
+  // Read once, as the map opens, before this opening is written down as seen.
+  const [seenFrom] = useState(() => {
+    const seen = readSeen()[classId]
+    return seen && seen.quest === quest.number ? seen.at : 0
+  })
+  useEffect(() => {
+    const to = now.chest + t
+    const from = Math.min(seenFrom, to)
+    writeSeen(classId, quest.number, to)
+    if (to - from < 0.02 || !placeKnight.current || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const ms = replayMs(to - from)
+    const start = performance.now() + 450 // once the map has slid in
+    let raf = 0
+    let steps: ReturnType<typeof setInterval> | undefined
+    replaying.current = true
+    placeKnight.current(from)
+    const frame = (now: number) => {
+      const x = Math.min(1, Math.max(0, (now - start) / ms))
+      if (x > 0 && !steps) {
+        playFootstep()
+        steps = setInterval(playFootstep, 420)
+      }
+      const e = x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2
+      placeKnight.current?.(from + (to - from) * e)
+      if (x < 1) raf = requestAnimationFrame(frame)
+      else {
+        clearInterval(steps)
+        replaying.current = false
+      }
+    }
+    raf = requestAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearInterval(steps)
+      replaying.current = false
+    }
+    // Once, as the map opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Slides in from the side, as the flip cards do.
   const sheet = useRef<HTMLDivElement>(null)

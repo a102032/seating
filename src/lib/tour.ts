@@ -21,6 +21,7 @@ export type TourShot =
   | 'star'
   | 'quest'
   | 'key'
+  | 'ask'
   | 'wheel'
 
 export interface TourStop {
@@ -79,8 +80,10 @@ export const TOUR: TourPart[] = [
         at: 'desk',
         text: 'Tap a desk to pick that student, then the star to give a point. Tap the desk again to let them go.',
       },
-      { shot: 'board', at: 'meter', text: 'The class goal fills as the class earns stars. Each time it is full, the class wins a key.' },
-      { shot: 'board', at: 'chest', text: 'The chest needs keys. Tap it to see Our Quest. The Quest has its own part later.' },
+      { shot: 'board', at: 'meter', text: 'The class goal is a road on the quest map. When it is full, the class wins a key.' },
+      { shot: 'board', at: 'knight', text: 'The knight is the class. Every star walks him on toward the key.' },
+      { shot: 'board', at: 'questMap', text: 'Tap the map to see Our Quest. The Quest has its own part later.' },
+      { shot: 'board', at: 'chest', text: 'The chest needs keys. Tap it to change the goal and the prizes.' },
       { shot: 'board', at: 'tab', text: 'Your class. Tap the arrow to switch to another class, or make a new one.' },
       { shot: 'board', at: 'gear', text: 'Class Settings: everything about this class. Help, and this tour, are in there.' },
       { shot: 'board', at: 'saved', text: 'Whether your classes are saved to your Google account. A cloud with a tick means they are.' },
@@ -159,16 +162,15 @@ export const TOUR: TourPart[] = [
     title: 'The Quest',
     intro: 'Fill the goal to win keys. Keys open five chests, and each chest has a prize wheel.',
     stops: [
-      { shot: 'key', at: 'key', text: 'A full goal wins a key. It waits until someone taps it, then it flies into the chest.' },
-      { shot: 'quest', at: 'map', text: 'Our Quest: tap the chest on the goal to see the map. Tap anywhere to close it.' },
+      { shot: 'key', at: 'key', text: 'The knight reaches the key. It flies into the chest by itself, and the road goes on.' },
+      { shot: 'quest', at: 'map', text: 'Our Quest: tap the map on the goal. The knight walks from where the class last saw him.' },
       { shot: 'quest', at: 'opened', text: 'An opened chest shows the prize the class won.' },
       { shot: 'quest', at: 'now', text: 'The chest the class is on, and its keys. Each chest needs one more key than the last.' },
       { shot: 'quest', at: 'mega', text: 'The Mega chest is the last. Then a new quest begins.' },
-      {
-        shot: 'wheel',
-        at: 'wheel',
-        text: 'When every lock is gold, tap the chest. It opens, and a prize wheel comes out. Silver and gold slices are the better prizes.',
-      },
+      { shot: 'ask', at: 'ask', text: 'When every lock is gold, the chest asks to be opened.' },
+      { shot: 'ask', at: 'openNow', text: 'Open it now: the chest bursts open.' },
+      { shot: 'ask', at: 'later', text: 'Later: the chest waits on the goal. Tap it when you are ready. It asks again next lesson.' },
+      { shot: 'wheel', at: 'wheel', text: 'A prize wheel comes out of the chest. Silver and gold slices are the better prizes.' },
       { shot: 'wheel', at: 'spinner', text: 'Pick a Spinner picks a student to spin.' },
       { shot: 'wheel', at: 'spin', text: 'Spin! turns the wheel. Your prizes are in Class Settings, Points.' },
     ],

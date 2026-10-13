@@ -434,11 +434,27 @@ export function FloatingGoal({
           {grip}
           <div className="min-w-0 flex-1">
             {!clockShown && <div className="truncate text-xs font-bold text-muted-foreground">{className}</div>}
-            <div className={cn('h-3.5 overflow-hidden rounded-full bg-muted', !clockShown && 'mt-1')}>
+            {/* The fill, with the knight walking its edge as on the goal bar (a transform, in widths of the bar). */}
+            <div className={cn('relative mr-2', !clockShown && 'mt-1')} style={{ containerType: 'inline-size' }}>
+              <div className="h-3.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full transition-[width] duration-500 ease-out"
+                  style={{ width: `${pct}%`, background: FILL, backgroundSize: '200% 100%', backgroundPositionX: `${100 - pct}%` }}
+                />
+              </div>
               <div
-                className="h-full rounded-full transition-[width] duration-500 ease-out"
-                style={{ width: `${pct}%`, background: FILL, backgroundSize: '200% 100%', backgroundPositionX: `${100 - pct}%` }}
-              />
+                className="pointer-events-none absolute left-0 top-1/2 h-0 w-0 transition-transform duration-500 ease-out"
+                style={{ transform: `translateX(${pct}cqw)` }}
+              >
+                <img
+                  src={assetUrl('/quest/knight.svg')}
+                  alt=""
+                  draggable={false}
+                  data-float-knight=""
+                  className="absolute h-[26px] w-[22px] max-w-none select-none"
+                  style={{ left: -11, top: -17, filter: 'drop-shadow(0 1px 1px rgba(80,50,20,0.35))' }}
+                />
+              </div>
             </div>
           </div>
           {questChest(clockShown ? 'h-7 w-8' : 'h-9 w-10')}

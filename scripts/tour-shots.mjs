@@ -148,11 +148,7 @@ const all = {}
 {
   const page = await open()
   await page.evaluate(() => {
-    // The meter is the bar holding the chest; the tab the box holding the gear.
-    const chest = document.querySelector('[data-quest-chest]')
-    let m = chest
-    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
-    m?.setAttribute('data-tour-mark', 'meter')
+    // The tab is the box holding the gear.
     document.querySelector('[data-class-tab]')?.setAttribute('data-tour-mark', 'tab')
     document.querySelector('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'desk')
   })
@@ -170,7 +166,9 @@ const all = {}
     star: 'aside [aria-label="Award Point"]',
     saved: 'aside [data-sync]',
     side: 'aside button[title^="Move panel"]',
-    meter: '[data-tour-mark="meter"]',
+    meter: '[data-quest-road]',
+    knight: '[data-quest-knight]',
+    questMap: 'button[aria-label="Our Quest"]',
     chest: '[data-quest-chest]',
     tab: '[data-tour-mark="tab"]',
     gear: 'button[aria-label="Class Settings"]',
@@ -355,10 +353,11 @@ const all = {}
 }
 
 {
-  // The Quest: Our Quest on its map, the key moment, then a full chest opened and its wheel.
+  // The Quest: Our Quest on its map, the key moment, then a full chest asking, opened, and its wheel.
   const page = await open()
-  await page.click('[data-quest-chest]')
-  await page.waitForTimeout(1200)
+  await page.click('button[aria-label="Our Quest"]')
+  // The knight's walk from where the class last saw him (here, the castle).
+  await page.waitForTimeout(4500)
   all.quest = await rects(page, {
     map: '[data-our-quest]',
     opened: '[data-quest-station="0"]',
@@ -375,7 +374,8 @@ const all = {}
   const page = await open(nearly)
   await page.locator('[data-ink="desk"]', { hasText: 'Amy' }).click()
   await page.click('aside [aria-label="Award Point"]')
-  await page.waitForTimeout(2600)
+  // The star lands, the knight walks up to the key, and it comes up.
+  await page.waitForTimeout(4300)
   all.key = await rects(page, { key: '[data-key-moment] .quest-key-float' })
   await shot(page, 'key')
   await page.context().close()
@@ -385,7 +385,19 @@ const all = {}
   const full = structuredClone(STATE)
   full.classes[0].quest.keys = 3
   const page = await open(full)
-  await page.click('[data-quest-chest]')
+  // Every lock gold: the chest asks.
+  await page.waitForTimeout(1200)
+  await mark(page, [
+    ['openNow', '^Open it now$'],
+    ['later', '^Later$'],
+  ])
+  all.ask = await rects(page, {
+    ask: '[data-chest-question] .meter-chest-rattle',
+    openNow: '[data-tour-mark="openNow"]',
+    later: '[data-tour-mark="later"]',
+  })
+  await shot(page, 'ask')
+  await page.click('[data-tour-mark="openNow"]')
   await page.waitForTimeout(3600)
   await mark(page, [
     ['spinner', '^Pick a Spinner$'],

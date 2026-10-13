@@ -743,3 +743,35 @@ export function playChestKnocks(count = 7) {
 export function playWheelPeg() {
   playPickerTick()
 }
+
+/**
+ * The knight's footstep on the goal bar (2026-10-13, the teacher: soft footsteps as he walks): a
+ * short puff of noise around 1kHz, as a board's speaker has no bass, the two feet a shade apart so
+ * it sounds like walking rather than a clock. Quiet, since it plays under the coin.
+ */
+let footstep = 0
+export function playFootstep() {
+  const ctx = getContext()
+  const n = Math.ceil(ctx.sampleRate * 0.06)
+  const buffer = ctx.createBuffer(1, n, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3)
+  const src = ctx.createBufferSource()
+  const band = ctx.createBiquadFilter()
+  const gain = ctx.createGain()
+  src.buffer = buffer
+  band.type = 'bandpass'
+  band.frequency.value = footstep++ % 2 ? 1000 : 1200
+  band.Q.value = 1.6
+  gain.gain.value = 0.22
+  src.connect(band).connect(gain).connect(ctx.destination)
+  src.start()
+}
+
+/** "You have all the keys!": the chest asking to be opened. A rising run, smaller than the opening's fanfare. */
+export function playChestReady() {
+  const { ctx, master } = questMaster()
+  ;[784, 988, 1175, 1568, 1976].forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: i * 0.09, duration: i === 4 ? 0.8 : 0.22, type: 'triangle', peakGain: 0.18 })
+  })
+}
