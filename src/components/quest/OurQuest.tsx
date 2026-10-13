@@ -113,9 +113,11 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
         }
       }
 
-      // The doodles, placed like a map: grass where the quest starts, a dense forest the trail
-      // runs through between Wood and Bronze, a pond at its edge, hills over Silver, a bridge on
-      // the way to Gold, and the dragon's mountain above the Mega chest, pines on its slopes. Each
+      // The doodles, placed like a map and in the goal bar's order: the castle and its wall where
+      // the quest starts, a dense forest between Wood and Bronze, a pond at its edge, a cottage over
+      // Silver and the crossroads on the way to it, a bridge and an orchard on the way to Gold, and
+      // the mountains rising to the dragon's own above the Mega chest. Each landmark once (2026-10-13,
+      // the teacher: don't overuse any one doodle). Each
       // is a size in chests (u) and a centre; one that would touch a chest, a label, the knight,
       // the dragon or another doodle, or leave the map, is left out.
       const point = (i: number, f: number) => {
@@ -127,7 +129,9 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
       const mega = chests[4]
       const megaCx = (mega.l + mega.r) / 2
       const woodBronze = point(1, 0.5)
+      const bronzeSilver = point(2, 0.5)
       const silverGold = point(3, 0.5)
+      const goldMega = point(4, 0.5)
       const cx = (b: Box) => (b.l + b.r) / 2
       type D = { name: string; x: number; y: number; w: number; h: number; ink?: boolean }
       const mountainW = u * 1.75
@@ -154,8 +158,11 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
         { name: 'doodle-grass.svg', x: cx(start) - u * 0.35, y: start.b + u * 0.45, w: u * 0.5, h: u * 0.36 },
         { name: 'doodle-grass.svg', x: cx(start) + u * 0.35, y: start.b + u * 0.55, w: u * 0.4, h: u * 0.3 },
         { name: 'doodle-pond.svg', x: cx(stations[1]), y: stations[1].b + u * 0.75, w: u * 1.15, h: u * 0.78 },
-        { name: 'landmark-hills.png', x: cx(stations[2]), y: stations[2].t - u * 0.45, w: u * 1.3, h: u * 0.6 },
+        { name: 'doodle-house.svg', x: cx(stations[2]) + u * 0.1, y: stations[2].t - u * 0.5, w: u * 0.85, h: u * 0.85 },
+        { name: 'doodle-crossroads.svg', x: bronzeSilver.x, y: bronzeSilver.y - u * 0.55, w: u * 0.8, h: u * 0.85 },
         { name: 'landmark-bridge.png', x: silverGold.x, y: silverGold.y + u * 0.1, w: u * 1.05, h: u * 0.62 },
+        { name: 'doodle-apple.svg', x: cx(stations[3]) - u * 1.1, y: stations[3].t - u * 0.35, w: u * 0.62, h: u * 0.66 },
+        { name: 'doodle-apple.svg', x: cx(stations[3]) - u * 0.5, y: stations[3].t - u * 0.55, w: u * 0.62, h: u * 0.66 },
       ]
       const taken: Box[] = [...stations, ...(knightBox ? [knightBox] : [])]
       const head = box.parentElement?.querySelector('[data-quest-head]')?.getBoundingClientRect()
@@ -195,8 +202,23 @@ export function OurQuest({ quest, classPoints, goal, onOpenChest, onClose }: Our
       }
       place(pine(mBox.l - u * 0.3, mBox.b - u * 0.4))
 
-      // The castle is the start: it stands there whatever is near it.
-      for (const d of want) place(d, d.name === 'landmark-castle.png')
+      // The castle is the start: it stands there whatever is near it, its wall beside it.
+      place(want[0], true)
+      // A landmark that has no room where it would go first tries the next place on its list.
+      const placeOne = (name: string, w: number, h: number, spots: { x: number; y: number }[]) =>
+        spots.some((p) => place({ name, x: p.x, y: p.y, w, h }))
+      // A second, smaller fort out on its own, well away from the castle (2026-10-13, the teacher).
+      placeOne('doodle-wall.svg', u * 0.95, u * 0.8, [
+        { x: silverGold.x + u * 0.2, y: silverGold.y + u * 2.2 },
+        { x: bronzeSilver.x + u * 0.3, y: bronzeSilver.y - u * 1.9 },
+        { x: cx(stations[2]) + u * 1.2, y: stations[2].b + u * 1.4 },
+      ])
+      placeOne('doodle-mountains.svg', u * 1.5, u * 0.9, [
+        { x: goldMega.x, y: goldMega.y + u * 1.0 },
+        { x: goldMega.x - u * 0.3, y: goldMega.y + u * 1.6 },
+        { x: goldMega.x - u * 0.6, y: goldMega.y - u * 1.1 },
+      ])
+      for (const d of want.slice(1)) place(d)
 
       // The two dense forests: four trees together or none, nudged to the nearest open spot.
       // One on the way from the castle to Bronze, one below Gold.
