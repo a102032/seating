@@ -30,8 +30,7 @@ function loadSettings(): PickerSettings {
     }
     // Students and rows used to have a toggle each. Carry a saved pair over by taking
     // either one as "on", so a teacher who had turned repeats on keeps them on.
-    const allowRepeats =
-      stored.allowRepeats ?? Boolean(stored.allowRepeatsStudents || stored.allowRepeatsRows)
+    const allowRepeats = stored.allowRepeats ?? Boolean(stored.allowRepeatsStudents || stored.allowRepeatsRows)
     return { ...DEFAULT_SETTINGS, ...stored, allowRepeats }
   } catch {
     return DEFAULT_SETTINGS
@@ -149,66 +148,69 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
    * class goal runs on the floating window's clock: this page is behind the lesson then, and
    * Chrome slows a hidden page's timers to about one a second - the flicker would crawl.
    */
-  const pickStudent = useCallback((clock: Window = window) => {
-    if (mode === 'student-flashing' || mode === 'row-flashing') return
-    const { allowRepeats, soundEnabled } = settingsRef.current
-    const currentSeating = seatingRef.current
-    const occupiedIndices = currentSeating
-      .map((studentId, index) => ({ studentId, index }))
-      .filter((d): d is { studentId: string; index: number } => Boolean(d.studentId))
+  const pickStudent = useCallback(
+    (clock: Window = window) => {
+      if (mode === 'student-flashing' || mode === 'row-flashing') return
+      const { allowRepeats, soundEnabled } = settingsRef.current
+      const currentSeating = seatingRef.current
+      const occupiedIndices = currentSeating
+        .map((studentId, index) => ({ studentId, index }))
+        .filter((d): d is { studentId: string; index: number } => Boolean(d.studentId))
 
-    // Prefer drawing from a locked row, if one is active and still has someone left in it.
-    const rowEligible =
-      rowLock !== null
-        ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock && (allowRepeats || !pickedStudentIds.has(d.studentId)))
-        : []
-    const stayingInRow = rowEligible.length > 0
+      // Prefer drawing from a locked row, if one is active and still has someone left in it.
+      const rowEligible =
+        rowLock !== null
+          ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock && (allowRepeats || !pickedStudentIds.has(d.studentId)))
+          : []
+      const stayingInRow = rowEligible.length > 0
 
-    let eligible = stayingInRow
-      ? rowEligible
-      : allowRepeats
-        ? occupiedIndices
-        : occupiedIndices.filter((d) => !pickedStudentIds.has(d.studentId))
-    let usedPicked = pickedStudentIds
-    if (!allowRepeats && !stayingInRow && eligible.length === 0) {
-      // Everyone has been picked this round - start a fresh round.
-      usedPicked = new Set()
-      eligible = occupiedIndices
-    }
-    if (eligible.length === 0) return // no one seated at all
-
-    // The flashing sequence cycles through everyone currently in play (the whole
-    // row, or the whole class) so it always feels lively - only the final winner
-    // is drawn from the narrower "hasn't been picked yet" pool.
-    const flashPool = stayingInRow ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock) : occupiedIndices
-
-    clearTimers()
-    setMode('student-flashing')
-    setWinnerDesk(null)
-    if (!stayingInRow) setRowLock(null)
-
-    const startedAt = Date.now()
-    timerWindowRef.current = clock
-    intervalRef.current = clock.setInterval(() => {
-      // The final pass lands rather than flashing. It used to do both, which fired a tick and
-      // the landing in the same callback and buried the one under the other.
-      if (Date.now() - startedAt >= FLASH_DURATION_MS) {
-        clearTimers()
-        // The students picked less often lately get a better chance - never a sure one.
-        const { chanceOf, onPicked } = roundRef.current
-        const winner = weightedChoice(eligible, (d) => chanceOf(d.studentId))
-        setFlashDesk(null)
-        setWinnerDesk(winner.index)
-        onPicked(winner.studentId, [...new Set([...usedPicked, winner.studentId])])
-        setMode('student-result')
-        if (soundEnabled) playPickerLand()
-        return
+      let eligible = stayingInRow
+        ? rowEligible
+        : allowRepeats
+          ? occupiedIndices
+          : occupiedIndices.filter((d) => !pickedStudentIds.has(d.studentId))
+      let usedPicked = pickedStudentIds
+      if (!allowRepeats && !stayingInRow && eligible.length === 0) {
+        // Everyone has been picked this round - start a fresh round.
+        usedPicked = new Set()
+        eligible = occupiedIndices
       }
-      const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
-      setFlashDesk(pick.index)
-      if (soundEnabled) playPickerTick()
-    }, FLASH_TICK_MS)
-  }, [mode, pickedStudentIds, rowLock, clearTimers, columnOf])
+      if (eligible.length === 0) return // no one seated at all
+
+      // The flashing sequence cycles through everyone currently in play (the whole
+      // row, or the whole class) so it always feels lively - only the final winner
+      // is drawn from the narrower "hasn't been picked yet" pool.
+      const flashPool = stayingInRow ? occupiedIndices.filter((d) => columnOf(d.index) === rowLock) : occupiedIndices
+
+      clearTimers()
+      setMode('student-flashing')
+      setWinnerDesk(null)
+      if (!stayingInRow) setRowLock(null)
+
+      const startedAt = Date.now()
+      timerWindowRef.current = clock
+      intervalRef.current = clock.setInterval(() => {
+        // The final pass lands rather than flashing. It used to do both, which fired a tick and
+        // the landing in the same callback and buried the one under the other.
+        if (Date.now() - startedAt >= FLASH_DURATION_MS) {
+          clearTimers()
+          // The students picked less often lately get a better chance - never a sure one.
+          const { chanceOf, onPicked } = roundRef.current
+          const winner = weightedChoice(eligible, (d) => chanceOf(d.studentId))
+          setFlashDesk(null)
+          setWinnerDesk(winner.index)
+          onPicked(winner.studentId, [...new Set([...usedPicked, winner.studentId])])
+          setMode('student-result')
+          if (soundEnabled) playPickerLand()
+          return
+        }
+        const pick = flashPool[Math.floor(Math.random() * flashPool.length)]
+        setFlashDesk(pick.index)
+        if (soundEnabled) playPickerTick()
+      }, FLASH_TICK_MS)
+    },
+    [mode, pickedStudentIds, rowLock, clearTimers, columnOf],
+  )
 
   const pickRow = useCallback(() => {
     if (mode === 'student-flashing' || mode === 'row-flashing') return
@@ -291,17 +293,16 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
     rowLock !== null &&
     seating.some(
       (studentId, index) =>
-        Boolean(studentId) &&
-        columnOf(index) === rowLock &&
-        (settings.allowRepeats || !pickedStudentIds.has(studentId as string)),
+        Boolean(studentId) && columnOf(index) === rowLock && (settings.allowRepeats || !pickedStudentIds.has(studentId as string)),
     )
 
   const deskHighlights: DeskHighlight[] = Array.from({ length: seating.length }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
-    // An empty side desk is no one's seat in the row, so it stays dim (the teacher, 2026-10-14:
-    // the whole side column lit up with the last row).
-    const inRow = (column: number | null) => columnOf(index) === column && !(plan.side && plan.seats[index]?.column >= 6 && !seating[index])
+    // Only a desk with a student in it lights with its row (the teacher, 2026-10-14: the whole
+    // side column lit up with the last row, empty desks and all). The picked row is its students,
+    // not its furniture; a desk empty today, or whose student is away, stays dim.
+    const inRow = (column: number | null) => columnOf(index) === column && Boolean(seating[index])
     if (mode === 'row-flashing') return inRow(flashColumn) ? 'flashing' : 'dimmed'
     if (mode === 'row-result') return inRow(winnerColumn) ? 'winner' : 'dimmed'
     return 'none'

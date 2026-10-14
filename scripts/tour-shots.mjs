@@ -94,6 +94,7 @@ async function open() {
       localStorage.setItem('seating-chart-theme-v1', 'vibrant')
       localStorage.setItem('seating-chart-theme-chosen-v1', '1')
       localStorage.setItem('seating-chart-guide-v1', JSON.stringify({ t1: true }))
+      localStorage.setItem('seating-chart-tour-offer-v1', 'true')
     },
     [STATE, TEACHER],
   )
@@ -237,7 +238,11 @@ const all = {}
   // Partway through, as a teacher would be: the first group full, the second lit with two in it.
   const tapIn = async (frame, names) => {
     await page.locator(`[data-frame="${frame}"]`).click({ position: { x: 20, y: 10 } })
-    for (const n of names) await page.locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${n}`) }).first().click()
+    for (const n of names)
+      await page
+        .locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${n}`) })
+        .first()
+        .click()
   }
   await tapIn(0, ['Amy', 'Tony', 'Brian', 'Cindy', 'Grace', 'Henry', 'Ivy'])
   await tapIn(1, ['Kevin', 'Daniel'])
@@ -254,7 +259,10 @@ const all = {}
   await page.waitForTimeout(700)
   await page.getByRole('dialog').getByRole('button', { name: /^4/ }).first().click()
   await page.waitForTimeout(900)
-  await page.getByRole('dialog').getByRole('button', { name: /Make them for me/ }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Make them for me/ })
+    .click()
   await page.waitForTimeout(4500)
   await mark(page, [
     ['new', '^New Groups$'],

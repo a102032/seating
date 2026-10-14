@@ -20,7 +20,7 @@
   --card: #ffffff;
   --card-foreground: #18181b;
   /* Names on the desks. Softer than --card-foreground on purpose: big, bold and near-black was the loudest thing on the board and read as glaring on a smartboard. Each light theme tints its own, all at about 9:1 - well clear of the 7:1 readability bar, so they still carry to the back of the room. Dark and Comic Book point it back at --card-foreground, and Chalkboard at its chalk white. */
-  --desk-name: #434a5a;
+  --desk-name: #363c4b;
   --popover: #ffffff;
   --popover-foreground: #18181b;
   --primary: #2563eb;
@@ -77,7 +77,7 @@
   --foreground: #1e2a44;
   --card: #ffffff;
   --card-foreground: #1e2a44;
-  --desk-name: #4a4468;
+  --desk-name: #342e54; /* Darker since the faint desks (2026-10-14): on the board's blue it was 6:1, now about 8:1. */
   --popover: #ffffff;
   --popover-foreground: #1e2a44;
   --primary: #8b5cf6;
@@ -214,6 +214,13 @@
 [data-theme-preview='comic'] {
   --desk-bg: color-mix(in srgb, var(--card) 35%, transparent);
   --desk-empty-bg: color-mix(in srgb, var(--card) 15%, transparent);
+}
+/* Chalkboard's chalk-white names need a darker patch than a faint card gives: a shade of the
+   board itself, as the slate desks were, so they stay about 8:1. */
+:root[data-theme='chalk'],
+[data-theme-preview='chalk'] {
+  --desk-bg: rgba(0, 0, 0, 0.22);
+  --desk-empty-bg: rgba(0, 0, 0, 0.1);
 }
 
 @theme inline {
@@ -2265,4 +2272,20 @@ button {
   .cs-tool-head { padding-top: 6px; }
   .cs-tool .cs-row { padding-block: 3px; }
   .cs-row.cs-split { padding-block: 6px; }
+}
+
+/* The board's hint line (BoardHint.tsx): its button in the theme's own colour, a finger's height. */
+.hint-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  border-radius: 0.75rem;
+  padding: 0.1rem 0.9rem;
+  font-weight: 700;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  touch-action: manipulation;
+}
+.hint-button:active {
+  transform: scale(0.96);
 }

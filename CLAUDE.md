@@ -103,7 +103,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
     Points; Tools; Attendance, Participation; Google, with New Class ruled off at its foot), each in `components/settings/` and built from `settings/parts.tsx`, laid out
     by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of
     thing scrolls. Every change saves as it is made, and Done closes it. Help in its title bar: the guide and the tour.
-  - `DeskGrid.tsx` / `Desk.tsx`: the seating chart.
+  - `DeskGrid.tsx` / `Desk.tsx`: the seating chart. `BoardHint.tsx`: the one line above the desks (what a tap does in Swap
+    Seats or Attendance, with Done; the tour offered once), in the slot Seat Class and Choose Your Avatar use.
   - `FlipDeck.tsx` / `FlipCard.tsx`: flip cards (their settings are in Class Settings' Tools, which their gear opens).
   - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its
     colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away.

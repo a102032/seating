@@ -19,6 +19,7 @@ import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
+import { ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
@@ -192,6 +193,7 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('students')
   /** The tour of the app, from Help in Class Settings, or offered at the end of a new class's setup. */
   const [tourOpen, setTourOpen] = useState(false)
+  const [tourOffered, dismissTourOffer] = useTourOffer()
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
   /** "I'll choose": the teacher taps the names into this many groups. */
@@ -550,6 +552,24 @@ export default function App() {
     startGuide('all')
   }
 
+  function toggleSwap() {
+    setSwapMode((v) => !v)
+    setSelectedDesk(null)
+    resetPointsSelection()
+  }
+
+  function toggleAttendance() {
+    if (!activeClass) return
+    // Switching it off is what records the day, so a class with nobody away gets its
+    // check from on-then-off, with no separate button to find.
+    if (attendanceMode) markAttendanceTaken(activeClass.id, today)
+    else {
+      picker.dismiss()
+      resetPointsSelection()
+    }
+    setAttendanceMode(!attendanceMode)
+  }
+
   function openTour() {
     if (guide) endGuide()
     setSettingsOpen(false)
@@ -794,24 +814,11 @@ export default function App() {
       deskStars={desksMode && goalLive ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
       onAllStarsIn={allStarsIn}
       swapMode={swapMode}
-      onToggleSwap={() => {
-        setSwapMode((v) => !v)
-        setSelectedDesk(null)
-        resetPointsSelection()
-      }}
+      onToggleSwap={toggleSwap}
       attendanceMode={attendanceMode}
       choosingAvatars={choosingAvatars}
       attendanceTaken={attendanceTakenOn(activeClass, today)}
-      onToggleAttendance={() => {
-        // Switching it off is what records the day, so a class with nobody away gets its
-        // check from on-then-off, with no separate button to find.
-        if (attendanceMode) markAttendanceTaken(activeClass.id, today)
-        else {
-          picker.dismiss()
-          resetPointsSelection()
-        }
-        setAttendanceMode(!attendanceMode)
-      }}
+      onToggleAttendance={toggleAttendance}
       onPickStudent={() => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent))}
       onPickRow={() => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow))}
       groupMode={groupActivityOpen}
@@ -993,9 +1000,13 @@ export default function App() {
                 setChoosingFor(null)
               }}
             />
-          ) : (
+          ) : swapMode || attendanceMode ? (
+            <ModeHint mode={swapMode ? 'swap' : 'attendance'} onDone={swapMode ? toggleSwap : toggleAttendance} />
+          ) : unseatedStudents.length > 0 ? (
             <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
-          )}
+          ) : tourOffered && !flipDeckOpen && !groupActivityOpen && activeClass.students.length > 0 ? (
+            <TourOffer onTour={openTour} onDismiss={dismissTourOffer} />
+          ) : null}
 
           <main className="relative min-h-0 flex-1 overflow-hidden">
             <DeskGrid

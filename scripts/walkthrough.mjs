@@ -117,6 +117,9 @@ async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}
       localStorage.setItem('seating-chart-account-v1', JSON.stringify(teacher))
       localStorage.setItem('seating-chart-theme-v1', t)
       localStorage.setItem('seating-chart-theme-chosen-v1', '1')
+      // The tour's one-time offer would take a line above the desks in every scenario; "side desks"
+      // brings it back to check it.
+      localStorage.setItem('seating-chart-tour-offer-v1', 'true')
       for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v))
     },
     [state, theme, storage, TEACHER],
@@ -218,6 +221,74 @@ async function overflow(page) {
 }
 
 const scenarios = {
+  /**
+   * The beta testers' changes (2026-10-14): the tour offered once above the desks; a line saying
+   * what a desk tap does in Swap Seats and Attendance, with Done; side desks while Swap Seats is on,
+   * a student moved to one staying there; and a picked row lighting only desks with a student.
+   */
+  async 'side desks, hints and the tour offer'() {
+    const cls = makeClass('c1', 'Side Desks', 20, { pointsGoal: 50, classPoints: 0, goalEnabled: true })
+    const page = await open({ state: stateOf(cls), size: [1280, 559], storage: { 'seating-chart-tour-offer-v1': '' } })
+    const offer = page.getByText('New here? Take a tour of the app.')
+    check('tour offer: shown above the desks on a board that never took the tour', (await offer.count()) === 1)
+    await page.getByRole('button', { name: 'No thanks' }).click()
+    await page.waitForTimeout(300)
+    check(
+      'tour offer: No thanks puts it away for good',
+      (await offer.count()) === 0 && (await page.evaluate(() => localStorage.getItem('seating-chart-tour-offer-v1'))) === 'true',
+    )
+    const empties = () => page.locator('[data-ink=desk-empty]').count()
+    const before = await empties()
+    await panelButton(page, 'Swap Seats').click()
+    await page.waitForTimeout(400)
+    check('swap seats: says what a tap does', (await page.getByText('Tap two desks to swap them.').count()) === 1)
+    check('swap seats: five side desks show', (await empties()) === before + 5, `${before} -> ${await empties()}`)
+    await desk(page, 'Amy').click()
+    await page.waitForTimeout(250)
+    const boxes = await page
+      .locator('[data-ink=desk-empty]')
+      .evaluateAll((els) => els.map((e) => [e.getBoundingClientRect().x, e.getBoundingClientRect().y]))
+    const right = Math.max(...boxes.map((b) => b[0]))
+    const side = boxes
+      .map((b, i) => [b, i])
+      .filter(([b]) => b[0] === right)
+      .sort((x, y) => x[0][1] - y[0][1])
+    await page.locator('[data-ink=desk-empty]').nth(side[2][1]).click()
+    await page.waitForTimeout(300)
+    await page.locator('[data-board-hint] button', { hasText: 'Done' }).click()
+    await page.waitForTimeout(400)
+    const c = await activeSaved(page)
+    const amy = c.students.find((st) => st.name === 'Amy')
+    check(
+      'side desks: Amy stays at the side, and Done ends Swap Seats',
+      c.seating.indexOf(amy.id) >= 30 &&
+        (await page.getByText('Tap two desks to swap them.').count()) === 0 &&
+        (await empties()) === before + 5,
+    )
+    let litEmpty = 0
+    let sawSide = false
+    for (let i = 0; i < 12 && !sawSide; i++) {
+      await panelButton(page, 'Pick a Random Row').click()
+      await page.waitForTimeout(3600)
+      litEmpty += await page.locator('[data-ink=desk-empty].desk-picked').count()
+      sawSide = (await page.locator('[data-ink=desk].desk-picked', { hasText: 'Amy' }).count()) === 1
+      await page.mouse.click(700, 300)
+      await page.waitForTimeout(400)
+    }
+    check(
+      'pick a row: only desks with a student light up, the side desk with the last row',
+      litEmpty === 0 && sawSide,
+      `empty lit ${litEmpty}, side seen ${sawSide}`,
+    )
+    await panelButton(page, 'Attendance').click()
+    await page.waitForTimeout(300)
+    check('attendance: says what a tap does', (await page.getByText('Tap a desk to mark a student away.').count()) === 1)
+    await page.locator('[data-board-hint] button', { hasText: 'Done' }).click()
+    await page.waitForTimeout(300)
+    check('attendance: Done ends it', (await page.getByText('Tap a desk to mark a student away.').count()) === 0)
+    return page
+  },
+
   /**
    * A class saved with its goal switched off gave stars that went nowhere the class could see:
    * it comes in with no points, and nothing is given or counted.
@@ -1570,11 +1641,18 @@ const scenarios = {
     let groups = await made()
     const together = (g) =>
       g.every((d) => g.some((e) => e !== d && Math.abs((e % 6) - (d % 6)) <= 1 && Math.abs(Math.floor(e / 6) - Math.floor(d / 6)) <= 1))
-    check('by seats: four groups are the corners, everyone beside their group', groups.length === 4 && groups.every(together), JSON.stringify(groups))
+    check(
+      'by seats: four groups are the corners, everyone beside their group',
+      groups.length === 4 && groups.every(together),
+      JSON.stringify(groups),
+    )
     const corners = await page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((c) => c.getBoundingClientRect()))
     check(
       'by seats: four corners sit two by two, as in the room',
-      corners.length === 4 && Math.abs(corners[0].top - corners[1].top) < 2 && corners[2].top > corners[0].bottom - 2 && corners[1].left > corners[0].right - 2,
+      corners.length === 4 &&
+        Math.abs(corners[0].top - corners[1].top) < 2 &&
+        corners[2].top > corners[0].bottom - 2 &&
+        corners[1].left > corners[0].right - 2,
     )
     await deal(/^6/)
     groups = await made()
@@ -1587,8 +1665,11 @@ const scenarios = {
     // side, Group 1 the left-hand row.
     const rows = await page.evaluate(() => [...document.querySelectorAll('[data-group-id]')].map((c) => c.getBoundingClientRect()))
     check(
-      'by seats: the six rows are six cards side by side, in the room\'s order',
-      rows.length === 6 && rows.every((r) => Math.abs(r.top - rows[0].top) < 2) && rows.every((r, i) => i === 0 || r.left > rows[i - 1].left) && groups[0][0] % 6 === 0,
+      "by seats: the six rows are six cards side by side, in the room's order",
+      rows.length === 6 &&
+        rows.every((r) => Math.abs(r.top - rows[0].top) < 2) &&
+        rows.every((r, i) => i === 0 || r.left > rows[i - 1].left) &&
+        groups[0][0] % 6 === 0,
     )
     await deal(/^Pairs/)
     groups = await made()
@@ -1645,12 +1726,18 @@ const scenarios = {
       (await page.locator('[data-group-id]').count()) === 0 && (await make.count()) === 1,
     )
     await page.waitForTimeout(700)
-    await page.getByRole('dialog').getByRole('button', { name: /I'll choose/ }).click()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /I'll choose/ })
+      .click()
     await page.waitForTimeout(500)
     const start = page.locator('[data-group-builder] button', { hasText: 'Start' })
     check("I'll choose: two groups, and Start waits", (await page.locator('[data-frame]').count()) === 2 && (await start.isDisabled()))
     const tap = async (name) => {
-      await page.locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${name}`) }).first().click()
+      await page
+        .locator('[data-group-builder] [data-student-id]', { hasText: new RegExp(`^${name}`) })
+        .first()
+        .click()
       await page.waitForTimeout(30)
     }
     await page.locator('[data-frame="1"]').click({ position: { x: 20, y: 10 } })
@@ -1716,7 +1803,10 @@ const scenarios = {
     await next.getByRole('dialog').locator('[data-saved-groups="Writing"] button').first().click()
     await next.waitForTimeout(900)
     const g = (await activeSaved(next)).groups.map((x) => x.studentIds)
-    const toast = await next.locator('.fixed.bottom-5').textContent().catch(() => '')
+    const toast = await next
+      .locator('.fixed.bottom-5')
+      .textContent()
+      .catch(() => '')
     check(
       'saved groups: a student who left drops out, and the new ones join the smallest group',
       g.length === 2 && !g[0].includes('gone') && g[0].length === 6 && g[1].length === 6,
@@ -2845,7 +2935,10 @@ const scenarios = {
         await page.getByRole('dialog').getByRole('button', { name: /^6/ }).first().click()
         await page.waitForTimeout(800)
         await look('group modal: who fills them')
-        await page.getByRole('dialog').getByRole('button', { name: /I'll choose/ }).click()
+        await page
+          .getByRole('dialog')
+          .getByRole('button', { name: /I'll choose/ })
+          .click()
         await page.waitForTimeout(500)
         const cut = await page.evaluate(() =>
           [...document.querySelectorAll('[data-group-builder] [data-frame-body], [data-group-builder] [data-student-id]')].some(
