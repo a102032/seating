@@ -19,6 +19,7 @@ import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
+import { ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
@@ -192,6 +193,7 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('students')
   /** The tour of the app, from Help in Class Settings, or offered at the end of a new class's setup. */
   const [tourOpen, setTourOpen] = useState(false)
+  const [tourOffered, dismissTourOffer] = useTourOffer()
   const [flipDeckOpen, setFlipDeckOpen] = useState(false)
   const [groupModalOpen, setGroupModalOpen] = useState(false)
   /** "I'll choose": the teacher taps the names into this many groups. */
@@ -286,8 +288,11 @@ export default function App() {
   }, [toast])
 
   const seating = activeClass?.seating ?? []
-  /** Where the desks stand: the class's layout, grown for a big class. */
-  const plan = planFor(activeClass)
+  /**
+   * Where the desks stand: the class's layout, grown for a big class. Swap Seats shows the side
+   * desks too, so a student can be moved off to the side of the room (lib/layouts, planFor).
+   */
+  const plan = planFor(activeClass, { sideDesks: swapMode })
   const absentIds = useMemo(() => absentOn(activeClass, today), [activeClass, today])
   /**
    * The seating chart as the lesson sees it today: an absent student's desk counts as empty
@@ -547,6 +552,24 @@ export default function App() {
     startGuide('all')
   }
 
+  function toggleSwap() {
+    setSwapMode((v) => !v)
+    setSelectedDesk(null)
+    resetPointsSelection()
+  }
+
+  function toggleAttendance() {
+    if (!activeClass) return
+    // Switching it off is what records the day, so a class with nobody away gets its
+    // check from on-then-off, with no separate button to find.
+    if (attendanceMode) markAttendanceTaken(activeClass.id, today)
+    else {
+      picker.dismiss()
+      resetPointsSelection()
+    }
+    setAttendanceMode(!attendanceMode)
+  }
+
   function openTour() {
     if (guide) endGuide()
     setSettingsOpen(false)
@@ -791,24 +814,11 @@ export default function App() {
       deskStars={desksMode && goalLive ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
       onAllStarsIn={allStarsIn}
       swapMode={swapMode}
-      onToggleSwap={() => {
-        setSwapMode((v) => !v)
-        setSelectedDesk(null)
-        resetPointsSelection()
-      }}
+      onToggleSwap={toggleSwap}
       attendanceMode={attendanceMode}
       choosingAvatars={choosingAvatars}
       attendanceTaken={attendanceTakenOn(activeClass, today)}
-      onToggleAttendance={() => {
-        // Switching it off is what records the day, so a class with nobody away gets its
-        // check from on-then-off, with no separate button to find.
-        if (attendanceMode) markAttendanceTaken(activeClass.id, today)
-        else {
-          picker.dismiss()
-          resetPointsSelection()
-        }
-        setAttendanceMode(!attendanceMode)
-      }}
+      onToggleAttendance={toggleAttendance}
       onPickStudent={() => (groupActivityOpen ? groupPicker.run('student') : startPick(picker.pickStudent))}
       onPickRow={() => (groupActivityOpen ? groupPicker.run('group') : startPick(picker.pickRow))}
       groupMode={groupActivityOpen}
@@ -944,15 +954,19 @@ export default function App() {
           {sideRail}
         </div>
 
-        {/* The row along the top: the goal meter by the rail, an aisle, and the class's name and gear
-            in a tab in the far corner (2026-10-11, the teacher's mock-up). With no goal there is no
-            meter - a meter on screen is one the class will ask about every lesson, whether or not
-            the teacher wanted one - and the timer, put away, is a piece of its own by the rail. */}
+        {/* The row along the top: the class's name and gear in a tab by the rail, an aisle, and the
+            goal meter on to the far corner (2026-10-14, the beta testers; it was the other way round,
+            the teacher's mock-up of 2026-10-11). With no goal there is no meter - a meter on screen
+            is one the class will ask about every lesson, whether or not the teacher wanted one - and
+            the timer, put away, is a piece of its own beside the tab. */}
         <div
           data-side={panelSide}
           className={clsx('flex min-w-0', ROW_GAP, panelSide === 'left' ? 'flex-row' : 'flex-row-reverse')}
           style={{ gridArea: 'bar' }}
         >
+          <div data-ink="panel" data-class-tab="" className={clsx(tabClass, 'relative z-[16]')}>
+            {classTitle}
+          </div>
           {goalLive ? (
             <PointsMeter
               classId={activeClass.id}
@@ -973,9 +987,6 @@ export default function App() {
               <div className="flex-1" />
             </>
           )}
-          <div data-ink="panel" data-class-tab="" className={clsx(tabClass(panelSide), 'relative z-[16]')}>
-            {classTitle}
-          </div>
         </div>
 
         <div
@@ -989,9 +1000,13 @@ export default function App() {
                 setChoosingFor(null)
               }}
             />
-          ) : (
+          ) : swapMode || attendanceMode ? (
+            <ModeHint mode={swapMode ? 'swap' : 'attendance'} onDone={swapMode ? toggleSwap : toggleAttendance} />
+          ) : unseatedStudents.length > 0 ? (
             <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
-          )}
+          ) : tourOffered && !flipDeckOpen && !groupActivityOpen && activeClass.students.length > 0 ? (
+            <TourOffer onTour={openTour} onDismiss={dismissTourOffer} />
+          ) : null}
 
           <main className="relative min-h-0 flex-1 overflow-hidden">
             <DeskGrid

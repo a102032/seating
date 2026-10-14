@@ -17,7 +17,7 @@ interface ClassTitleProps {
   disabled: boolean
   /** Settings also stands down while students are at a locked board. */
   settingsDisabled: boolean
-  /** Which side the rail is on: the tab is in the far corner, and the class list opens from that edge. */
+  /** Which side the rail is on: the tab is beside it, and the class list opens from the tab's rail edge, over the board. */
   side: 'left' | 'right'
 }
 
@@ -127,7 +127,7 @@ export function ClassTitle({
             data-ink="menu"
             className={clsx(
               'absolute top-full z-30 mt-1.5 w-[clamp(14rem,24vmin,20rem)] rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-xl',
-              side === 'left' ? 'right-0' : 'left-0',
+              side === 'left' ? 'left-0' : 'right-0',
             )}
           >
             <div className="flex flex-col gap-0.5" data-class-list="">

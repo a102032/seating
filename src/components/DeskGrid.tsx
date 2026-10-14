@@ -127,6 +127,7 @@ export function DeskGrid({
         absent={student !== undefined && absentIds.has(student.id)}
         nameSize={nameSize}
         nameHeightCap={nameHeightCap}
+        mixedClass={!nameOnlyClass}
         showHomeroom={student !== undefined && tagged.has(student.id)}
         showStars={showStars}
         onTap={onTapDesk}
@@ -135,8 +136,8 @@ export function DeskGrid({
   }
 
   // Rows is drawn exactly as the board always was, so a class that never picks a layout sees
-  // no change at all.
-  if (plan.kind === 'rows') {
+  // no change at all. Side desks stand past an aisle, so they take the other layouts' drawing.
+  if (plan.kind === 'rows' && !plan.side) {
     return (
       <div
         className="grid h-full w-full gap-2 p-2.5 sm:gap-3 sm:p-3"

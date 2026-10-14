@@ -29,7 +29,7 @@ function ThemeThumbnail({ theme }: { theme: Theme }) {
       </span>
       <span className="grid flex-1 grid-cols-3 grid-rows-2 gap-1">
         {AVATAR_DOTS.map((dot) => (
-          <span key={dot} data-preview="desk" className="flex flex-col items-center justify-end gap-0.5 rounded-t-[5px] bg-card px-1 pb-1">
+          <span key={dot} data-preview="desk" className="flex flex-col items-center justify-end gap-0.5 rounded-t-[5px] px-1 pb-1">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />
             <span className="h-[3px] w-[70%] rounded-full opacity-70" style={{ background: 'var(--desk-name)' }} />
           </span>

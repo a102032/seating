@@ -32,7 +32,7 @@ interface PointsMeterProps {
   lifted?: boolean
   /** The timer, put away as a clock at the bar's start (BigTimer.tsx). */
   leading?: ReactNode
-  /** Which side the rail is on, so the put-away clock sits at the end by the rail's timer button. */
+  /** Which side the rail is on, so the put-away clock sits at the meter's end nearer the rail's timer button. */
   side: 'left' | 'right'
 }
 
@@ -240,7 +240,7 @@ export function PointsMeter({
       data-ink="panel"
       data-side={side}
       className={clsx(
-        barClass(),
+        barClass(side),
         'transition-shadow',
         open && 'shadow-[0_0_0_3px_rgba(251,191,36,0.65)]',
         // Above Get Ready!'s faded board (z-55), under the stars flying in (z-60). Only to be
