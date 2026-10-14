@@ -6,6 +6,13 @@ const MAX_CQI = 16
  * name can be nearly twice the size, which is what reads from the back of the room.
  */
 export const NAME_ONLY_MAX_CQI = 30
+/**
+ * A name under its picture is drawn at this share of the size that fits the desk's width, so the
+ * picture gets the room (2026-10-14, the beta testers: the avatars were too small from the back).
+ */
+export const NAME_UNDER_PICTURE = 0.68
+/** ...but never smaller than this, which still reads from the back of the room. */
+export const NAME_FLOOR_PX = 14
 /** Desk width left for the name once its padding is taken off. */
 const AVAILABLE_CQI = 88
 const REFERENCE_PX = 100

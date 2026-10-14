@@ -67,7 +67,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - `src/lib/layouts.ts`: room layouts (Rows, Pairs, Rows of 3, Tables of 4, Tables of 5 two ways). `planFor(cls)` gives
   the desks a class shows, which row or table each belongs to (Pick Row / Pick Table, Split by Rows / Tables) and the
   fill order. Never work out a desk's place with `index % 6`: go through the plan. Rows keeps the old numbering (desks
-  0-29 six wide, 30-34 the seventh column), and `DeskGrid` draws Rows with its original code.
+  0-29 six wide, 30-34 the seventh column), and `DeskGrid` draws Rows with its original code. A class of thirty or fewer gets the seventh column as side desks (`planFor`, `side`) while someone sits there or Swap Seats is on.
 - `src/hooks/useClasses.ts`: all class data changes (seating, points, class goal, groups, attendance) and saving.
 - `src/hooks/useCloudSync.ts`: signing in and sync (the first-sign-in question, live sync, offline catch-up, Switch
   teacher). It watches `classes` and sends whatever changed, so class changes need nothing extra to sync.
@@ -98,7 +98,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
     Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
-    gear), in its own tab in the top corner away from the rail, an aisle apart from the goal meter (`lib/topBar.ts`), with the meter or without.
+    gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without.
   - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`SECTIONS`: Class, Students, Avatars,
     Points; Tools; Attendance, Participation; Google, with New Class ruled off at its foot), each in `components/settings/` and built from `settings/parts.tsx`, laid out
     by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of

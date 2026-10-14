@@ -286,8 +286,11 @@ export default function App() {
   }, [toast])
 
   const seating = activeClass?.seating ?? []
-  /** Where the desks stand: the class's layout, grown for a big class. */
-  const plan = planFor(activeClass)
+  /**
+   * Where the desks stand: the class's layout, grown for a big class. Swap Seats shows the side
+   * desks too, so a student can be moved off to the side of the room (lib/layouts, planFor).
+   */
+  const plan = planFor(activeClass, { sideDesks: swapMode })
   const absentIds = useMemo(() => absentOn(activeClass, today), [activeClass, today])
   /**
    * The seating chart as the lesson sees it today: an absent student's desk counts as empty
@@ -944,15 +947,19 @@ export default function App() {
           {sideRail}
         </div>
 
-        {/* The row along the top: the goal meter by the rail, an aisle, and the class's name and gear
-            in a tab in the far corner (2026-10-11, the teacher's mock-up). With no goal there is no
-            meter - a meter on screen is one the class will ask about every lesson, whether or not
-            the teacher wanted one - and the timer, put away, is a piece of its own by the rail. */}
+        {/* The row along the top: the class's name and gear in a tab by the rail, an aisle, and the
+            goal meter on to the far corner (2026-10-14, the beta testers; it was the other way round,
+            the teacher's mock-up of 2026-10-11). With no goal there is no meter - a meter on screen
+            is one the class will ask about every lesson, whether or not the teacher wanted one - and
+            the timer, put away, is a piece of its own beside the tab. */}
         <div
           data-side={panelSide}
           className={clsx('flex min-w-0', ROW_GAP, panelSide === 'left' ? 'flex-row' : 'flex-row-reverse')}
           style={{ gridArea: 'bar' }}
         >
+          <div data-ink="panel" data-class-tab="" className={clsx(tabClass, 'relative z-[16]')}>
+            {classTitle}
+          </div>
           {goalLive ? (
             <PointsMeter
               classId={activeClass.id}
@@ -973,9 +980,6 @@ export default function App() {
               <div className="flex-1" />
             </>
           )}
-          <div data-ink="panel" data-class-tab="" className={clsx(tabClass(panelSide), 'relative z-[16]')}>
-            {classTitle}
-          </div>
         </div>
 
         <div

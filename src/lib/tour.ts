@@ -51,7 +51,11 @@ export const TOUR: TourPart[] = [
         at: 'attendance',
         text: 'Attendance: tap it, then tap the desk of anyone who is away. Tap it again when you are done.',
       },
-      { shot: 'board', at: 'swap', text: 'Swap Seats: tap two desks to swap the students in them.' },
+      {
+        shot: 'board',
+        at: 'swap',
+        text: 'Swap Seats: tap two desks to swap the students in them. Desks at the side show too, for a student who sits apart.',
+      },
       {
         shot: 'board',
         at: 'pickStudent',

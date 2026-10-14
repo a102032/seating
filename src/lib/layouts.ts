@@ -42,6 +42,12 @@ export interface LayoutPlan {
   setName: 'row' | 'table'
   /** Seat numbers in the order a class fills them: back row first, left to right, working up. */
   fillOrder: number[]
+  /**
+   * The seventh column as side desks, not a big class's extra desks: a class of thirty or fewer
+   * with a student moved off to the side of the room (2026-10-14). Its desks stand past an aisle,
+   * count with the last row for Pick Row, and are filled last.
+   */
+  side: boolean
 }
 
 /**
@@ -75,8 +81,11 @@ function plan(
   rowGaps: Gap[],
   seats: Seat[],
   setName: 'row' | 'table',
+  side = false,
 ): LayoutPlan {
+  const order = fillOrderOf(seats)
   return {
+    side,
     kind,
     columns,
     rows,
@@ -85,7 +94,8 @@ function plan(
     seats,
     setCount: Math.max(...seats.map((s) => s.set)) + 1,
     setName,
-    fillOrder: fillOrderOf(seats),
+    // Side desks are never filled by Seat Students or Mix Up Seats: a student is put there by hand.
+    fillOrder: side ? [...order.filter((i) => seats[i].column < 6), ...order.filter((i) => seats[i].column >= 6)] : order,
   }
 }
 
@@ -97,20 +107,24 @@ const repeatGaps = (pattern: Gap[], length: number): Gap[] => Array.from({ lengt
  * seating chart saved before layouts existed is already a Rows chart, and Rows, Pairs and Rows
  * of 3 share their numbers: switching between them moves nobody.
  */
-function gridLayout(kind: 'rows' | 'pairs' | 'threes', big: boolean): LayoutPlan {
+function gridLayout(kind: 'rows' | 'pairs' | 'threes', big: boolean, side: boolean): LayoutPlan {
   const across: Record<typeof kind, Gap[]> = {
     rows: repeatGaps(['even'], 5),
     pairs: ['touch', 'aisle', 'touch', 'aisle', 'touch'],
     threes: ['touch', 'touch', 'aisle', 'touch', 'touch'],
   }
   const seats: Seat[] = []
-  for (let i = 0; i < (big ? 35 : 30); i++) {
+  const seventh = big || side
+  for (let i = 0; i < (seventh ? 35 : 30); i++) {
     const column = i < 30 ? i % 6 : 6
-    seats.push({ column, row: i < 30 ? Math.floor(i / 6) : i - 30, set: column })
+    // A side desk counts with the last row for Pick Row, so the row picker never lands on just
+    // the students moved there, and they are picked as often as anyone (the teacher, 2026-10-14).
+    seats.push({ column, row: i < 30 ? Math.floor(i / 6) : i - 30, set: side ? Math.min(column, 5) : column })
   }
-  // A big class's seventh column stands on its own, past an aisle, in the grouped layouts.
-  const columnGaps: Gap[] = big ? [...across[kind], kind === 'rows' ? 'even' : 'aisle'] : across[kind]
-  return plan(kind, big ? 7 : 6, 5, columnGaps, repeatGaps(['even'], 4), seats, 'row')
+  // A big class's seventh column stands on its own, past an aisle, in the grouped layouts; side
+  // desks stand past an aisle in Rows too, off to the side of the room as they are.
+  const columnGaps: Gap[] = seventh ? [...across[kind], kind === 'rows' && !side ? 'even' : 'aisle'] : across[kind]
+  return plan(kind, seventh ? 7 : 6, 5, columnGaps, repeatGaps(['even'], 4), seats, 'row', side)
 }
 
 /** Nine tables of four, three across and three deep: thirty-six desks, which seats any class. */
@@ -168,11 +182,14 @@ function tablesOfFive(kind: 'tables5-top' | 'tables5-bottom', big: boolean): Lay
   return plan(kind, columns, 6, repeatGaps(['touch', 'aisle'], columns - 1), ['touch', 'touch', 'aisle', 'touch', 'touch'], seats, 'table')
 }
 
+/** Rows, Pairs and Rows of 3 number their desks the same way, so moving between them moves nobody. */
+const GRID_LAYOUTS: RoomLayout[] = ['rows', 'pairs', 'threes']
+
 const plans = new Map<string, LayoutPlan>()
 
 /** A layout's desks. `big` is a class of more than its usual number of desks. */
-export function layoutPlan(kind: RoomLayout, big: boolean): LayoutPlan {
-  const key = `${kind}-${big}`
+export function layoutPlan(kind: RoomLayout, big: boolean, side = false): LayoutPlan {
+  const key = `${kind}-${big}-${side}`
   let found = plans.get(key)
   if (!found) {
     found =
@@ -180,7 +197,7 @@ export function layoutPlan(kind: RoomLayout, big: boolean): LayoutPlan {
         ? tablesOfFour()
         : kind === 'tables5-top' || kind === 'tables5-bottom'
           ? tablesOfFive(kind, big)
-          : gridLayout(kind, big)
+          : gridLayout(kind, big, side)
     plans.set(key, found)
   }
   return found
@@ -192,15 +209,21 @@ function needsMoreDesks(kind: RoomLayout, cls: Pick<ClassData, 'students' | 'sea
   return cls.students.length > base || cls.seating.slice(base).some(Boolean)
 }
 
-/** The desks this class sees: its layout, grown for a big class. */
-export function planFor(cls: Pick<ClassData, 'students' | 'seating' | 'layout'> | undefined): LayoutPlan {
+/**
+ * The desks this class sees: its layout, grown for a big class. In Rows, Pairs and Rows of 3 a
+ * class of thirty or fewer gets the seventh column as side desks while someone sits there, and
+ * while Swap Seats is on (`sideDesks`), so a student can be moved off to the side of the room,
+ * as teachers do with a student who needs to focus (the beta testers, 2026-10-14).
+ */
+export function planFor(cls: Pick<ClassData, 'students' | 'seating' | 'layout'> | undefined, opts?: { sideDesks?: boolean }): LayoutPlan {
   if (!cls) return layoutPlan('rows', false)
   const kind = cls.layout ?? 'rows'
+  if (GRID_LAYOUTS.includes(kind) && cls.students.length <= BASE_SEATS[kind]) {
+    const sideTaken = cls.seating.slice(BASE_SEATS[kind]).some(Boolean)
+    return layoutPlan(kind, false, sideTaken || opts?.sideDesks === true)
+  }
   return layoutPlan(kind, needsMoreDesks(kind, cls))
 }
-
-/** Rows, Pairs and Rows of 3 number their desks the same way, so moving between them moves nobody. */
-const GRID_LAYOUTS: RoomLayout[] = ['rows', 'pairs', 'threes']
 
 /**
  * The same class in another layout. Between Rows, Pairs and Rows of 3 nobody moves: the desks

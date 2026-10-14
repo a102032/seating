@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Star } from 'lucide-react'
-import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
+import { HOMEROOM_TAG_SCALE, NAME_FLOOR_PX, NAME_UNDER_PICTURE } from '../lib/fitText'
 import { hasNoPicture } from '../lib/stickers'
 import type { Student } from '../types'
 import { AbsentIcon } from './AbsentIcon'
@@ -30,8 +30,6 @@ interface DeskProps {
   absent: boolean
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
-  /** The size that just fits the class's longest name, uncapped (the desk preview). */
-  nameFit: number
   /**
    * The most a no-avatar desk's name may be, in cqb (a share of the desk's height), shared by
    * the class: the name sits in the middle and the homeroom number, where one shows, hangs
@@ -56,7 +54,6 @@ export function Desk({
   highlight,
   absent,
   nameSize,
-  nameFit,
   nameHeightCap,
   showHomeroom,
   showStars,
@@ -68,6 +65,11 @@ export function Desk({
   // The room above a centred name: from near the desk's top down to just above the name's
   // capitals, which start about a third of the name's size above the middle.
   const nameFont = `min(${nameSize}cqi, ${nameHeightCap}cqb)`
+  // A name under a picture is about two thirds of the size that fits the desk's width, so the
+  // picture above it has the room (the beta testers, 2026-10-14: the avatars were too small to
+  // see from the back, and the name took more of the desk than the picture). It never goes under
+  // NAME_FLOOR_PX, which still reads from the back, nor over the size that fits, so no name is cut.
+  const nameUnderPicture = `min(${nameSize}cqi, max(${(nameSize * NAME_UNDER_PICTURE).toFixed(2)}cqi, ${NAME_FLOOR_PX}px))`
   const nameOnlyZzz = `min(34cqb, calc(47cqb - 0.44 * ${nameFont}))`
 
   return (
@@ -80,15 +82,13 @@ export function Desk({
       aria-label={empty ? 'Empty desk' : undefined}
       className={clsx(
         // Rounded at the top, square at the bottom, so the desks sit on the grid like objects on a shelf.
-        // A hairline and a little lift, not an outline. This was a 2px #1b3a4b - a fixed
-        // dark navy that ignored the theme, so on a bright ground it read as thirty
-        // near-black boxes. Borderless was tried and fails on the Light theme, where a
-        // white desk on a near-white ground loses its edge entirely; a hairline also
-        // survives a classroom projector, which washes soft shadows out.
-        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] border p-1 text-center shadow-[0_1px_3px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] transition-opacity duration-200',
-        empty
-          ? 'border-border bg-card/40 text-muted-foreground'
-          : 'border-[rgba(0,0,0,0.12)] bg-card text-card-foreground dark:border-[rgba(255,255,255,0.16)]',
+        // Faint, with no outline or shadow (2026-10-14, the beta testers): the avatar and the
+        // name are what the room reads, and white tiles with a hairline round each got in their
+        // way. It was a hairline and a little lift, and before that a 2px fixed navy that read as
+        // thirty near-black boxes. The colour is --desk-bg (index.css): a third of the card's
+        // colour, or on Light a soft grey, since a faint white desk vanishes on its white board.
+        'group relative flex h-full w-full select-none flex-col items-center overflow-hidden rounded-t-[1.15rem] p-1 text-center transition-opacity duration-200',
+        empty ? 'bg-[var(--desk-empty-bg)] text-muted-foreground' : 'bg-[var(--desk-bg)] text-card-foreground',
         // A desk presses in under the finger, so a tap registers before anything else moves.
         !empty && 'active:scale-[0.97]',
         selected && 'ring-4 ring-blue-500 animate-pulse',
@@ -169,10 +169,8 @@ export function Desk({
               </div>
             </>
           ) : (
-            // data-desk-body is a plain box (display: contents) unless a preview lays the desk out
-            // another way (the desk preview, 2026-10-14): the picture beside the name on a wide desk.
-            <div data-desk-body="" className="contents">
-              <div data-desk-pic="" className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+            <>
+              <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
                 {absent ? (
                   // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
                   <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
@@ -182,18 +180,10 @@ export function Desk({
               </div>
 
               <span
-                data-desk-name=""
-                className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-tight"
+                className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-[1.1]"
                 // Its own colour token rather than the card's text colour - see --desk-name in
                 // index.css. Dark and Comic Book point it back at the card colour.
-                style={
-                  {
-                    fontSize: `${nameSize}cqi`,
-                    color: 'var(--desk-name, var(--card-foreground))',
-                    '--n': nameSize,
-                    '--nf': nameFit,
-                  } as React.CSSProperties
-                }
+                style={{ fontSize: nameUnderPicture, color: 'var(--desk-name, var(--card-foreground))' }}
               >
                 {student.name}
                 {showHomeroom && (
@@ -206,7 +196,7 @@ export function Desk({
                   </span>
                 )}
               </span>
-            </div>
+            </>
           )}
         </>
       )}
