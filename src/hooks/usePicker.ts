@@ -299,8 +299,11 @@ export function usePicker(seating: (string | null)[], classId: string | null, pl
   const deskHighlights: DeskHighlight[] = Array.from({ length: seating.length }, (_, index) => {
     if (mode === 'student-flashing') return flashDesk === index ? 'flashing' : 'dimmed'
     if (mode === 'student-result') return winnerDesk === index ? 'winner' : 'dimmed'
-    if (mode === 'row-flashing') return columnOf(index) === flashColumn ? 'flashing' : 'dimmed'
-    if (mode === 'row-result') return columnOf(index) === winnerColumn ? 'winner' : 'dimmed'
+    // An empty side desk is no one's seat in the row, so it stays dim (the teacher, 2026-10-14:
+    // the whole side column lit up with the last row).
+    const inRow = (column: number | null) => columnOf(index) === column && !(plan.side && plan.seats[index]?.column >= 6 && !seating[index])
+    if (mode === 'row-flashing') return inRow(flashColumn) ? 'flashing' : 'dimmed'
+    if (mode === 'row-result') return inRow(winnerColumn) ? 'winner' : 'dimmed'
     return 'none'
   })
 
