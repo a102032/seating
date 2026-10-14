@@ -30,6 +30,8 @@ interface DeskProps {
   absent: boolean
   /** Name size in cqi, shared by every desk in the class - see lib/fitText.ts. */
   nameSize: number
+  /** The size that just fits the class's longest name, uncapped (the desk preview). */
+  nameFit: number
   /**
    * The most a no-avatar desk's name may be, in cqb (a share of the desk's height), shared by
    * the class: the name sits in the middle and the homeroom number, where one shows, hangs
@@ -54,6 +56,7 @@ export function Desk({
   highlight,
   absent,
   nameSize,
+  nameFit,
   nameHeightCap,
   showHomeroom,
   showStars,
@@ -166,8 +169,10 @@ export function Desk({
               </div>
             </>
           ) : (
-            <>
-              <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+            // data-desk-body is a plain box (display: contents) unless a preview lays the desk out
+            // another way (the desk preview, 2026-10-14): the picture beside the name on a wide desk.
+            <div data-desk-body="" className="contents">
+              <div data-desk-pic="" className="relative flex min-h-0 w-full flex-1 items-center justify-center">
                 {absent ? (
                   // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
                   <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
@@ -177,10 +182,18 @@ export function Desk({
               </div>
 
               <span
+                data-desk-name=""
                 className="w-full shrink-0 truncate px-1 pb-0.5 font-bold leading-tight"
                 // Its own colour token rather than the card's text colour - see --desk-name in
                 // index.css. Dark and Comic Book point it back at the card colour.
-                style={{ fontSize: `${nameSize}cqi`, color: 'var(--desk-name, var(--card-foreground))' }}
+                style={
+                  {
+                    fontSize: `${nameSize}cqi`,
+                    color: 'var(--desk-name, var(--card-foreground))',
+                    '--n': nameSize,
+                    '--nf': nameFit,
+                  } as React.CSSProperties
+                }
               >
                 {student.name}
                 {showHomeroom && (
@@ -193,7 +206,7 @@ export function Desk({
                   </span>
                 )}
               </span>
-            </>
+            </div>
           )}
         </>
       )}

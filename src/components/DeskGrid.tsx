@@ -99,6 +99,13 @@ export function DeskGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [labels, fontsLoaded, nameOnlyClass],
   )
+  // The size that just fits the longest name, with no cap: the desk preview's names beside the
+  // picture grow to fill the room they have (2026-10-14).
+  const nameFit = useMemo(
+    () => fitClassNameSize(labels ? labels.split('\n').map((l) => ({ name: l.split('\t')[0], homeroom: l.split('\t')[1] })) : [], 999),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [labels, fontsLoaded],
+  )
   // A centred name with a homeroom number under it needs room below it as well as above: the
   // name is held to two fifths of the desk's height (the number only as tall as its digits), or
   // a bit under half when no centred name has a number. One cap for the class, so the names stay
@@ -126,6 +133,7 @@ export function DeskGrid({
         highlight={deskHighlights[index] ?? 'none'}
         absent={student !== undefined && absentIds.has(student.id)}
         nameSize={nameSize}
+        nameFit={nameFit}
         nameHeightCap={nameHeightCap}
         showHomeroom={student !== undefined && tagged.has(student.id)}
         showStars={showStars}
