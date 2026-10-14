@@ -17,6 +17,7 @@ import { GroupBuilder } from './components/GroupBuilder'
 import { SaveGroupsModal } from './components/SaveGroupsModal'
 import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
+import { FullScreenButton } from './components/FullScreenButton'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
@@ -798,6 +799,15 @@ export default function App() {
     return <div className="flex h-full w-full items-center justify-center text-neutral-400">Loading...</div>
   }
 
+  // Full Screen sits in the top bar's far corner, after the goal's count (2026-10-14, the teacher:
+  // the rail's foot was the wrong spot), or alone in that corner with no goal.
+  const fullScreenButton = (
+    <FullScreenButton
+      size={22}
+      className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground active:scale-95"
+    />
+  )
+
   const sideRail = (
     <SideRail
       goalLive={goalLive}
@@ -980,11 +990,15 @@ export default function App() {
               lifted={meterLifted}
               side={panelSide}
               leading={<TimerClock />}
+              trailing={fullScreenButton}
             />
           ) : (
             <>
               <TimerClock frame={clockPieceClass} />
               <div className="flex-1" />
+              <div data-ink="panel" className={clsx(clockPieceClass, 'empty:hidden')}>
+                {fullScreenButton}
+              </div>
             </>
           )}
         </div>

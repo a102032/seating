@@ -95,10 +95,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - `src/components/`:
   - `SideRail.tsx`: the side rail, one column of the teacher's own icons (`RailIcons.tsx`, generated from the teacher's Flaticon SVGs;
     the pickers' grids in `PickerIcons.tsx`): Float, Get Ready!, the timer, Attendance, Swap Seats, the three pickers, Flip
-    Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark, Full Screen (`FullScreenButton.tsx`, on the splash too) and the side arrows. No words:
+    Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
-    gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without.
+    gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without. Full Screen (`FullScreenButton.tsx`) is in that far corner, after the meter's count, and on the splash.
   - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`SECTIONS`: Class, Students, Avatars,
     Points; Tools; Attendance, Participation; Google, with New Class ruled off at its foot), each in `components/settings/` and built from `settings/parts.tsx`, laid out
     by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of

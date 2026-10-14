@@ -321,6 +321,11 @@ const scenarios = {
         (c.classPoints ?? 0) === 0,
     )
     check('goal off: Get Ready! is still there', (await panelButton(page, 'Get Ready!').count()) === 1)
+    await page.screenshot({ path: `${SHOTS}/no-goal-corner.png` })
+    check(
+      'goal off: Full Screen is still in the top corner',
+      (await page.getByRole('button', { name: 'Full Screen', exact: true }).count()) === 1,
+    )
     return page
   },
 

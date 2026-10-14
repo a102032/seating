@@ -32,6 +32,8 @@ interface PointsMeterProps {
   lifted?: boolean
   /** The timer, put away as a clock at the bar's start (BigTimer.tsx). */
   leading?: ReactNode
+  /** Full Screen, in the far corner after the count. */
+  trailing?: ReactNode
   /** Which side the rail is on, so the put-away clock sits at the meter's end nearer the rail's timer button. */
   side: 'left' | 'right'
 }
@@ -65,6 +67,7 @@ export function PointsMeter({
   onWaitingChange,
   lifted = false,
   leading,
+  trailing,
   side,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
@@ -338,6 +341,8 @@ export function PointsMeter({
       >
         {displayPoints} / {goal}
       </span>
+
+      {trailing}
 
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}
