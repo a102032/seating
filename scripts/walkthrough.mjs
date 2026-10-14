@@ -286,6 +286,19 @@ const scenarios = {
     await page.locator('[data-board-hint] button', { hasText: 'Done' }).click()
     await page.waitForTimeout(300)
     check('attendance: Done ends it', (await page.getByText('Tap a desk to mark a student away.').count()) === 0)
+    await page.getByRole('button', { name: 'Full Screen', exact: true }).click()
+    await page.waitForTimeout(600)
+    await page.screenshot({ path: `${SHOTS}/full-screen.png` })
+    check(
+      'full screen: one tap in, and the rail still fits',
+      await page.evaluate(() => {
+        const aside = document.querySelector('aside')
+        return Boolean(document.fullscreenElement) && aside.scrollHeight - aside.clientHeight <= 0
+      }),
+    )
+    await page.getByRole('button', { name: 'Leave Full Screen' }).click()
+    await page.waitForTimeout(400)
+    check('full screen: one tap out', await page.evaluate(() => !document.fullscreenElement))
     return page
   },
 

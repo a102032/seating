@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { FullScreenButton } from './FullScreenButton'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   Apple,
@@ -181,17 +182,72 @@ const DOODLES: {
   { Shape: Sun, style: { left: '3%', top: '13%', '--w': '9cqw' } as React.CSSProperties, rotate: -12, color: CHALK.yellow, opacity: 0.6 },
   { Shape: Cloud, style: { right: '5%', top: '15%', '--w': '11cqw' } as React.CSSProperties, rotate: 6, color: CHALK.white, opacity: 0.5 },
   { Shape: Tree, style: { left: '5%', bottom: '8%', '--w': '8cqw' } as React.CSSProperties, rotate: 5, color: CHALK.mint, opacity: 0.6 },
-  { Shape: House, style: { right: '6%', bottom: '9%', '--w': '9cqw' } as React.CSSProperties, rotate: -7, color: CHALK.peach, opacity: 0.55 },
-  { Shape: Cat, style: { left: '4%', top: '44%', '--w': '7.5cqw' } as React.CSSProperties, rotate: 14, color: CHALK.pink, opacity: 0.55, small: true },
-  { Shape: Dog, style: { right: '4%', top: '42%', '--w': '8cqw' } as React.CSSProperties, rotate: -10, color: CHALK.sky, opacity: 0.55, small: true },
-  { Shape: AppleDoodle, style: { left: '15%', bottom: '8%', '--w': '5.5cqw' } as React.CSSProperties, rotate: 18, color: CHALK.pink, opacity: 0.55, small: true },
-  { Shape: Flower, style: { right: '17%', bottom: '6%', '--w': '6cqw' } as React.CSSProperties, rotate: -15, color: CHALK.lavender, opacity: 0.55, small: true },
-  { Shape: Heart, style: { left: '16%', top: '22%', '--w': '4.5cqw' } as React.CSSProperties, rotate: -22, color: CHALK.pink, opacity: 0.5, small: true },
-  { Shape: Smiley, style: { right: '14%', top: '31%', '--w': '5cqw' } as React.CSSProperties, rotate: 12, color: CHALK.yellow, opacity: 0.5, small: true },
+  {
+    Shape: House,
+    style: { right: '6%', bottom: '9%', '--w': '9cqw' } as React.CSSProperties,
+    rotate: -7,
+    color: CHALK.peach,
+    opacity: 0.55,
+  },
+  {
+    Shape: Cat,
+    style: { left: '4%', top: '44%', '--w': '7.5cqw' } as React.CSSProperties,
+    rotate: 14,
+    color: CHALK.pink,
+    opacity: 0.55,
+    small: true,
+  },
+  {
+    Shape: Dog,
+    style: { right: '4%', top: '42%', '--w': '8cqw' } as React.CSSProperties,
+    rotate: -10,
+    color: CHALK.sky,
+    opacity: 0.55,
+    small: true,
+  },
+  {
+    Shape: AppleDoodle,
+    style: { left: '15%', bottom: '8%', '--w': '5.5cqw' } as React.CSSProperties,
+    rotate: 18,
+    color: CHALK.pink,
+    opacity: 0.55,
+    small: true,
+  },
+  {
+    Shape: Flower,
+    style: { right: '17%', bottom: '6%', '--w': '6cqw' } as React.CSSProperties,
+    rotate: -15,
+    color: CHALK.lavender,
+    opacity: 0.55,
+    small: true,
+  },
+  {
+    Shape: Heart,
+    style: { left: '16%', top: '22%', '--w': '4.5cqw' } as React.CSSProperties,
+    rotate: -22,
+    color: CHALK.pink,
+    opacity: 0.5,
+    small: true,
+  },
+  {
+    Shape: Smiley,
+    style: { right: '14%', top: '31%', '--w': '5cqw' } as React.CSSProperties,
+    rotate: 12,
+    color: CHALK.yellow,
+    opacity: 0.5,
+    small: true,
+  },
   // Up the left edge between the sun and the cat, and the star between the dog and the house:
   // the Google buttons widened the row under the classes, and the sum and the star sat under it.
   { Shape: Sum, style: { left: '3.5%', top: '30%', '--w': '11cqw' } as React.CSSProperties, rotate: -4, color: CHALK.white, opacity: 0.5 },
-  { Shape: StarShape, style: { right: '8%', top: '66%', '--w': '4.5cqw' } as React.CSSProperties, rotate: 20, color: CHALK.yellow, opacity: 0.5, small: true },
+  {
+    Shape: StarShape,
+    style: { right: '8%', top: '66%', '--w': '4.5cqw' } as React.CSSProperties,
+    rotate: 20,
+    color: CHALK.yellow,
+    opacity: 0.5,
+    small: true,
+  },
 ]
 
 function ChalkDoodles() {
@@ -228,8 +284,10 @@ function Sun() {
       <circle cx="50" cy="52" r="17" />
       {Array.from({ length: 8 }, (_, i) => {
         const a = (i / 8) * Math.PI * 2 + 0.2
-        const x1 = 50 + Math.cos(a) * 24, y1 = 52 + Math.sin(a) * 24
-        const x2 = 50 + Math.cos(a) * (34 + (i % 2) * 4), y2 = 52 + Math.sin(a) * (34 + (i % 2) * 4)
+        const x1 = 50 + Math.cos(a) * 24,
+          y1 = 52 + Math.sin(a) * 24
+        const x2 = 50 + Math.cos(a) * (34 + (i % 2) * 4),
+          y2 = 52 + Math.sin(a) * (34 + (i % 2) * 4)
         return <path key={i} d={`M${x1} ${y1} L${x2} ${y2}`} />
       })}
       <path d="M43 50 q2 -3 4 0 M53 49 q2 -3 4 0 M42 58 q8 7 16 0" />
@@ -453,6 +511,12 @@ export function SplashScreen({
         ))}
       </div>
 
+      {/* Full screen from the very first screen, in the wall's corner, quiet like the doodles. */}
+      <FullScreenButton
+        size={20}
+        className="absolute right-1 top-1 z-20 rounded-lg p-1.5 text-[#f4f1e8]/70 hover:bg-white/10 hover:text-[#f4f1e8] active:scale-95"
+      />
+
       {/* Scaled down as a whole when the board is taller than the screen (five classes on a short
           laptop), so nothing is cut off and nothing is squeezed; at full size otherwise. */}
       <div ref={fitRef} className="relative z-10 w-full max-w-5xl">
@@ -498,7 +562,11 @@ export function SplashScreen({
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
                 >
-                  {account ? <Greeting key={`${account.uid}|${account.firstName}`} account={account} classes={classes} /> : 'Welcome, Teacher!'}
+                  {account ? (
+                    <Greeting key={`${account.uid}|${account.firstName}`} account={account} classes={classes} />
+                  ) : (
+                    'Welcome, Teacher!'
+                  )}
                 </motion.p>
 
                 <motion.p
@@ -569,7 +637,11 @@ export function SplashScreen({
                   <p
                     data-keep-clear
                     className="splash-chalk relative mt-3.5 max-w-2xl"
-                    style={{ color: signInError ? CHALK.peach : CHALK.white, opacity: signInError ? 1 : 0.8, fontSize: 'clamp(0.95rem, 2.4vmin, 1.2rem)' }}
+                    style={{
+                      color: signInError ? CHALK.peach : CHALK.white,
+                      opacity: signInError ? 1 : 0.8,
+                      fontSize: 'clamp(0.95rem, 2.4vmin, 1.2rem)',
+                    }}
                     role={signInError ? 'alert' : undefined}
                   >
                     {note}

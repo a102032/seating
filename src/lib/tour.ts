@@ -76,6 +76,7 @@ export const TOUR: TourPart[] = [
       { shot: 'board', at: 'tab', text: 'Your class. Tap the arrow to switch to another class, or make a new one.' },
       { shot: 'board', at: 'gear', text: 'Class Settings: everything about this class. Help, and this tour, are in there.' },
       { shot: 'board', at: 'saved', text: 'Whether your classes are saved to your Google account. A cloud with a tick means they are.' },
+      { shot: 'board', at: 'fullscreen', text: 'Full screen: the app fills the whole screen. Tap it again to leave.' },
       { shot: 'board', at: 'side', text: 'Moves the side buttons to the other side of the screen.' },
     ],
   },

@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { ArrowLeftRight, Check, Minus, PictureInPicture2, TriangleAlert } from 'lucide-react'
 import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { FullScreenButton } from './FullScreenButton'
 import { useFitToHeight } from '../hooks/useFitToHeight'
 import { timer, useTimer } from '../hooks/useTimer'
 import type { useCloudSync } from '../hooks/useCloudSync'
@@ -411,7 +412,7 @@ export function SideRail(props: SideRailProps) {
         </>
       )}
 
-      {/* The foot: the Saved mark and the side arrows, bare. mt-auto keeps them at the bottom. */}
+      {/* The foot: the Saved mark, full screen and the side arrows, bare. mt-auto keeps them at the bottom. */}
       <div className="mt-auto flex shrink-0 flex-wrap items-center justify-center gap-0.5 pt-0.5">
         {cloud.account && (
           <SyncMark
@@ -437,6 +438,7 @@ export function SideRail(props: SideRailProps) {
             <TriangleAlert size={16} />
           </span>
         )}
+        <FullScreenButton className="rounded-lg p-0.5 text-muted-foreground hover:bg-accent active:scale-95" />
         <button
           type="button"
           onClick={onToggleSide}
