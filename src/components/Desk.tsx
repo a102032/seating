@@ -36,6 +36,8 @@ interface DeskProps {
    * under it, so a short desk must still have room below the name.
    */
   nameHeightCap: number
+  /** Some desks in the class have a picture, so every name is the smaller size the pictures leave. */
+  mixedClass: boolean
   /** Another student in the class has the same name, so the homeroom number tells them apart. */
   showHomeroom: boolean
   /** Show the stars waiting on the desk, in a class that puts them there first - see starsOnDesks in types.ts. */
@@ -55,6 +57,7 @@ export function Desk({
   absent,
   nameSize,
   nameHeightCap,
+  mixedClass,
   showHomeroom,
   showStars,
   onTap,
@@ -64,12 +67,14 @@ export function Desk({
   const nameOnly = student !== undefined && hasNoPicture(student)
   // The room above a centred name: from near the desk's top down to just above the name's
   // capitals, which start about a third of the name's size above the middle.
-  const nameFont = `min(${nameSize}cqi, ${nameHeightCap}cqb)`
   // A name under a picture is about two thirds of the size that fits the desk's width, so the
   // picture above it has the room (the beta testers, 2026-10-14: the avatars were too small to
   // see from the back, and the name took more of the desk than the picture). It never goes under
   // NAME_FLOOR_PX, which still reads from the back, nor over the size that fits, so no name is cut.
   const nameUnderPicture = `min(${nameSize}cqi, max(${(nameSize * NAME_UNDER_PICTURE).toFixed(2)}cqi, ${NAME_FLOOR_PX}px))`
+  // In a class with some avatars every name is one size, so a no-avatar desk takes the smaller
+  // size too; in a class of names only the name has the whole desk and can be big.
+  const nameFont = `min(${mixedClass ? nameUnderPicture : `${nameSize}cqi`}, ${nameHeightCap}cqb)`
   const nameOnlyZzz = `min(34cqb, calc(47cqb - 0.44 * ${nameFont}))`
 
   return (

@@ -127,6 +127,7 @@ export function DeskGrid({
         absent={student !== undefined && absentIds.has(student.id)}
         nameSize={nameSize}
         nameHeightCap={nameHeightCap}
+        mixedClass={!nameOnlyClass}
         showHomeroom={student !== undefined && tagged.has(student.id)}
         showStars={showStars}
         onTap={onTapDesk}
