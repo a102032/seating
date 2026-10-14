@@ -25,8 +25,10 @@ export function controlButtonHeight(windowHeight: number) {
  * The floating window's "How long?": a snug rectangle of the drums, two rows of four, sized from
  * its width so the window can be made exactly tall enough for it (2026-10-06, the teacher: no space
  * above and below the drums). The same numbers lay it out (`FloatGetReady.tsx`) and size the window.
+ * The pad was 12 and the gap 10, and a teacher found the drums squashed against the window's
+ * edges (2026-10-14): 28 round them and 16 between.
  */
-export const FLOAT_DRUMS = { pad: 12, gap: 10, titleHeight: 40, imageRatio: 0.62, imageMax: 96, numberRatio: 0.26, numberMax: 36 }
+export const FLOAT_DRUMS = { pad: 28, gap: 16, titleHeight: 40, imageRatio: 0.62, imageMax: 96, numberRatio: 0.26, numberMax: 36 }
 
 /** The width of one drum in a window this wide. */
 function floatDrumWidth(width: number) {

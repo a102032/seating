@@ -1304,6 +1304,7 @@ const scenarios = {
       'float Get Ready!: no meter over the star, and a chest to fly to',
       (await win.locator('[data-float-coin]').count()) === 1 && (await win.locator('[data-ink=panel]').count()) === 0,
     )
+    await win.screenshot({ path: `${SHOTS}/float-star.png` })
     await win.locator('[data-get-ready] button[aria-label="Start"]').click()
     await win.waitForTimeout(1500)
     await win.getByRole('button', { name: 'Ready!', exact: true }).click()

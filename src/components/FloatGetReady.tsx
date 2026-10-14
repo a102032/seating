@@ -9,8 +9,11 @@ import { SoundButton, StarMoment, type Layout } from './GetReady'
 
 /** The board reads one touch as two: the tap that opened the drums lands again on whatever is under it now. */
 const TAP_GUARD_MS = 700
-/** Room kept clear round the star, and between the star and the column of Ready!, Stop and the chest. */
-const MARGIN = 16
+/**
+ * Room kept clear round the star, and between the star and the column of Ready!, Stop and the chest.
+ * It was 16, and a teacher found the star and Ready! squashed against the window's frame (2026-10-14).
+ */
+const MARGIN = 32
 /** Ready! and Stop sit this far in from the window's right edge (their own `right-7`). */
 const COLUMN_RIGHT = 28
 
