@@ -2588,7 +2588,8 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    for (let i = 0; i < 19; i++) await page.locator('[data-tour-action="next"]').click()
+    // Through the board's 20 stops to the card before Flip Cards, then skip to Group Activity's card.
+    for (let i = 0; i < 20; i++) await page.locator('[data-tour-action="next"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
     await page.locator('button[aria-label="Class Settings"]').click()
