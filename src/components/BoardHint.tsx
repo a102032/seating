@@ -20,10 +20,10 @@ export function ModeHint({ mode, onDone }: { mode: 'swap' | 'attendance'; onDone
 }
 
 /** The Line is open: what a child does to get in line. Its column holds the teacher's buttons, so nothing here to tap. */
-export function LineHint() {
+export function LineHint({ changing }: { changing: boolean }) {
   return (
     <HintBar>
-      <span className="min-w-0 truncate font-bold">Tap your desk to get in line.</span>
+      <span className="min-w-0 truncate font-bold">{changing ? 'Tap a desk to change its step.' : 'Tap your desk to get in line.'}</span>
     </HintBar>
   )
 }

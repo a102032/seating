@@ -2563,9 +2563,9 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 81: Full Screen's stop (2026-10-14), then the Line's button on the board and a part of its own (2026-10-15).
-      'tour: 81 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 81 && bad === 0,
+      // 84: Full Screen's stop (2026-10-14), then the Line's button on the board and a part of its own (2026-10-15).
+      'tour: 84 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 84 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
@@ -2921,6 +2921,10 @@ const scenarios = {
     }
     await panelButton(page, 'Line').click()
     await page.waitForTimeout(400)
+    check('line: a fresh line asks how many steps', await page.getByText('How many steps?').isVisible())
+    await page.waitForTimeout(500)
+    await page.locator('[data-steps-choice="3"]').click()
+    await page.waitForTimeout(500)
     check(
       'line: the column and "Tap your desk to get in line."',
       (await page.locator('[data-line-panel]').count()) === 1 && (await page.getByText('Tap your desk to get in line.').count()) === 1,
@@ -2959,31 +2963,50 @@ const scenarios = {
     await page.waitForTimeout(700)
     await page.getByRole('button', { name: 'Get out' }).click()
     await page.waitForTimeout(800)
-    check('line: Get out takes him out, not done', !(await line()).waiting.includes('c1-s1') && !(await line()).done?.includes('c1-s1'))
+    check('line: Get out takes him out, not done', !(await line()).waiting.includes('c1-s1') && !(await line()).checks?.['c1-s1'])
     // The star for the one with the teacher, then Done.
     const before = (await activeSaved(page)).classPoints
     await page.locator('[data-line-panel] [aria-label="Give a Star"]').click()
     await page.waitForTimeout(1500)
     check('line: the star goes to the class goal', (await activeSaved(page)).classPoints === before + 1)
-    const done = page.locator('[data-line-panel] button', { hasText: /^Done$/ })
+    const done = page.locator('[data-line-panel] button', { hasText: /^Step 1 Done$/ })
     await done.click()
     await page.waitForTimeout(100)
-    await done.click() // the board's second touch
+    await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click() // the board's second touch
     await page.waitForTimeout(900)
     l = await line()
-    check('line: Done once, through a double touch, calls the next', l.now === 'c1-s2' && l.done.includes('c1-s0'), JSON.stringify(l))
+    check('line: Step 1 Done once, through a double touch, calls the next', l.now === 'c1-s2' && l.checks['c1-s0'] === 1, JSON.stringify(l))
     check(
-      'line: Done in place of her picture, no number',
-      (await desk(page, 'Amy').locator('[data-done-mark]').count()) === 1 &&
-        (await desk(page, 'Amy').locator('img').count()) === 0 &&
+      'line: one dot of three on her desk, her picture kept, no number',
+      (await desk(page, 'Amy').locator('[data-line-steps="1"]').count()) === 1 &&
+        (await desk(page, 'Amy').locator('img').count()) === 1 &&
         (await mark('Amy').count()) === 0,
     )
+    // Change Steps: two taps take her through step 2 to Done, a third back to none, a fourth to step 1.
+    const change = page.locator('[data-line-panel] button', { hasText: 'Change Steps' })
+    await change.click()
+    await page.waitForTimeout(300)
+    check(
+      "line: Change Steps shows every desk's steps",
+      (await page.locator('[data-line-steps]').count()) > 10 && (await page.getByText('Tap a desk to change its step.').count()) === 1,
+    )
+    await tap('Amy')
+    await tap('Amy')
+    check(
+      'line: Change Steps to Done, the picture in place of hers',
+      (await line()).checks['c1-s0'] === 3 && (await desk(page, 'Amy').locator('[data-done-mark]').count()) === 1,
+    )
+    await tap('Amy')
+    await tap('Amy')
+    check('line: and round through none to step 1', (await line()).checks['c1-s0'] === 1)
+    await change.click()
+    await page.waitForTimeout(300)
     await page.locator('[data-line-panel] button', { hasText: /^Skip$/ }).click()
     await page.waitForTimeout(900)
     l = await line()
     check('line: Skip to the back of the line', l.now === 'c1-s3' && l.waiting.at(-1) === 'c1-s2', JSON.stringify(l))
     await tap('Amy')
-    check('line: a Done desk tapped joins again', (await line()).waiting.at(-1) === 'c1-s0' && (await mark('Amy').count()) === 1)
+    check('line: a checked desk tapped joins again', (await line()).waiting.at(-1) === 'c1-s0' && (await mark('Amy').count()) === 1)
     // The speaker by "In line": no sound for the class, kept with it.
     await page.locator('[data-line-panel] [data-get-ready-sound]').click()
     await page.waitForTimeout(300)
@@ -2995,12 +3018,13 @@ const scenarios = {
     )
     await panelButton(page, 'Line').click()
     await page.waitForTimeout(400)
+    check('line: reopened mid-activity, no question', (await page.getByText('How many steps?').count()) === 0)
     await page.locator('[data-line-panel] button', { hasText: 'Clear Line' }).click()
     await page.waitForTimeout(300)
     await page.getByRole('alertdialog').getByRole('button', { name: 'Clear Line' }).click()
     await page.waitForTimeout(500)
     l = await line()
-    check('line: Clear Line empties it and takes Done off', l.now === null && l.waiting.length === 0 && l.done.length === 0)
+    check('line: Clear Line empties it and takes Done off', l.now === null && l.waiting.length === 0 && Object.keys(l.checks).length === 0)
     return page
   },
 
@@ -3085,11 +3109,15 @@ const scenarios = {
         // The Line with a long queue and a Done desk: the desks make room for its column.
         await panelButton(page, 'Line').click()
         await page.waitForTimeout(400)
+        await look('how many steps')
+        await page.waitForTimeout(400)
+        await page.locator('[data-steps-choice="5"]').click()
+        await page.waitForTimeout(400)
         for (const n of NAMES.slice(0, 14)) {
           await desk(page, n).click()
           await page.waitForTimeout(720)
         }
-        await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
+        await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click()
         await page.waitForTimeout(900)
         const offScreen = await page.evaluate(() =>
           [...document.querySelectorAll('[data-line-panel] button')].some((b) => {

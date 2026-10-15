@@ -289,6 +289,7 @@ export function useClasses() {
           ...c.line,
           now: c.line.now && gone.has(c.line.now) ? null : c.line.now,
           waiting: c.line.waiting.filter((id) => !gone.has(id)),
+          checks: c.line.checks && Object.fromEntries(Object.entries(c.line.checks).filter(([id]) => !gone.has(id))),
           done: c.line.done?.filter((id) => !gone.has(id)),
         },
       }))
@@ -597,6 +598,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setLineSteps = useCallback(
+    (classId: string, steps: number) => updateClass(classId, (c) => ({ ...c, lineSteps: steps })),
+    [updateClass],
+  )
+
   const setGetReady = useCallback(
     (classId: string, patch: Partial<Pick<ClassData, 'getReadyPrize' | 'getReadyDrum' | 'getReadySilent'>>) =>
       updateClass(classId, (c) => ({ ...c, ...patch })),
@@ -772,6 +778,7 @@ export function useClasses() {
     setGetReady,
     changeLine,
     setLineSilent,
+    setLineSteps,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,

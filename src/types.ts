@@ -218,7 +218,9 @@ export interface ClassData {
    * Kept with the class so a refresh keeps everyone's place; read through lineOf, which gives a
    * new day an empty line.
    */
-  line?: { day: string; now: string | null; waiting: string[]; done?: string[] }
+  line?: { day: string; now: string | null; waiting: string[]; checks?: Record<string, number>; done?: string[] }
+  /** How many steps a task has in the Line, from "How many steps?" (each one checked; all of them is Done). Unset is one. */
+  lineSteps?: number
   /**
    * The Line with no sound (the speaker on its column, as Get Ready!'s is on "How long?"): a quiet
    * writing lesson. Kept until it is tapped back on. Unset is sound on.

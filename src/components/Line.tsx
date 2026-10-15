@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { lineCount, type ClassLine } from '../lib/line'
+import { checkedOf, lineCount, MAX_STEPS, type ClassLine } from '../lib/line'
 import type { Student } from '../types'
 import { SoundButton } from './GetReady'
 import { Modal } from './Modal'
@@ -33,6 +33,14 @@ interface LinePanelProps {
   /** No sound for the Line, set by the speaker by "In line", as Get Ready!'s is on "How long?". */
   silent: boolean
   onSetSilent: (silent: boolean) => void
+  /** How many steps the task has (each one checked; all of them is Done). */
+  steps: number
+  /** "Steps: 5" at the top: "How many steps?" again, to change it partway through. */
+  onAskSteps: () => void
+  /** Change Steps is on: a tap on a desk, or on the student with the teacher, moves them a step. */
+  changing: boolean
+  onToggleChanging: () => void
+  onCycle: (studentId: string) => void
 }
 
 /**
@@ -55,7 +63,15 @@ export function LinePanel({
   onClear,
   silent,
   onSetSilent,
+  steps,
+  onAskSteps,
+  changing,
+  onToggleChanging,
+  onCycle,
 }: LinePanelProps) {
+  // The step the student with the teacher brought, and what Done will do, said on the button itself.
+  const nowChecked = line.now ? checkedOf(line, line.now, steps) : 0
+  const doneLabel = steps === 1 ? 'Done' : nowChecked + 1 >= steps ? 'All Done' : `Step ${nowChecked + 1} Done`
   const now = line.now ? studentsById.get(line.now) : undefined
   const lastTap = useRef(0)
   const lastStar = useRef(0)
@@ -102,8 +118,27 @@ export function LinePanel({
       aria-label="Line"
       className="flex h-full w-[clamp(10.5rem,15vw,15rem)] shrink-0 flex-col gap-[clamp(0.35rem,1.2vh,0.75rem)] overflow-hidden rounded-2xl border border-border bg-card/80 p-[clamp(0.4rem,1.2vh,0.75rem)] text-card-foreground shadow-sm"
     >
-      {/* With the teacher: the class reads it from their seats. */}
-      <section className="flex shrink-0 flex-col items-center gap-1 rounded-xl bg-emerald-500/15 px-1.5 py-[clamp(0.25rem,1vh,0.6rem)] text-center">
+      {/* How many steps the task has, from "How many steps?": tap to change it partway through. */}
+      <button
+        type="button"
+        data-line-steps-button=""
+        onClick={onAskSteps}
+        className="shrink-0 rounded-lg bg-black/[0.04] px-2 py-0.5 font-bold text-muted-foreground transition-transform active:scale-95 dark:bg-white/[0.06]"
+        style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}
+      >
+        Steps: {steps}
+      </button>
+
+      {/* With the teacher: the class reads it from their seats. While Change Steps is on, a tap here
+          moves them a step, so the student at the teacher's side is in reach from the chair. */}
+      <section
+        onClick={changing && now ? () => onCycle(now.id) : undefined}
+        data-line-now-card=""
+        className={clsx(
+          'flex shrink-0 flex-col items-center gap-1 rounded-xl bg-emerald-500/15 px-1.5 py-[clamp(0.25rem,1vh,0.6rem)] text-center',
+          changing && now && 'cursor-pointer outline-2 outline-dashed outline-emerald-600',
+        )}
+      >
         <span className="font-bold text-emerald-800 dark:text-emerald-200" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
           With the teacher
         </span>
@@ -125,6 +160,11 @@ export function LinePanel({
                 {nameOf(now.id)}
               </span>
             </span>
+            {steps > 1 && (
+              <span className="font-bold text-emerald-800 dark:text-emerald-200" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
+                {nowChecked >= steps ? 'All done' : `Step ${nowChecked + 1} of ${steps}`}
+              </span>
+            )}
           </>
         ) : (
           <>
@@ -197,20 +237,35 @@ export function LinePanel({
             variant="primary"
             disabled={!now}
             onClick={(e) => guarded(e, TAP_GUARD_MS, lastTap, onDone)}
-            className={panelButton('min-w-0 flex-1 !bg-emerald-600 !text-white hover:!bg-emerald-700')}
+            className={panelButton('min-w-0 flex-1 whitespace-normal !leading-tight !bg-emerald-600 !text-white hover:!bg-emerald-700')}
           >
-            Done
+            {doneLabel}
           </TactileButton>
         </div>
-        <button
-          type="button"
-          disabled={lineCount(line) === 0 && line.done.length === 0}
-          onClick={onClear}
-          className="self-center rounded-lg px-2 py-0.5 font-semibold text-destructive transition-transform active:scale-95 disabled:pointer-events-none disabled:opacity-30"
-          style={{ fontSize: 'clamp(0.75rem, 1.6vmin, 0.95rem)' }}
-        >
-          Clear Line
-        </button>
+        <div className="flex items-center justify-between gap-1" style={{ fontSize: 'clamp(0.75rem, 1.6vmin, 0.95rem)' }}>
+          {/* Change Steps: on, a tap on any desk moves that student a step, through Done and back to
+              none; tapped again, off. For two steps brought at once, a Done pressed by mistake, a
+              student who finished early, or one checked at their seat. */}
+          <button
+            type="button"
+            aria-pressed={changing}
+            onClick={onToggleChanging}
+            className={clsx(
+              'rounded-lg px-2 py-0.5 font-semibold transition-transform active:scale-95',
+              changing ? 'bg-primary text-primary-foreground' : 'text-foreground',
+            )}
+          >
+            Change Steps
+          </button>
+          <button
+            type="button"
+            disabled={lineCount(line) === 0 && Object.keys(line.checks).length === 0}
+            onClick={onClear}
+            className="rounded-lg px-2 py-0.5 font-semibold text-destructive transition-transform active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+          >
+            Clear Line
+          </button>
+        </div>
       </section>
     </aside>
   )
@@ -271,6 +326,54 @@ export function LineLeaveModal({ student, onLeave, onStay }: { student: Student 
           <TactileButton variant="primary" onClick={(e) => !tooSoon(e) && onStay()} className={panelButton('')}>
             Stay in line
           </TactileButton>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * "How many steps?" (2026-10-15, the teacher): asked as a fresh line opens, as Get Ready! asks "How
+ * long?", since the start of the activity is when the teacher knows. The class keeps its last
+ * answer, outlined, so the same task is the same tap; "Steps: 5" on the column asks again.
+ */
+export function LineStepsModal({
+  open,
+  steps,
+  onChoose,
+  onClose,
+}: {
+  open: boolean
+  steps: number
+  onChoose: (steps: number) => void
+  onClose: () => void
+}) {
+  const openedAt = useRef(0)
+  useLayoutEffect(() => {
+    if (open) openedAt.current = performance.now()
+  }, [open])
+  const shown = useLingerWhileClosing(open)
+  if (!shown) return null
+  return (
+    <Modal open={open} onClose={onClose} title="How many steps?">
+      <div className="flex flex-col gap-4">
+        <p className="m-0 text-base text-muted-foreground">How many times will you check each student's work?</p>
+        <div className="grid grid-cols-3 gap-3">
+          {Array.from({ length: MAX_STEPS }, (_, i) => i + 1).map((n) => (
+            <TactileButton
+              key={n}
+              data-steps-choice={n}
+              // The board's second touch of the rail's button lands in here.
+              onClick={(e) => e.timeStamp - openedAt.current >= TAP_GUARD_MS && onChoose(n)}
+              className={clsx(
+                panelButton(''),
+                '!h-[clamp(3rem,10vh,4.5rem)] !text-[clamp(1.4rem,4vmin,2.2rem)]',
+                n === steps && 'ring-4 ring-primary',
+              )}
+            >
+              {n}
+            </TactileButton>
+          ))}
         </div>
       </div>
     </Modal>

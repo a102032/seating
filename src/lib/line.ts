@@ -19,22 +19,39 @@ export interface ClassLine {
   /** Who is waiting, in order: the first is next. */
   waiting: string[]
   /**
-   * Who the teacher has checked and finished with today (Done): their desk says so, until they get
-   * in line again with the next piece of work, or the line is cleared.
+   * How many steps of the task each student has had checked today (2026-10-15, the teacher: a writing
+   * lesson has five). All of them is Done. Kept until the line is cleared or the day ends.
    */
-  done: string[]
+  checks: Record<string, number>
 }
 
 /** The class's line today: empty on a new day, and without anyone no longer in the class. */
 export function lineOf(cls: ClassData | undefined, day: string): ClassLine {
   const line = cls?.line
-  if (!cls || !line || line.day !== day) return { day, now: null, waiting: [], done: [] }
+  if (!cls || !line || line.day !== day) return { day, now: null, waiting: [], checks: {} }
   const here = new Set(cls.students.map((s) => s.id))
   const waiting = line.waiting.filter((id) => here.has(id) && id !== line.now)
   const now = line.now && here.has(line.now) ? line.now : null
-  const done = (line.done ?? []).filter((id) => here.has(id))
+  // The first version kept a list of who was Done, before steps: all their steps checked.
+  const kept = line.checks ?? Object.fromEntries((line.done ?? []).map((id) => [id, ALL_DONE]))
+  const checks = Object.fromEntries(Object.entries(kept).filter(([id, n]) => here.has(id) && n > 0))
   // Whoever was with the teacher has left the class: the next one is called.
-  return now === null && waiting.length > 0 ? { day, now: waiting[0], waiting: waiting.slice(1), done } : { day, now, waiting, done }
+  return now === null && waiting.length > 0 ? { day, now: waiting[0], waiting: waiting.slice(1), checks } : { day, now, waiting, checks }
+}
+
+/** Past any number of steps, for the Done marks saved before there were steps. */
+const ALL_DONE = 99
+
+/** How many steps of the task a class's Line checks, from "How many steps?". Unset is one. */
+export function stepsOf(cls: ClassData | undefined): number {
+  return Math.min(MAX_STEPS, Math.max(1, cls?.lineSteps ?? 1))
+}
+
+export const MAX_STEPS = 6
+
+/** The steps this student has had checked, never more than the task has. */
+export function checkedOf(line: ClassLine, id: string, steps: number): number {
+  return Math.min(steps, line.checks[id] ?? 0)
 }
 
 /** The next one in line goes to the teacher. */
@@ -44,23 +61,35 @@ function callNext(line: ClassLine): ClassLine {
 
 /**
  * A child taps their desk. Into an empty line they go straight to the teacher; otherwise to the
- * back. Already in line, nothing changes. A child whose work was done gets in line with the next
- * piece of it (the next step of their writing), and the Done mark gives way to their number.
+ * back. Already in line, nothing changes. Their steps so far stay with them.
  */
 export function joinLine(line: ClassLine, id: string): ClassLine {
   if (line.now === id || line.waiting.includes(id)) return line
-  const done = line.done.filter((d) => d !== id)
-  if (line.now === null) return { ...line, now: id, done }
-  return { ...line, waiting: [...line.waiting, id], done }
+  if (line.now === null) return { ...line, now: id }
+  return { ...line, waiting: [...line.waiting, id] }
 }
 
 /**
- * Done (2026-10-15, the teacher): the work is checked and finished. The student goes back to their
- * seat with Done on their desk, and the next one is called.
+ * Done: the step the student brought is checked (on the last step, the whole task: All Done). They
+ * go back to their seat and the next one is called.
  */
-export function doneInLine(line: ClassLine): ClassLine {
+export function doneInLine(line: ClassLine, steps: number): ClassLine {
   if (line.now === null) return line
-  return callNext({ ...line, done: line.done.includes(line.now) ? line.done : [...line.done, line.now] })
+  const checks = { ...line.checks, [line.now]: Math.min(steps, checkedOf(line, line.now, steps) + 1) }
+  return callNext({ ...line, checks })
+}
+
+/**
+ * Change Steps (2026-10-15, the teacher): a tap moves a student one step on, through Done and back
+ * to none, for two steps brought at once, a Done pressed by mistake, a student who finished early
+ * or one checked at their seat.
+ */
+export function cycleSteps(line: ClassLine, id: string, steps: number): ClassLine {
+  const checked = checkedOf(line, id, steps)
+  const checks = { ...line.checks }
+  if (checked >= steps) delete checks[id]
+  else checks[id] = checked + 1
+  return { ...line, checks }
 }
 
 /**
@@ -74,15 +103,20 @@ export function skipInLine(line: ClassLine): ClassLine {
   return { ...line, now: line.waiting[0], waiting: [...line.waiting.slice(1), line.now] }
 }
 
-/** Out of line, back to their seat: a child who tapped by mistake, or one the teacher takes out. Not done. */
+/** Out of line, back to their seat: a child who tapped by mistake, or one the teacher takes out. No step checked. */
 export function leaveLine(line: ClassLine, id: string): ClassLine {
   if (line.now === id) return callNext(line)
   return { ...line, waiting: line.waiting.filter((w) => w !== id) }
 }
 
-/** Everyone out of line, and the Done marks off the desks: a fresh start for the next activity. */
+/** Everyone out of line, and every step and Done mark off the desks: a fresh start for the next activity. */
 export function clearLine(line: ClassLine): ClassLine {
-  return { ...line, now: null, waiting: [], done: [] }
+  return { ...line, now: null, waiting: [], checks: {} }
+}
+
+/** Nothing in line and nothing checked today: opening the Line starts a new activity, so it asks how many steps. */
+export function lineIsFresh(line: ClassLine): boolean {
+  return line.now === null && line.waiting.length === 0 && Object.keys(line.checks).length === 0
 }
 
 /**
@@ -102,13 +136,28 @@ export function lineCount(line: ClassLine): number {
   return line.waiting.length + (line.now ? 1 : 0)
 }
 
-/** What a desk shows while the Line is open: its place (and the green ring with the teacher), or Done. */
-export type LineMark = { place: number; now: boolean } | 'done'
+/**
+ * What a desk shows while the Line is open: its place (and the green ring with the teacher), its
+ * steps checked as dots, or Done.
+ */
+export type LineMark = { place: number; now: boolean } | { checked: number; of: number } | 'done'
 
-/** Every desk's mark: a place for everyone in line, Done for everyone finished. */
-export function lineMarksOf(line: ClassLine): Map<string, LineMark> {
+/**
+ * Every desk's mark. A place in line comes first, since a waiting child looks for their number; then
+ * Done, or the dots of a task with steps. While Change Steps is on, every seated student shows their
+ * steps, dots at none included, and no places: that is what is being changed.
+ */
+export function lineMarksOf(line: ClassLine, steps: number, changing: string[] | null): Map<string, LineMark> {
   const marks = new Map<string, LineMark>()
-  line.done.forEach((id) => marks.set(id, 'done'))
-  placesInLine(line).forEach((place, id) => marks.set(id, { place, now: id === line.now }))
+  const progress = (id: string): LineMark | null => {
+    const checked = checkedOf(line, id, steps)
+    if (checked >= steps) return 'done'
+    return steps > 1 && (checked > 0 || changing) ? { checked, of: steps } : null
+  }
+  for (const id of changing ?? Object.keys(line.checks)) {
+    const mark = progress(id)
+    if (mark) marks.set(id, mark)
+  }
+  if (!changing) placesInLine(line).forEach((place, id) => marks.set(id, { place, now: id === line.now }))
   return marks
 }

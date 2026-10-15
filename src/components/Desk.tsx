@@ -46,8 +46,8 @@ interface DeskProps {
   showStars: boolean
   /**
    * The Line (lib/line): this student's place in line, shown big on their desk so they can see it
-   * from their seat (1 while they are with the teacher, ringed in green), or Done once the teacher
-   * has finished checking their work, in place of their picture.
+   * from their seat (1 while they are with the teacher, ringed in green); the steps of the task
+   * checked so far, as dots; or Done once every step is, in place of their picture.
    */
   lineMark?: LineMark
   onTap: (index: number) => void
@@ -124,7 +124,7 @@ export function Desk({
           ? 'desk-picked outline-4 outline-solid outline-amber-400'
           : // With the teacher (the Line): ringed in green, which pulses a few times as they are
             // called and then holds still, so a child at their seat sees it is their turn.
-            typeof lineMark === 'object' && lineMark.now
+            typeof lineMark === 'object' && 'place' in lineMark && lineMark.now
             ? 'desk-called outline-4 outline-solid outline-emerald-500'
             : 'outline-none',
         !empty && 'cursor-pointer',
@@ -156,7 +156,27 @@ export function Desk({
             </div>
           )}
 
-          {typeof lineMark === 'object' && (
+          {typeof lineMark === 'object' && 'checked' in lineMark && (
+            // The steps of the task checked so far, filled in as each is (●●○○○): read from across the
+            // room without reading a word, and by the teacher as where everyone is.
+            <div
+              data-line-steps={lineMark.checked}
+              className="absolute left-1 top-1 z-10 flex gap-[0.2em] rounded-full bg-card/90 px-[0.3em] py-[0.25em] shadow-sm"
+              style={{ fontSize: 'clamp(0.55rem, 7cqi, 1rem)' }}
+            >
+              {Array.from({ length: lineMark.of }, (_, i) => (
+                <span
+                  key={i}
+                  className={clsx(
+                    'block size-[0.8em] rounded-full border-[0.15em] border-emerald-600',
+                    i < lineMark.checked ? 'bg-emerald-500' : 'bg-transparent',
+                  )}
+                />
+              ))}
+            </div>
+          )}
+
+          {typeof lineMark === 'object' && 'place' in lineMark && (
             // Their place in line, in the top corner the stars leave free: big enough to read from
             // their own seat, and counting down as the line moves. With the teacher it is 1, in the
             // ring's green, until they are done or back in their seat.

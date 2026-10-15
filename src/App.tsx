@@ -21,7 +21,7 @@ import { FullScreenButton } from './components/FullScreenButton'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { LineHint, ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
-import { LineLeaveModal, LinePanel } from './components/Line'
+import { LineLeaveModal, LinePanel, LineStepsModal } from './components/Line'
 import { ConfirmModal } from './components/ConfirmModal'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
@@ -56,7 +56,20 @@ import {
   playShuffle,
   primeAudio,
 } from './lib/sound'
-import { clearLine, doneInLine, joinLine, leaveLine, lineCount, lineMarksOf, lineOf, skipInLine } from './lib/line'
+import {
+  checkedOf,
+  clearLine,
+  cycleSteps,
+  doneInLine,
+  joinLine,
+  leaveLine,
+  lineCount,
+  lineIsFresh,
+  lineMarksOf,
+  lineOf,
+  skipInLine,
+  stepsOf,
+} from './lib/line'
 import { sparkleDesk } from './lib/sparkle'
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
 import { homeroomsToShow } from './lib/sameNames'
@@ -124,6 +137,7 @@ export default function App() {
     setGetReady,
     changeLine,
     setLineSilent,
+    setLineSteps,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -350,7 +364,20 @@ export default function App() {
 
   /** Today's line (lib/line), and each student's mark on their desk while the Line is up. */
   const line = useMemo(() => lineOf(activeClass, today), [activeClass, today])
-  const lineMarks = useMemo(() => (lineOpen ? lineMarksOf(line) : undefined), [lineOpen, line])
+  /** How many steps the class's task has (each one checked at the teacher's desk; all of them is Done). */
+  const lineSteps = stepsOf(activeClass)
+  /** Change Steps is on: a desk tap moves that student a step, instead of putting them in line. */
+  const [changingSteps, setChangingSteps] = useState(false)
+  /** "How many steps?" is up: as a fresh line opens, or from "Steps: 5" on the column. */
+  const [stepsAsk, setStepsAsk] = useState(false)
+  if (!lineOpen && changingSteps) setChangingSteps(false)
+  const lineMarks = useMemo(
+    () =>
+      lineOpen
+        ? lineMarksOf(line, lineSteps, changingSteps ? (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)) : null)
+        : undefined,
+    [lineOpen, line, lineSteps, changingSteps, activeClass],
+  )
   /**
    * The Line's sounds: the pop as a child joins, the "ding-dong" calling the next, and Done's run
    * of notes. The speaker on its column turns them off for the class (lineSilent).
@@ -591,8 +618,27 @@ export default function App() {
   // --- The Line (lib/line) ---------------------------------------------------------------------
   function toggleLine() {
     // The desks have to be in view, and nothing else may be turning a desk tap into something else.
-    setLineOpen((v) => !v)
     setSelectedDesk(null)
+    if (lineOpen) {
+      setLineOpen(false)
+      return
+    }
+    // A fresh line is a new activity: how many steps it has comes first, as "How long?" does for Get Ready!.
+    if (lineIsFresh(line)) setStepsAsk(true)
+    else setLineOpen(true)
+  }
+
+  function chooseSteps(steps: number) {
+    if (activeClassId) setLineSteps(activeClassId, steps)
+    setStepsAsk(false)
+    setLineOpen(true)
+  }
+
+  /** Change Steps: one tap, one step on, through Done and back to none. A tick, never a celebration: it is a correction. */
+  function cycleStudentSteps(studentId: string) {
+    if (!activeClassId) return
+    if (lineSounds) playLineJoin()
+    changeLine(activeClassId, today, (l) => cycleSteps(l, studentId, lineSteps))
   }
 
   /** A child tapped their desk: into line, or straight to the teacher if nobody is with them. */
@@ -612,13 +658,16 @@ export default function App() {
   function lineDone() {
     if (!activeClassId || line.now === null) return
     const finished = line.now
+    // The last step is All Done: the stars and the run of notes. An earlier step is a soft pop.
+    const allDone = checkedOf(line, finished, lineSteps) + 1 >= lineSteps
     if (lineSounds) {
-      playLineDone()
-      if (line.waiting.length > 0) playLineCall(0.75)
+      if (allDone) playLineDone()
+      else playLineJoin()
+      if (line.waiting.length > 0) playLineCall(allDone ? 0.75 : 0.3)
     }
-    changeLine(activeClassId, today, doneInLine)
+    changeLine(activeClassId, today, (l) => doneInLine(l, lineSteps))
     // Once the desk has drawn its Done picture.
-    requestAnimationFrame(() => requestAnimationFrame(() => sparkleDesk(finished)))
+    if (allDone) requestAnimationFrame(() => requestAnimationFrame(() => sparkleDesk(finished)))
   }
 
   /** Skip: to the back of the line, and the next one is called. */
@@ -739,6 +788,10 @@ export default function App() {
       lastLineTap.current = { index, at: now }
       // The board's second touch on the desk that just joined would ask them to leave again.
       if (last.index === index && now - last.at < 700) return
+      if (changingSteps) {
+        cycleStudentSteps(studentId)
+        return
+      }
       if (line.now === studentId) return
       if (line.waiting.includes(studentId)) setLineLeaveFor(studentId)
       else joinTheLine(studentId)
@@ -1131,7 +1184,7 @@ export default function App() {
           ) : swapMode || attendanceMode ? (
             <ModeHint mode={swapMode ? 'swap' : 'attendance'} onDone={swapMode ? toggleSwap : toggleAttendance} />
           ) : lineOpen ? (
-            <LineHint />
+            <LineHint changing={changingSteps} />
           ) : unseatedStudents.length > 0 ? (
             <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
           ) : tourOffered && !flipDeckOpen && !groupActivityOpen && activeClass.students.length > 0 ? (
@@ -1238,12 +1291,24 @@ export default function App() {
                 onClear={() => setLineClearAsk(true)}
                 silent={!lineSounds}
                 onSetSilent={(silent) => setLineSilent(activeClass.id, silent)}
+                steps={lineSteps}
+                onAskSteps={() => setStepsAsk(true)}
+                changing={changingSteps}
+                onToggleChanging={() => setChangingSteps((v) => !v)}
+                onCycle={(id) => {
+                  // The board's second touch on the card, as on a desk.
+                  const now = performance.now()
+                  if (lastLineTap.current.index === -2 && now - lastLineTap.current.at < 700) return
+                  lastLineTap.current = { index: -2, at: now }
+                  cycleStudentSteps(id)
+                }}
               />
             )}
           </div>
         </div>
       </div>
 
+      <LineStepsModal open={stepsAsk} steps={lineSteps} onChoose={chooseSteps} onClose={() => setStepsAsk(false)} />
       <LineLeaveModal
         student={lineLeaveFor ? (studentsById.get(lineLeaveFor) ?? null) : null}
         onLeave={() => {

@@ -199,6 +199,9 @@ await wait(1500)
 await measure('line: open, five get in line', async () => {
   await page.getByRole('button', { name: 'Line', exact: true }).click()
   await wait(600)
+  await page.waitForTimeout(800)
+  await page.click('[data-steps-choice="3"]')
+  await page.waitForTimeout(500)
   for (const n of ['Amy', 'Tony', 'Kevin', 'Mulan', 'Brian']) {
     await desk(n).click()
     await wait(750)
@@ -206,7 +209,7 @@ await measure('line: open, five get in line', async () => {
 })
 await measure('line: Done twice, stars at the desk', async () => {
   for (let i = 0; i < 2; i++) {
-    await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
+    await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click()
     await wait(1200)
   }
 })

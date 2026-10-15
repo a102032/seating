@@ -305,6 +305,9 @@ const all = {}
   const page = await open()
   await page.click('aside [aria-label="Line"]')
   await page.waitForTimeout(500)
+  await page.waitForTimeout(800)
+  await page.click('[data-steps-choice="3"]')
+  await page.waitForTimeout(500)
   for (const n of ['Amy', 'Tony', 'Kevin', 'Brian', 'Emma', 'Leo']) {
     await page
       .locator('[data-ink="desk"]', { has: page.getByText(n, { exact: true }) })
@@ -312,8 +315,20 @@ const all = {}
       .click()
     await page.waitForTimeout(750)
   }
-  await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
+  await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click()
   await page.waitForTimeout(1800)
+  // Cindy finished all three steps, set with Change Steps (a tap a step), so a Done desk shows too.
+  const change = page.locator('[data-line-panel] button', { hasText: 'Change Steps' })
+  await change.click()
+  for (let i = 0; i < 3; i++) {
+    await page
+      .locator('[data-ink="desk"]', { has: page.getByText('Cindy', { exact: true }) })
+      .first()
+      .click()
+    await page.waitForTimeout(750)
+  }
+  await change.click()
+  await page.waitForTimeout(600)
   await page.evaluate(() => {
     const panel = document.querySelector('[data-line-panel]')
     const sections = panel?.querySelectorAll(':scope > section')
@@ -322,11 +337,13 @@ const all = {}
     for (const b of panel?.querySelectorAll('button') ?? []) {
       const t = b.textContent.trim()
       if (t === 'Skip') b.setAttribute('data-tour-mark', 'lskip')
-      if (t === 'Done') b.setAttribute('data-tour-mark', 'ldone')
+      if (/Done$/.test(t)) b.setAttribute('data-tour-mark', 'ldone')
+      if (t === 'Change Steps') b.setAttribute('data-tour-mark', 'lchange')
       if (t === 'Clear Line') b.setAttribute('data-tour-mark', 'lclear')
     }
     document.querySelector('[data-line-mark="2"]')?.closest('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'lnumber')
     document.querySelector('[data-done-mark]')?.closest('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'ldesk')
+    document.querySelector('[data-line-steps]')?.closest('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'ldots')
   })
   all.line = await rects(page, {
     rail: 'aside [aria-label="Line"]',
@@ -340,6 +357,9 @@ const all = {}
     done: '[data-tour-mark="ldone"]',
     doneDesk: '[data-tour-mark="ldesk"]',
     clear: '[data-tour-mark="lclear"]',
+    steps: '[data-line-steps-button]',
+    dots: '[data-tour-mark="ldots"]',
+    change: '[data-tour-mark="lchange"]',
   })
   await shot(page, 'line')
   await page.context().close()

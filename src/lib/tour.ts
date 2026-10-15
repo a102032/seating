@@ -126,7 +126,8 @@ export const TOUR: TourPart[] = [
     title: 'The Line',
     intro: 'Students wait at their own desks for you to check their work, instead of crowding round you.',
     stops: [
-      { shot: 'line', at: 'rail', text: 'The ticket opens the Line.' },
+      { shot: 'line', at: 'rail', text: 'The ticket opens the Line. A new line asks how many steps the work has.' },
+      { shot: 'line', at: 'steps', text: 'How many times you check each student’s work. Tap it to change it.' },
       { shot: 'line', at: 'hint', text: 'A student who is ready taps their own desk to get in line.' },
       { shot: 'line', at: 'number', text: 'Their place in line shows on their desk, so they can see it from their seat.' },
       { shot: 'line', at: 'now', text: 'Who is with you, big for the class. They are number 1 until you finish with them.' },
@@ -134,9 +135,15 @@ export const TOUR: TourPart[] = [
       { shot: 'line', at: 'sound', text: 'No sound, for a quiet room.' },
       { shot: 'line', at: 'skip', text: 'Skip sends the student with you to the back of the line.' },
       { shot: 'line', at: 'star', text: 'A star for the student with you.' },
-      { shot: 'line', at: 'done', text: 'Done: their work is finished. The next student is called with a ding-dong.' },
-      { shot: 'line', at: 'doneDesk', text: 'A finished desk says Done. Tapping it again puts the student back in line.' },
-      { shot: 'line', at: 'clear', text: 'Clear Line empties the line and takes the Done marks off.' },
+      {
+        shot: 'line',
+        at: 'done',
+        text: 'Done checks the step they brought, and the next student is called. On the last step it says All Done.',
+      },
+      { shot: 'line', at: 'dots', text: 'The dots show how many steps are checked.' },
+      { shot: 'line', at: 'doneDesk', text: 'All the steps checked: Done.' },
+      { shot: 'line', at: 'change', text: 'Change Steps: then tap a desk to move a student a step. For two steps at once, or a mistake.' },
+      { shot: 'line', at: 'clear', text: 'Clear Line empties the line and takes the dots and Done marks off.' },
     ],
   },
   {
