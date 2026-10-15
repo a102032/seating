@@ -334,6 +334,7 @@ const all = {}
     number: '[data-tour-mark="lnumber"]',
     now: '[data-tour-mark="lnow"]',
     list: '[data-tour-mark="llist"]',
+    sound: '[data-line-panel] [data-get-ready-sound]',
     skip: '[data-tour-mark="lskip"]',
     star: '[data-line-panel] [aria-label="Give a Star"]',
     done: '[data-tour-mark="ldone"]',

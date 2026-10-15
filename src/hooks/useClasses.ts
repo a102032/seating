@@ -592,6 +592,11 @@ export function useClasses() {
     [updateClass],
   )
 
+  const setLineSilent = useCallback(
+    (classId: string, silent: boolean) => updateClass(classId, (c) => ({ ...c, lineSilent: silent })),
+    [updateClass],
+  )
+
   const setGetReady = useCallback(
     (classId: string, patch: Partial<Pick<ClassData, 'getReadyPrize' | 'getReadyDrum' | 'getReadySilent'>>) =>
       updateClass(classId, (c) => ({ ...c, ...patch })),
@@ -766,6 +771,7 @@ export function useClasses() {
     setChartPhotos,
     setGetReady,
     changeLine,
+    setLineSilent,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,

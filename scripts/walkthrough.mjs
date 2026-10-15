@@ -2509,8 +2509,7 @@ const scenarios = {
     }
     check(
       'guide: Guide me walks the open section and finishes there',
-      // Nine since the Line's sounds joined Tools (2026-10-15).
-      toolSteps.length === 9 &&
+      toolSteps.length === 8 &&
         toolSteps.every((w) => w.startsWith('Tools')) &&
         (await bubble.count()) === 0 &&
         (await page.locator('.cs-page[data-section="tools"]').count()) === 1,
@@ -2564,9 +2563,9 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 79 since the Line joined it (2026-10-15): its button on the board and a part of its own.
-      'tour: 79 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 79 && bad === 0,
+      // 80 since the Line joined it (2026-10-15): its button on the board and a part of its own.
+      'tour: 80 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 80 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
@@ -2984,6 +2983,10 @@ const scenarios = {
     check('line: Skip to the back of the line', l.now === 'c1-s3' && l.waiting.at(-1) === 'c1-s2', JSON.stringify(l))
     await tap('Amy')
     check('line: a Done desk tapped joins again', (await line()).waiting.at(-1) === 'c1-s0' && (await mark('Amy').count()) === 1)
+    // The speaker by "In line": no sound for the class, kept with it.
+    await page.locator('[data-line-panel] [data-get-ready-sound]').click()
+    await page.waitForTimeout(300)
+    check('line: the speaker turns its sounds off for the class', (await activeSaved(page)).lineSilent === true)
     await refresh(page)
     check(
       'line: kept through a refresh, the screen closed',

@@ -70,21 +70,12 @@ import { type ClassData, type Student } from './types'
 
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
 const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
-const LINE_SOUNDS_KEY = 'seating-chart-line-sounds-v1'
 
 type PanelSide = 'left' | 'right'
 
 function loadGroupChimes(): boolean {
   try {
     return localStorage.getItem(GROUP_CHIMES_KEY) !== '0'
-  } catch {
-    return true
-  }
-}
-
-function loadLineSounds(): boolean {
-  try {
-    return localStorage.getItem(LINE_SOUNDS_KEY) !== '0'
   } catch {
     return true
   }
@@ -132,6 +123,7 @@ export default function App() {
     setChartPhotos,
     setGetReady,
     changeLine,
+    setLineSilent,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -235,8 +227,6 @@ export default function App() {
   /** Students are at the board: only the status lights answer to a tap. Cleared by a new deal or a class switch. */
   const [groupsLocked, setGroupsLocked] = useState(false)
   const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
-  /** The Line's sounds: the pop as a child joins, the "ding-dong" calling the next, and Done's run of notes. */
-  const [lineSounds, setLineSounds] = useState(loadLineSounds)
   /** The Line is up: a desk tap puts its student in line, and the column on the right holds the teacher's buttons. */
   const [lineOpen, setLineOpen] = useState(false)
   /** Whose "get out of line?" window is open. */
@@ -361,6 +351,11 @@ export default function App() {
   /** Today's line (lib/line), and each student's mark on their desk while the Line is up. */
   const line = useMemo(() => lineOf(activeClass, today), [activeClass, today])
   const lineMarks = useMemo(() => (lineOpen ? lineMarksOf(line) : undefined), [lineOpen, line])
+  /**
+   * The Line's sounds: the pop as a child joins, the "ding-dong" calling the next, and Done's run
+   * of notes. The speaker on its column turns them off for the class (lineSilent).
+   */
+  const lineSounds = activeClass?.lineSilent !== true
 
   /**
    * A pick started from the floating class goal runs on that window's clock, which stops for
@@ -497,11 +492,6 @@ export default function App() {
   function updateGroupChimes(on: boolean) {
     setGroupChimes(on)
     remember(GROUP_CHIMES_KEY, on ? '1' : '0')
-  }
-
-  function updateLineSounds(on: boolean) {
-    setLineSounds(on)
-    remember(LINE_SOUNDS_KEY, on ? '1' : '0')
   }
 
   function continueGroups() {
@@ -1246,6 +1236,8 @@ export default function App() {
                 onSkip={lineSkip}
                 onAskLeave={setLineLeaveFor}
                 onClear={() => setLineClearAsk(true)}
+                silent={!lineSounds}
+                onSetSilent={(silent) => setLineSilent(activeClass.id, silent)}
               />
             )}
           </div>
@@ -1486,8 +1478,6 @@ export default function App() {
           onUpdateFlip: deck.updateSettings,
           groupChimes,
           onSetGroupChimes: updateGroupChimes,
-          lineSounds,
-          onSetLineSounds: updateLineSounds,
         }}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}

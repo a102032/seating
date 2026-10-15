@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { lineCount, type ClassLine } from '../lib/line'
 import type { Student } from '../types'
+import { SoundButton } from './GetReady'
 import { Modal } from './Modal'
 import { PointIcon, QueueIcon } from './RailIcons'
 import { StudentPicture } from './StudentPicture'
@@ -29,6 +30,9 @@ interface LinePanelProps {
   /** A name in the line was tapped: ask whether to take them out. */
   onAskLeave: (studentId: string) => void
   onClear: () => void
+  /** No sound for the Line, set by the speaker by "In line", as Get Ready!'s is on "How long?". */
+  silent: boolean
+  onSetSilent: (silent: boolean) => void
 }
 
 /**
@@ -39,7 +43,19 @@ interface LinePanelProps {
  * Line under them, which asks first. The list never scrolls: as many names as fit, then "+3 more", since every
  * child's number is on their own desk anyway.
  */
-export function LinePanel({ line, studentsById, homerooms, points, onStar, onDone, onSkip, onAskLeave, onClear }: LinePanelProps) {
+export function LinePanel({
+  line,
+  studentsById,
+  homerooms,
+  points,
+  onStar,
+  onDone,
+  onSkip,
+  onAskLeave,
+  onClear,
+  silent,
+  onSetSilent,
+}: LinePanelProps) {
   const now = line.now ? studentsById.get(line.now) : undefined
   const lastTap = useRef(0)
   const lastStar = useRef(0)
@@ -122,9 +138,14 @@ export function LinePanel({ line, studentsById, homerooms, points, onStar, onDon
 
       {/* The line, in order. A tap on a name asks whether to take them out. */}
       <section className="flex min-h-0 flex-1 flex-col gap-1">
-        <span className="shrink-0 font-bold text-muted-foreground" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
-          In line{line.waiting.length > 0 ? ` · ${line.waiting.length}` : ''}
-        </span>
+        <div className="flex shrink-0 items-center justify-between gap-1">
+          <span className="font-bold text-muted-foreground" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
+            In line{line.waiting.length > 0 ? ` · ${line.waiting.length}` : ''}
+          </span>
+          {/* No sound, for a quiet writing lesson: beside the list rather than a switch in Class
+              Settings, as Get Ready!'s speaker is on "How long?", and kept with the class. */}
+          <SoundButton silent={silent} onTap={() => onSetSilent(!silent)} className="!size-8 [&_svg]:!size-[18px]" />
+        </div>
         <div ref={listRef} className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
           {/* One row, unseen, to measure how tall a row is on this screen. */}
           <div ref={probeRef} aria-hidden className="invisible absolute inset-x-0 top-0">

@@ -131,6 +131,7 @@ export const TOUR: TourPart[] = [
       { shot: 'line', at: 'number', text: 'Their place in line shows on their desk, so they can see it from their seat.' },
       { shot: 'line', at: 'now', text: 'Who is with you, big for the class. They are number 1 until you finish with them.' },
       { shot: 'line', at: 'list', text: 'Who is waiting, in order. Tap a name to send that student back to their seat.' },
+      { shot: 'line', at: 'sound', text: 'No sound, for a quiet room.' },
       { shot: 'line', at: 'skip', text: 'Skip sends the student with you to the back of the line.' },
       { shot: 'line', at: 'star', text: 'A star for the student with you.' },
       { shot: 'line', at: 'done', text: 'Done: their work is finished. The next student is called with a ding-dong.' },

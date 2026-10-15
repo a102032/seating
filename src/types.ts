@@ -219,6 +219,11 @@ export interface ClassData {
    * new day an empty line.
    */
   line?: { day: string; now: string | null; waiting: string[]; done?: string[] }
+  /**
+   * The Line with no sound (the speaker on its column, as Get Ready!'s is on "How long?"): a quiet
+   * writing lesson. Kept until it is tapped back on. Unset is sound on.
+   */
+  lineSilent?: boolean
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }
