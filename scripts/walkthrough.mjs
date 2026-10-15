@@ -2943,7 +2943,10 @@ const scenarios = {
     await page.waitForTimeout(120)
     await desk(page, 'Brian').click()
     await page.waitForTimeout(800)
-    check('line: a double touch joins once and asks nothing', (await page.getByRole('dialog').count()) === 0 && (await line()).waiting.at(-1) === 'c1-s4')
+    check(
+      'line: a double touch joins once and asks nothing',
+      (await page.getByRole('dialog').count()) === 0 && (await line()).waiting.at(-1) === 'c1-s4',
+    )
     // Tony taps again: "get out of line?"
     await desk(page, 'Tony').click()
     await page.waitForTimeout(300)
@@ -2980,7 +2983,10 @@ const scenarios = {
     await tap('Amy')
     check('line: a Done desk tapped joins again', (await line()).waiting.at(-1) === 'c1-s0' && (await mark('Amy').count()) === 1)
     await refresh(page)
-    check('line: kept through a refresh, the screen closed', (await line()).now === 'c1-s3' && (await page.locator('[data-line-panel]').count()) === 0)
+    check(
+      'line: kept through a refresh, the screen closed',
+      (await line()).now === 'c1-s3' && (await page.locator('[data-line-panel]').count()) === 0,
+    )
     await panelButton(page, 'Line').click()
     await page.waitForTimeout(400)
     await page.locator('[data-line-panel] button', { hasText: 'Clear Line' }).click()

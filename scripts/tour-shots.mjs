@@ -306,7 +306,10 @@ const all = {}
   await page.click('aside [aria-label="Line"]')
   await page.waitForTimeout(500)
   for (const n of ['Amy', 'Tony', 'Kevin', 'Brian', 'Emma', 'Leo']) {
-    await page.locator('[data-ink="desk"]', { has: page.getByText(n, { exact: true }) }).first().click()
+    await page
+      .locator('[data-ink="desk"]', { has: page.getByText(n, { exact: true }) })
+      .first()
+      .click()
     await page.waitForTimeout(750)
   }
   await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
