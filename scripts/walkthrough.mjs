@@ -2509,7 +2509,8 @@ const scenarios = {
     }
     check(
       'guide: Guide me walks the open section and finishes there',
-      toolSteps.length === 8 &&
+      // Nine since the Line's sounds joined Tools (2026-10-15).
+      toolSteps.length === 9 &&
         toolSteps.every((w) => w.startsWith('Tools')) &&
         (await bubble.count()) === 0 &&
         (await page.locator('.cs-page[data-section="tools"]').count()) === 1,
