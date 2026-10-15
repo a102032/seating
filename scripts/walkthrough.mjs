@@ -2538,7 +2538,7 @@ const scenarios = {
     let stops = 0
     let bad = 0
     const parts = []
-    for (let guard = 0; guard < 80; guard++) {
+    for (let guard = 0; guard < 100; guard++) {
       // Past the lit ring's own slide to its new place (0.2 s).
       await page.waitForTimeout(300)
       if (await page.locator('[data-tour-card]').count()) {
@@ -2564,11 +2564,12 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      'tour: 68 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 68 && bad === 0,
+      // 79 since the Line joined it (2026-10-15): its button on the board and a part of its own.
+      'tour: 79 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 79 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 6, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -2588,7 +2589,7 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    for (let i = 0; i < 18; i++) await page.locator('[data-tour-action="next"]').click()
+    for (let i = 0; i < 19; i++) await page.locator('[data-tour-action="next"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
     await page.locator('button[aria-label="Class Settings"]').click()
