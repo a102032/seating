@@ -434,7 +434,25 @@ button {
   animation: desk-landed-b 380ms ease-out;
 }
 
+/* The Line: the student called to the teacher. Their desk swells three times as they are called,
+   then rests, ringed in green, until Done: a pulse that never stopped would pull the room's eyes
+   for as long as the check takes. */
+@keyframes desk-called {
+  0%,
+  100% {
+    scale: 1;
+  }
+  40% {
+    scale: 1.07;
+  }
+}
+
+.desk-called {
+  animation: desk-called 520ms ease-in-out 3;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .desk-called,
   .desk-wiggle,
   .desk-wiggle-loop,
   .desk-landed-a,

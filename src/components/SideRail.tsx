@@ -19,7 +19,7 @@ import {
   WholeRowIcon,
   WholeTableIcon,
 } from './PickerIcons'
-import { AttendanceIcon, DrumIcon, FlipIcon, GroupIcon, HourglassIcon, PointIcon, SwapIcon } from './RailIcons'
+import { AttendanceIcon, DrumIcon, FlipIcon, GroupIcon, HourglassIcon, PointIcon, QueueIcon, SwapIcon } from './RailIcons'
 import { TactileButton } from './TactileButton'
 
 interface SideRailProps {
@@ -95,6 +95,11 @@ interface SideRailProps {
   /** The board is locked for students: the activity can't be left from here either. */
   groupActivityLocked: boolean
   onToggleGroupActivity: () => void
+  /** The Line is up: a desk tap puts a child in line, so the other desk modes and the screens that cover the desks wait. */
+  lineOpen: boolean
+  /** How many are in line today while it is closed, on the button so nobody is forgotten; 0 hides it. */
+  lineWaiting: number
+  onToggleLine: () => void
 }
 
 /**
@@ -168,6 +173,9 @@ export function SideRail(props: SideRailProps) {
     groupActivityOpen,
     groupActivityLocked,
     onToggleGroupActivity,
+    lineOpen,
+    lineWaiting,
+    onToggleLine,
   } = props
   // The group cards carry their own scores, so the board's pickers and + stand down while the
   // activity is up - the same way Swap Seats quiets everything else.
@@ -262,7 +270,7 @@ export function SideRail(props: SideRailProps) {
           name="Attendance"
           title={attendanceTaken ? 'Attendance is done for today' : 'Take attendance'}
           active={attendanceMode}
-          disabled={swapMode || choosingAvatars || flipDeckOpen || groupActivityOpen || pickFlashing}
+          disabled={swapMode || choosingAvatars || flipDeckOpen || groupActivityOpen || pickFlashing || lineOpen}
           onClick={onToggleAttendance}
         >
           <AttendanceIcon className="rail-icon" />
@@ -276,7 +284,7 @@ export function SideRail(props: SideRailProps) {
           name="Swap Seats"
           title={flipDeckOpen || groupActivityOpen ? 'Seats can only be swapped on the seating chart' : 'Swap Seats'}
           active={swapMode}
-          disabled={flipDeckOpen || groupActivityOpen || attendanceMode || choosingAvatars}
+          disabled={flipDeckOpen || groupActivityOpen || attendanceMode || choosingAvatars || lineOpen}
           onClick={onToggleSwap}
         >
           <SwapIcon className="rail-icon" />
@@ -356,16 +364,33 @@ export function SideRail(props: SideRailProps) {
       <Line />
 
       <Group>
-        <RailButton name="Flip Cards" active={flipDeckOpen} disabled={busy || pickFlashing} onClick={onToggleFlipDeck}>
+        <RailButton name="Flip Cards" active={flipDeckOpen} disabled={busy || pickFlashing || lineOpen} onClick={onToggleFlipDeck}>
           <FlipIcon className="rail-icon" />
         </RailButton>
         <RailButton
           name="Group Activity"
           active={groupActivityOpen}
-          disabled={deskMode || groupActivityLocked}
+          disabled={deskMode || groupActivityLocked || lineOpen}
           onClick={onToggleGroupActivity}
         >
           <GroupIcon className="rail-icon" />
+        </RailButton>
+        {/* The Line (2026-10-15): children tap their desk to wait their turn to be checked. Closed with
+            anyone still in it, it says how many, since closing it loses nobody's place. */}
+        <RailButton
+          name="Line"
+          title={lineOpen ? 'Close the line' : 'Line: students tap their desk to get in line'}
+          active={lineOpen}
+          disabled={deskMode || flipDeckOpen || groupActivityOpen}
+          onClick={onToggleLine}
+          guard
+        >
+          <QueueIcon className="rail-icon" />
+          {lineWaiting > 0 && (
+            <span className="absolute right-0.5 top-0.5 min-w-5 rounded-full bg-primary px-1 text-center text-xs font-bold tabular-nums text-primary-foreground shadow">
+              {lineWaiting}
+            </span>
+          )}
         </RailButton>
       </Group>
 

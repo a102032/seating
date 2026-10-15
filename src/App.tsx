@@ -20,7 +20,9 @@ import { PointsMeter } from './components/PointsMeter'
 import { FullScreenButton } from './components/FullScreenButton'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
-import { ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
+import { LineHint, ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
+import { LineLeaveModal, LinePanel } from './components/Line'
+import { ConfirmModal } from './components/ConfirmModal'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
@@ -44,7 +46,8 @@ import {
   type GroupScheme,
 } from './lib/groups'
 import { pickChances } from './lib/participation'
-import { playCoinTick, playGroupsDone, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
+import { playCoinTick, playGroupsDone, playLineCall, playLineJoin, playPointDeduct, playShuffle, primeAudio } from './lib/sound'
+import { clearLine, doneInLine, joinLine, leaveLine, lineCount, lineOf, skipInLine } from './lib/line'
 import { flyStarsFrom, flyStarsToGoal } from './lib/starFlight'
 import { homeroomsToShow } from './lib/sameNames'
 import { binPhotos } from './lib/drive'
@@ -109,6 +112,7 @@ export default function App() {
     setStudentPhotos,
     setChartPhotos,
     setGetReady,
+    changeLine,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -212,6 +216,15 @@ export default function App() {
   /** Students are at the board: only the status lights answer to a tap. Cleared by a new deal or a class switch. */
   const [groupsLocked, setGroupsLocked] = useState(false)
   const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
+  /** The Line is up: a desk tap puts its student in line, and the column on the right holds the teacher's buttons. */
+  const [lineOpen, setLineOpen] = useState(false)
+  /** Whose "get out of line?" window is open. */
+  const [lineLeaveFor, setLineLeaveFor] = useState<string | null>(null)
+  const [lineClearAsk, setLineClearAsk] = useState(false)
+  /** The last desk tapped in the Line, and when: the board's second touch must not open "get out of line?". */
+  const lastLineTap = useRef({ index: -1, at: 0 })
+  /** Desk taps wait until then: the window just closed, and the board's second touch lands on a desk under it. */
+  const lineQuietUntil = useRef(0)
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
   const [panelSide, setPanelSide] = useState<PanelSide>(loadPanelSide)
   /**
@@ -267,6 +280,8 @@ export default function App() {
     resetPointsSelection()
     // Another class is another set of groups; the activity closes rather than showing them.
     setGroupActivityOpen(false)
+    // And another line: each class keeps its own, and the screen closes rather than mixing them.
+    setLineOpen(false)
     setGroupScheme(null)
     setGroupsLocked(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,6 +336,16 @@ export default function App() {
     },
   })
   const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
+
+  /** Today's line (lib/line), and each student's mark on their desk while the Line is up. */
+  const line = useMemo(() => lineOf(activeClass, today), [activeClass, today])
+  const lineMarks = useMemo(() => {
+    if (!lineOpen) return undefined
+    const marks = new Map<string, number | 'now'>()
+    line.waiting.forEach((id, i) => marks.set(id, i + 1))
+    if (line.now) marks.set(line.now, 'now')
+    return marks
+  }, [lineOpen, line])
 
   /**
    * A pick started from the floating class goal runs on that window's clock, which stops for
@@ -553,6 +578,54 @@ export default function App() {
     startGuide('all')
   }
 
+  // --- The Line (lib/line) ---------------------------------------------------------------------
+  function toggleLine() {
+    // The desks have to be in view, and nothing else may be turning a desk tap into something else.
+    setLineOpen((v) => !v)
+    setSelectedDesk(null)
+  }
+
+  /** A child tapped their desk: into line, or straight to the teacher if nobody is with them. */
+  function joinTheLine(studentId: string) {
+    if (!activeClassId) return
+    if (line.now === null) playLineCall()
+    else playLineJoin()
+    changeLine(activeClassId, today, (l) => joinLine(l, studentId))
+  }
+
+  /** Done: back to their seat, and the next one is called. */
+  function lineDone() {
+    if (!activeClassId || line.now === null) return
+    if (line.waiting.length > 0) playLineCall()
+    changeLine(activeClassId, today, doneInLine)
+  }
+
+  /** Skip: to the back of the line, and the next one is called. */
+  function lineSkip() {
+    if (!activeClassId || line.now === null || line.waiting.length === 0) return
+    playLineCall()
+    changeLine(activeClassId, today, skipInLine)
+  }
+
+  function lineLeave(studentId: string) {
+    if (!activeClassId) return
+    if (line.now === studentId && line.waiting.length > 0) playLineCall()
+    changeLine(activeClassId, today, (l) => leaveLine(l, studentId))
+  }
+
+  /**
+   * A star for the student with the teacher: checking their work is the moment to praise it, and
+   * a desk tap can't pick them while the Line is up (it is how children get in line). It goes the
+   * way a star from the rail does, and in the participation record, since it is one child's.
+   */
+  function lineStar() {
+    if (!activeClassId || line.now === null || pointsMode === 'none') return
+    const id = line.now
+    if (goalLive && !desksMode) flyStarsToGoal([id])
+    adjustPoints(activeClassId, [id], 1, today)
+    if (desksMode || !goalLive) playCoinTick()
+  }
+
   function toggleSwap() {
     setSwapMode((v) => !v)
     setSelectedDesk(null)
@@ -632,6 +705,22 @@ export default function App() {
     if (attendanceMode) {
       const studentId = seating[index]
       if (studentId) toggleAbsent(activeClassId, studentId, today)
+      return
+    }
+    if (lineOpen) {
+      // A child's own desk: into line, or, already in line, "get out of line?". Before a pick on
+      // the board, which stays up until Unpick All: the children coming to the board don't clear it.
+      const studentId = seating[index]
+      if (!studentId || absentIds.has(studentId)) return
+      const now = performance.now()
+      if (now < lineQuietUntil.current) return
+      const last = lastLineTap.current
+      lastLineTap.current = { index, at: now }
+      // The board's second touch on the desk that just joined would ask them to leave again.
+      if (last.index === index && now - last.at < 700) return
+      if (line.now === studentId) return
+      if (line.waiting.includes(studentId)) setLineLeaveFor(studentId)
+      else joinTheLine(studentId)
       return
     }
     if (picker.hasResult) {
@@ -871,6 +960,10 @@ export default function App() {
       }}
       groupActivityOpen={groupActivityOpen}
       groupActivityLocked={groupActivityOpen && groupsLocked}
+      lineOpen={lineOpen}
+      // While the Line is closed, how many are still in it today: nobody's place is lost by closing it.
+      lineWaiting={lineOpen ? 0 : lineCount(line)}
+      onToggleLine={toggleLine}
       onToggleGroupActivity={() => {
         if (groupActivityOpen) requestExitGroups()
         else setGroupModalOpen(true)
@@ -1016,97 +1109,141 @@ export default function App() {
             />
           ) : swapMode || attendanceMode ? (
             <ModeHint mode={swapMode ? 'swap' : 'attendance'} onDone={swapMode ? toggleSwap : toggleAttendance} />
+          ) : lineOpen ? (
+            <LineHint />
           ) : unseatedStudents.length > 0 ? (
             <SeatClassBanner unseatedCount={unseatedStudents.length} onSeatClass={() => seatClass(activeClass.id)} />
           ) : tourOffered && !flipDeckOpen && !groupActivityOpen && activeClass.students.length > 0 ? (
             <TourOffer onTour={openTour} onDismiss={dismissTourOffer} />
           ) : null}
 
-          <main className="relative min-h-0 flex-1 overflow-hidden">
-            <DeskGrid
-              seating={seating}
-              plan={plan}
-              studentsById={studentsById}
-              selectedDesk={selectedDesk}
-              pointsSelection={activeSelection}
-              landedTick={spentDelta === null ? 0 : landedTick}
-              staggerWiggle={staggerWiggle}
-              deskHighlights={picker.deskHighlights}
-              absentIds={absentIds}
-              showStars={desksMode}
-              showAllHomerooms={activeClass.showAllHomerooms === true}
-              onTapDesk={handleTapDesk}
-            />
+          {/* The Line's column stands on the right of the desks, whichever side the rail is on: the
+              teacher sits with the board behind him, at its right (2026-10-15). */}
+          <div className="flex min-h-0 flex-1 gap-2">
+            <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+              <DeskGrid
+                seating={seating}
+                plan={plan}
+                studentsById={studentsById}
+                selectedDesk={selectedDesk}
+                pointsSelection={activeSelection}
+                landedTick={spentDelta === null ? 0 : landedTick}
+                staggerWiggle={staggerWiggle}
+                deskHighlights={picker.deskHighlights}
+                absentIds={absentIds}
+                showStars={desksMode}
+                showAllHomerooms={activeClass.showAllHomerooms === true}
+                lineMarks={lineMarks}
+                onTapDesk={handleTapDesk}
+              />
 
-            {/* The flip deck slides up over the seating chart and back down on the way out,
+              {/* The flip deck slides up over the seating chart and back down on the way out,
                 keeping the side panel's points buttons and the class goal meter in play. */}
-            <AnimatePresence>
-              {flipDeckOpen && (
-                <motion.div
-                  initial={{ y: '100%' }}
-                  animate={{ y: 0 }}
-                  exit={{ y: '100%' }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 32 }}
-                  data-ink="board"
-                  className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
-                >
-                  <FlipDeck
-                    deck={deck}
-                    studentsById={studentsById}
-                    showStars={desksMode}
-                    showAllHomerooms={activeClass.showAllHomerooms === true}
-                    // The cards' settings are with every other tool's, in Class Settings.
-                    onOpenSettings={() => openSettings('tools')}
-                    onExit={() => {
-                      setFlipDeckOpen(false)
-                      resetPointsSelection()
-                    }}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <AnimatePresence>
+                {flipDeckOpen && (
+                  <motion.div
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+                    data-ink="board"
+                    className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
+                  >
+                    <FlipDeck
+                      deck={deck}
+                      studentsById={studentsById}
+                      showStars={desksMode}
+                      showAllHomerooms={activeClass.showAllHomerooms === true}
+                      // The cards' settings are with every other tool's, in Class Settings.
+                      onOpenSettings={() => openSettings('tools')}
+                      onExit={() => {
+                        setFlipDeckOpen(false)
+                        resetPointsSelection()
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-            {/* Group Activity slides in from the side the way a class turns to face its
+              {/* Group Activity slides in from the side the way a class turns to face its
                 teams - and back out the same way when the board returns. */}
-            <AnimatePresence>
-              {groupActivityOpen && (
-                <motion.div
-                  initial={{ x: '100%', opacity: 0.6 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: '100%', opacity: 0.6 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 32 }}
-                  data-ink="board"
-                  className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
-                >
-                  <GroupActivity
-                    groups={groups}
-                    studentsById={studentsById}
-                    absentIds={absentIds}
-                    dealTick={dealTick}
-                    dealWasShuffle={dealWasShuffle}
-                    canShuffle={groupScheme !== null}
-                    points={pointsMode !== 'none'}
-                    onResetPoints={() => resetGroupPoints(activeClass.id)}
-                    onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}
-                    onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
-                    onNewGroups={() => setGroupModalOpen(true)}
-                    onShuffle={shuffleGroups}
-                    onSave={() => setSaveGroupsOpen(true)}
-                    onExit={requestExitGroups}
-                    onSetStatus={(groupId, status) => setGroupStatus(activeClass.id, groupId, status)}
-                    chimes={groupChimes}
-                    locked={groupsLocked}
-                    onToggleLock={() => setGroupsLocked((v) => !v)}
-                    pick={groupPicker.pick}
-                    lockedGroupId={groupPicker.lockedGroupId}
-                    onDismissPick={groupPicker.dismiss}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </main>
+              <AnimatePresence>
+                {groupActivityOpen && (
+                  <motion.div
+                    initial={{ x: '100%', opacity: 0.6 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: '100%', opacity: 0.6 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 32 }}
+                    data-ink="board"
+                    className="absolute inset-0 z-10 rounded-2xl bg-gradient-to-br from-[var(--app-bg-from)] to-[var(--app-bg-to)]"
+                  >
+                    <GroupActivity
+                      groups={groups}
+                      studentsById={studentsById}
+                      absentIds={absentIds}
+                      dealTick={dealTick}
+                      dealWasShuffle={dealWasShuffle}
+                      canShuffle={groupScheme !== null}
+                      points={pointsMode !== 'none'}
+                      onResetPoints={() => resetGroupPoints(activeClass.id)}
+                      onAdjustPoints={(groupId, delta) => adjustGroupPoints(activeClass.id, groupId, delta)}
+                      onMove={(studentId, groupId) => moveStudentToGroup(activeClass.id, studentId, groupId)}
+                      onNewGroups={() => setGroupModalOpen(true)}
+                      onShuffle={shuffleGroups}
+                      onSave={() => setSaveGroupsOpen(true)}
+                      onExit={requestExitGroups}
+                      onSetStatus={(groupId, status) => setGroupStatus(activeClass.id, groupId, status)}
+                      chimes={groupChimes}
+                      locked={groupsLocked}
+                      onToggleLock={() => setGroupsLocked((v) => !v)}
+                      pick={groupPicker.pick}
+                      lockedGroupId={groupPicker.lockedGroupId}
+                      onDismissPick={groupPicker.dismiss}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </main>
+            {lineOpen && (
+              <LinePanel
+                line={line}
+                studentsById={studentsById}
+                homerooms={homeroomTagged}
+                points={pointsMode !== 'none'}
+                onStar={lineStar}
+                onDone={lineDone}
+                onSkip={lineSkip}
+                onAskLeave={setLineLeaveFor}
+                onClear={() => setLineClearAsk(true)}
+              />
+            )}
+          </div>
         </div>
       </div>
+
+      <LineLeaveModal
+        student={lineLeaveFor ? (studentsById.get(lineLeaveFor) ?? null) : null}
+        onLeave={() => {
+          if (lineLeaveFor) lineLeave(lineLeaveFor)
+          lineQuietUntil.current = performance.now() + 700
+          setLineLeaveFor(null)
+        }}
+        onStay={() => {
+          lineQuietUntil.current = performance.now() + 700
+          setLineLeaveFor(null)
+        }}
+      />
+      <ConfirmModal
+        open={lineClearAsk}
+        title="Clear the line?"
+        message="Everyone in line goes back to their seat."
+        confirmLabel="Clear Line"
+        onConfirm={() => {
+          changeLine(activeClass.id, today, clearLine)
+          setLineClearAsk(false)
+        }}
+        onCancel={() => setLineClearAsk(false)}
+      />
 
       <AnimatePresence>
         {toast && (
@@ -1289,6 +1426,7 @@ export default function App() {
           // The desks have to be in view: the cards come down, and a pick or a selection on the
           // board goes, as for Attendance.
           setFlipDeckOpen(false)
+          setLineOpen(false)
           picker.dismiss()
           resetPointsSelection()
           setChoosingAvatars(true)

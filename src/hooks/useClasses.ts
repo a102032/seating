@@ -5,6 +5,7 @@ import { getTheme, hasNoAvatar, randomPose, stickerId, type DeskPictures } from 
 import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
+import { lineOf, type ClassLine } from '../lib/line'
 import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
@@ -284,6 +285,11 @@ export function useClasses() {
           c.attendance && Object.fromEntries(Object.entries(c.attendance).map(([day, ids]) => [day, ids.filter((id) => !gone.has(id))])),
         participation: studentIds.reduce((record, id) => withoutStudent(record, id), c.participation),
         pickRound: c.pickRound && { ...c.pickRound, ids: c.pickRound.ids.filter((id) => !gone.has(id)) },
+        line: c.line && {
+          ...c.line,
+          now: c.line.now && gone.has(c.line.now) ? null : c.line.now,
+          waiting: c.line.waiting.filter((id) => !gone.has(id)),
+        },
       }))
     },
     [updateClass],
@@ -578,6 +584,13 @@ export function useClasses() {
     [updateClass],
   )
 
+  /** The Line (lib/line): today's line, changed one step - a child joining, Done, Skip, out of line. */
+  const changeLine = useCallback(
+    (classId: string, day: string, change: (line: ClassLine) => ClassLine) =>
+      updateClass(classId, (c) => ({ ...c, line: change(lineOf(c, day)) })),
+    [updateClass],
+  )
+
   const setGetReady = useCallback(
     (classId: string, patch: Partial<Pick<ClassData, 'getReadyPrize' | 'getReadyDrum' | 'getReadySilent'>>) =>
       updateClass(classId, (c) => ({ ...c, ...patch })),
@@ -751,6 +764,7 @@ export function useClasses() {
     setStudentPhotos,
     setChartPhotos,
     setGetReady,
+    changeLine,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,

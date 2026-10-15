@@ -213,6 +213,12 @@ export interface ClassData {
   savedGroups?: SavedGroups[]
   /** The saved groups the groups on the board came from, so Save keeps changes in them. */
   groupsSavedAs?: string
+  /**
+   * The Line (lib/line): who is with the teacher, and who is waiting to be checked, in order.
+   * Kept with the class so a refresh keeps everyone's place; read through lineOf, which gives a
+   * new day an empty line.
+   */
+  line?: { day: string; now: string | null; waiting: string[] }
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }

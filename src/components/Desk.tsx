@@ -42,6 +42,11 @@ interface DeskProps {
   showHomeroom: boolean
   /** Show the stars waiting on the desk, in a class that puts them there first - see starsOnDesks in types.ts. */
   showStars: boolean
+  /**
+   * The Line (lib/line): this student's place in line, shown big on their desk so they can see it
+   * from their seat, or 'now' while they are with the teacher.
+   */
+  lineMark?: number | 'now'
   onTap: (index: number) => void
 }
 
@@ -60,6 +65,7 @@ export function Desk({
   mixedClass,
   showHomeroom,
   showStars,
+  lineMark,
   onTap,
 }: DeskProps) {
   const empty = !student
@@ -111,7 +117,13 @@ export function Desk({
         // for the same reason - the dimmed desks around it already make it stand out.
         // An outline, not a ring: Chalkboard and Comic Book draw their desks with their own
         // box-shadow, which a ring (also a box-shadow) loses to.
-        highlight === 'winner' ? 'desk-picked outline-4 outline-solid outline-amber-400' : 'outline-none',
+        highlight === 'winner'
+          ? 'desk-picked outline-4 outline-solid outline-amber-400'
+          : // With the teacher (the Line): ringed in green, which pulses a few times as they are
+            // called and then holds still, so a child at their seat sees it is their turn.
+            lineMark === 'now'
+            ? 'desk-called outline-4 outline-solid outline-emerald-500'
+            : 'outline-none',
         !empty && 'cursor-pointer',
       )}
       // A no-avatar desk measures its height too (cqb), to keep its centred name inside it.
@@ -138,6 +150,18 @@ export function Desk({
                   pixel size drifts away from it on a smartboard. */}
               <Star className="h-[0.85em] w-[0.85em] shrink-0 fill-amber-950" strokeWidth={0} />
               {points}
+            </div>
+          )}
+
+          {typeof lineMark === 'number' && (
+            // Their place in line, in the top corner the stars leave free: big enough to read from
+            // their own seat, and counting down as the line moves.
+            <div
+              data-line-mark={lineMark}
+              className="absolute left-1 top-1 z-10 grid min-w-[1.6em] place-items-center rounded-full bg-primary px-[0.35em] py-[0.1em] font-bold leading-none text-primary-foreground shadow-md tabular-nums"
+              style={{ fontSize: 'clamp(0.8rem, 14cqi, 1.75rem)' }}
+            >
+              {lineMark}
             </div>
           )}
 

@@ -35,6 +35,8 @@ interface DeskGridProps {
   showStars: boolean
   /** Every desk shows its homeroom number, not only names two students share. */
   showAllHomerooms: boolean
+  /** While the Line is open: each student's place in line, or 'now' for the one with the teacher. */
+  lineMarks?: Map<string, number | 'now'>
   onTapDesk: (index: number) => void
 }
 
@@ -50,6 +52,7 @@ export function DeskGrid({
   absentIds,
   showStars,
   showAllHomerooms,
+  lineMarks,
   onTapDesk,
 }: DeskGridProps) {
   const seated = seating.map((id) => (id ? studentsById.get(id) : undefined))
@@ -130,6 +133,7 @@ export function DeskGrid({
         mixedClass={!nameOnlyClass}
         showHomeroom={student !== undefined && tagged.has(student.id)}
         showStars={showStars}
+        lineMark={student ? lineMarks?.get(student.id) : undefined}
         onTap={onTapDesk}
       />
     )

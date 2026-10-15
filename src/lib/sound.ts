@@ -698,3 +698,25 @@ export function playGiftGold() {
   })
   playTone(ctx, master, { frequency: 3136, start: 0.42, duration: 0.7, type: 'sine', peakGain: 0.12 })
 }
+
+/**
+ * A child getting in line (the Line): the picker's soft pop, so the child at the board hears their
+ * tap counted. Small on purpose: it plays every time anyone joins, while the class is working.
+ */
+export function playLineJoin() {
+  playSample('/sounds/pop.mp3', 4, undefined, { volume: 0.8, from: 0.053 })
+}
+
+/**
+ * The next child called to the teacher (the Line): a doctor's office "ding-dong", two bell notes
+ * falling (E, then C), each with a faint octave, so the child at their seat hears it is their turn
+ * without the teacher calling across the room. Distinct from a group's Help (lower and softer), and
+ * small beside the class goal's fanfare. Nothing under 400Hz.
+ */
+export function playLineCall() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 1318.5, start: 0, duration: 0.55, type: 'sine', peakGain: 0.3, attack: 0.01 })
+  playTone(ctx, master, { frequency: 2637, start: 0, duration: 0.3, type: 'sine', peakGain: 0.06, attack: 0.01 })
+  playTone(ctx, master, { frequency: 1046.5, start: 0.32, duration: 0.9, type: 'sine', peakGain: 0.3, attack: 0.01 })
+  playTone(ctx, master, { frequency: 2093, start: 0.32, duration: 0.45, type: 'sine', peakGain: 0.06, attack: 0.01 })
+}
