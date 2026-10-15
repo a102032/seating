@@ -2563,9 +2563,9 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 80 since the Line joined it (2026-10-15): its button on the board and a part of its own.
-      'tour: 80 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 80 && bad === 0,
+      // 81: Full Screen's stop (2026-10-14), then the Line's button on the board and a part of its own (2026-10-15).
+      'tour: 81 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 81 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
