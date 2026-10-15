@@ -15,7 +15,7 @@ const BLUE = '#0b74c4'
 /** The bubble's own width, narrowed only to fit beside a tall thing. */
 const BUBBLE_W = 'min(24rem, calc(100vw - 16px))'
 
-const SHOTS: TourShot[] = ['board', 'flip', 'chooser', 'who', 'builder', 'groups', 'timer', 'howlong', 'star']
+const SHOTS: TourShot[] = ['board', 'flip', 'chooser', 'who', 'builder', 'groups', 'line', 'timer', 'howlong', 'star']
 const shotUrl = (shot: TourShot) => assetUrl(`/tour/${shot}.jpg`)
 
 type Phase = { phase: 'start' | 'resume' | 'intro' | 'stop' | 'end'; part: number; stop: number }
@@ -464,7 +464,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
       )}
       {at.phase === 'end' && (
         <Card
-          step="All six parts"
+          step="All seven parts"
           title="That’s the tour!"
           buttons={
             <>

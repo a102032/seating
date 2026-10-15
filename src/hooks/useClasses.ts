@@ -289,6 +289,7 @@ export function useClasses() {
           ...c.line,
           now: c.line.now && gone.has(c.line.now) ? null : c.line.now,
           waiting: c.line.waiting.filter((id) => !gone.has(id)),
+          done: c.line.done?.filter((id) => !gone.has(id)),
         },
       }))
     },

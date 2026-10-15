@@ -218,7 +218,7 @@ export interface ClassData {
    * Kept with the class so a refresh keeps everyone's place; read through lineOf, which gives a
    * new day an empty line.
    */
-  line?: { day: string; now: string | null; waiting: string[] }
+  line?: { day: string; now: string | null; waiting: string[]; done?: string[] }
   // groupPointsMode, where a group's points went (each student or the class goal), is no
   // longer read: group points always go onto the class goal. Older saves may still carry it.
 }

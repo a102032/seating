@@ -3,13 +3,13 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Six parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Seven parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
  * of these screens changes.
  */
-export type TourShot = 'board' | 'flip' | 'chooser' | 'who' | 'builder' | 'groups' | 'timer' | 'howlong' | 'star'
+export type TourShot = 'board' | 'flip' | 'chooser' | 'who' | 'builder' | 'groups' | 'line' | 'timer' | 'howlong' | 'star'
 
 export interface TourStop {
   /** The picture: one of the screens, or 'slides', the floating class goal drawn over a lesson slide. */
@@ -65,6 +65,7 @@ export const TOUR: TourPart[] = [
       { shot: 'board', at: 'pickAll', text: 'Pick All picks the whole class. Once anyone is picked, it becomes Unpick All.' },
       { shot: 'board', at: 'flip', text: 'Flip Cards: students turn over a card to take a turn. Its part comes next.' },
       { shot: 'board', at: 'groups', text: 'Group Activity: groups made for you, or chosen by you. It has its own part too.' },
+      { shot: 'board', at: 'line', text: 'The Line: students wait at their desks for you to check their work. It has its own part.' },
       { shot: 'board', at: 'star', text: 'The star gives a point to everyone picked.' },
       {
         shot: 'board',
@@ -119,6 +120,22 @@ export const TOUR: TourPart[] = [
       { shot: 'groups', at: 'reset', text: 'Reset Points puts every group back to 0.' },
       { shot: 'groups', at: 'lock', text: 'Lock freezes the names, so students can come up and tap their own status.' },
       { shot: 'groups', at: 'exit', text: 'Back to the desks. The groups are kept for next time.' },
+    ],
+  },
+  {
+    title: 'The Line',
+    intro: 'Students wait at their own desks for you to check their work, instead of crowding round you.',
+    stops: [
+      { shot: 'line', at: 'rail', text: 'The ticket opens the Line.' },
+      { shot: 'line', at: 'hint', text: 'A student who is ready taps their own desk to get in line.' },
+      { shot: 'line', at: 'number', text: 'Their place in line shows on their desk, so they can see it from their seat.' },
+      { shot: 'line', at: 'now', text: 'Who is with you, big for the class. They are number 1 until you finish with them.' },
+      { shot: 'line', at: 'list', text: 'Who is waiting, in order. Tap a name to send that student back to their seat.' },
+      { shot: 'line', at: 'skip', text: 'Skip sends the student with you to the back of the line.' },
+      { shot: 'line', at: 'star', text: 'A star for the student with you.' },
+      { shot: 'line', at: 'done', text: 'Done: their work is finished. The next student is called with a ding-dong.' },
+      { shot: 'line', at: 'doneDesk', text: 'A finished desk says Done. Tapping it again puts the student back in line.' },
+      { shot: 'line', at: 'clear', text: 'Clear Line empties the line and takes the Done marks off.' },
     ],
   },
   {

@@ -713,10 +713,23 @@ export function playLineJoin() {
  * without the teacher calling across the room. Distinct from a group's Help (lower and softer), and
  * small beside the class goal's fanfare. Nothing under 400Hz.
  */
-export function playLineCall() {
+export function playLineCall(delay = 0) {
   const { ctx, master } = cardContext()
-  playTone(ctx, master, { frequency: 1318.5, start: 0, duration: 0.55, type: 'sine', peakGain: 0.3, attack: 0.01 })
-  playTone(ctx, master, { frequency: 2637, start: 0, duration: 0.3, type: 'sine', peakGain: 0.06, attack: 0.01 })
-  playTone(ctx, master, { frequency: 1046.5, start: 0.32, duration: 0.9, type: 'sine', peakGain: 0.3, attack: 0.01 })
-  playTone(ctx, master, { frequency: 2093, start: 0.32, duration: 0.45, type: 'sine', peakGain: 0.06, attack: 0.01 })
+  playTone(ctx, master, { frequency: 1318.5, start: delay, duration: 0.55, type: 'sine', peakGain: 0.3, attack: 0.01 })
+  playTone(ctx, master, { frequency: 2637, start: delay, duration: 0.3, type: 'sine', peakGain: 0.06, attack: 0.01 })
+  playTone(ctx, master, { frequency: 1046.5, start: delay + 0.32, duration: 0.9, type: 'sine', peakGain: 0.3, attack: 0.01 })
+  playTone(ctx, master, { frequency: 2093, start: delay + 0.32, duration: 0.45, type: 'sine', peakGain: 0.06, attack: 0.01 })
+}
+
+/**
+ * A student's work done (the Line): a quick bright run up three notes to a ringing top, with the
+ * stars at their desk. The child's own small moment, well short of the class goal's fanfare; the
+ * next child's "ding-dong" waits until it has rung.
+ */
+export function playLineDone() {
+  const { ctx, master } = cardContext()
+  ;[1046.5, 1318.5, 1567.98].forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: i * 0.07, duration: 0.18, type: 'triangle', peakGain: 0.22 })
+  })
+  playTone(ctx, master, { frequency: 2093, start: 0.21, duration: 0.5, type: 'sine', peakGain: 0.16 })
 }

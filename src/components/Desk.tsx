@@ -1,9 +1,11 @@
 import clsx from 'clsx'
 import { Star } from 'lucide-react'
 import { HOMEROOM_TAG_SCALE, NAME_FLOOR_PX, NAME_UNDER_PICTURE } from '../lib/fitText'
+import type { LineMark } from '../lib/line'
 import { hasNoPicture } from '../lib/stickers'
 import type { Student } from '../types'
 import { AbsentIcon } from './AbsentIcon'
+import { DoneIcon } from './DoneIcon'
 import { StudentPicture } from './StudentPicture'
 
 export type DeskHighlight = 'none' | 'flashing' | 'dimmed' | 'winner'
@@ -44,9 +46,10 @@ interface DeskProps {
   showStars: boolean
   /**
    * The Line (lib/line): this student's place in line, shown big on their desk so they can see it
-   * from their seat, or 'now' while they are with the teacher.
+   * from their seat (1 while they are with the teacher, ringed in green), or Done once the teacher
+   * has finished checking their work, in place of their picture.
    */
-  lineMark?: number | 'now'
+  lineMark?: LineMark
   onTap: (index: number) => void
 }
 
@@ -121,7 +124,7 @@ export function Desk({
           ? 'desk-picked outline-4 outline-solid outline-amber-400'
           : // With the teacher (the Line): ringed in green, which pulses a few times as they are
             // called and then holds still, so a child at their seat sees it is their turn.
-            lineMark === 'now'
+            typeof lineMark === 'object' && lineMark.now
             ? 'desk-called outline-4 outline-solid outline-emerald-500'
             : 'outline-none',
         !empty && 'cursor-pointer',
@@ -153,15 +156,19 @@ export function Desk({
             </div>
           )}
 
-          {typeof lineMark === 'number' && (
+          {typeof lineMark === 'object' && (
             // Their place in line, in the top corner the stars leave free: big enough to read from
-            // their own seat, and counting down as the line moves.
+            // their own seat, and counting down as the line moves. With the teacher it is 1, in the
+            // ring's green, until they are done or back in their seat.
             <div
-              data-line-mark={lineMark}
-              className="absolute left-1 top-1 z-10 grid min-w-[1.6em] place-items-center rounded-full bg-primary px-[0.35em] py-[0.1em] font-bold leading-none text-primary-foreground shadow-md tabular-nums"
+              data-line-mark={lineMark.place}
+              className={clsx(
+                'absolute left-1 top-1 z-10 grid min-w-[1.6em] place-items-center rounded-full px-[0.35em] py-[0.1em] font-bold leading-none shadow-md tabular-nums',
+                lineMark.now ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground',
+              )}
               style={{ fontSize: 'clamp(0.8rem, 14cqi, 1.75rem)' }}
             >
-              {lineMark}
+              {lineMark.place}
             </div>
           )}
 
@@ -171,13 +178,16 @@ export function Desk({
             // always would (two students sharing a name, or the switch), under the name rather
             // than after it. Away today: a small zzz above the name, and the desk fades as any does.
             <>
-              {absent && (
+              {absent ? (
                 // As big as the room above the centred name allows, and never more than a third of the desk.
                 <AbsentIcon
                   className="absolute left-1/2 top-[3cqb] -translate-x-1/2 text-muted-foreground"
                   style={{ height: nameOnlyZzz, width: nameOnlyZzz }}
                 />
-              )}
+              ) : lineMark === 'done' ? (
+                // Done, where the zzz would be: a desk with no picture still shows the work is finished.
+                <DoneIcon className="absolute left-1/2 top-[3cqb] -translate-x-1/2" style={{ height: nameOnlyZzz, width: nameOnlyZzz }} />
+              ) : null}
               <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                 <span
                   className="relative block w-full px-1 font-bold leading-tight"
@@ -203,6 +213,9 @@ export function Desk({
                 {absent ? (
                   // A little smaller than an avatar, so an absent desk reads as emptier at a glance.
                   <AbsentIcon className="h-[78%] w-[78%] text-muted-foreground" />
+                ) : lineMark === 'done' ? (
+                  // Done, in place of their picture (2026-10-15, the teacher), until they get in line again.
+                  <DoneIcon className="h-full w-full" />
                 ) : (
                   <StudentPicture student={student} className="h-full w-full object-contain select-none pointer-events-none" />
                 )}

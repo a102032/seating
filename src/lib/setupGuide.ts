@@ -196,6 +196,11 @@ export const GUIDE_STEPS: GuideStep[] = [
     targets: [g('chimes')],
     text: 'A chime when a group taps Help, Ready or Done, so you hear it with your back to the board.',
   },
+  {
+    section: 'tools',
+    targets: [g('line-sounds')],
+    text: 'The Line’s sounds: a pop as a student gets in line, a ding-dong for the next one, and a cheer for Done.',
+  },
 
   { section: 'attendance', targets: ['.cs-list'], text: 'Add students first, in Students.', when: (ctx) => !hasStudents(ctx) },
   { section: 'attendance', targets: [g('month-nav')], text: 'Tap the arrows to see another month.', when: hasStudents },

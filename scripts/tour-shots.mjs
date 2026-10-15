@@ -159,6 +159,7 @@ const all = {}
     pickAll: 'aside [aria-label="Pick All"]',
     flip: 'aside [aria-label="Flip Cards"]',
     groups: 'aside [aria-label="Group Activity"]',
+    line: 'aside [aria-label="Line"]',
     star: 'aside [aria-label="Award Point"]',
     saved: 'aside [data-sync]',
     fullscreen: 'button[title="Full Screen"]',
@@ -296,6 +297,47 @@ const all = {}
     pickGroup: 'aside [aria-label="Pick a Random Group"]',
   })
   await shot(page, 'groups')
+  await page.context().close()
+}
+
+{
+  // The Line, partway through a lesson: Amy checked and Done, Tony with the teacher, four waiting.
+  const page = await open()
+  await page.click('aside [aria-label="Line"]')
+  await page.waitForTimeout(500)
+  for (const n of ['Amy', 'Tony', 'Kevin', 'Brian', 'Emma', 'Leo']) {
+    await page.locator('[data-ink="desk"]', { has: page.getByText(n, { exact: true }) }).first().click()
+    await page.waitForTimeout(750)
+  }
+  await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
+  await page.waitForTimeout(1800)
+  await page.evaluate(() => {
+    const panel = document.querySelector('[data-line-panel]')
+    const sections = panel?.querySelectorAll(':scope > section')
+    sections?.[0]?.setAttribute('data-tour-mark', 'lnow')
+    sections?.[1]?.setAttribute('data-tour-mark', 'llist')
+    for (const b of panel?.querySelectorAll('button') ?? []) {
+      const t = b.textContent.trim()
+      if (t === 'Skip') b.setAttribute('data-tour-mark', 'lskip')
+      if (t === 'Done') b.setAttribute('data-tour-mark', 'ldone')
+      if (t === 'Clear Line') b.setAttribute('data-tour-mark', 'lclear')
+    }
+    document.querySelector('[data-line-mark="2"]')?.closest('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'lnumber')
+    document.querySelector('[data-done-mark]')?.closest('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'ldesk')
+  })
+  all.line = await rects(page, {
+    rail: 'aside [aria-label="Line"]',
+    hint: '[data-board-hint]',
+    number: '[data-tour-mark="lnumber"]',
+    now: '[data-tour-mark="lnow"]',
+    list: '[data-tour-mark="llist"]',
+    skip: '[data-tour-mark="lskip"]',
+    star: '[data-line-panel] [aria-label="Give a Star"]',
+    done: '[data-tour-mark="ldone"]',
+    doneDesk: '[data-tour-mark="ldesk"]',
+    clear: '[data-tour-mark="lclear"]',
+  })
+  await shot(page, 'line')
   await page.context().close()
 }
 

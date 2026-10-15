@@ -95,7 +95,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - `src/components/`:
   - `SideRail.tsx`: the side rail, one column of the teacher's own icons (`RailIcons.tsx`, generated from the teacher's Flaticon SVGs;
     the pickers' grids in `PickerIcons.tsx`): Float, Get Ready!, the timer, Attendance, Swap Seats, the three pickers, Flip
-    Cards, Group Activity, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
+    Cards, Group Activity, the Line, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
     gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without. Full Screen (`FullScreenButton.tsx`) is in that far corner, after the meter's count, and on the splash.
@@ -112,6 +112,9 @@ checks the live URL. Confirm it went green before saying something is live. It a
     `lib/seatGroups.ts` (pairs side by side, the room cut into patches, and `placeGroups`, which numbers them and lays their
     cards out like the room); `lib/groups.ts` deals them and Shuffle mixes. `GroupBuilder.tsx`: I'll choose, the names tapped
     into the groups. `SaveGroupsModal.tsx`: Save, the groups kept with the class under a typed name (`savedGroups`).
+  - `Line.tsx`: the Line (children tap their desk to wait their turn to have work checked): its column of the teacher's
+    buttons, on the right of the desks, and "get out of line?". The line itself is `lib/line.ts` (kept with the class,
+    `line`), the Done picture `DoneIcon.tsx` and Done's burst of stars `lib/sparkle.ts`.
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
     and the four rhythms of taps between the beats are in `lib/getReady.ts`, its sounds in `sound.ts` (`playGetReadyTaps`) and
     its stars' flight in `starFlight.ts` (`flyStarsFrom`).

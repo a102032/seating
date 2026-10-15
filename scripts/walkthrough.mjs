@@ -211,6 +211,11 @@ async function overflow(page) {
         const page = document.querySelector('.cs-page')
         return page ? Math.max(page.scrollHeight - page.clientHeight, page.scrollWidth - page.clientWidth) : 0
       })(),
+      // The Line's column never scrolls: as many names as fit, then "+3 more".
+      line: (() => {
+        const l = document.querySelector('[data-line-panel]')
+        return l ? l.scrollHeight - l.clientHeight : 0
+      })(),
       // The big timer floats, so it can't make the page scroll: it must simply be wholly on screen.
       timer: (() => {
         const t = document.querySelector('[data-timer-card]')?.getBoundingClientRect()
@@ -2897,6 +2902,96 @@ const scenarios = {
     return page
   },
 
+  /**
+   * The Line (2026-10-15): a child taps their desk to wait their turn to be checked; the one with
+   * the teacher keeps number 1; Done puts Done on their desk and calls the next; Skip, out of line,
+   * Clear Line; the board's double touches; and the line kept through a refresh.
+   */
+  async 'the line'() {
+    const cls = makeClass('c1', 'Writing', 20, { pointsGoal: 50, classPoints: 10, goalEnabled: true, pointsMode: 'goal' })
+    cls.attendance = { [new Date().toLocaleDateString('en-CA')]: ['c1-s5'] }
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const line = async () => (await activeSaved(page)).line
+    const mark = (n) => desk(page, n).locator('[data-line-mark]')
+    const tap = async (n) => {
+      await desk(page, n).click()
+      await page.waitForTimeout(750)
+    }
+    await panelButton(page, 'Line').click()
+    await page.waitForTimeout(400)
+    check(
+      'line: the column and "Tap your desk to get in line."',
+      (await page.locator('[data-line-panel]').count()) === 1 && (await page.getByText('Tap your desk to get in line.').count()) === 1,
+    )
+    for (const n of ['Amy', 'Tony', 'Kevin', 'Mulan']) await tap(n)
+    await tap('Cindy') // away today
+    let l = await line()
+    check(
+      'line: the first goes to the teacher, the rest wait in order, an absent desk does nothing',
+      l.now === 'c1-s0' && l.waiting.join() === 'c1-s1,c1-s2,c1-s3',
+      JSON.stringify(l),
+    )
+    check(
+      'line: the one with the teacher is 1, ringed, and the next is 2',
+      (await mark('Amy').innerText()) === '1' &&
+        (await desk(page, 'Amy').evaluate((e) => e.classList.contains('desk-called'))) &&
+        (await mark('Tony').innerText()) === '2' &&
+        (await mark('Mulan').innerText()) === '4',
+    )
+    // The board's double touch on a desk that just joined asks nothing.
+    await desk(page, 'Brian').click()
+    await page.waitForTimeout(120)
+    await desk(page, 'Brian').click()
+    await page.waitForTimeout(800)
+    check('line: a double touch joins once and asks nothing', (await page.getByRole('dialog').count()) === 0 && (await line()).waiting.at(-1) === 'c1-s4')
+    // Tony taps again: "get out of line?"
+    await desk(page, 'Tony').click()
+    await page.waitForTimeout(300)
+    check('line: a desk in line tapped again asks', await page.getByText('Tony, get out of line?').isVisible())
+    await page.getByRole('button', { name: 'Get out' }).click()
+    await page.waitForTimeout(100)
+    check('line: Get out ignores the touch that opened it', (await line()).waiting.includes('c1-s1'))
+    await page.waitForTimeout(700)
+    await page.getByRole('button', { name: 'Get out' }).click()
+    await page.waitForTimeout(800)
+    check('line: Get out takes him out, not done', !(await line()).waiting.includes('c1-s1') && !(await line()).done?.includes('c1-s1'))
+    // The star for the one with the teacher, then Done.
+    const before = (await activeSaved(page)).classPoints
+    await page.locator('[data-line-panel] [aria-label="Give a Star"]').click()
+    await page.waitForTimeout(1500)
+    check('line: the star goes to the class goal', (await activeSaved(page)).classPoints === before + 1)
+    const done = page.locator('[data-line-panel] button', { hasText: /^Done$/ })
+    await done.click()
+    await page.waitForTimeout(100)
+    await done.click() // the board's second touch
+    await page.waitForTimeout(900)
+    l = await line()
+    check('line: Done once, through a double touch, calls the next', l.now === 'c1-s2' && l.done.includes('c1-s0'), JSON.stringify(l))
+    check(
+      'line: Done in place of her picture, no number',
+      (await desk(page, 'Amy').locator('[data-done-mark]').count()) === 1 &&
+        (await desk(page, 'Amy').locator('img').count()) === 0 &&
+        (await mark('Amy').count()) === 0,
+    )
+    await page.locator('[data-line-panel] button', { hasText: /^Skip$/ }).click()
+    await page.waitForTimeout(900)
+    l = await line()
+    check('line: Skip to the back of the line', l.now === 'c1-s3' && l.waiting.at(-1) === 'c1-s2', JSON.stringify(l))
+    await tap('Amy')
+    check('line: a Done desk tapped joins again', (await line()).waiting.at(-1) === 'c1-s0' && (await mark('Amy').count()) === 1)
+    await refresh(page)
+    check('line: kept through a refresh, the screen closed', (await line()).now === 'c1-s3' && (await page.locator('[data-line-panel]').count()) === 0)
+    await panelButton(page, 'Line').click()
+    await page.waitForTimeout(400)
+    await page.locator('[data-line-panel] button', { hasText: 'Clear Line' }).click()
+    await page.waitForTimeout(300)
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Clear Line' }).click()
+    await page.waitForTimeout(500)
+    l = await line()
+    check('line: Clear Line empties it and takes Done off', l.now === null && l.waiting.length === 0 && l.done.length === 0)
+    return page
+  },
+
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
@@ -2911,7 +3006,7 @@ const scenarios = {
           const o = await overflow(page)
           // The timer controls and the class list open over the panel now, so there is no
           // accepted exception left: the panel fits itself to the screen (useFitToHeight).
-          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0 || o.timer > 0 || o.section > 0) {
+          if (o.page > 0 || o.pageX > 0 || o.rootX > 0 || o.panel > 0 || o.dialog > 0 || o.timer > 0 || o.section > 0 || o.line > 0) {
             bad.push(`${label} ${JSON.stringify(o)}`)
             await page.screenshot({ path: `${SHOTS}/scroll-${theme}-${size[0]}-${label.replace(/\W+/g, '-')}.png` })
           }
@@ -2974,6 +3069,25 @@ const scenarios = {
         await page.waitForTimeout(4500)
         await look('6 groups')
         await page.locator('button', { hasText: 'Exit Group Activity' }).first().click()
+        await page.waitForTimeout(800)
+        // The Line with a long queue and a Done desk: the desks make room for its column.
+        await panelButton(page, 'Line').click()
+        await page.waitForTimeout(400)
+        for (const n of NAMES.slice(0, 14)) {
+          await desk(page, n).click()
+          await page.waitForTimeout(720)
+        }
+        await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
+        await page.waitForTimeout(900)
+        const offScreen = await page.evaluate(() =>
+          [...document.querySelectorAll('[data-line-panel] button')].some((b) => {
+            const r = b.getBoundingClientRect()
+            return r.bottom > innerHeight || r.right > innerWidth || r.top < 0
+          }),
+        )
+        if (offScreen) bad.push('the Line: a button off the screen')
+        await look('the line')
+        await panelButton(page, 'Line').click()
         await page.waitForTimeout(800)
         await page.locator('button[aria-label="Class Settings"]').click()
         await page.waitForTimeout(600)

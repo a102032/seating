@@ -70,6 +70,8 @@ export function LinePanel({ line, studentsById, homerooms, points, onStar, onDon
   }, [])
   const overflow = line.waiting.length > fits
   const shown = overflow ? line.waiting.slice(0, fits - 1) : line.waiting
+  // The places the desks show: the one with the teacher is 1, so the first waiting is 2.
+  const firstPlace = now ? 2 : 1
 
   const nameOf = (id: string) => {
     const s = studentsById.get(id)
@@ -95,12 +97,17 @@ export function LinePanel({ line, studentsById, homerooms, points, onStar, onDon
               student={now}
               className="pointer-events-none h-[clamp(2.5rem,11vh,5.5rem)] w-[clamp(2.5rem,11vh,5.5rem)] select-none object-contain"
             />
-            <span
-              data-line-now=""
-              className="block w-full truncate font-bold leading-tight"
-              style={{ fontSize: 'clamp(1rem, 3vmin, 1.9rem)' }}
-            >
-              {nameOf(now.id)}
+            {/* Number 1, as on their desk, until they are done or back in their seat. */}
+            <span className="flex w-full min-w-0 items-center justify-center gap-1.5" style={{ fontSize: 'clamp(1rem, 3vmin, 1.9rem)' }}>
+              <span
+                className="grid min-w-[1.5em] shrink-0 place-items-center rounded-full bg-emerald-600 px-[0.25em] text-[0.7em] font-bold leading-[1.45] text-white tabular-nums"
+                aria-hidden
+              >
+                1
+              </span>
+              <span data-line-now="" className="block min-w-0 truncate font-bold leading-tight">
+                {nameOf(now.id)}
+              </span>
             </span>
           </>
         ) : (
@@ -131,7 +138,7 @@ export function LinePanel({ line, studentsById, homerooms, points, onStar, onDon
               onClick={() => onAskLeave(id)}
               className="shrink-0 rounded-lg text-left transition-transform active:scale-[0.97]"
             >
-              <Row number={i + 1}>{nameOf(id)}</Row>
+              <Row number={firstPlace + i}>{nameOf(id)}</Row>
             </button>
           ))}
           {overflow && (
@@ -176,7 +183,7 @@ export function LinePanel({ line, studentsById, homerooms, points, onStar, onDon
         </div>
         <button
           type="button"
-          disabled={lineCount(line) === 0}
+          disabled={lineCount(line) === 0 && line.done.length === 0}
           onClick={onClear}
           className="self-center rounded-lg px-2 py-0.5 font-semibold text-destructive transition-transform active:scale-95 disabled:pointer-events-none disabled:opacity-30"
           style={{ fontSize: 'clamp(0.75rem, 1.6vmin, 0.95rem)' }}

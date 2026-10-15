@@ -3,6 +3,7 @@ import { fitClassNameSize, NAME_ONLY_MAX_CQI } from '../lib/fitText'
 import { homeroomsToShow } from '../lib/sameNames'
 import { hasNoPicture } from '../lib/stickers'
 import type { Gap, LayoutPlan } from '../lib/layouts'
+import type { LineMark } from '../lib/line'
 import { DESK_ROWS, desksInOrder, type Student } from '../types'
 import { Desk, type DeskHighlight } from './Desk'
 
@@ -35,8 +36,8 @@ interface DeskGridProps {
   showStars: boolean
   /** Every desk shows its homeroom number, not only names two students share. */
   showAllHomerooms: boolean
-  /** While the Line is open: each student's place in line, or 'now' for the one with the teacher. */
-  lineMarks?: Map<string, number | 'now'>
+  /** While the Line is open: each student's place in line, or Done (lib/line). */
+  lineMarks?: Map<string, LineMark>
   onTapDesk: (index: number) => void
 }
 

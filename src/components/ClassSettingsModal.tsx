@@ -77,6 +77,8 @@ export interface ToolsProps {
   onUpdateFlip: (patch: Partial<FlipDeckSettings>) => void
   groupChimes: boolean
   onSetGroupChimes: (on: boolean) => void
+  lineSounds: boolean
+  onSetLineSounds: (on: boolean) => void
 }
 
 interface ClassSettingsModalProps {

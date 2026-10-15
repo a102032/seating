@@ -3,7 +3,7 @@ import type { FlipDeckSettings } from '../../hooks/useFlipDeck'
 import { GET_READY_PRIZES } from '../../lib/getReady'
 import type { PointsMode } from '../../types'
 import { PickStudentIcon } from '../PickerIcons'
-import { DrumIcon, FlipIcon, GroupIcon } from '../RailIcons'
+import { DrumIcon, FlipIcon, GroupIcon, QueueIcon } from '../RailIcons'
 import { Btn, SwitchRow } from './parts'
 
 export interface PickerSettingsValue {
@@ -26,12 +26,14 @@ interface ToolsSectionProps {
   onUpdateFlip: (patch: Partial<FlipDeckSettings>) => void
   groupChimes: boolean
   onSetGroupChimes: (on: boolean) => void
+  lineSounds: boolean
+  onSetLineSounds: (on: boolean) => void
 }
 
 /**
  * Every rail tool's settings in one place (2026-10-11, the teacher's menus): the pickers, Get
- * Ready!'s prize, the flip cards (whose gear opens this) and Group Activity's chimes, which were
- * each tucked into their own window before. Every switch says what is true in the state it's in.
+ * Ready!'s prize, the flip cards (whose gear opens this), Group Activity's chimes, which were
+ * each tucked into their own window before, and the Line's sounds. Every switch says what is true in the state it's in.
  */
 export function ToolsSection({
   pointsMode,
@@ -46,6 +48,8 @@ export function ToolsSection({
   onUpdateFlip,
   groupChimes,
   onSetGroupChimes,
+  lineSounds,
+  onSetLineSounds,
 }: ToolsSectionProps) {
   const gifts = pointsMode !== 'none'
   return (
@@ -169,6 +173,19 @@ export function ToolsSection({
               onText="On: a chime when a group taps Help, Ready or Done."
               offText="Off: the group cards change color with no sound."
               onChange={onSetGroupChimes}
+            />
+          </div>
+          <div className="cs-group cs-tool">
+            <div className="cs-tool-head">
+              <QueueIcon className="size-[22px]" /> Line
+            </div>
+            <SwitchRow
+              guide="line-sounds"
+              label="Line sounds"
+              on={lineSounds}
+              onText="On: a pop as a student gets in line, a ding-dong for the next one, and a cheer for Done."
+              offText="Off: the Line makes no sound."
+              onChange={onSetLineSounds}
             />
           </div>
         </div>

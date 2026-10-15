@@ -215,6 +215,24 @@ if (await page.getByRole('dialog').count()) {
   await page.keyboard.press('Escape')
   await wait(500)
 }
+// The Line: the column opens beside the desks, five children get in line, then Done (its stars at
+// the desk and the Done picture popping in) twice, the next one called each time.
+await measure('line: open, five get in line', async () => {
+  await page.getByRole('button', { name: 'Line', exact: true }).click()
+  await wait(600)
+  for (const n of ['Amy', 'Tony', 'Kevin', 'Mulan', 'Brian']) {
+    await desk(n).click()
+    await wait(750)
+  }
+})
+await measure('line: Done twice, stars at the desk', async () => {
+  for (let i = 0; i < 2; i++) {
+    await page.locator('[data-line-panel] button', { hasText: /^Done$/ }).click()
+    await wait(1200)
+  }
+})
+await page.getByRole('button', { name: 'Line', exact: true }).click()
+await wait(800)
 await page.getByRole('button', { name: 'Get Ready!' }).click()
 await wait(600)
 await page.locator('[data-drum="20"]').click()
