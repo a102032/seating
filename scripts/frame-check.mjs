@@ -200,7 +200,8 @@ await measure('line: open, five get in line', async () => {
   await page.getByRole('button', { name: 'Line', exact: true }).click()
   await wait(600)
   await page.waitForTimeout(800)
-  await page.click('[data-steps-choice="3"]')
+  await page.fill('#line-name', 'Test')
+  await page.getByRole('button', { name: 'Save and Start' }).click()
   await page.waitForTimeout(500)
   for (const n of ['Amy', 'Tony', 'Kevin', 'Mulan', 'Brian']) {
     await desk(n).click()
@@ -220,7 +221,10 @@ await measure('group activity: deal 4 groups', async () => {
   await wait(600)
   await page.getByRole('dialog').getByRole('button', { name: /^4/ }).first().click()
   await wait(800)
-  await page.getByRole('dialog').getByRole('button', { name: /Make them for me/ }).click()
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Make them for me/ })
+    .click()
   await wait(4000)
 })
 await measure('group activity: +1 on a card', async () => {

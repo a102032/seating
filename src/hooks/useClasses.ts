@@ -604,22 +604,13 @@ export function useClasses() {
     [updateClass],
   )
 
-  /**
-   * "Start the Line": a saved line, picking up where everyone was in its steps, or a quick line of
-   * so many unnamed steps. Whoever is in line stays in line; only the steps change.
-   */
+  /** "Start the Line": a saved line, picking up where everyone was in its steps. Whoever is in line stays in line. */
   const startLine = useCallback(
-    (classId: string, day: string, choice: { savedId: string } | { steps: number }) =>
+    (classId: string, day: string, choice: { savedId: string }) =>
       updateClass(classId, (c) => {
-        const line = lineOf(c, day)
-        if ('savedId' in choice) {
-          const saved = c.savedLines?.find((s) => s.id === choice.savedId)
-          if (!saved) return c
-          return { ...c, lineSavedAs: saved.id, line: { ...line, checks: { ...(saved.checks ?? {}) } } }
-        }
-        // From a saved line to a quick one: its steps stay with it, and the desks start clear.
-        const checks = c.lineSavedAs ? {} : line.checks
-        return { ...c, lineSavedAs: undefined, lineSteps: choice.steps, line: { ...line, checks } }
+        const saved = c.savedLines?.find((s) => s.id === choice.savedId)
+        if (!saved) return c
+        return { ...c, lineSavedAs: saved.id, line: { ...lineOf(c, day), checks: { ...(saved.checks ?? {}) } } }
       }),
     [updateClass],
   )

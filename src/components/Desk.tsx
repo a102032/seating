@@ -158,21 +158,25 @@ export function Desk({
           )}
 
           {typeof lineMark === 'object' && 'checked' in lineMark && (
-            // The steps of the task checked so far, filled in as each is (●●○○○): read from across the
-            // room without reading a word, and by the teacher as where everyone is.
+            // The steps of the task checked so far (●●○○○): read from across the room without reading
+            // a word, and by the teacher as where everyone is. Green for a step done, amber for the one
+            // they are working on, hollow for one not reached yet (2026-10-16, the teacher). Beside the
+            // dots, quietly, the name of the step they are on (a saved line's): not bold and not
+            // coloured, since thirty names in a bright colour drew the eye from the students' own, and
+            // up here it leaves the foot of the desk to the homeroom number.
             <div
               data-line-steps={lineMark.checked}
-              className="absolute left-1 top-1 z-10 flex gap-[0.2em] rounded-full bg-card/90 px-[0.3em] py-[0.25em] shadow-sm"
-              style={{ fontSize: 'clamp(0.65rem, 10cqi, 1.4rem)' }}
+              // Beside the dots while the desk has room; on a narrow desk (a big class on a small
+              // screen) the name goes under them, so it is never cut.
+              className="absolute left-1 top-1 z-10 flex max-w-[calc(100%-0.5rem)] flex-wrap items-center gap-x-[0.2em] gap-y-[0.15em] rounded-[0.7em] bg-card/90 px-[0.3em] py-[0.2em] shadow-sm"
+              style={{ fontSize: 'clamp(0.6rem, 8.5cqi, 1.15rem)' }}
             >
               {Array.from({ length: lineMark.of }, (_, i) => (
-                // Green for a step done, amber for the one they are working on (its name below in the
-                // same amber), hollow for one not reached yet (2026-10-16, the teacher).
                 <span
                   key={i}
                   data-step-dot={i < lineMark.checked ? 'done' : i === lineMark.checked ? 'now' : 'ahead'}
                   className={clsx(
-                    'block size-[0.8em] rounded-full border-[0.15em]',
+                    'block size-[0.8em] shrink-0 rounded-full border-[0.15em]',
                     i < lineMark.checked
                       ? 'border-emerald-600 bg-emerald-500'
                       : i === lineMark.checked
@@ -181,20 +185,16 @@ export function Desk({
                   )}
                 />
               ))}
+              {lineMark.step && (
+                <span
+                  data-line-step-name=""
+                  className="ml-[0.15em] min-w-0 truncate pr-[0.2em] font-normal leading-[1.15] text-muted-foreground"
+                  style={{ fontSize: `min(0.9em, calc((100cqi - 1.2rem) / ${(lineMark.step.length * 0.52).toFixed(2)}))` }}
+                >
+                  {lineMark.step}
+                </span>
+              )}
             </div>
-          )}
-
-          {typeof lineMark === 'object' && 'checked' in lineMark && lineMark.step && (
-            // The step they are on now, by the name the teacher gave it (a saved line), along the
-            // desk's foot: the Line shows names only, so the picture's room is free for it.
-            <span
-              data-line-step-name=""
-              className="absolute inset-x-1 bottom-[0.2em] z-10 block truncate text-center font-bold leading-tight text-amber-700 dark:text-amber-300"
-              // As big as the desk's width allows for this name, so a long one is whole rather than cut.
-              style={{ fontSize: `max(0.6rem, min(1.5rem, 12cqi, calc((100cqi - 0.5rem) / ${(lineMark.step.length * 0.6).toFixed(2)})))` }}
-            >
-              {lineMark.step}
-            </span>
           )}
 
           {typeof lineMark === 'object' && 'place' in lineMark && (

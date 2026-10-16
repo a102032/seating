@@ -1334,7 +1334,6 @@ export default function App() {
 
       <LineStartModal
         open={stepsAsk}
-        steps={lineSteps}
         savedLines={activeClass.savedLines ?? []}
         activeId={savedLine?.id ?? null}
         onChoose={chooseLine}

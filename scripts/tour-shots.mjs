@@ -306,9 +306,7 @@ const all = {}
   await page.click('aside [aria-label="Line"]')
   await page.waitForTimeout(500)
   await page.waitForTimeout(800)
-  // A saved line, Writing, with its three steps named, so the desks show the step each is on.
-  await page.click('[data-new-line]')
-  await page.waitForTimeout(800)
+  // A class with no lines opens on New Line: Writing, its three steps named, so the desks show the step each is on.
   await page.fill('#line-name', 'Writing')
   for (const [i, step] of ['Prewriting', 'Sentences', 'Paragraphs'].entries()) await page.fill(`[data-step-name="${i + 1}"]`, step)
   await page.getByRole('button', { name: 'Save and Start' }).click()

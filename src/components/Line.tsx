@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { Minus, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Minus, Pencil, Plus, Trash2 } from 'lucide-react'
 import { checkedOf, LINE_NAME_MAX, lineCount, MAX_SAVED_LINES, MAX_STEPS, STEP_NAME_MAX, type ClassLine } from '../lib/line'
 import type { SavedLine, Student } from '../types'
 import { Input } from '@/components/ui/input'
@@ -134,10 +134,12 @@ export function LinePanel({
         type="button"
         data-line-steps-button=""
         onClick={onAskSteps}
-        className="block shrink-0 truncate rounded-lg bg-black/[0.04] px-2 py-0.5 font-bold text-muted-foreground transition-transform active:scale-95 dark:bg-white/[0.06]"
+        className="flex shrink-0 items-center justify-center gap-1 rounded-lg bg-black/[0.04] px-2 py-0.5 font-bold text-muted-foreground transition-transform active:scale-95 dark:bg-white/[0.06]"
         style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}
       >
-        {lineName ? `${lineName} · ${steps}` : `Steps: ${steps}`}
+        <span className="min-w-0 truncate">{lineName ? `${lineName} · ${steps}` : `Steps: ${steps}`}</span>
+        {/* It opens the list of lines, where each can be changed or deleted. */}
+        <ChevronDown className="size-[1.1em] shrink-0" />
       </button>
 
       {/* With the teacher: the class reads it from their seats. While Change Steps is on, a tap here
@@ -358,21 +360,21 @@ export function LineLeaveModal({ student, onLeave, onStay }: { student: Student 
   )
 }
 
-/** What "Start the Line" starts: a saved line, or a quick line of so many unnamed steps. */
-export type LineChoice = { savedId: string } | { steps: number }
+/** What "Start the Line" starts: one of the class's saved lines. */
+export type LineChoice = { savedId: string }
 
 /**
  * "Start the Line" (2026-10-15, "How many steps?"; saved lines 2026-10-16, the teacher): asked as a
  * fresh line opens, as Get Ready! asks "How long?", since the start of the activity is when the
- * teacher knows. On top, the class's saved lines (four at most), each a tap to start, carrying on
- * where everyone was in its steps, with a pencil to rename it, change its steps or delete it; under
- * them a quick line, the number of steps alone; and New Line, to name one and its steps. The line
- * in use is outlined, so the same task is the same tap. Names are typed (a board brings up its own
- * keyboard, and a line is mostly set up ahead at a laptop), and kept short enough for a desk.
+ * teacher knows. The class's lines, four at most, one to a row: a tap on its name starts it,
+ * carrying on where everyone was in its steps, and Edit and Delete sit beside it, in words, where a
+ * teacher looks for them (Delete asks once, in the row). Under them New Line. Every line is named,
+ * with its steps (the teacher: no line without a name), so a class with none opens straight on New
+ * Line. Names are typed (a board brings up its own keyboard, and a line is mostly set up ahead at
+ * a laptop), and kept short enough for a desk.
  */
 export function LineStartModal({
   open,
-  steps,
   savedLines,
   activeId,
   onChoose,
@@ -381,9 +383,8 @@ export function LineStartModal({
   onClose,
 }: {
   open: boolean
-  steps: number
   savedLines: SavedLine[]
-  /** The saved line in use, or null for a quick line. */
+  /** The saved line in use, outlined. */
   activeId: string | null
   onChoose: (choice: LineChoice) => void
   /** Save a line, new or changed; `start` for a new one, which starts as it is saved. */
@@ -393,12 +394,17 @@ export function LineStartModal({
 }) {
   // Choosing, or editing a saved line (an id) or a new one ('new').
   const [editing, setEditing] = useState<string | null>(null)
+  const [askDelete, setAskDelete] = useState<string | null>(null)
   const openedAt = useRef(0)
+  const none = savedLines.length === 0
   useLayoutEffect(() => {
     if (open) {
       openedAt.current = performance.now()
-      setEditing(null)
+      setEditing(none ? 'new' : null)
+      setAskDelete(null)
     }
+    // Only as it opens: a line saved inside it doesn't send it back to the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
   const shown = useLingerWhileClosing(open)
   if (!shown) return null
@@ -406,29 +412,24 @@ export function LineStartModal({
   const ready = (e: MouseEvent) => e.timeStamp - openedAt.current >= TAP_GUARD_MS
   const switchTo = (next: string | null) => {
     openedAt.current = performance.now()
+    setAskDelete(null)
     setEditing(next)
   }
   const edited = editing && editing !== 'new' ? savedLines.find((s) => s.id === editing) : undefined
 
   if (editing) {
     return (
-      <Modal open={open} onClose={onClose} title={edited ? 'Change Line' : 'New Line'}>
+      <Modal open={open} onClose={onClose} title={edited ? `Edit ${edited.name}` : 'New Line'}>
         <LineEditor
           key={editing}
           saved={edited}
-          onBack={() => switchTo(null)}
+          // With no lines yet there is no list to go back to.
+          onBack={none ? onClose : () => switchTo(null)}
+          backLabel={none ? 'Cancel' : 'Back'}
           onSave={(line) => {
             onSave(line, !edited)
             if (edited) switchTo(null)
           }}
-          onDelete={
-            edited
-              ? () => {
-                  onDelete(edited.id)
-                  switchTo(null)
-                }
-              : undefined
-          }
         />
       </Modal>
     )
@@ -437,93 +438,100 @@ export function LineStartModal({
   const full = savedLines.length >= MAX_SAVED_LINES
   return (
     <Modal open={open} onClose={onClose} title="Start the Line">
-      <div className="flex flex-col gap-4">
-        {savedLines.length > 0 && (
-          <div className="grid grid-cols-2 gap-2">
-            {savedLines.map((saved) => (
-              <div key={saved.id} className="relative">
-                <TactileButton
-                  data-saved-line={saved.name}
-                  onClick={(e) => ready(e) && onChoose({ savedId: saved.id })}
-                  className={clsx(
-                    panelButton('w-full flex-col !items-start !gap-0 !pl-3 !pr-12 text-left'),
-                    '!h-[clamp(3rem,10vh,4.25rem)]',
-                    saved.id === activeId && 'ring-4 ring-primary',
-                  )}
-                >
-                  <span className="block w-full truncate">{saved.name}</span>
-                  <span className="block text-[0.65em] font-semibold text-muted-foreground">
-                    {saved.steps.length === 1 ? '1 step' : `${saved.steps.length} steps`}
-                  </span>
-                </TactileButton>
-                <button
-                  type="button"
-                  aria-label={`Change ${saved.name}`}
-                  data-edit-line={saved.name}
-                  onClick={(e) => ready(e) && switchTo(saved.id)}
-                  className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-transform active:scale-90"
-                >
-                  <Pencil className="size-5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="flex flex-col gap-2">
-          <p className="m-0 text-base text-muted-foreground">
-            {savedLines.length > 0 ? 'Or a quick line. ' : ''}How many times will you check each student's work?
-          </p>
-          <div className="grid grid-cols-6 gap-2">
-            {Array.from({ length: MAX_STEPS }, (_, i) => i + 1).map((n) => (
+      <div className="flex flex-col gap-2">
+        {savedLines.map((saved) =>
+          askDelete === saved.id ? (
+            <div key={saved.id} className="flex min-h-[clamp(3rem,10vh,4rem)] items-center gap-2 rounded-xl bg-destructive/10 px-3">
+              <span className="mr-auto min-w-0 truncate font-bold">Delete {saved.name}?</span>
+              <TactileButton type="button" onClick={() => setAskDelete(null)}>
+                Keep
+              </TactileButton>
               <TactileButton
-                key={n}
-                data-steps-choice={n}
-                onClick={(e) => ready(e) && onChoose({ steps: n })}
+                type="button"
+                variant="danger"
+                data-confirm-delete-line={saved.name}
+                onClick={() => {
+                  onDelete(saved.id)
+                  setAskDelete(null)
+                }}
+              >
+                Delete
+              </TactileButton>
+            </div>
+          ) : (
+            <div key={saved.id} className="flex items-stretch gap-2">
+              <TactileButton
+                data-saved-line={saved.name}
+                onClick={(e) => ready(e) && onChoose({ savedId: saved.id })}
                 className={clsx(
-                  panelButton('!px-0'),
-                  '!h-[clamp(2.75rem,9vh,4rem)] !text-[clamp(1.3rem,3.6vmin,2rem)]',
-                  activeId === null && n === steps && 'ring-4 ring-primary',
+                  panelButton('min-w-0 flex-1 flex-col !items-start !gap-0 !px-3 text-left'),
+                  '!h-[clamp(3rem,10vh,4rem)]',
+                  saved.id === activeId && 'ring-4 ring-primary',
                 )}
               >
-                {n}
+                <span className="block w-full truncate">{saved.name}</span>
+                <span className="block w-full truncate text-[0.6em] font-semibold text-muted-foreground">{stepsSummary(saved.steps)}</span>
               </TactileButton>
-            ))}
-          </div>
-        </div>
+              <TactileButton
+                type="button"
+                data-edit-line={saved.name}
+                onClick={(e) => ready(e) && switchTo(saved.id)}
+                className="!h-auto shrink-0"
+              >
+                <Pencil className="size-4" />
+                Edit
+              </TactileButton>
+              <TactileButton
+                type="button"
+                data-delete-line={saved.name}
+                onClick={(e) => ready(e) && setAskDelete(saved.id)}
+                className="!h-auto shrink-0 !text-destructive"
+              >
+                <Trash2 className="size-4" />
+                Delete
+              </TactileButton>
+            </div>
+          ),
+        )}
         <TactileButton
           data-new-line=""
           disabled={full}
           title={full ? `${MAX_SAVED_LINES} lines at most` : undefined}
           onClick={(e) => ready(e) && switchTo('new')}
-          className="self-start"
+          className="mt-2 self-start"
         >
           <Plus className="size-5" />
-          {full ? `New Line (${MAX_SAVED_LINES} at most)` : 'New Line, with names'}
+          {full ? `New Line (${MAX_SAVED_LINES} at most)` : 'New Line'}
         </TactileButton>
       </div>
     </Modal>
   )
 }
 
+/** "4 steps: Prewriting, Sentences..." under a line's name. */
+function stepsSummary(steps: string[]) {
+  const count = steps.length === 1 ? '1 step' : `${steps.length} steps`
+  const named = steps.filter((n) => n.trim())
+  return named.length > 0 ? `${count}: ${named.join(', ')}` : count
+}
+
 /**
  * A saved line's name and its steps' names, typed. The number of steps is − and + (one to six);
  * a step's name is optional and short enough to fit on a desk ("Prewriting", "Sentences").
- * Delete asks once, in place.
  */
 function LineEditor({
   saved,
   onBack,
+  backLabel,
   onSave,
-  onDelete,
 }: {
   saved?: SavedLine
   onBack: () => void
+  backLabel: string
   onSave: (line: { id: string; name: string; steps: string[] }) => void
-  onDelete?: () => void
 }) {
   const [name, setName] = useState(saved?.name ?? '')
   const [names, setNames] = useState<string[]>(saved?.steps ?? ['', '', ''])
-  const [askDelete, setAskDelete] = useState(false)
   const count = names.length
   const setCount = (n: number) => setNames((list) => Array.from({ length: n }, (_, i) => list[i] ?? ''))
   const canSave = name.trim().length > 0
@@ -597,32 +605,14 @@ function LineEditor({
         ))}
       </div>
       <p className="m-0 text-sm text-muted-foreground">Step names are short, to fit on a desk ({STEP_NAME_MAX} letters).</p>
-      {askDelete ? (
-        <div className="flex items-center justify-end gap-2">
-          <span className="mr-auto font-semibold">Delete {saved?.name}? Where everyone is in it goes too.</span>
-          <TactileButton type="button" onClick={() => setAskDelete(false)}>
-            Keep
-          </TactileButton>
-          <TactileButton type="button" variant="danger" onClick={onDelete}>
-            Delete
-          </TactileButton>
-        </div>
-      ) : (
-        <div className="flex items-center justify-end gap-2">
-          {onDelete && (
-            <TactileButton type="button" onClick={() => setAskDelete(true)} className="mr-auto !text-destructive">
-              <Trash2 className="size-4" />
-              Delete
-            </TactileButton>
-          )}
-          <TactileButton type="button" onClick={onBack}>
-            Back
-          </TactileButton>
-          <TactileButton type="submit" variant="primary" disabled={!canSave}>
-            {saved ? 'Save' : 'Save and Start'}
-          </TactileButton>
-        </div>
-      )}
+      <div className="flex items-center justify-end gap-2">
+        <TactileButton type="button" onClick={onBack}>
+          {backLabel}
+        </TactileButton>
+        <TactileButton type="submit" variant="primary" disabled={!canSave}>
+          {saved ? 'Save' : 'Save and Start'}
+        </TactileButton>
+      </div>
     </form>
   )
 }

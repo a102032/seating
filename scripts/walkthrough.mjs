@@ -2212,7 +2212,7 @@ const scenarios = {
       )
       if (o > 0) bad.push(`${label} ${o}px`)
     }
-    for (const theme of ['vibrant', 'comic']) {
+    for (const theme of ['vibrant', 'comic', 'dark']) {
       await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)
       await page.waitForTimeout(400)
       for (const [w, h] of SCROLL_SIZES) {
@@ -2912,7 +2912,7 @@ const scenarios = {
   async 'saved lines fit'() {
     let page
     const long = 'Proofreading'
-    for (const theme of ['vibrant', 'comic']) {
+    for (const theme of ['vibrant', 'comic', 'dark']) {
       for (const size of [
         [1024, 500],
         [1280, 559],
@@ -2950,7 +2950,7 @@ const scenarios = {
           `saved lines: a 12-letter step fits the desk, ${tag}`,
           (await name.count()) === 1 && (await name.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)),
         )
-        if (size[0] === 1024) await page.screenshot({ path: `${SHOTS}/saved-lines-desks-${theme}.png` })
+        await page.screenshot({ path: `${SHOTS}/saved-lines-desks-${theme}-${size[0]}.png` })
         await page.locator('[data-line-steps-button]').click()
         await page.waitForTimeout(900)
         await page.locator('[data-edit-line]').first().click()
@@ -2980,9 +2980,11 @@ const scenarios = {
     }
     await panelButton(page, 'Line').click()
     await page.waitForTimeout(400)
-    check('line: a fresh line asks how many steps', await page.getByText('Start the Line').isVisible())
+    check('line: a class with no lines opens on New Line', await page.getByText('New Line').first().isVisible())
     await page.waitForTimeout(500)
-    await page.locator('[data-steps-choice="3"]').click()
+    // With no lines yet it opens on New Line: a name, and three steps, unnamed.
+    await page.locator('#line-name').fill('Test')
+    await page.getByRole('button', { name: 'Save and Start' }).click()
     await page.waitForTimeout(500)
     check(
       'line: the column and "Tap your desk to get in line."',
@@ -3087,6 +3089,7 @@ const scenarios = {
     check('line: the desks show names only while the Line is open', (await page.locator('[data-ink=desk] img').count()) === 0)
     await page.locator('[data-line-steps-button]').click()
     await page.waitForTimeout(800)
+    check("line: no quick line, only the class's lines", (await page.locator('[data-steps-choice]').count()) === 0)
     await page.locator('[data-new-line]').click()
     await page.waitForTimeout(800)
     await page.locator('#line-name').fill('Writing')
@@ -3098,12 +3101,17 @@ const scenarios = {
     await page.getByRole('button', { name: 'Save and Start' }).click()
     await page.waitForTimeout(600)
     let kept = await activeSaved(page)
+    const writing = kept.savedLines?.find((l) => l.name === 'Writing')
     check(
       'line: Save and Start keeps the line and starts it',
-      kept.savedLines?.length === 1 && kept.lineSavedAs === kept.savedLines[0].id && kept.savedLines[0].steps.join() === stepNames.join(),
+      kept.savedLines?.length === 2 && kept.lineSavedAs === writing?.id && writing.steps.join() === stepNames.join(),
       JSON.stringify(kept.savedLines),
     )
     check('line: the column names it', (await page.locator('[data-line-steps-button]').innerText()).includes('Writing'))
+    check(
+      'line: named steps show on every desk from the start, beside the dots',
+      (await desk(page, 'Leo').locator('[data-line-steps] [data-line-step-name]').innerText()) === 'prewriting',
+    )
     await tap('Amy')
     check(
       'line: Done says the step by its name',
@@ -3112,17 +3120,20 @@ const scenarios = {
     await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click()
     await page.waitForTimeout(900)
     check(
-      'line: the desk shows the step they are on, by name',
-      (await desk(page, 'Amy').locator('[data-line-step-name]').innerText()) === 'sentences',
+      'line: the desk shows the step they are on, the dot before it green and its own amber',
+      (await desk(page, 'Amy').locator('[data-line-step-name]').innerText()) === 'sentences' &&
+        (await desk(page, 'Amy')
+          .locator('[data-step-dot]')
+          .evaluateAll((d) => d.map((e) => e.dataset.stepDot).join())) === 'done,now,ahead,ahead,ahead',
     )
     await page.screenshot({ path: `${SHOTS}/line-named-steps.png` })
-    // A quick line, then back to Writing: its steps were kept.
+    // Another line, then back to Writing: its steps were kept.
     await page.locator('[data-line-steps-button]').click()
     await page.waitForTimeout(800)
     await page.screenshot({ path: `${SHOTS}/line-start-window.png` })
-    await page.locator('[data-steps-choice="2"]').click()
+    await page.locator('[data-saved-line="Test"]').click()
     await page.waitForTimeout(500)
-    check('line: a quick line starts with clear desks', (await desk(page, 'Amy').locator('[data-line-steps]').count()) === 0)
+    check('line: another line has its own steps', (await desk(page, 'Amy').locator('[data-line-step-name]').count()) === 0)
     await page.locator('[data-line-steps-button]').click()
     await page.waitForTimeout(800)
     await page.locator('[data-saved-line="Writing"]').click()
@@ -3131,7 +3142,7 @@ const scenarios = {
       'line: back to Writing, everyone where they were',
       (await desk(page, 'Amy').locator('[data-line-steps]').getAttribute('data-line-steps')) === '1',
     )
-    // Rename it, then delete it.
+    // Edit it, then delete it, from the list.
     await page.locator('[data-line-steps-button]').click()
     await page.waitForTimeout(800)
     await page.locator('[data-edit-line="Writing"]').click()
@@ -3139,17 +3150,15 @@ const scenarios = {
     await page.locator('#line-name').fill('Story')
     await page.getByRole('button', { name: 'Save', exact: true }).click()
     await page.waitForTimeout(800)
-    check('line: renamed', (await activeSaved(page)).savedLines?.[0].name === 'Story')
-    await page.locator('[data-edit-line="Story"]').click()
-    await page.waitForTimeout(800)
-    await page.getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('button', { name: 'Delete', exact: true }).last().click()
+    check(
+      'line: renamed',
+      (await activeSaved(page)).savedLines?.some((l) => l.name === 'Story'),
+    )
+    await page.locator('[data-delete-line="Story"]').click()
+    await page.locator('[data-confirm-delete-line="Story"]').click()
     await page.waitForTimeout(400)
     kept = await activeSaved(page)
-    check(
-      'line: deleted, and the Line carries on as a quick line',
-      (kept.savedLines ?? []).length === 0 && !kept.lineSavedAs && kept.lineSteps === 5,
-    )
+    check('line: deleted, the Line carrying on with its steps', kept.savedLines.length === 1 && !kept.lineSavedAs && kept.lineSteps === 5)
     await page.keyboard.press('Escape')
     await page.waitForTimeout(400)
     return page
@@ -3238,7 +3247,9 @@ const scenarios = {
         await page.waitForTimeout(400)
         await look('how many steps')
         await page.waitForTimeout(400)
-        await page.locator('[data-steps-choice="5"]').click()
+        await page.locator('#line-name').fill('Writing')
+        for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'One step more' }).click()
+        await page.getByRole('button', { name: 'Save and Start' }).click()
         await page.waitForTimeout(400)
         for (const n of NAMES.slice(0, 14)) {
           await desk(page, n).click()
