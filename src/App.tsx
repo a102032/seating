@@ -21,7 +21,7 @@ import { FullScreenButton } from './components/FullScreenButton'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { LineHint, ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
-import { LineLeaveModal, LinePanel, LineStepsModal } from './components/Line'
+import { LineLeaveModal, LinePanel, LineStartModal, type LineChoice } from './components/Line'
 import { ConfirmModal } from './components/ConfirmModal'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
@@ -68,6 +68,8 @@ import {
   lineMarksOf,
   lineOf,
   skipInLine,
+  savedLineOf,
+  stepNamesOf,
   stepsOf,
 } from './lib/line'
 import { sparkleDesk } from './lib/sparkle'
@@ -137,7 +139,9 @@ export default function App() {
     setGetReady,
     changeLine,
     setLineSilent,
-    setLineSteps,
+    startLine,
+    saveLine,
+    deleteLine,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,
@@ -366,6 +370,8 @@ export default function App() {
   const line = useMemo(() => lineOf(activeClass, today), [activeClass, today])
   /** How many steps the class's task has (each one checked at the teacher's desk; all of them is Done). */
   const lineSteps = stepsOf(activeClass)
+  const lineStepNames = useMemo(() => stepNamesOf(activeClass), [activeClass])
+  const savedLine = savedLineOf(activeClass)
   /** Change Steps is on: a desk tap moves that student a step, instead of putting them in line. */
   const [changingSteps, setChangingSteps] = useState(false)
   /** "How many steps?" is up: as a fresh line opens, or from "Steps: 5" on the column. */
@@ -374,9 +380,14 @@ export default function App() {
   const lineMarks = useMemo(
     () =>
       lineOpen
-        ? lineMarksOf(line, lineSteps, changingSteps ? (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)) : null)
+        ? lineMarksOf(
+            line,
+            lineSteps,
+            changingSteps ? (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)) : null,
+            lineStepNames,
+          )
         : undefined,
-    [lineOpen, line, lineSteps, changingSteps, activeClass],
+    [lineOpen, line, lineSteps, changingSteps, activeClass, lineStepNames],
   )
   /**
    * The Line's sounds: the pop as a child joins, the "ding-dong" calling the next, and Done's run
@@ -409,6 +420,16 @@ export default function App() {
     if (activeClass) studentsAsShown(activeClass).forEach((s) => map.set(s.id, s))
     return map
   }, [activeClass])
+  // While the Line is open the desks show names only (2026-10-16, the teacher): the room the
+  // picture leaves goes to the step's dots and name, and the picture is big in the Line's column
+  // for the one with the teacher.
+  const deskStudentsById = useMemo(
+    () =>
+      lineOpen && activeClass
+        ? new Map(studentsAsShown({ ...activeClass, avatarsOff: true }).map((s) => [s.id, s]))
+        : studentsById,
+    [lineOpen, activeClass, studentsById],
+  )
   // Whose homeroom number shows after their name: two students sharing a name, as on the desks.
   const showAllHomerooms = activeClass?.showAllHomerooms === true
   const homeroomTagged = useMemo(() => homeroomsToShow(studentsById.values(), showAllHomerooms), [studentsById, showAllHomerooms])
@@ -623,13 +644,16 @@ export default function App() {
       setLineOpen(false)
       return
     }
-    // A fresh line is a new activity: how many steps it has comes first, as "How long?" does for Get Ready!.
-    if (lineIsFresh(line)) setStepsAsk(true)
+    // A fresh line is a new activity, and so is the first time today with nobody in line (a saved
+    // line keeps its steps from yesterday): which line, and how many steps, come first, as "How
+    // long?" does for Get Ready!.
+    const newDay = activeClass?.line?.day !== today && lineCount(line) === 0
+    if (lineIsFresh(line) || newDay) setStepsAsk(true)
     else setLineOpen(true)
   }
 
-  function chooseSteps(steps: number) {
-    if (activeClassId) setLineSteps(activeClassId, steps)
+  function chooseLine(choice: LineChoice) {
+    if (activeClassId) startLine(activeClassId, today, choice)
     setStepsAsk(false)
     setLineOpen(true)
   }
@@ -1198,7 +1222,7 @@ export default function App() {
               <DeskGrid
                 seating={seating}
                 plan={plan}
-                studentsById={studentsById}
+                studentsById={deskStudentsById}
                 selectedDesk={selectedDesk}
                 pointsSelection={activeSelection}
                 landedTick={spentDelta === null ? 0 : landedTick}
@@ -1292,6 +1316,8 @@ export default function App() {
                 silent={!lineSounds}
                 onSetSilent={(silent) => setLineSilent(activeClass.id, silent)}
                 steps={lineSteps}
+                stepNames={lineStepNames}
+                lineName={savedLine?.name ?? null}
                 onAskSteps={() => setStepsAsk(true)}
                 changing={changingSteps}
                 onToggleChanging={() => setChangingSteps((v) => !v)}
@@ -1308,7 +1334,19 @@ export default function App() {
         </div>
       </div>
 
-      <LineStepsModal open={stepsAsk} steps={lineSteps} onChoose={chooseSteps} onClose={() => setStepsAsk(false)} />
+      <LineStartModal
+        open={stepsAsk}
+        steps={lineSteps}
+        savedLines={activeClass.savedLines ?? []}
+        activeId={savedLine?.id ?? null}
+        onChoose={chooseLine}
+        onSave={(saved, start) => {
+          saveLine(activeClass.id, saved)
+          if (start) chooseLine({ savedId: saved.id })
+        }}
+        onDelete={(id) => deleteLine(activeClass.id, id)}
+        onClose={() => setStepsAsk(false)}
+      />
       <LineLeaveModal
         student={lineLeaveFor ? (studentsById.get(lineLeaveFor) ?? null) : null}
         onLeave={() => {
@@ -1324,7 +1362,11 @@ export default function App() {
       <ConfirmModal
         open={lineClearAsk}
         title="Clear the line?"
-        message="Everyone in line goes back to their seat, and the Done marks come off the desks."
+        message={
+          savedLine
+            ? `Everyone in line goes back to their seat, and everyone's steps in ${savedLine.name} start again.`
+            : 'Everyone in line goes back to their seat, and the Done marks come off the desks.'
+        }
         confirmLabel="Clear Line"
         onConfirm={() => {
           changeLine(activeClass.id, today, clearLine)

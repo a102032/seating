@@ -301,12 +301,17 @@ const all = {}
 }
 
 {
-  // The Line, partway through a lesson: Amy checked and Done, Tony with the teacher, four waiting.
+  // The Line, partway through a lesson of a saved line: Amy checked and Done, Tony with the teacher, four waiting.
   const page = await open()
   await page.click('aside [aria-label="Line"]')
   await page.waitForTimeout(500)
   await page.waitForTimeout(800)
-  await page.click('[data-steps-choice="3"]')
+  // A saved line, Writing, with its three steps named, so the desks show the step each is on.
+  await page.click('[data-new-line]')
+  await page.waitForTimeout(800)
+  await page.fill('#line-name', 'Writing')
+  for (const [i, step] of ['Prewriting', 'Sentences', 'Paragraphs'].entries()) await page.fill(`[data-step-name="${i + 1}"]`, step)
+  await page.getByRole('button', { name: 'Save and Start' }).click()
   await page.waitForTimeout(500)
   for (const n of ['Amy', 'Tony', 'Kevin', 'Brian', 'Emma', 'Leo']) {
     await page

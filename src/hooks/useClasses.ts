@@ -5,7 +5,7 @@ import { getTheme, hasNoAvatar, randomPose, stickerId, type DeskPictures } from 
 import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
-import { lineOf, type ClassLine } from '../lib/line'
+import { LINE_NAME_MAX, lineOf, MAX_SAVED_LINES, STEP_NAME_MAX, type ClassLine } from '../lib/line'
 import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
@@ -169,6 +169,13 @@ export { goalIsLive, pointsModeOf, starsWaitOnDesks }
 /** Every desk's stars back to none. */
 function withDesksEmpty(c: ClassData): ClassData {
   return { ...c, students: c.students.map((s) => (s.points ? { ...s, points: 0 } : s)) }
+}
+
+
+/** Today's line kept with the class, and a saved line in use keeps its students' steps too, for the next lesson. */
+function withLine(c: ClassData, line: ClassLine): ClassData {
+  if (!c.lineSavedAs || !c.savedLines?.some((s) => s.id === c.lineSavedAs)) return { ...c, line }
+  return { ...c, line, savedLines: c.savedLines.map((s) => (s.id === c.lineSavedAs ? { ...s, checks: line.checks } : s)) }
 }
 
 export function useClasses() {
@@ -589,7 +596,7 @@ export function useClasses() {
   /** The Line (lib/line): today's line, changed one step - a child joining, Done, Skip, out of line. */
   const changeLine = useCallback(
     (classId: string, day: string, change: (line: ClassLine) => ClassLine) =>
-      updateClass(classId, (c) => ({ ...c, line: change(lineOf(c, day)) })),
+      updateClass(classId, (c) => withLine(c, change(lineOf(c, day)))),
     [updateClass],
   )
 
@@ -598,8 +605,51 @@ export function useClasses() {
     [updateClass],
   )
 
-  const setLineSteps = useCallback(
-    (classId: string, steps: number) => updateClass(classId, (c) => ({ ...c, lineSteps: steps })),
+  /**
+   * "Start the Line": a saved line, picking up where everyone was in its steps, or a quick line of
+   * so many unnamed steps. Whoever is in line stays in line; only the steps change.
+   */
+  const startLine = useCallback(
+    (classId: string, day: string, choice: { savedId: string } | { steps: number }) =>
+      updateClass(classId, (c) => {
+        const line = lineOf(c, day)
+        if ('savedId' in choice) {
+          const saved = c.savedLines?.find((s) => s.id === choice.savedId)
+          if (!saved) return c
+          return { ...c, lineSavedAs: saved.id, line: { ...line, checks: { ...(saved.checks ?? {}) } } }
+        }
+        // From a saved line to a quick one: its steps stay with it, and the desks start clear.
+        const checks = c.lineSavedAs ? {} : line.checks
+        return { ...c, lineSavedAs: undefined, lineSteps: choice.steps, line: { ...line, checks } }
+      }),
+    [updateClass],
+  )
+
+  /** A saved line made or changed: its name and its steps' names. Four at most. */
+  const saveLine = useCallback(
+    (classId: string, saved: { id: string; name: string; steps: string[] }) =>
+      updateClass(classId, (c) => {
+        const list = c.savedLines ?? []
+        const kept = { name: saved.name.trim().slice(0, LINE_NAME_MAX), steps: saved.steps.map((n) => n.trim().slice(0, STEP_NAME_MAX)) }
+        if (list.some((s) => s.id === saved.id)) return { ...c, savedLines: list.map((s) => (s.id === saved.id ? { ...s, ...kept } : s)) }
+        if (list.length >= MAX_SAVED_LINES) return c
+        return { ...c, savedLines: [...list, { id: saved.id, ...kept }] }
+      }),
+    [updateClass],
+  )
+
+  /** A saved line gone, with where everyone was in it. In use, the Line carries on as a quick line of as many steps. */
+  const deleteLine = useCallback(
+    (classId: string, savedId: string) =>
+      updateClass(classId, (c) => {
+        const saved = c.savedLines?.find((s) => s.id === savedId)
+        const inUse = c.lineSavedAs === savedId
+        return {
+          ...c,
+          savedLines: (c.savedLines ?? []).filter((s) => s.id !== savedId),
+          ...(inUse ? { lineSavedAs: undefined, lineSteps: saved?.steps.length ?? c.lineSteps } : {}),
+        }
+      }),
     [updateClass],
   )
 
@@ -778,7 +828,9 @@ export function useClasses() {
     setGetReady,
     changeLine,
     setLineSilent,
-    setLineSteps,
+    startLine,
+    saveLine,
+    deleteLine,
     setCelebrationGif,
     resetClassGoal,
     setClassPoints,

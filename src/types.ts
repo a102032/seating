@@ -222,6 +222,13 @@ export interface ClassData {
   /** How many steps a task has in the Line, from "How many steps?" (each one checked; all of them is Done). Unset is one. */
   lineSteps?: number
   /**
+   * Lines the teacher named and kept to use again (2026-10-16, the teacher: a writing project over
+   * several lessons): four at most, each with its steps' names and where every student is in them.
+   */
+  savedLines?: SavedLine[]
+  /** The saved line in use, whose steps the Line checks; unset is a quick line of lineSteps unnamed steps. */
+  lineSavedAs?: string
+  /**
    * The Line with no sound (the speaker on its column, as Get Ready!'s is on "How long?"): a quiet
    * writing lesson. Kept until it is tapped back on. Unset is sound on.
    */
@@ -251,6 +258,18 @@ export interface StudentGroup {
    * many to a line. Only groups made from the seats have one; Shuffle keeps each card's.
    */
   place?: GroupPlace
+}
+
+/**
+ * A line kept to use again: its name ("Writing"), its steps' names in order (one entry a step, ''
+ * for a step left unnamed), and how many steps each student has had checked, kept from lesson to
+ * lesson so a project over several days carries on where it was.
+ */
+export interface SavedLine {
+  id: string
+  name: string
+  steps: string[]
+  checks?: Record<string, number>
 }
 
 /** A set of groups kept to use again: who is in each group, and where its card sits. Points and status are never kept. */

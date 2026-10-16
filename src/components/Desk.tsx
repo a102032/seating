@@ -73,7 +73,8 @@ export function Desk({
 }: DeskProps) {
   const empty = !student
   const points = student?.points ?? 0
-  const nameOnly = student !== undefined && hasNoPicture(student)
+  // A finished desk in the Line shows Done big, where a picture would be, even while the Line shows names only.
+  const nameOnly = student !== undefined && hasNoPicture(student) && lineMark !== 'done'
   // The room above a centred name: from near the desk's top down to just above the name's
   // capitals, which start about a third of the name's size above the middle.
   // A name under a picture is about two thirds of the size that fits the desk's width, so the
@@ -162,7 +163,7 @@ export function Desk({
             <div
               data-line-steps={lineMark.checked}
               className="absolute left-1 top-1 z-10 flex gap-[0.2em] rounded-full bg-card/90 px-[0.3em] py-[0.25em] shadow-sm"
-              style={{ fontSize: 'clamp(0.55rem, 7cqi, 1rem)' }}
+              style={{ fontSize: 'clamp(0.65rem, 10cqi, 1.4rem)' }}
             >
               {Array.from({ length: lineMark.of }, (_, i) => (
                 <span
@@ -174,6 +175,19 @@ export function Desk({
                 />
               ))}
             </div>
+          )}
+
+          {typeof lineMark === 'object' && 'checked' in lineMark && lineMark.step && (
+            // The step they are on now, by the name the teacher gave it (a saved line), along the
+            // desk's foot: the Line shows names only, so the picture's room is free for it.
+            <span
+              data-line-step-name=""
+              className="absolute inset-x-1 bottom-[0.2em] z-10 block truncate text-center font-bold leading-tight text-emerald-700 dark:text-emerald-300"
+              // As big as the desk's width allows for this name, so a long one is whole rather than cut.
+              style={{ fontSize: `max(0.6rem, min(1.5rem, 12cqi, calc((100cqi - 0.5rem) / ${(lineMark.step.length * 0.6).toFixed(2)})))` }}
+            >
+              {lineMark.step}
+            </span>
           )}
 
           {typeof lineMark === 'object' && 'place' in lineMark && (
@@ -204,9 +218,6 @@ export function Desk({
                   className="absolute left-1/2 top-[3cqb] -translate-x-1/2 text-muted-foreground"
                   style={{ height: nameOnlyZzz, width: nameOnlyZzz }}
                 />
-              ) : lineMark === 'done' ? (
-                // Done, where the zzz would be: a desk with no picture still shows the work is finished.
-                <DoneIcon className="absolute left-1/2 top-[3cqb] -translate-x-1/2" style={{ height: nameOnlyZzz, width: nameOnlyZzz }} />
               ) : null}
               <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                 <span

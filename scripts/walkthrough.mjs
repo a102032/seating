@@ -808,7 +808,7 @@ const scenarios = {
     await page.waitForTimeout(300)
     await page.locator('[role=dialog] input[value="Amy"]').fill('   ')
     await page.getByRole('button', { name: 'Save', exact: true }).click()
-    await page.waitForTimeout(400)
+    await page.waitForTimeout(800)
     const c = await activeSaved(page)
     check('a student cannot be saved with no name', c.students[0].name.trim() !== '', `first student is now "${c.students[0].name}"`)
     return page
@@ -2905,6 +2905,54 @@ const scenarios = {
   },
 
   /**
+   * Saved lines (2026-10-16): "Start the Line" with four saved lines and the editor with six steps
+   * fit every screen with nothing to scroll, in the theme with the biggest letters too, and a step's
+   * name of 12 letters fits a desk whole in a class of 35.
+   */
+  async 'saved lines fit'() {
+    let page
+    const long = 'Proofreading'
+    for (const theme of ['vibrant', 'comic']) {
+      for (const size of [[1024, 500], [1280, 559], [1920, 1080]]) {
+        const cls = makeClass('c1', 'Writing', 35, { pointsGoal: 50, goalEnabled: true, pointsMode: 'goal' })
+        cls.savedLines = [1, 2, 3, 4].map((n) => ({ id: `l${n}`, name: `Wwwwwwwwwwwwwwwwwww${n}`, steps: Array(6).fill(long), checks: { 'c1-s0': 1 } }))
+        cls.lineSavedAs = 'l1'
+        if (page) await page.close()
+        page = await open({ state: stateOf(cls), size, theme })
+        const tag = `${theme} ${size.join('x')}`
+        await panelButton(page, 'Line').click()
+        await page.waitForTimeout(900)
+        const fits = () =>
+          page.evaluate(() => {
+            const d = document.querySelector('[role=dialog]')
+            if (!d) return 'no window'
+            const r = d.getBoundingClientRect()
+            const body = d.querySelector('[data-slot=dialog-body]') ?? d
+            return r.top >= 0 && r.bottom <= innerHeight && body.scrollHeight <= body.clientHeight + 1 ? 'ok' : `${r.top},${r.bottom},${body.scrollHeight},${body.clientHeight}`
+          })
+        let f = await fits()
+        check(`saved lines: Start the Line fits, ${tag}`, f === 'ok', f)
+        await page.locator('[data-saved-line]').first().click()
+        await page.waitForTimeout(500)
+        const name = desk(page, 'Amy').locator('[data-line-step-name]')
+        check(
+          `saved lines: a 12-letter step fits the desk, ${tag}`,
+          (await name.count()) === 1 && (await name.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)),
+        )
+        if (size[0] === 1024) await page.screenshot({ path: `${SHOTS}/saved-lines-desks-${theme}.png` })
+        await page.locator('[data-line-steps-button]').click()
+        await page.waitForTimeout(900)
+        await page.locator('[data-edit-line]').first().click()
+        await page.waitForTimeout(900)
+        f = await fits()
+        check(`saved lines: the editor with six steps fits, ${tag}`, f === 'ok', f)
+        if (size[0] === 1024) await page.screenshot({ path: `${SHOTS}/saved-lines-editor-${theme}.png` })
+      }
+    }
+    return page
+  },
+
+  /**
    * The Line (2026-10-15): a child taps their desk to wait their turn to be checked; the one with
    * the teacher keeps number 1; Done puts Done on their desk and calls the next; Skip, out of line,
    * Clear Line; the board's double touches; and the line kept through a refresh.
@@ -2921,7 +2969,7 @@ const scenarios = {
     }
     await panelButton(page, 'Line').click()
     await page.waitForTimeout(400)
-    check('line: a fresh line asks how many steps', await page.getByText('How many steps?').isVisible())
+    check('line: a fresh line asks how many steps', await page.getByText('Start the Line').isVisible())
     await page.waitForTimeout(500)
     await page.locator('[data-steps-choice="3"]').click()
     await page.waitForTimeout(500)
@@ -2977,9 +3025,8 @@ const scenarios = {
     l = await line()
     check('line: Step 1 Done once, through a double touch, calls the next', l.now === 'c1-s2' && l.checks['c1-s0'] === 1, JSON.stringify(l))
     check(
-      'line: one dot of three on her desk, her picture kept, no number',
+      'line: one dot of three on her desk, no number',
       (await desk(page, 'Amy').locator('[data-line-steps="1"]').count()) === 1 &&
-        (await desk(page, 'Amy').locator('img').count()) === 1 &&
         (await mark('Amy').count()) === 0,
     )
     // Change Steps: two taps take her through step 2 to Done, a third back to none, a fourth to step 1.
@@ -3018,13 +3065,77 @@ const scenarios = {
     )
     await panelButton(page, 'Line').click()
     await page.waitForTimeout(400)
-    check('line: reopened mid-activity, no question', (await page.getByText('How many steps?').count()) === 0)
+    check('line: reopened mid-activity, no question', (await page.getByText('Start the Line').count()) === 0)
     await page.locator('[data-line-panel] button', { hasText: 'Clear Line' }).click()
     await page.waitForTimeout(300)
     await page.getByRole('alertdialog').getByRole('button', { name: 'Clear Line' }).click()
     await page.waitForTimeout(500)
     l = await line()
     check('line: Clear Line empties it and takes Done off', l.now === null && l.waiting.length === 0 && Object.keys(l.checks).length === 0)
+
+    // Saved lines (2026-10-16): named, with named steps, kept from lesson to lesson.
+    check(
+      'line: the desks show names only while the Line is open',
+      (await page.locator('[data-ink=desk] img').count()) === 0,
+    )
+    await page.locator('[data-line-steps-button]').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-new-line]').click()
+    await page.waitForTimeout(800)
+    await page.locator('#line-name').fill('Writing')
+    for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'One step more' }).click()
+    const stepNames = ['prewriting', 'sentences', 'paragraphs', 'publishing', 'illustrating']
+    for (let i = 0; i < 5; i++) await page.locator(`[data-step-name="${i + 1}"]`).fill(stepNames[i])
+    check('line: a step name is held to 12 letters', (await page.locator('[data-step-name="1"]').getAttribute('maxlength')) === '12')
+    await page.screenshot({ path: `${SHOTS}/line-new-line.png` })
+    await page.getByRole('button', { name: 'Save and Start' }).click()
+    await page.waitForTimeout(600)
+    let kept = await activeSaved(page)
+    check(
+      'line: Save and Start keeps the line and starts it',
+      kept.savedLines?.length === 1 && kept.lineSavedAs === kept.savedLines[0].id && kept.savedLines[0].steps.join() === stepNames.join(),
+      JSON.stringify(kept.savedLines),
+    )
+    check('line: the column names it', (await page.locator('[data-line-steps-button]').innerText()).includes('Writing'))
+    await tap('Amy')
+    check('line: Done says the step by its name', (await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().innerText()).includes('prewriting'))
+    await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click()
+    await page.waitForTimeout(900)
+    check(
+      'line: the desk shows the step they are on, by name',
+      (await desk(page, 'Amy').locator('[data-line-step-name]').innerText()) === 'sentences',
+    )
+    await page.screenshot({ path: `${SHOTS}/line-named-steps.png` })
+    // A quick line, then back to Writing: its steps were kept.
+    await page.locator('[data-line-steps-button]').click()
+    await page.waitForTimeout(800)
+    await page.screenshot({ path: `${SHOTS}/line-start-window.png` })
+    await page.locator('[data-steps-choice="2"]').click()
+    await page.waitForTimeout(500)
+    check('line: a quick line starts with clear desks', (await desk(page, 'Amy').locator('[data-line-steps]').count()) === 0)
+    await page.locator('[data-line-steps-button]').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-saved-line="Writing"]').click()
+    await page.waitForTimeout(500)
+    check('line: back to Writing, everyone where they were', (await desk(page, 'Amy').locator('[data-line-steps]').getAttribute('data-line-steps')) === '1')
+    // Rename it, then delete it.
+    await page.locator('[data-line-steps-button]').click()
+    await page.waitForTimeout(800)
+    await page.locator('[data-edit-line="Writing"]').click()
+    await page.waitForTimeout(800)
+    await page.locator('#line-name').fill('Story')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.waitForTimeout(800)
+    check('line: renamed', (await activeSaved(page)).savedLines?.[0].name === 'Story')
+    await page.locator('[data-edit-line="Story"]').click()
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Delete' }).click()
+    await page.getByRole('button', { name: 'Delete', exact: true }).last().click()
+    await page.waitForTimeout(400)
+    kept = await activeSaved(page)
+    check('line: deleted, and the Line carries on as a quick line', (kept.savedLines ?? []).length === 0 && !kept.lineSavedAs && kept.lineSteps === 5)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(400)
     return page
   },
 

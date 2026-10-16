@@ -1,7 +1,10 @@
 import clsx from 'clsx'
 import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
-import { checkedOf, lineCount, MAX_STEPS, type ClassLine } from '../lib/line'
-import type { Student } from '../types'
+import { Minus, Pencil, Plus, Trash2 } from 'lucide-react'
+import { checkedOf, LINE_NAME_MAX, lineCount, MAX_SAVED_LINES, MAX_STEPS, STEP_NAME_MAX, type ClassLine } from '../lib/line'
+import type { SavedLine, Student } from '../types'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { SoundButton } from './GetReady'
 import { Modal } from './Modal'
 import { PointIcon, QueueIcon } from './RailIcons'
@@ -35,7 +38,11 @@ interface LinePanelProps {
   onSetSilent: (silent: boolean) => void
   /** How many steps the task has (each one checked; all of them is Done). */
   steps: number
-  /** "Steps: 5" at the top: "How many steps?" again, to change it partway through. */
+  /** Each step's name, from a saved line ('' for one with none). */
+  stepNames: string[]
+  /** The saved line in use, by name, or null for a quick line. */
+  lineName: string | null
+  /** The button at the top ("Writing", or "Steps: 5"): "Start the Line" again, to change it partway through. */
   onAskSteps: () => void
   /** Change Steps is on: a tap on a desk, or on the student with the teacher, moves them a step. */
   changing: boolean
@@ -64,6 +71,8 @@ export function LinePanel({
   silent,
   onSetSilent,
   steps,
+  stepNames,
+  lineName,
   onAskSteps,
   changing,
   onToggleChanging,
@@ -71,7 +80,8 @@ export function LinePanel({
 }: LinePanelProps) {
   // The step the student with the teacher brought, and what Done will do, said on the button itself.
   const nowChecked = line.now ? checkedOf(line, line.now, steps) : 0
-  const doneLabel = steps === 1 ? 'Done' : nowChecked + 1 >= steps ? 'All Done' : `Step ${nowChecked + 1} Done`
+  const nowStep = stepNames[nowChecked] ?? ''
+  const doneLabel = steps === 1 ? 'Done' : nowChecked + 1 >= steps ? 'All Done' : nowStep ? `${nowStep} Done` : `Step ${nowChecked + 1} Done`
   const now = line.now ? studentsById.get(line.now) : undefined
   const lastTap = useRef(0)
   const lastStar = useRef(0)
@@ -118,15 +128,15 @@ export function LinePanel({
       aria-label="Line"
       className="flex h-full w-[clamp(10.5rem,15vw,15rem)] shrink-0 flex-col gap-[clamp(0.35rem,1.2vh,0.75rem)] overflow-hidden rounded-2xl border border-border bg-card/80 p-[clamp(0.4rem,1.2vh,0.75rem)] text-card-foreground shadow-sm"
     >
-      {/* How many steps the task has, from "How many steps?": tap to change it partway through. */}
+      {/* Which line this is (a saved one by its name) and how many steps: tap to change it partway through. */}
       <button
         type="button"
         data-line-steps-button=""
         onClick={onAskSteps}
-        className="shrink-0 rounded-lg bg-black/[0.04] px-2 py-0.5 font-bold text-muted-foreground transition-transform active:scale-95 dark:bg-white/[0.06]"
+        className="block shrink-0 truncate rounded-lg bg-black/[0.04] px-2 py-0.5 font-bold text-muted-foreground transition-transform active:scale-95 dark:bg-white/[0.06]"
         style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}
       >
-        Steps: {steps}
+        {lineName ? `${lineName} · ${steps}` : `Steps: ${steps}`}
       </button>
 
       {/* With the teacher: the class reads it from their seats. While Change Steps is on, a tap here
@@ -161,8 +171,8 @@ export function LinePanel({
               </span>
             </span>
             {steps > 1 && (
-              <span className="font-bold text-emerald-800 dark:text-emerald-200" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
-                {nowChecked >= steps ? 'All done' : `Step ${nowChecked + 1} of ${steps}`}
+              <span className="block w-full truncate font-bold text-emerald-800 dark:text-emerald-200" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
+                {nowChecked >= steps ? 'All done' : nowStep ? `${nowStep} · ${nowChecked + 1} of ${steps}` : `Step ${nowChecked + 1} of ${steps}`}
               </span>
             )}
           </>
@@ -239,7 +249,15 @@ export function LinePanel({
             onClick={(e) => guarded(e, TAP_GUARD_MS, lastTap, onDone)}
             className={panelButton('min-w-0 flex-1 whitespace-normal !leading-tight !bg-emerald-600 !text-white hover:!bg-emerald-700')}
           >
-            {doneLabel}
+            {nowStep && doneLabel !== 'All Done' ? (
+              // A step's name over Done, smaller, so a long one stays inside the button.
+              <span className="flex min-w-0 flex-col items-center">
+                <span className="block max-w-full truncate text-[0.7em]">{nowStep}</span>
+                <span>Done</span>
+              </span>
+            ) : (
+              doneLabel
+            )}
           </TactileButton>
         </div>
         <div className="flex items-center justify-between gap-1" style={{ fontSize: 'clamp(0.75rem, 1.6vmin, 0.95rem)' }}>
@@ -332,50 +350,259 @@ export function LineLeaveModal({ student, onLeave, onStay }: { student: Student 
   )
 }
 
+/** What "Start the Line" starts: a saved line, or a quick line of so many unnamed steps. */
+export type LineChoice = { savedId: string } | { steps: number }
+
 /**
- * "How many steps?" (2026-10-15, the teacher): asked as a fresh line opens, as Get Ready! asks "How
- * long?", since the start of the activity is when the teacher knows. The class keeps its last
- * answer, outlined, so the same task is the same tap; "Steps: 5" on the column asks again.
+ * "Start the Line" (2026-10-15, "How many steps?"; saved lines 2026-10-16, the teacher): asked as a
+ * fresh line opens, as Get Ready! asks "How long?", since the start of the activity is when the
+ * teacher knows. On top, the class's saved lines (four at most), each a tap to start, carrying on
+ * where everyone was in its steps, with a pencil to rename it, change its steps or delete it; under
+ * them a quick line, the number of steps alone; and New Line, to name one and its steps. The line
+ * in use is outlined, so the same task is the same tap. Names are typed (a board brings up its own
+ * keyboard, and a line is mostly set up ahead at a laptop), and kept short enough for a desk.
  */
-export function LineStepsModal({
+export function LineStartModal({
   open,
   steps,
+  savedLines,
+  activeId,
   onChoose,
+  onSave,
+  onDelete,
   onClose,
 }: {
   open: boolean
   steps: number
-  onChoose: (steps: number) => void
+  savedLines: SavedLine[]
+  /** The saved line in use, or null for a quick line. */
+  activeId: string | null
+  onChoose: (choice: LineChoice) => void
+  /** Save a line, new or changed; `start` for a new one, which starts as it is saved. */
+  onSave: (line: { id: string; name: string; steps: string[] }, start: boolean) => void
+  onDelete: (id: string) => void
   onClose: () => void
 }) {
+  // Choosing, or editing a saved line (an id) or a new one ('new').
+  const [editing, setEditing] = useState<string | null>(null)
   const openedAt = useRef(0)
   useLayoutEffect(() => {
-    if (open) openedAt.current = performance.now()
+    if (open) {
+      openedAt.current = performance.now()
+      setEditing(null)
+    }
   }, [open])
   const shown = useLingerWhileClosing(open)
   if (!shown) return null
+  // The board's second touch of the rail's button lands in here, and so does the touch that opened the editor or came back.
+  const ready = (e: MouseEvent) => e.timeStamp - openedAt.current >= TAP_GUARD_MS
+  const switchTo = (next: string | null) => {
+    openedAt.current = performance.now()
+    setEditing(next)
+  }
+  const edited = editing && editing !== 'new' ? savedLines.find((s) => s.id === editing) : undefined
+
+  if (editing) {
+    return (
+      <Modal open={open} onClose={onClose} title={edited ? 'Change Line' : 'New Line'}>
+        <LineEditor
+          key={editing}
+          saved={edited}
+          onBack={() => switchTo(null)}
+          onSave={(line) => {
+            onSave(line, !edited)
+            if (edited) switchTo(null)
+          }}
+          onDelete={
+            edited
+              ? () => {
+                  onDelete(edited.id)
+                  switchTo(null)
+                }
+              : undefined
+          }
+        />
+      </Modal>
+    )
+  }
+
+  const full = savedLines.length >= MAX_SAVED_LINES
   return (
-    <Modal open={open} onClose={onClose} title="How many steps?">
+    <Modal open={open} onClose={onClose} title="Start the Line">
       <div className="flex flex-col gap-4">
-        <p className="m-0 text-base text-muted-foreground">How many times will you check each student's work?</p>
-        <div className="grid grid-cols-3 gap-3">
-          {Array.from({ length: MAX_STEPS }, (_, i) => i + 1).map((n) => (
-            <TactileButton
-              key={n}
-              data-steps-choice={n}
-              // The board's second touch of the rail's button lands in here.
-              onClick={(e) => e.timeStamp - openedAt.current >= TAP_GUARD_MS && onChoose(n)}
-              className={clsx(
-                panelButton(''),
-                '!h-[clamp(3rem,10vh,4.5rem)] !text-[clamp(1.4rem,4vmin,2.2rem)]',
-                n === steps && 'ring-4 ring-primary',
-              )}
-            >
-              {n}
-            </TactileButton>
-          ))}
+        {savedLines.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            {savedLines.map((saved) => (
+              <div key={saved.id} className="relative">
+                <TactileButton
+                  data-saved-line={saved.name}
+                  onClick={(e) => ready(e) && onChoose({ savedId: saved.id })}
+                  className={clsx(
+                    panelButton('w-full flex-col !items-start !gap-0 !pl-3 !pr-12 text-left'),
+                    '!h-[clamp(3rem,10vh,4.25rem)]',
+                    saved.id === activeId && 'ring-4 ring-primary',
+                  )}
+                >
+                  <span className="block w-full truncate">{saved.name}</span>
+                  <span className="block text-[0.65em] font-semibold text-muted-foreground">
+                    {saved.steps.length === 1 ? '1 step' : `${saved.steps.length} steps`}
+                  </span>
+                </TactileButton>
+                <button
+                  type="button"
+                  aria-label={`Change ${saved.name}`}
+                  data-edit-line={saved.name}
+                  onClick={(e) => ready(e) && switchTo(saved.id)}
+                  className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-transform active:scale-90"
+                >
+                  <Pencil className="size-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <p className="m-0 text-base text-muted-foreground">
+            {savedLines.length > 0 ? 'Or a quick line. ' : ''}How many times will you check each student's work?
+          </p>
+          <div className="grid grid-cols-6 gap-2">
+            {Array.from({ length: MAX_STEPS }, (_, i) => i + 1).map((n) => (
+              <TactileButton
+                key={n}
+                data-steps-choice={n}
+                onClick={(e) => ready(e) && onChoose({ steps: n })}
+                className={clsx(
+                  panelButton('!px-0'),
+                  '!h-[clamp(2.75rem,9vh,4rem)] !text-[clamp(1.3rem,3.6vmin,2rem)]',
+                  activeId === null && n === steps && 'ring-4 ring-primary',
+                )}
+              >
+                {n}
+              </TactileButton>
+            ))}
+          </div>
         </div>
+        <TactileButton
+          data-new-line=""
+          disabled={full}
+          title={full ? `${MAX_SAVED_LINES} lines at most` : undefined}
+          onClick={(e) => ready(e) && switchTo('new')}
+          className="self-start"
+        >
+          <Plus className="size-5" />
+          {full ? `New Line (${MAX_SAVED_LINES} at most)` : 'New Line, with names'}
+        </TactileButton>
       </div>
     </Modal>
+  )
+}
+
+/**
+ * A saved line's name and its steps' names, typed. The number of steps is − and + (one to six);
+ * a step's name is optional and short enough to fit on a desk ("Prewriting", "Sentences").
+ * Delete asks once, in place.
+ */
+function LineEditor({
+  saved,
+  onBack,
+  onSave,
+  onDelete,
+}: {
+  saved?: SavedLine
+  onBack: () => void
+  onSave: (line: { id: string; name: string; steps: string[] }) => void
+  onDelete?: () => void
+}) {
+  const [name, setName] = useState(saved?.name ?? '')
+  const [names, setNames] = useState<string[]>(saved?.steps ?? ['', '', ''])
+  const [askDelete, setAskDelete] = useState(false)
+  const count = names.length
+  const setCount = (n: number) => setNames((list) => Array.from({ length: n }, (_, i) => list[i] ?? ''))
+  const canSave = name.trim().length > 0
+  const save = () => canSave && onSave({ id: saved?.id ?? crypto.randomUUID(), name, steps: names })
+
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        save()
+      }}
+    >
+      <div className="flex items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <Label htmlFor="line-name" className="mb-1.5">
+            Name
+          </Label>
+          <Input
+            id="line-name"
+            value={name}
+            maxLength={LINE_NAME_MAX}
+            autoFocus={!saved}
+            autoComplete="off"
+            placeholder="Writing"
+            onChange={(e) => setName(e.target.value)}
+            className="h-11 text-lg"
+          />
+        </div>
+        <div className="shrink-0">
+          <Label className="mb-1.5">Steps</Label>
+          <div className="flex h-11 items-center gap-1">
+            <TactileButton type="button" aria-label="One step fewer" disabled={count <= 1} onClick={() => setCount(count - 1)} className="!size-11 !p-0">
+              <Minus className="size-5" />
+            </TactileButton>
+            <span data-line-step-count={count} className="w-8 text-center text-xl font-bold tabular-nums">
+              {count}
+            </span>
+            <TactileButton type="button" aria-label="One step more" disabled={count >= MAX_STEPS} onClick={() => setCount(count + 1)} className="!size-11 !p-0">
+              <Plus className="size-5" />
+            </TactileButton>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+        {names.map((step, i) => (
+          <label key={i} className="flex items-center gap-2">
+            <span className="w-5 shrink-0 text-right font-bold text-muted-foreground tabular-nums">{i + 1}</span>
+            <Input
+              value={step}
+              data-step-name={i + 1}
+              maxLength={STEP_NAME_MAX}
+              autoComplete="off"
+              placeholder={`Step ${i + 1}`}
+              onChange={(e) => setNames((list) => list.map((n, j) => (j === i ? e.target.value : n)))}
+              className="h-10"
+            />
+          </label>
+        ))}
+      </div>
+      <p className="m-0 text-sm text-muted-foreground">Step names are short, to fit on a desk ({STEP_NAME_MAX} letters).</p>
+      {askDelete ? (
+        <div className="flex items-center justify-end gap-2">
+          <span className="mr-auto font-semibold">Delete {saved?.name}? Where everyone is in it goes too.</span>
+          <TactileButton type="button" onClick={() => setAskDelete(false)}>
+            Keep
+          </TactileButton>
+          <TactileButton type="button" variant="danger" onClick={onDelete}>
+            Delete
+          </TactileButton>
+        </div>
+      ) : (
+        <div className="flex items-center justify-end gap-2">
+          {onDelete && (
+            <TactileButton type="button" onClick={() => setAskDelete(true)} className="mr-auto !text-destructive">
+              <Trash2 className="size-4" />
+              Delete
+            </TactileButton>
+          )}
+          <TactileButton type="button" onClick={onBack}>
+            Back
+          </TactileButton>
+          <TactileButton type="submit" variant="primary" disabled={!canSave}>
+            {saved ? 'Save' : 'Save and Start'}
+          </TactileButton>
+        </div>
+      )}
+    </form>
   )
 }

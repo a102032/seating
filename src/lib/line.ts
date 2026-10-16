@@ -1,4 +1,4 @@
-import type { ClassData } from '../types'
+import type { ClassData, SavedLine } from '../types'
 
 /**
  * The Line (2026-10-15, the teacher): a doctor's office for checking work. During independent
@@ -28,8 +28,13 @@ export interface ClassLine {
 /** The class's line today: empty on a new day, and without anyone no longer in the class. */
 export function lineOf(cls: ClassData | undefined, day: string): ClassLine {
   const line = cls?.line
-  if (!cls || !line || line.day !== day) return { day, now: null, waiting: [], checks: {} }
+  if (!cls) return { day, now: null, waiting: [], checks: {} }
   const here = new Set(cls.students.map((s) => s.id))
+  if (!line || line.day !== day) {
+    // A new day empties the line, but a saved line keeps where everyone is in its steps.
+    const kept = savedLineOf(cls)?.checks ?? {}
+    return { day, now: null, waiting: [], checks: Object.fromEntries(Object.entries(kept).filter(([id, n]) => here.has(id) && n > 0)) }
+  }
   const waiting = line.waiting.filter((id) => here.has(id) && id !== line.now)
   const now = line.now && here.has(line.now) ? line.now : null
   // The first version kept a list of who was Done, before steps: all their steps checked.
@@ -42,12 +47,30 @@ export function lineOf(cls: ClassData | undefined, day: string): ClassLine {
 /** Past any number of steps, for the Done marks saved before there were steps. */
 const ALL_DONE = 99
 
-/** How many steps of the task a class's Line checks, from "How many steps?". Unset is one. */
+/** The saved line in use, if the Line is running one. */
+export function savedLineOf(cls: ClassData | undefined): SavedLine | undefined {
+  return cls?.lineSavedAs ? cls.savedLines?.find((s) => s.id === cls.lineSavedAs) : undefined
+}
+
+/** How many steps of the task a class's Line checks: the saved line's, or "How many steps?"'s. Unset is one. */
 export function stepsOf(cls: ClassData | undefined): number {
-  return Math.min(MAX_STEPS, Math.max(1, cls?.lineSteps ?? 1))
+  const saved = savedLineOf(cls)
+  return Math.min(MAX_STEPS, Math.max(1, saved ? saved.steps.length : (cls?.lineSteps ?? 1)))
+}
+
+/** Each step's name in a saved line ('' where it has none); a quick line's steps have none. */
+export function stepNamesOf(cls: ClassData | undefined): string[] {
+  const saved = savedLineOf(cls)
+  return Array.from({ length: stepsOf(cls) }, (_, i) => saved?.steps[i]?.trim() ?? '')
 }
 
 export const MAX_STEPS = 6
+/** Saved lines a class keeps: few enough that "Start the Line" stays one short window. */
+export const MAX_SAVED_LINES = 4
+/** A line's name, on the column's top button and in "Start the Line". */
+export const LINE_NAME_MAX = 20
+/** A step's name has to fit on a desk under its dots, in the narrowest desk the Line leaves. */
+export const STEP_NAME_MAX = 12
 
 /** The steps this student has had checked, never more than the task has. */
 export function checkedOf(line: ClassLine, id: string, steps: number): number {
@@ -140,19 +163,20 @@ export function lineCount(line: ClassLine): number {
  * What a desk shows while the Line is open: its place (and the green ring with the teacher), its
  * steps checked as dots, or Done.
  */
-export type LineMark = { place: number; now: boolean } | { checked: number; of: number } | 'done'
+export type LineMark = { place: number; now: boolean } | { checked: number; of: number; step: string } | 'done'
 
 /**
  * Every desk's mark. A place in line comes first, since a waiting child looks for their number; then
  * Done, or the dots of a task with steps. While Change Steps is on, every seated student shows their
  * steps, dots at none included, and no places: that is what is being changed.
  */
-export function lineMarksOf(line: ClassLine, steps: number, changing: string[] | null): Map<string, LineMark> {
+export function lineMarksOf(line: ClassLine, steps: number, changing: string[] | null, names: string[] = []): Map<string, LineMark> {
   const marks = new Map<string, LineMark>()
   const progress = (id: string): LineMark | null => {
     const checked = checkedOf(line, id, steps)
     if (checked >= steps) return 'done'
-    return steps > 1 && (checked > 0 || changing) ? { checked, of: steps } : null
+    // The step they are working on now, by name, under the dots.
+    return steps > 1 && (checked > 0 || changing) ? { checked, of: steps, step: names[checked] ?? '' } : null
   }
   for (const id of changing ?? Object.keys(line.checks)) {
     const mark = progress(id)
