@@ -163,7 +163,8 @@ export function lineCount(line: ClassLine): number {
  * What a desk shows while the Line is open: its place (and the green ring with the teacher), its
  * steps checked as dots, or Done.
  */
-export type LineMark = { place: number; now: boolean } | { checked: number; of: number; step: string } | 'done'
+export type LineSteps = { checked: number; of: number; step: string }
+export type LineMark = { place: number; now: boolean; steps?: LineSteps } | LineSteps | 'done'
 
 /**
  * Every desk's mark. A place in line comes first, since a waiting child looks for their number; then
@@ -191,6 +192,13 @@ export function lineMarksOf(
     const mark = progress(id)
     if (mark) marks.set(id, mark)
   }
-  if (!changing) placesInLine(line).forEach((place, id) => marks.set(id, { place, now: id === line.now }))
+  // In line, their steps stay on the desk beside their number (2026-10-16, the teacher), so a child
+  // waiting still sees which step they brought.
+  if (!changing)
+    placesInLine(line).forEach((place, id) => {
+      const before = marks.get(id)
+      const steps = typeof before === 'object' && 'checked' in before ? before : undefined
+      marks.set(id, { place, now: id === line.now, ...(steps ? { steps } : {}) })
+    })
   return marks
 }

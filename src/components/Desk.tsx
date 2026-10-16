@@ -75,6 +75,8 @@ export function Desk({
   const points = student?.points ?? 0
   // A finished desk in the Line shows Done big, where a picture would be, even while the Line shows names only.
   const nameOnly = student !== undefined && hasNoPicture(student) && lineMark !== 'done'
+  const linePlace = typeof lineMark === 'object' && 'place' in lineMark ? lineMark : undefined
+  const lineSteps = typeof lineMark === 'object' ? ('checked' in lineMark ? lineMark : lineMark.steps) : undefined
   // The room above a centred name: from near the desk's top down to just above the name's
   // capitals, which start about a third of the name's size above the middle.
   // A name under a picture is about two thirds of the size that fits the desk's width, so the
@@ -157,59 +159,67 @@ export function Desk({
             </div>
           )}
 
-          {typeof lineMark === 'object' && 'checked' in lineMark && (
-            // The steps of the task checked so far (●●○○○): read from across the room without reading
-            // a word, and by the teacher as where everyone is. Green for a step done, amber for the one
-            // they are working on, hollow for one not reached yet (2026-10-16, the teacher). Beside the
-            // dots, quietly, the name of the step they are on (a saved line's): not bold and not
-            // coloured, since thirty names in a bright colour drew the eye from the students' own, and
-            // up here it leaves the foot of the desk to the homeroom number.
-            <div
-              data-line-steps={lineMark.checked}
-              // Beside the dots while the desk has room; on a narrow desk (a big class on a small
-              // screen) the name goes under them, so it is never cut.
-              className="absolute left-1 top-1 z-10 flex max-w-[calc(100%-0.5rem)] flex-wrap items-center gap-x-[0.2em] gap-y-[0.15em] rounded-[0.7em] bg-card/90 px-[0.3em] py-[0.2em] shadow-sm"
-              style={{ fontSize: 'clamp(0.6rem, 8.5cqi, 1.15rem)' }}
-            >
-              {Array.from({ length: lineMark.of }, (_, i) => (
-                <span
-                  key={i}
-                  data-step-dot={i < lineMark.checked ? 'done' : i === lineMark.checked ? 'now' : 'ahead'}
+          {(lineSteps || linePlace) && (
+            // The Line's marks, in the top corner the stars leave free: their place in line, and beside
+            // it the steps of their task, so a child waiting still sees which step they brought.
+            <div className="absolute left-1 top-1 z-10 flex max-w-[calc(100%-0.5rem)] items-start gap-[0.25rem]">
+              {linePlace && (
+                // Their place in line: big enough to read from their own seat, and counting down as the
+                // line moves. With the teacher it is 1, in the ring's green, until they are done or
+                // back in their seat.
+                <div
+                  data-line-mark={linePlace.place}
                   className={clsx(
-                    'block size-[0.8em] shrink-0 rounded-full border-[0.15em]',
-                    i < lineMark.checked
-                      ? 'border-emerald-600 bg-emerald-500'
-                      : i === lineMark.checked
-                        ? 'border-amber-600 bg-amber-500'
-                        : 'border-slate-400 bg-transparent',
+                    'grid min-w-[1.6em] shrink-0 place-items-center rounded-full px-[0.35em] py-[0.1em] font-bold leading-none shadow-md tabular-nums',
+                    linePlace.now ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground',
                   )}
-                />
-              ))}
-              {lineMark.step && (
-                <span
-                  data-line-step-name=""
-                  className="ml-[0.15em] min-w-0 truncate pr-[0.2em] font-normal leading-[1.15] text-muted-foreground"
-                  style={{ fontSize: `min(0.9em, calc((100cqi - 1.2rem) / ${(lineMark.step.length * 0.52).toFixed(2)}))` }}
+                  style={{ fontSize: 'clamp(0.8rem, 14cqi, 1.75rem)' }}
                 >
-                  {lineMark.step}
-                </span>
+                  {linePlace.place}
+                </div>
               )}
-            </div>
-          )}
-
-          {typeof lineMark === 'object' && 'place' in lineMark && (
-            // Their place in line, in the top corner the stars leave free: big enough to read from
-            // their own seat, and counting down as the line moves. With the teacher it is 1, in the
-            // ring's green, until they are done or back in their seat.
-            <div
-              data-line-mark={lineMark.place}
-              className={clsx(
-                'absolute left-1 top-1 z-10 grid min-w-[1.6em] place-items-center rounded-full px-[0.35em] py-[0.1em] font-bold leading-none shadow-md tabular-nums',
-                lineMark.now ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground',
+              {lineSteps && (
+                // The steps of the task checked so far (●●○○○): read from across the room without
+                // reading a word, and by the teacher as where everyone is. Green for a step done, amber
+                // for the one they are working on, hollow for one not reached yet (2026-10-16, the
+                // teacher). Beside the dots, quietly, the name of the step they are on (a saved
+                // line's): not bold and not coloured, since thirty names in a bright colour drew the
+                // eye from the students' own, and up here it leaves the foot of the desk to the
+                // homeroom number. Beside the dots while the desk has room; on a narrow desk (a big
+                // class on a small screen) the name goes under them, so it is never cut.
+                <div
+                  data-line-steps={lineSteps.checked}
+                  className="flex min-w-0 flex-wrap items-center gap-x-[0.2em] gap-y-[0.15em] rounded-[0.7em] bg-card/90 px-[0.3em] py-[0.2em] shadow-sm"
+                  style={{ fontSize: 'clamp(0.6rem, 8.5cqi, 1.15rem)' }}
+                >
+                  {Array.from({ length: lineSteps.of }, (_, i) => (
+                    <span
+                      key={i}
+                      data-step-dot={i < lineSteps.checked ? 'done' : i === lineSteps.checked ? 'now' : 'ahead'}
+                      className={clsx(
+                        'block size-[0.8em] shrink-0 rounded-full border-[0.15em]',
+                        i < lineSteps.checked
+                          ? 'border-emerald-600 bg-emerald-500'
+                          : i === lineSteps.checked
+                            ? 'border-amber-600 bg-amber-500'
+                            : 'border-slate-400 bg-transparent',
+                      )}
+                    />
+                  ))}
+                  {lineSteps.step && (
+                    <span
+                      data-line-step-name=""
+                      className="ml-[0.15em] min-w-0 truncate pr-[0.2em] font-normal leading-[1.15] text-muted-foreground"
+                      // As big as the room beside the number allows, so a long name is whole.
+                      style={{
+                        fontSize: `min(0.9em, calc((100cqi - 1.2rem${linePlace ? ' - 26cqi' : ''}) / ${(lineSteps.step.length * 0.52).toFixed(2)}))`,
+                      }}
+                    >
+                      {lineSteps.step}
+                    </span>
+                  )}
+                </div>
               )}
-              style={{ fontSize: 'clamp(0.8rem, 14cqi, 1.75rem)' }}
-            >
-              {lineMark.place}
             </div>
           )}
 
@@ -226,7 +236,11 @@ export function Desk({
                   style={{ height: nameOnlyZzz, width: nameOnlyZzz }}
                 />
               ) : null}
-              <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+              <div
+                // Below the Line's marks, which can take two lines across the top (a number, then the
+                // dots and the step's name), so they never sit on the name.
+                className={clsx('flex min-h-0 w-full flex-1 items-center justify-center', lineSteps && 'pt-[24cqb]')}
+              >
                 <span
                   className="relative block w-full px-1 font-bold leading-tight"
                   style={{ fontSize: nameFont, color: 'var(--desk-name, var(--card-foreground))' }}

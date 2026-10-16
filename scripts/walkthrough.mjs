@@ -3126,6 +3126,15 @@ const scenarios = {
           .locator('[data-step-dot]')
           .evaluateAll((d) => d.map((e) => e.dataset.stepDot).join())) === 'done,now,ahead,ahead,ahead',
     )
+    await tap('Amy')
+    await tap('Leo')
+    check(
+      'line: in line, the number and the steps both show',
+      (await desk(page, 'Amy').locator('[data-line-mark="1"]').count()) === 1 &&
+        (await desk(page, 'Amy').locator('[data-line-step-name]').innerText()) === 'sentences' &&
+        (await desk(page, 'Leo').locator('[data-line-mark="2"]').count()) === 1 &&
+        (await desk(page, 'Leo').locator('[data-line-steps]').count()) === 1,
+    )
     await page.screenshot({ path: `${SHOTS}/line-named-steps.png` })
     // Another line, then back to Writing: its steps were kept.
     await page.locator('[data-line-steps-button]').click()
