@@ -167,18 +167,27 @@ export type LineMark = { place: number; now: boolean } | { checked: number; of: 
 
 /**
  * Every desk's mark. A place in line comes first, since a waiting child looks for their number; then
- * Done, or the dots of a task with steps. While Change Steps is on, every seated student shows their
- * steps, dots at none included, and no places: that is what is being changed.
+ * Done, or the dots of a task with steps. A line whose steps have names shows every seated student's
+ * dots from the start, the step they are on lit and named, so a child sees what they are working
+ * on; a quick line shows them once a step is checked. While Change Steps is on, every seated student
+ * shows their steps and no places: that is what is being changed.
  */
-export function lineMarksOf(line: ClassLine, steps: number, changing: string[] | null, names: string[] = []): Map<string, LineMark> {
+export function lineMarksOf(
+  line: ClassLine,
+  steps: number,
+  seated: string[],
+  changing: boolean,
+  names: string[] = [],
+): Map<string, LineMark> {
   const marks = new Map<string, LineMark>()
+  const everyone = changing || names.some(Boolean)
   const progress = (id: string): LineMark | null => {
     const checked = checkedOf(line, id, steps)
     if (checked >= steps) return 'done'
     // The step they are working on now, by name, under the dots.
-    return steps > 1 && (checked > 0 || changing) ? { checked, of: steps, step: names[checked] ?? '' } : null
+    return steps > 1 && (checked > 0 || everyone) ? { checked, of: steps, step: names[checked] ?? '' } : null
   }
-  for (const id of changing ?? Object.keys(line.checks)) {
+  for (const id of everyone ? seated : Object.keys(line.checks)) {
     const mark = progress(id)
     if (mark) marks.set(id, mark)
   }

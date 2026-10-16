@@ -2913,9 +2913,18 @@ const scenarios = {
     let page
     const long = 'Proofreading'
     for (const theme of ['vibrant', 'comic']) {
-      for (const size of [[1024, 500], [1280, 559], [1920, 1080]]) {
+      for (const size of [
+        [1024, 500],
+        [1280, 559],
+        [1920, 1080],
+      ]) {
         const cls = makeClass('c1', 'Writing', 35, { pointsGoal: 50, goalEnabled: true, pointsMode: 'goal' })
-        cls.savedLines = [1, 2, 3, 4].map((n) => ({ id: `l${n}`, name: `Wwwwwwwwwwwwwwwwwww${n}`, steps: Array(6).fill(long), checks: { 'c1-s0': 1 } }))
+        cls.savedLines = [1, 2, 3, 4].map((n) => ({
+          id: `l${n}`,
+          name: `Wwwwwwwwwwwwwwwwwww${n}`,
+          steps: Array(6).fill(long),
+          checks: { 'c1-s0': 1 },
+        }))
         cls.lineSavedAs = 'l1'
         if (page) await page.close()
         page = await open({ state: stateOf(cls), size, theme })
@@ -2928,7 +2937,9 @@ const scenarios = {
             if (!d) return 'no window'
             const r = d.getBoundingClientRect()
             const body = d.querySelector('[data-slot=dialog-body]') ?? d
-            return r.top >= 0 && r.bottom <= innerHeight && body.scrollHeight <= body.clientHeight + 1 ? 'ok' : `${r.top},${r.bottom},${body.scrollHeight},${body.clientHeight}`
+            return r.top >= 0 && r.bottom <= innerHeight && body.scrollHeight <= body.clientHeight + 1
+              ? 'ok'
+              : `${r.top},${r.bottom},${body.scrollHeight},${body.clientHeight}`
           })
         let f = await fits()
         check(`saved lines: Start the Line fits, ${tag}`, f === 'ok', f)
@@ -3026,8 +3037,7 @@ const scenarios = {
     check('line: Step 1 Done once, through a double touch, calls the next', l.now === 'c1-s2' && l.checks['c1-s0'] === 1, JSON.stringify(l))
     check(
       'line: one dot of three on her desk, no number',
-      (await desk(page, 'Amy').locator('[data-line-steps="1"]').count()) === 1 &&
-        (await mark('Amy').count()) === 0,
+      (await desk(page, 'Amy').locator('[data-line-steps="1"]').count()) === 1 && (await mark('Amy').count()) === 0,
     )
     // Change Steps: two taps take her through step 2 to Done, a third back to none, a fourth to step 1.
     const change = page.locator('[data-line-panel] button', { hasText: 'Change Steps' })
@@ -3074,10 +3084,7 @@ const scenarios = {
     check('line: Clear Line empties it and takes Done off', l.now === null && l.waiting.length === 0 && Object.keys(l.checks).length === 0)
 
     // Saved lines (2026-10-16): named, with named steps, kept from lesson to lesson.
-    check(
-      'line: the desks show names only while the Line is open',
-      (await page.locator('[data-ink=desk] img').count()) === 0,
-    )
+    check('line: the desks show names only while the Line is open', (await page.locator('[data-ink=desk] img').count()) === 0)
     await page.locator('[data-line-steps-button]').click()
     await page.waitForTimeout(800)
     await page.locator('[data-new-line]').click()
@@ -3098,7 +3105,10 @@ const scenarios = {
     )
     check('line: the column names it', (await page.locator('[data-line-steps-button]').innerText()).includes('Writing'))
     await tap('Amy')
-    check('line: Done says the step by its name', (await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().innerText()).includes('prewriting'))
+    check(
+      'line: Done says the step by its name',
+      (await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().innerText()).includes('prewriting'),
+    )
     await page.locator('[data-line-panel] button', { hasText: /Done$/ }).last().click()
     await page.waitForTimeout(900)
     check(
@@ -3117,7 +3127,10 @@ const scenarios = {
     await page.waitForTimeout(800)
     await page.locator('[data-saved-line="Writing"]').click()
     await page.waitForTimeout(500)
-    check('line: back to Writing, everyone where they were', (await desk(page, 'Amy').locator('[data-line-steps]').getAttribute('data-line-steps')) === '1')
+    check(
+      'line: back to Writing, everyone where they were',
+      (await desk(page, 'Amy').locator('[data-line-steps]').getAttribute('data-line-steps')) === '1',
+    )
     // Rename it, then delete it.
     await page.locator('[data-line-steps-button]').click()
     await page.waitForTimeout(800)
@@ -3133,7 +3146,10 @@ const scenarios = {
     await page.getByRole('button', { name: 'Delete', exact: true }).last().click()
     await page.waitForTimeout(400)
     kept = await activeSaved(page)
-    check('line: deleted, and the Line carries on as a quick line', (kept.savedLines ?? []).length === 0 && !kept.lineSavedAs && kept.lineSteps === 5)
+    check(
+      'line: deleted, and the Line carries on as a quick line',
+      (kept.savedLines ?? []).length === 0 && !kept.lineSavedAs && kept.lineSteps === 5,
+    )
     await page.keyboard.press('Escape')
     await page.waitForTimeout(400)
     return page

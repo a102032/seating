@@ -81,7 +81,8 @@ export function LinePanel({
   // The step the student with the teacher brought, and what Done will do, said on the button itself.
   const nowChecked = line.now ? checkedOf(line, line.now, steps) : 0
   const nowStep = stepNames[nowChecked] ?? ''
-  const doneLabel = steps === 1 ? 'Done' : nowChecked + 1 >= steps ? 'All Done' : nowStep ? `${nowStep} Done` : `Step ${nowChecked + 1} Done`
+  const doneLabel =
+    steps === 1 ? 'Done' : nowChecked + 1 >= steps ? 'All Done' : nowStep ? `${nowStep} Done` : `Step ${nowChecked + 1} Done`
   const now = line.now ? studentsById.get(line.now) : undefined
   const lastTap = useRef(0)
   const lastStar = useRef(0)
@@ -171,8 +172,15 @@ export function LinePanel({
               </span>
             </span>
             {steps > 1 && (
-              <span className="block w-full truncate font-bold text-emerald-800 dark:text-emerald-200" style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}>
-                {nowChecked >= steps ? 'All done' : nowStep ? `${nowStep} · ${nowChecked + 1} of ${steps}` : `Step ${nowChecked + 1} of ${steps}`}
+              <span
+                className="block w-full truncate font-bold text-emerald-800 dark:text-emerald-200"
+                style={{ fontSize: 'clamp(0.75rem, 1.7vmin, 1rem)' }}
+              >
+                {nowChecked >= steps
+                  ? 'All done'
+                  : nowStep
+                    ? `${nowStep} · ${nowChecked + 1} of ${steps}`
+                    : `Step ${nowChecked + 1} of ${steps}`}
               </span>
             )}
           </>
@@ -548,13 +556,25 @@ function LineEditor({
         <div className="shrink-0">
           <Label className="mb-1.5">Steps</Label>
           <div className="flex h-11 items-center gap-1">
-            <TactileButton type="button" aria-label="One step fewer" disabled={count <= 1} onClick={() => setCount(count - 1)} className="!size-11 !p-0">
+            <TactileButton
+              type="button"
+              aria-label="One step fewer"
+              disabled={count <= 1}
+              onClick={() => setCount(count - 1)}
+              className="!size-11 !p-0"
+            >
               <Minus className="size-5" />
             </TactileButton>
             <span data-line-step-count={count} className="w-8 text-center text-xl font-bold tabular-nums">
               {count}
             </span>
-            <TactileButton type="button" aria-label="One step more" disabled={count >= MAX_STEPS} onClick={() => setCount(count + 1)} className="!size-11 !p-0">
+            <TactileButton
+              type="button"
+              aria-label="One step more"
+              disabled={count >= MAX_STEPS}
+              onClick={() => setCount(count + 1)}
+              className="!size-11 !p-0"
+            >
               <Plus className="size-5" />
             </TactileButton>
           </div>

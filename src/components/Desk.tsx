@@ -166,11 +166,18 @@ export function Desk({
               style={{ fontSize: 'clamp(0.65rem, 10cqi, 1.4rem)' }}
             >
               {Array.from({ length: lineMark.of }, (_, i) => (
+                // Green for a step done, amber for the one they are working on (its name below in the
+                // same amber), hollow for one not reached yet (2026-10-16, the teacher).
                 <span
                   key={i}
+                  data-step-dot={i < lineMark.checked ? 'done' : i === lineMark.checked ? 'now' : 'ahead'}
                   className={clsx(
-                    'block size-[0.8em] rounded-full border-[0.15em] border-emerald-600',
-                    i < lineMark.checked ? 'bg-emerald-500' : 'bg-transparent',
+                    'block size-[0.8em] rounded-full border-[0.15em]',
+                    i < lineMark.checked
+                      ? 'border-emerald-600 bg-emerald-500'
+                      : i === lineMark.checked
+                        ? 'border-amber-600 bg-amber-500'
+                        : 'border-slate-400 bg-transparent',
                   )}
                 />
               ))}
@@ -182,7 +189,7 @@ export function Desk({
             // desk's foot: the Line shows names only, so the picture's room is free for it.
             <span
               data-line-step-name=""
-              className="absolute inset-x-1 bottom-[0.2em] z-10 block truncate text-center font-bold leading-tight text-emerald-700 dark:text-emerald-300"
+              className="absolute inset-x-1 bottom-[0.2em] z-10 block truncate text-center font-bold leading-tight text-amber-700 dark:text-amber-300"
               // As big as the desk's width allows for this name, so a long one is whole rather than cut.
               style={{ fontSize: `max(0.6rem, min(1.5rem, 12cqi, calc((100cqi - 0.5rem) / ${(lineMark.step.length * 0.6).toFixed(2)})))` }}
             >

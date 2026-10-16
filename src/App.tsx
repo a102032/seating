@@ -383,7 +383,8 @@ export default function App() {
         ? lineMarksOf(
             line,
             lineSteps,
-            changingSteps ? (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)) : null,
+            (activeClass?.seating ?? []).filter((id): id is string => Boolean(id)),
+            changingSteps,
             lineStepNames,
           )
         : undefined,
@@ -424,10 +425,7 @@ export default function App() {
   // picture leaves goes to the step's dots and name, and the picture is big in the Line's column
   // for the one with the teacher.
   const deskStudentsById = useMemo(
-    () =>
-      lineOpen && activeClass
-        ? new Map(studentsAsShown({ ...activeClass, avatarsOff: true }).map((s) => [s.id, s]))
-        : studentsById,
+    () => (lineOpen && activeClass ? new Map(studentsAsShown({ ...activeClass, avatarsOff: true }).map((s) => [s.id, s])) : studentsById),
     [lineOpen, activeClass, studentsById],
   )
   // Whose homeroom number shows after their name: two students sharing a name, as on the desks.

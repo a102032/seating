@@ -171,7 +171,6 @@ function withDesksEmpty(c: ClassData): ClassData {
   return { ...c, students: c.students.map((s) => (s.points ? { ...s, points: 0 } : s)) }
 }
 
-
 /** Today's line kept with the class, and a saved line in use keeps its students' steps too, for the next lesson. */
 function withLine(c: ClassData, line: ClassLine): ClassData {
   if (!c.lineSavedAs || !c.savedLines?.some((s) => s.id === c.lineSavedAs)) return { ...c, line }

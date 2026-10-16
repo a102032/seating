@@ -114,7 +114,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
     into the groups. `SaveGroupsModal.tsx`: Save, the groups kept with the class under a typed name (`savedGroups`).
   - `Line.tsx`: the Line (children tap their desk to wait their turn to have work checked): its column of the teacher's
     buttons, on the right of the desks, and "get out of line?". The line itself is `lib/line.ts` (kept with the class,
-    `line`), the Done picture `DoneIcon.tsx` and Done's burst of stars `lib/sparkle.ts`.
+    `line`; saved lines in `savedLines`, the one in use `lineSavedAs`, chosen in "Start the Line", `LineStartModal`), the Done picture `DoneIcon.tsx` and Done's burst of stars `lib/sparkle.ts`.
   - `GetReady.tsx`: Get Ready! ("How long?" with its speaker, the star with its taiko drum, Ready! and Stop); its drums, prizes
     and the four rhythms of taps between the beats are in `lib/getReady.ts`, its sounds in `sound.ts` (`playGetReadyTaps`) and
     its stars' flight in `starFlight.ts` (`flyStarsFrom`).
