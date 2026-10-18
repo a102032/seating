@@ -814,8 +814,8 @@ export default function App() {
         cycleStudentSteps(studentId)
         return
       }
-      if (line.now === studentId) return
-      if (line.waiting.includes(studentId)) setLineLeaveFor(studentId)
+      // In line, the one with the teacher included (2026-10-18, the teacher): "get out of line?".
+      if (line.now === studentId || line.waiting.includes(studentId)) setLineLeaveFor(studentId)
       else joinTheLine(studentId)
       return
     }

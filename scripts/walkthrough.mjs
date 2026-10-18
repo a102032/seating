@@ -3025,6 +3025,12 @@ const scenarios = {
     await page.getByRole('button', { name: 'Get out' }).click()
     await page.waitForTimeout(800)
     check('line: Get out takes him out, not done', !(await line()).waiting.includes('c1-s1') && !(await line()).checks?.['c1-s1'])
+    // The one with the teacher (the green 1) can tap their desk to get out of line too.
+    await tap('Amy')
+    check('line: the one with the teacher tapped asks too', await page.getByText('Amy, get out of line?').isVisible())
+    await page.getByRole('button', { name: 'Stay in line' }).click()
+    await page.waitForTimeout(800)
+    check('line: Stay in line keeps her with the teacher', (await line()).now === 'c1-s0')
     // The star for the one with the teacher, then Done.
     const before = (await activeSaved(page)).classPoints
     await page.locator('[data-line-panel] [aria-label="Give a Star"]').click()
