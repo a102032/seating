@@ -189,7 +189,7 @@ export function Desk({
                 // class on a small screen) the name goes under them, so it is never cut.
                 <div
                   data-line-steps={lineSteps.checked}
-                  className="flex min-w-0 flex-wrap items-center gap-x-[0.2em] gap-y-[0.15em] rounded-[0.7em] bg-card/90 px-[0.3em] py-[0.2em] shadow-sm"
+                  className="flex min-w-0 flex-wrap items-center gap-x-[0.2em] gap-y-[0.15em] px-[0.15em] py-[0.2em]"
                   style={{ fontSize: 'clamp(0.6rem, 8.5cqi, 1.15rem)' }}
                 >
                   {Array.from({ length: lineSteps.of }, (_, i) => (

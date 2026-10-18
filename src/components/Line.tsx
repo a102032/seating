@@ -142,6 +142,33 @@ export function LinePanel({
         <ChevronDown className="size-[1.1em] shrink-0" />
       </button>
 
+      {/* The teacher's settings for the line, under its name and above the class's part (2026-10-18,
+          the teacher): Change Steps and Clear Line, kept away from Skip and Done at the foot. */}
+      <div className="flex shrink-0 items-center justify-between gap-1" style={{ fontSize: 'clamp(0.75rem, 1.6vmin, 0.95rem)' }}>
+        {/* Change Steps: on, a tap on any desk moves that student a step, through Done and back to
+            none; tapped again, off. For two steps brought at once, a Done pressed by mistake, a
+            student who finished early, or one checked at their seat. */}
+        <button
+          type="button"
+          aria-pressed={changing}
+          onClick={onToggleChanging}
+          className={clsx(
+            'rounded-lg px-2 py-0.5 font-semibold transition-transform active:scale-95',
+            changing ? 'bg-primary text-primary-foreground' : 'text-foreground',
+          )}
+        >
+          Change Steps
+        </button>
+        <button
+          type="button"
+          disabled={lineCount(line) === 0 && Object.keys(line.checks).length === 0}
+          onClick={onClear}
+          className="rounded-lg px-2 py-0.5 font-semibold text-destructive transition-transform active:scale-95 disabled:pointer-events-none disabled:opacity-30"
+        >
+          Clear Line
+        </button>
+      </div>
+
       {/* With the teacher: the class reads it from their seats. While Change Steps is on, a tap here
           moves them a step, so the student at the teacher's side is in reach from the chair. */}
       <section
@@ -269,30 +296,6 @@ export function LinePanel({
               doneLabel
             )}
           </TactileButton>
-        </div>
-        <div className="flex items-center justify-between gap-1" style={{ fontSize: 'clamp(0.75rem, 1.6vmin, 0.95rem)' }}>
-          {/* Change Steps: on, a tap on any desk moves that student a step, through Done and back to
-              none; tapped again, off. For two steps brought at once, a Done pressed by mistake, a
-              student who finished early, or one checked at their seat. */}
-          <button
-            type="button"
-            aria-pressed={changing}
-            onClick={onToggleChanging}
-            className={clsx(
-              'rounded-lg px-2 py-0.5 font-semibold transition-transform active:scale-95',
-              changing ? 'bg-primary text-primary-foreground' : 'text-foreground',
-            )}
-          >
-            Change Steps
-          </button>
-          <button
-            type="button"
-            disabled={lineCount(line) === 0 && Object.keys(line.checks).length === 0}
-            onClick={onClear}
-            className="rounded-lg px-2 py-0.5 font-semibold text-destructive transition-transform active:scale-95 disabled:pointer-events-none disabled:opacity-30"
-          >
-            Clear Line
-          </button>
         </div>
       </section>
     </aside>
