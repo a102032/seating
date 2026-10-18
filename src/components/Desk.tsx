@@ -178,7 +178,7 @@ export function Desk({
                   {linePlace.place}
                 </div>
               )}
-              {lineSteps && (
+              {lineSteps && !absent && (
                 // The steps of the task checked so far (●●○○○): read from across the room without
                 // reading a word, and by the teacher as where everyone is. Green for a step done, amber
                 // for the one they are working on, hollow for one not reached yet (2026-10-16, the
@@ -202,7 +202,7 @@ export function Desk({
                           ? 'border-emerald-600 bg-emerald-500'
                           : i === lineSteps.checked
                             ? 'border-amber-600 bg-amber-500'
-                            : 'border-slate-400 bg-transparent',
+                            : 'border-slate-500 bg-transparent dark:border-slate-400',
                       )}
                     />
                   ))}
