@@ -209,7 +209,7 @@ export function Desk({
                   {lineSteps.step && (
                     <span
                       data-line-step-name=""
-                      className="ml-[0.15em] min-w-0 truncate pr-[0.2em] font-normal leading-[1.15] text-muted-foreground"
+                      className="ml-[0.15em] min-w-0 truncate pr-[0.2em] font-normal leading-[1.45] text-muted-foreground"
                       // As big as the room beside the number allows, so a long name is whole.
                       style={{
                         fontSize: `min(0.9em, calc((100cqi - 1.2rem${linePlace ? ' - 26cqi' : ''}) / ${(lineSteps.step.length * 0.52).toFixed(2)}))`,
@@ -243,14 +243,20 @@ export function Desk({
               >
                 <span
                   className="relative block w-full px-1 font-bold leading-tight"
-                  style={{ fontSize: nameFont, color: 'var(--desk-name, var(--card-foreground))' }}
+                  // Under the Line's marks a homeroom number has less room below the name, so the
+                  // two are centred together and the name gives a little (2026-10-18, the teacher:
+                  // the number was pushed off the bottom of the desk).
+                  style={{
+                    fontSize: lineSteps && showHomeroom ? `min(${nameFont}, 30cqb)` : nameFont,
+                    color: 'var(--desk-name, var(--card-foreground))',
+                  }}
                 >
                   <span className="block truncate">{student.name}</span>
                   {showHomeroom && (
                     <span
                       data-ink="homeroom"
                       // Only as tall as its digits, so the name above it can be bigger.
-                      className="absolute inset-x-0 top-full block truncate font-semibold leading-none opacity-50"
+                      className={clsx('block truncate font-semibold leading-none opacity-50', !lineSteps && 'absolute inset-x-0 top-full')}
                       style={{ fontSize: `${HOMEROOM_TAG_SCALE}em` }}
                     >
                       {student.homeroom}

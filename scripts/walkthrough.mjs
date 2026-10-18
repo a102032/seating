@@ -2918,7 +2918,8 @@ const scenarios = {
         [1280, 559],
         [1920, 1080],
       ]) {
-        const cls = makeClass('c1', 'Writing', 35, { pointsGoal: 50, goalEnabled: true, pointsMode: 'goal' })
+        // Every homeroom number up, which the Line's marks once pushed off the desk (2026-10-18).
+        const cls = makeClass('c1', 'Writing', 35, { pointsGoal: 50, goalEnabled: true, pointsMode: 'goal', showAllHomerooms: true })
         cls.savedLines = [1, 2, 3, 4].map((n) => ({
           id: `l${n}`,
           name: `Wwwwwwwwwwwwwwwwwww${n}`,
@@ -2950,6 +2951,19 @@ const scenarios = {
           `saved lines: a 12-letter step fits the desk, ${tag}`,
           (await name.count()) === 1 && (await name.evaluate((e) => e.scrollWidth <= e.clientWidth + 1)),
         )
+        const homeroomOff = await page.evaluate(() =>
+          [...document.querySelectorAll('[data-ink="homeroom"]')]
+            .filter((h) => {
+              const d = h.closest('button')?.getBoundingClientRect()
+              const r = h.getBoundingClientRect()
+              return d && r.bottom > d.bottom + 1
+            })
+            .map((h) => h.textContent),
+        )
+        check(`saved lines: every homeroom number stays on its desk, ${tag}`, homeroomOff.length === 0, homeroomOff.join(','))
+        // A line tall enough for the tails of g, y and p: the name is cut at its box's edge.
+        const lh = await name.evaluate((e) => parseFloat(getComputedStyle(e).lineHeight) / parseFloat(getComputedStyle(e).fontSize))
+        check(`saved lines: room for the tails of letters, ${tag}`, lh >= 1.4, String(lh))
         await page.screenshot({ path: `${SHOTS}/saved-lines-desks-${theme}-${size[0]}.png` })
         await page.locator('[data-line-steps-button]').click()
         await page.waitForTimeout(900)
