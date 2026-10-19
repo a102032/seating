@@ -176,6 +176,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
   settings find a place in Class Settings' sections without crowding them (nothing below the window's edge), its steps go
   in the guide (`lib/setupGuide.ts`, with a `data-guide` mark on what it lights) and its stops in the tour (`lib/tour.ts`,
   the pictures taken again with `scripts/tour-shots.mjs`).
+- A window a child uses at the board is a `Modal` with `studentWindow` (the 2026-10-19 rule): its title strip moves it, so the
+  teacher can bring it within a child's reach, and it opens where the last one was put (`lib/studentWindow.ts`).
 - Commit messages say what changed for the teacher, not just the code.
 - framer-motion traps: it never clears an inline `box-shadow` it has set (use a CSS class instead). On elements with
   `layout`/`layoutId`, drive opacity through `animate`, because a utility class loses.

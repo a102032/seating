@@ -134,7 +134,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'avatars',
     targets: [g('let-choose')],
-    text: 'Later, tap Let Students Choose and the children pick their own at the board.',
+    text: 'Later, tap Let Students Choose and the children pick their own at the board. Slide the hand at the top of their window to move it lower.',
     when: charactersShown,
     maybe: true,
   },

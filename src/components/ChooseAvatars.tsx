@@ -85,7 +85,7 @@ export function ChooseAvatarPicker({ student, onChoose, onClose }: ChooseAvatarP
   const tile = 'relative flex flex-col items-center justify-center rounded-2xl border-[3px] p-2 transition-transform active:scale-95'
 
   return (
-    <Modal open={open} onClose={onClose} title={theme ? 'Choose one!' : `${who.name}, choose your avatar!`} size="xl">
+    <Modal open={open} onClose={onClose} title={theme ? 'Choose one!' : `${who.name}, choose your avatar!`} size="xl" studentWindow>
       <div className="flex flex-col gap-3">
         {theme && (
           <TactileButton onClick={() => setThemeId(null)} className="self-start">

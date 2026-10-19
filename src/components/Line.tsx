@@ -347,7 +347,7 @@ export function LineLeaveModal({ student, onLeave, onStay }: { student: Student 
   const tooSoon = (e: MouseEvent) => e.timeStamp - openedAt.current < TAP_GUARD_MS
 
   return (
-    <Modal open={open} onClose={onStay} title={`${who.name}, get out of line?`}>
+    <Modal open={open} onClose={onStay} title={`${who.name}, get out of line?`} studentWindow>
       <div className="flex flex-col items-center gap-4">
         <StudentPicture student={who} className="pointer-events-none size-[clamp(5rem,20vh,9rem)] select-none object-contain" />
         <div className="grid w-full grid-cols-2 gap-3">

@@ -2139,6 +2139,41 @@ const scenarios = {
     )
     const over = await overflow(page)
     check('choose: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
+    // A child's window moves by its title strip (2026-10-19): slid down, it stops at the screen's
+    // edge, a tap still chooses, and the next child's window opens where it was put.
+    await desk(page, 'Tony').click()
+    await page.waitForTimeout(900)
+    const strip = picker.locator('[data-move-strip]')
+    const before = await picker.boundingBox()
+    const s = await strip.boundingBox()
+    await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
+    await page.mouse.down()
+    for (let i = 1; i <= 10; i++) await page.mouse.move(s.x + s.width / 2 - i * 40, s.y + s.height / 2 + i * 60)
+    await page.mouse.up()
+    await page.waitForTimeout(200)
+    const after = await picker.boundingBox()
+    const vp = page.viewportSize()
+    check(
+      "choose: the child's window slides down by its strip, and stops at the screen's edge",
+      after.y > before.y && Math.abs(after.y + after.height - vp.height) <= 1 && after.x >= 0,
+      `${Math.round(before.y)} -> ${Math.round(after.y)}, bottom ${Math.round(after.y + after.height)} of ${vp.height}`,
+    )
+    await picker.locator('button:has(img[src*="/owl/"])').click()
+    await page.waitForTimeout(800)
+    check('choose: moved, a tap still chooses', (await picker.innerText()).includes('Choose one!'))
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(900)
+    await desk(page, 'Amy').click()
+    await page.waitForTimeout(900)
+    const again = await picker.boundingBox()
+    check(
+      "choose: the next child's window opens where it was put",
+      Math.abs(again.y - after.y) <= 2 && Math.abs(again.x - after.x) <= 2,
+      `${Math.round(again.x)},${Math.round(again.y)} vs ${Math.round(after.x)},${Math.round(after.y)}`,
+    )
+    await page.screenshot({ path: `${SHOTS}/choose-moved.png` })
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(900)
     await page.getByRole('button', { name: 'Done', exact: true }).click()
     await page.waitForTimeout(400)
     check(
