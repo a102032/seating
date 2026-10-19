@@ -18,6 +18,8 @@ import { SaveGroupsModal } from './components/SaveGroupsModal'
 import { GroupExitModal } from './components/GroupExitModal'
 import { PointsMeter } from './components/PointsMeter'
 import { FullScreenButton } from './components/FullScreenButton'
+import { BoardLockButton, BoardLockShield } from './components/BoardLock'
+import { useBoardLock } from './hooks/useBoardLock'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
 import { LineHint, ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
@@ -244,6 +246,7 @@ export default function App() {
   const [exitPromptOpen, setExitPromptOpen] = useState(false)
   /** Students are at the board: only the status lights answer to a tap. Cleared by a new deal or a class switch. */
   const [groupsLocked, setGroupsLocked] = useState(false)
+  const boardLock = useBoardLock()
   const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
   /** The Line is up: a desk tap puts its student in line, and the column on the right holds the teacher's buttons. */
   const [lineOpen, setLineOpen] = useState(false)
@@ -985,12 +988,24 @@ export default function App() {
   }
 
   // Full Screen sits in the top bar's far corner, after the goal's count (2026-10-14, the teacher:
-  // the rail's foot was the wrong spot), or alone in that corner with no goal.
-  const fullScreenButton = (
-    <FullScreenButton
-      size={22}
-      className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground active:scale-95"
-    />
+  // the rail's foot was the wrong spot), or alone in that corner with no goal. The board's lock
+  // sits beside it (2026-10-19): the far top corner is out of a small child's reach.
+  const cornerButtons = (
+    <>
+      <BoardLockButton
+        locked={boardLock.locked}
+        onToggle={boardLock.toggle}
+        buttonRef={boardLock.buttonRef}
+        className={clsx(
+          'shrink-0 rounded-lg p-1 active:scale-95',
+          boardLock.locked ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+        )}
+      />
+      <FullScreenButton
+        size={22}
+        className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground active:scale-95"
+      />
+    </>
   )
 
   const sideRail = (
@@ -1117,6 +1132,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+      {!splashOpen && <BoardLockShield lock={boardLock} />}
       <AccountQuestionModal question={cloud.question} onAnswer={cloud.answerQuestion} />
       {cloud.account && (
         <SwitchTeacherModal
@@ -1149,7 +1165,8 @@ export default function App() {
             moved to the other side - a once-a-term change - and that made framer measure the
             page on every render: every desk tap, every point, every picker flash. */}
         {/* Above the timer's dim (TimerDim), with the class's tab: the teacher's own buttons stay bright. */}
-        <div className="relative z-[16] flex min-h-0" style={{ gridArea: 'rail' }}>
+        {/* Faded while the board is locked, so the teacher sees at a glance that it is. */}
+        <div className={clsx('relative z-[16] flex min-h-0', boardLock.locked && !splashOpen && 'opacity-50')} style={{ gridArea: 'rail' }}>
           {sideRail}
         </div>
 
@@ -1179,14 +1196,14 @@ export default function App() {
               lifted={meterLifted}
               side={panelSide}
               leading={<TimerClock />}
-              trailing={fullScreenButton}
+              trailing={cornerButtons}
             />
           ) : (
             <>
               <TimerClock frame={clockPieceClass} />
               <div className="flex-1" />
               <div data-ink="panel" className={clsx(clockPieceClass, 'empty:hidden')}>
-                {fullScreenButton}
+                {cornerButtons}
               </div>
             </>
           )}

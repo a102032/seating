@@ -163,6 +163,7 @@ const all = {}
     star: 'aside [aria-label="Award Point"]',
     saved: 'aside [data-sync]',
     fullscreen: 'button[title="Full Screen"]',
+    lock: '[data-board-lock]',
     side: 'aside button[title^="Move panel"]',
     meter: '[data-tour-mark="meter"]',
     chest: 'img[src*="chest-closed"]',

@@ -308,6 +308,61 @@ const scenarios = {
   },
 
   /**
+   * Lock the board (2026-10-19): one tap on the lock in the far top corner and nothing on the board
+   * answers a touch, the board looking as it did; one tap on the lock opens it. The board's second
+   * touch can't undo the tap, and a refresh keeps it locked. Taps go by the mouse at a place, as a
+   * finger would, since the see-through cover is what they land on.
+   */
+  async 'board lock'() {
+    const cls = makeClass('c1', 'Grade 4 English', 12, { pointsGoal: 50, classPoints: 3 })
+    const page = await open({ state: stateOf(cls) })
+    const lock = page.locator('[data-board-lock]')
+    const tapAt = async (loc) => {
+      const b = await loc.boundingBox()
+      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2)
+    }
+    const picked = () => page.locator('[data-ink=desk].desk-wiggle, [data-ink=desk].desk-wiggle-loop').count()
+    check('board lock: a lock in the top corner', (await page.getByRole('button', { name: 'Lock the Board' }).count()) === 1)
+    await tapAt(lock)
+    // The board's second touch, a moment later, lands on the lock again: it must not open it.
+    await page.waitForTimeout(150)
+    await tapAt(lock)
+    await page.waitForTimeout(300)
+    check(
+      'board lock: one tap locks it, and the second touch leaves it locked',
+      (await lock.getAttribute('data-board-lock')) === 'locked' && (await page.locator('[data-board-lock-shield]').count()) === 1,
+    )
+    await page.screenshot({ path: `${SHOTS}/board-locked.png` })
+    await tapAt(desk(page, 'Amy'))
+    const wiggled = await lock.evaluate((el) => el.getAnimations().length > 0)
+    await tapAt(panelButton(page, 'Pick All'))
+    await tapAt(panelButton(page, 'Award Point'))
+    await tapAt(page.getByRole('button', { name: 'Class Settings' }))
+    await page.waitForTimeout(500)
+    const c = await activeSaved(page)
+    check(
+      'board lock: a desk, the rail and the gear answer nothing',
+      (await picked()) === 0 && (c.classPoints ?? 0) === 3 && (await page.getByRole('dialog').count()) === 0,
+    )
+    check('board lock: a stray tap wiggles the lock', wiggled)
+    await refresh(page)
+    check('board lock: a refresh keeps it locked', (await page.locator('[data-board-lock="locked"]').count()) === 1)
+    await page.waitForTimeout(800)
+    await tapAt(lock)
+    await page.waitForTimeout(150)
+    await tapAt(lock)
+    await page.waitForTimeout(300)
+    check(
+      'board lock: one tap on the lock opens it, and the second touch leaves it open',
+      (await lock.getAttribute('data-board-lock')) === 'open' && (await page.locator('[data-board-lock-shield]').count()) === 0,
+    )
+    await desk(page, 'Amy').click()
+    await page.waitForTimeout(300)
+    check('board lock: open, a desk answers again', (await picked()) > 0)
+    return page
+  },
+
+  /**
    * A class saved with its goal switched off gave stars that went nowhere the class could see:
    * it comes in with no points, and nothing is given or counted.
    */
@@ -328,8 +383,9 @@ const scenarios = {
     check('goal off: Get Ready! is still there', (await panelButton(page, 'Get Ready!').count()) === 1)
     await page.screenshot({ path: `${SHOTS}/no-goal-corner.png` })
     check(
-      'goal off: Full Screen is still in the top corner',
-      (await page.getByRole('button', { name: 'Full Screen', exact: true }).count()) === 1,
+      'goal off: Full Screen and the lock are still in the top corner',
+      (await page.getByRole('button', { name: 'Full Screen', exact: true }).count()) === 1 &&
+        (await page.getByRole('button', { name: 'Lock the Board' }).count()) === 1,
     )
     return page
   },
@@ -2563,9 +2619,10 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 84: Full Screen's stop (2026-10-14), then the Line's button on the board and a part of its own (2026-10-15).
-      'tour: 84 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 84 && bad === 0,
+      // 85: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
+      // and the board's lock (2026-10-19).
+      'tour: 85 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 85 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
@@ -2588,8 +2645,8 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 20 stops to the card before Flip Cards, then skip to Group Activity's card.
-    for (let i = 0; i < 20; i++) await page.locator('[data-tour-action="next"]').click()
+    // Through the board's 21 stops to the card before Flip Cards, then skip to Group Activity's card.
+    for (let i = 0; i < 21; i++) await page.locator('[data-tour-action="next"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
     await page.locator('button[aria-label="Class Settings"]').click()

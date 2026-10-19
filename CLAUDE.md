@@ -98,7 +98,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
     Cards, Group Activity, the Line, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
-    gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without. Full Screen (`FullScreenButton.tsx`) is in that far corner, after the meter's count, and on the splash.
+    gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without. Full Screen (`FullScreenButton.tsx`) is in that far corner, after the meter's count, and on the splash. The board's lock (`BoardLock.tsx`, `hooks/useBoardLock.ts`) sits beside it: one tap and a see-through cover takes every touch until the lock is tapped again.
   - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`SECTIONS`: Class, Students, Avatars,
     Points; Tools; Attendance, Participation; Google, with New Class ruled off at its foot), each in `components/settings/` and built from `settings/parts.tsx`, laid out
     by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of
