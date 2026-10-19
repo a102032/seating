@@ -996,10 +996,7 @@ export default function App() {
         locked={boardLock.locked}
         onToggle={boardLock.toggle}
         buttonRef={boardLock.buttonRef}
-        className={clsx(
-          'shrink-0 rounded-lg p-1 active:scale-95',
-          boardLock.locked ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-        )}
+        className="shrink-0 rounded-lg p-1 hover:bg-accent active:scale-95"
       />
       <FullScreenButton
         size={22}
