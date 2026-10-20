@@ -2140,7 +2140,9 @@ const scenarios = {
     const over = await overflow(page)
     check('choose: nothing scrolls', over.page <= 0 && over.panel <= 0, JSON.stringify(over))
     // A child's window moves by its title strip (2026-10-19): slid down, it stops at the screen's
-    // edge, a tap still chooses, and the next child's window opens where it was put.
+    // edge, a tap still chooses, and the next child's window opens where it was put. The desks
+    // ignore a tap for 0.7 s after a window closes (the board's double touch), so wait that out.
+    await page.waitForTimeout(800)
     await desk(page, 'Tony').click()
     await page.waitForTimeout(900)
     const strip = picker.locator('[data-move-strip]')

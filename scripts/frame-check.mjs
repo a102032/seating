@@ -141,6 +141,34 @@ async function measure(name, fn) {
   })
 }
 
+// A finger sliding the timer by its strip, and a child's window by its title strip (2026-10-19,
+// the teacher: the timer slid smoothly, the avatar picker stuttered): forty moves, a frame apart.
+async function slide(handle) {
+  const b = await page.locator(handle).first().boundingBox()
+  const x = b.x + 30
+  const y = b.y + b.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  for (let i = 1; i <= 40; i++) {
+    await page.mouse.move(x + i * 4, y + i * 3)
+    await wait(16)
+  }
+  await page.mouse.up()
+}
+// First, before Group Activity, which is left open further down and stands Choose Your Avatar down.
+await page.locator('button[aria-label="Class Settings"]').click()
+await wait(800)
+await page.locator('[data-section-link="avatars"]').click()
+await wait(500)
+await page.getByRole('button', { name: 'Let Students Choose' }).click()
+await wait(800)
+await desk('Kevin').click()
+await wait(1500)
+await measure("a child's window: sliding it", () => slide('[data-move-strip]'))
+await page.keyboard.press('Escape')
+await wait(900)
+await page.getByRole('button', { name: 'Done', exact: true }).click()
+await wait(600)
 await measure('idle, nothing happening', () => wait(2000))
 await measure('tap 6 desks', async () => {
   for (const n of ['Amy', 'Tony', 'Kevin', 'Mulan', 'Brian', 'Cindy']) {
@@ -258,6 +286,7 @@ await measure('timer running, big', async () => {
   await page.locator('[data-timer-card] button[aria-label="Start"]').click()
   await wait(3000)
 })
+await measure('timer: sliding it', () => slide('[data-timer-strip]'))
 await wait(800)
 await measure('timer running, in the bar', async () => {
   await page.locator('[data-timer-card] button[aria-label="Put the timer away"]').click()

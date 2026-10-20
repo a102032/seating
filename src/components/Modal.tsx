@@ -78,7 +78,10 @@ export function Modal({ open, title, onClose, children, wide, size, fixedHeight,
  * The title strip of a child's window moves it, as the timer's strip does: a finger held on it
  * moves the window at once, only the first finger counts (the board's second touch can't pull it),
  * the window never goes past the screen's edge, and where it is let go is kept for next time. The
- * slide goes straight onto the window, not through React: it is many moves a second.
+ * slide goes straight onto the window, not through React: it is many moves a second. It moves by
+ * `translate` alone, which the graphics chip runs, and with no easing: every window carries a 0.2 s
+ * ease on every change, which left the window trailing the finger in steps (2026-10-19, the
+ * teacher: the timer slid smoothly, the avatar picker stuttered).
  */
 function useMoveStrip(on: boolean, open: boolean, ref: RefObject<HTMLDivElement | null>) {
   // Where the last child's window was put, read afresh each time one opens (a window may stay
@@ -101,6 +104,8 @@ function useMoveStrip(on: boolean, open: boolean, ref: RefObject<HTMLDivElement 
     const freeH = window.innerHeight - r.height
     const from = { x: freeW > 0 ? clampPlace(r.left / freeW) : 0.5, y: freeH > 0 ? clampPlace(r.top / freeH) : 0.5 }
     slide.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, from, to: from }
+    Object.assign(el.style, placeStyle(from))
+    el.style.willChange = 'translate'
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -117,18 +122,24 @@ function useMoveStrip(on: boolean, open: boolean, ref: RefObject<HTMLDivElement 
       x: freeW > 0 ? clampPlace(s.from.x + (e.clientX - s.x0) / freeW) : 0.5,
       y: freeH > 0 ? clampPlace(s.from.y + (e.clientY - s.y0) / freeH) : 0.5,
     }
-    Object.assign(el.style, placeStyle(s.to))
+    // Where it sat when the finger came down, pushed by the finger's distance: no layout on a move.
+    const dx = (s.to.x - s.from.x) * freeW
+    const dy = (s.to.y - s.from.y) * freeH
+    el.style.translate = `calc(${-s.from.x * 100}% + ${dx}px) calc(${-s.from.y * 100}% + ${dy}px)`
   }
   const onPointerEnd = (e: PointerEvent<HTMLDivElement>) => {
     const s = slide.current
     if (!s || e.pointerId !== s.id) return
     slide.current = null
+    const el = ref.current
+    if (el) el.style.willChange = ''
     if (s.to === s.from) return
+    if (el) Object.assign(el.style, placeStyle(s.to))
     savePlace(s.to)
     setPlace(s.to)
   }
   return {
-    style: placeStyle(place),
+    style: { ...placeStyle(place), transition: 'none' },
     handlers: { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd },
   }
 }
