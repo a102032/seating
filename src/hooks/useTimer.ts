@@ -15,6 +15,8 @@ import type { AlarmSound } from '../types'
 
 export type TimerColor = 'theme' | 'blue' | 'red' | 'green'
 export type TimerSound = AlarmSound | 'none'
+/** The dial, or the mouse eating an apple a minute (2026-10-20, `MouseFace.tsx`). */
+export type TimerFace = 'dial' | 'mouse'
 /** Off; open big over the board; or put away as a clock in the goal meter's bar. */
 export type TimerView = 'off' | 'big' | 'bar'
 
@@ -33,6 +35,7 @@ interface Kept {
   seconds: number
   color: TimerColor
   sound: TimerSound
+  face: TimerFace
   /** The card's size, TIMER_MIN_SIZE to 1. */
   size: number
   /** Where the card was last put, as a share (0 to 1) of the room around it; null is the middle. */
@@ -54,7 +57,7 @@ export interface TimerState extends Kept {
 
 const KEY = 'seating-chart-timer-settings-v1'
 // Classroom Screen's starts at 10 minutes, and so does this.
-const DEFAULTS: Kept = { seconds: 600, color: 'theme', sound: 'ding', size: 1, pos: null }
+const DEFAULTS: Kept = { seconds: 600, color: 'theme', sound: 'ding', face: 'dial', size: 1, pos: null }
 const SOUNDS: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster', 'none']
 
 function load(): Kept {
@@ -67,6 +70,7 @@ function load(): Kept {
       seconds: Number.isInteger(raw.seconds) && raw.seconds >= 60 && raw.seconds <= 3600 ? raw.seconds : DEFAULTS.seconds,
       color: ['theme', 'blue', 'red', 'green'].includes(raw.color) ? raw.color : DEFAULTS.color,
       sound: SOUNDS.includes(raw.alarmSound) ? raw.alarmSound : DEFAULTS.sound,
+      face: raw.face === 'mouse' ? 'mouse' : DEFAULTS.face,
       size: typeof raw.size === 'number' ? Math.min(1, Math.max(TIMER_MIN_SIZE, raw.size)) : DEFAULTS.size,
       pos:
         pos && typeof pos.x === 'number' && typeof pos.y === 'number'
@@ -82,7 +86,7 @@ function save(kept: Kept) {
   try {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ seconds: kept.seconds, color: kept.color, alarmSound: kept.sound, size: kept.size, pos: kept.pos }),
+      JSON.stringify({ seconds: kept.seconds, color: kept.color, alarmSound: kept.sound, face: kept.face, size: kept.size, pos: kept.pos }),
     )
   } catch {
     // A board that won't store it starts at the defaults next time.
@@ -93,11 +97,15 @@ const kept = load()
 let state: TimerState = { ...kept, view: 'off', running: false, up: false, left: kept.seconds, settings: false, floatHidden: false }
 const listeners = new Set<() => void>()
 let endsAt = 0
+/** Paused: the time left to the millisecond, so the mouse never takes back a bite it was shown taking. */
+let restMs: number | null = null
+/** When the time ran out, for what happens after (the mouse running to its cheese). */
+let upAt = 0
 let tick: ReturnType<typeof setInterval> | null = null
 
 function set(patch: Partial<TimerState>) {
   const next = { ...state, ...patch }
-  const keptChanged = (['seconds', 'color', 'sound', 'size', 'pos'] as const).some((k) => next[k] !== state[k])
+  const keptChanged = (['seconds', 'color', 'sound', 'face', 'size', 'pos'] as const).some((k) => next[k] !== state[k])
   state = next
   if (keptChanged) save(state)
   listeners.forEach((l) => l())
@@ -121,6 +129,7 @@ function onTick() {
     return
   }
   stopTicking()
+  upAt = Date.now()
   // Time's up comes back on the floating window even if it was tapped away, so the class sees it.
   set({ left: 0, running: false, up: true, floatHidden: false })
   if (state.sound !== 'none') playAlarm(state.sound)
@@ -144,12 +153,15 @@ export const timer = {
   /** X: it stops, goes back to the time set and closes. */
   off() {
     stopTicking()
+    restMs = null
     set({ view: 'off', running: false, up: false, left: state.seconds, settings: false })
   },
   start() {
     // Time's up and started again: from the top.
-    const left = state.up || state.left <= 0 ? state.seconds : state.left
-    endsAt = Date.now() + left * 1000
+    const fromTop = state.up || state.left <= 0
+    const left = fromTop ? state.seconds : state.left
+    endsAt = Date.now() + (!fromTop && restMs !== null ? restMs : left * 1000)
+    restMs = null
     stopTicking()
     tick = setInterval(onTick, 250)
     set({ running: true, up: false, left, settings: false, floatHidden: false })
@@ -168,17 +180,20 @@ export const timer = {
   },
   pause() {
     stopTicking()
-    set({ running: false, left: Math.max(1, Math.ceil((endsAt - Date.now()) / 1000)) })
+    restMs = Math.max(1, endsAt - Date.now())
+    set({ running: false, left: Math.ceil(restMs / 1000) })
   },
   /** Again: back to the time set, stopped. Also what a tap on "Time's up!" does. */
   again() {
     stopTicking()
+    restMs = null
     set({ running: false, up: false, left: state.seconds })
   },
   /** A tap on the stopped face, or − and +: a whole number of minutes, 1 to 60. */
   setMinutes(minutes: number) {
     if (state.running) return
     const seconds = Math.min(60, Math.max(1, Math.round(minutes))) * 60
+    restMs = null
     set({ seconds, left: seconds, up: false })
   },
   /** − and +, a minute at a time from what is showing. */
@@ -190,6 +205,9 @@ export const timer = {
   },
   setColor(color: TimerColor) {
     set({ color })
+  },
+  setFace(face: TimerFace) {
+    set({ face })
   },
   /** A tap on a sound plays it and picks it. */
   setSound(sound: TimerSound) {
@@ -210,6 +228,20 @@ function subscribe(listener: () => void) {
 /** Reads part of the timer; the component draws again only when that part changes. */
 export function useTimer<T>(select: (s: TimerState) => T): T {
   return useSyncExternalStore(subscribe, () => select(state))
+}
+
+/** The timer as it is now, for a drawing loop outside React (the mouse face). */
+export const timerNow = (): TimerState => state
+
+/**
+ * How far into the time set the timer is, to the millisecond, past the end once the time is up.
+ * The mouse face draws from this on every frame; `left` changes only once a second.
+ */
+export function timerElapsed(): number {
+  if (state.running) return state.seconds - Math.max(0, endsAt - Date.now()) / 1000
+  if (state.up) return state.seconds + (Date.now() - upAt) / 1000
+  if (restMs !== null) return state.seconds - restMs / 1000
+  return state.seconds - state.left
 }
 
 /** Whether the floating window shows the clock: set and started in the app, and not tapped away. */

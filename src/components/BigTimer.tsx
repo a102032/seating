@@ -8,11 +8,13 @@ import {
   timer,
   useTimer,
   type TimerColor,
+  type TimerFace,
   type TimerSound,
   type TimerState,
 } from '../hooks/useTimer'
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 import { ALARM_SOUND_LABELS, playPickerTick } from '../lib/sound'
+import { MouseFace } from './MouseFace'
 import { MoveHandIcon } from './MoveHandIcon'
 import { BackIcon, MinimizeIcon } from './RailIcons'
 
@@ -28,6 +30,10 @@ const COLOR_CHOICES: { id: TimerColor; label: string }[] = [
   { id: 'blue', label: 'Blue' },
   { id: 'red', label: 'Red' },
   { id: 'green', label: 'Green' },
+]
+const FACE_CHOICES: { id: TimerFace; label: string }[] = [
+  { id: 'dial', label: 'Dial' },
+  { id: 'mouse', label: 'Mouse' },
 ]
 const SOUND_CHOICES: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster', 'none']
 
@@ -274,7 +280,7 @@ function TimerCard({ t }: { t: TimerState }) {
           className={clsx('timer-bare', t.settings && 'on')}
           onClick={act(timer.toggleSettings)}
           aria-label="Timer settings"
-          title="Color and sound"
+          title="Its look, color and sound"
         >
           <Settings />
         </button>
@@ -287,7 +293,13 @@ function TimerCard({ t }: { t: TimerState }) {
       </div>
 
       <div className="timer-face">
-        {t.settings ? <TimerChoices t={t} onBack={act(timer.toggleSettings)} /> : <Dial t={t} onFace={onFace} onUp={act(timer.again)} />}
+        {t.settings ? (
+          <TimerChoices t={t} onBack={act(timer.toggleSettings)} />
+        ) : t.face === 'mouse' ? (
+          <MouseFace t={t} guard={() => fresh()} onUp={timer.again} onPick={timer.setMinutes} />
+        ) : (
+          <Dial t={t} onFace={onFace} onUp={act(timer.again)} />
+        )}
       </div>
 
       <div className="timer-foot">
@@ -419,42 +431,67 @@ function Dial({ t, onFace, onUp }: { t: TimerState; onFace: (e: MouseEvent<SVGSV
 
 /**
  * The gear's choices, in the face's place until Back (the teacher's go-back arrow, at the top) or
- * the timer is started: the wedge's colour, then the time's-up sound (the app's six, and No Sound,
- * for a test next door). A tap on a sound plays it and picks it. Words here: only the teacher uses it.
+ * the timer is started: the face, the dial or the mouse (beside Back, where the row had room: the
+ * choices already filled the face), the wedge's colour (with the dial only: the mouse has no
+ * wedge), then the time's-up sound (the app's six, and No Sound, for a test next door, which also
+ * quiets the mouse's bites). A tap on a sound plays it and picks it. Words here: only the teacher
+ * uses it.
  */
 function TimerChoices({ t, onBack }: { t: TimerState; onBack: () => void }) {
   return (
     <div className="timer-choices">
-      <button
-        type="button"
-        data-slot="button"
-        className="timer-back"
-        onClick={onBack}
-        aria-label="Back to the clock"
-        title="Back to the clock"
-      >
-        <BackIcon />
-      </button>
-      <div className="timer-heading">Color</div>
-      <div className="timer-colors">
-        {COLOR_CHOICES.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            className={clsx('timer-color', t.color === id && 'on')}
-            aria-pressed={t.color === id}
-            onClick={() => {
-              playPickerTick()
-              timer.setColor(id)
-            }}
-          >
-            <i style={{ '--c': id === 'theme' ? 'var(--primary)' : TIMER_COLORS[id] } as CSSProperties}>
-              <Check />
-            </i>
-            <span>{label}</span>
-          </button>
-        ))}
+      <div className="timer-top">
+        <button
+          type="button"
+          data-slot="button"
+          className="timer-back"
+          onClick={onBack}
+          aria-label="Back to the clock"
+          title="Back to the clock"
+        >
+          <BackIcon />
+        </button>
+        <div className="timer-faces" role="group" aria-label="Timer face">
+          {FACE_CHOICES.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              data-slot="button"
+              className={clsx('timer-sound', t.face === id && 'on')}
+              aria-pressed={t.face === id}
+              onClick={() => {
+                playPickerTick()
+                timer.setFace(id)
+              }}
+            >
+              {id === 'dial' ? <DialPicture /> : <ApplePicture />}
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
+      {t.face === 'dial' && <div className="timer-heading">Color</div>}
+      {t.face === 'dial' && (
+        <div className="timer-colors">
+          {COLOR_CHOICES.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              className={clsx('timer-color', t.color === id && 'on')}
+              aria-pressed={t.color === id}
+              onClick={() => {
+                playPickerTick()
+                timer.setColor(id)
+              }}
+            >
+              <i style={{ '--c': id === 'theme' ? 'var(--primary)' : TIMER_COLORS[id] } as CSSProperties}>
+                <Check />
+              </i>
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="timer-heading">Time&rsquo;s up sound</div>
       <div className="timer-sounds">
         {SOUND_CHOICES.map((sound) => (
@@ -568,6 +605,48 @@ export function FloatClock({ win, strip, tap }: { win: Window; strip: boolean; t
         </button>
       )}
     </div>
+  )
+}
+
+/** The dial choice's picture: a face with a wedge. */
+function DialPicture() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 12V4.5A7.5 7.5 0 0 1 18.5 15.75Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** The mouse choice's picture: a red apple with a bite out of it, in its own colours, edged in white so it
+ *  shows on a red button (Comic Book's "on"). */
+function ApplePicture() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <mask id="timer-apple-bite">
+        <rect width="24" height="24" fill="#fff" />
+        <circle cx="20.4" cy="11" r="3" fill="#000" />
+      </mask>
+      <g mask="url(#timer-apple-bite)">
+        <path
+          d="M12 6.5c1.5-1.4 5.4-1.8 6.6 1.9.9 3-.6 8.6-3.3 9.7-1.3.5-2.4-.1-3.3-.1s-2 .6-3.3.1C6 17 4.5 11.4 5.4 8.4 6.6 4.7 10.5 5.1 12 6.5z"
+          fill="#fff0c2"
+        />
+        <path
+          d="M12 6.5c1.5-1.4 5.4-1.8 6.6 1.9.9 3-.6 8.6-3.3 9.7-1.3.5-2.4-.1-3.3-.1s-2 .6-3.3.1C6 17 4.5 11.4 5.4 8.4 6.6 4.7 10.5 5.1 12 6.5z"
+          fill="#e2412f"
+          stroke="#fff"
+          strokeWidth="0.9"
+          paintOrder="stroke"
+          mask="url(#timer-apple-skin)"
+        />
+      </g>
+      <mask id="timer-apple-skin">
+        <rect width="24" height="24" fill="#fff" />
+        <circle cx="20.4" cy="11" r="4.2" fill="#000" />
+      </mask>
+      <path d="M12 6.5c0-1.5.4-2.7 1.4-3.6" stroke="#6b3f22" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    </svg>
   )
 }
 

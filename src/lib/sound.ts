@@ -733,3 +733,37 @@ export function playLineDone() {
   })
   playTone(ctx, master, { frequency: 2093, start: 0.21, duration: 0.5, type: 'sine', peakGain: 0.16 })
 }
+
+/**
+ * The mouse timer's bite (2026-10-20): the teacher's own "single bite" recording, picked by ear
+ * from four, with no chewing sound ("the chewing is distracting"). It was nearly all above 400Hz
+ * but very quiet; it is trimmed to land as the teeth close and levelled to the page-made crunch
+ * the teacher found "the right volume" (-30 dB, loudest 50ms above 400Hz), the original kept in
+ * design/sounds. Decoded once, ahead, when the mouse face first shows.
+ */
+let biteBuffer: AudioBuffer | null = null
+let bitePending: Promise<void> | null = null
+
+export function primeMouseBite(): void {
+  if (biteBuffer || bitePending) return
+  bitePending = fetch(assetUrl('/sounds/mouse-bite.mp3'))
+    .then((r) => r.arrayBuffer())
+    .then((buf) => getContext().decodeAudioData(buf))
+    .then((decoded) => {
+      biteBuffer = decoded
+    })
+    .catch(() => {
+      bitePending = null
+    })
+}
+
+export function playMouseBite(volume = 1) {
+  if (!biteBuffer) return primeMouseBite()
+  const ctx = getContext()
+  const source = ctx.createBufferSource()
+  const gain = ctx.createGain()
+  source.buffer = biteBuffer
+  gain.gain.value = volume
+  source.connect(gain).connect(ctx.destination)
+  source.start()
+}

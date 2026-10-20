@@ -107,7 +107,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
     Seats or Attendance, with Done; the tour offered once), in the slot Seat Class and Choose Your Avatar use.
   - `FlipDeck.tsx` / `FlipCard.tsx`: flip cards (their settings are in Class Settings' Tools, which their gear opens).
   - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its
-    colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away.
+    face, colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away. Its other face,
+    the mouse eating an apple a minute to the cheese, is `MouseFace.tsx`, drawn by `lib/mouseTimer.ts` from `timerElapsed`.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity. Groups are made from the seats in
     `lib/seatGroups.ts` (pairs side by side, the room cut into patches, and `placeGroups`, which numbers them and lays their
     cards out like the room); `lib/groups.ts` deals them and Shuffle mixes. `GroupBuilder.tsx`: I'll choose, the names tapped

@@ -2999,6 +2999,156 @@ const scenarios = {
   },
 
   /**
+   * The timer's mouse face (2026-10-20): chosen behind the gear, one apple a minute and the cheese,
+   * "How long?" from a tap on the stopped face, bites as the time goes, the cheese at time's up,
+   * and the gear's choices fitting the face down to 1024x500.
+   */
+  async 'the mouse timer'() {
+    const cls = makeClass('c1', 'Mouse', 12, { pointsGoal: 50 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559], before: countSounds })
+    const card = page.locator('[data-timer-card]')
+    const time = () => page.locator('.timer-time').textContent()
+    const apples = () =>
+      page.evaluate(() => {
+        const hrefs = [...document.querySelectorAll('.mouse-scene > g use')]
+          .filter((u) => u.style.display !== 'none')
+          .map((u) => (u.getAttribute('href') || '').replace(/^#mf\w*?(whole|coreR|coreL|cheese)$/, '$1'))
+        return {
+          whole: hrefs.filter((h) => h === 'whole').length,
+          core: hrefs.filter((h) => h.startsWith('core')).length,
+          cheese: hrefs.filter((h) => h === 'cheese').length,
+        }
+      })
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(800)
+    await card.getByRole('button', { name: 'Timer settings' }).click()
+    await page.waitForTimeout(800)
+    check('mouse timer: the dial has its colours', (await page.locator('.timer-colors').count()) === 1)
+    await card.getByRole('button', { name: 'Mouse' }).click()
+    await page.waitForTimeout(300)
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')))
+    check(
+      'mouse timer: Mouse is chosen behind the gear, kept, and the colours go',
+      kept.face === 'mouse' && (await page.locator('.timer-colors').count()) === 0,
+      JSON.stringify(kept),
+    )
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-gear.png` })
+    await card.getByRole('button', { name: 'Back to the clock' }).click()
+    await page.waitForTimeout(800)
+    const ten = await apples()
+    check(
+      'mouse timer: ten minutes is ten apples and the cheese',
+      ten.whole === 9 && ten.cheese === 1 && (await page.locator('.mouse-scene').count()) === 1,
+      JSON.stringify(ten),
+    )
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-10.png` })
+    // A tap on the stopped face: "How long?", then 5.
+    await page.locator('.mouse-scene').click()
+    await page.waitForTimeout(800)
+    check('mouse timer: a tap on the stopped face asks how long', (await page.locator('.mouse-pick').count()) === 1)
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-howlong.png` })
+    await page.getByRole('button', { name: '5 minutes', exact: true }).click()
+    await page.waitForTimeout(800)
+    const five = await apples()
+    check(
+      'mouse timer: 5 is picked, five apples',
+      (await time()) === '5:00' && five.whole === 4 && (await page.locator('.mouse-pick').count()) === 0,
+      JSON.stringify(five),
+    )
+    // Started: a bite every 5 seconds, and after a minute the first apple is a core.
+    await page.clock.install()
+    await card.getByRole('button', { name: 'Start', exact: true }).click()
+    await page.clock.runFor(62600)
+    const after = await apples()
+    const bites = await page.evaluate(() => window.__sounds.length)
+    // About a bite every 5 seconds (the first may come before this page's copy of the sound has loaded).
+    check(
+      'mouse timer: a minute in, one core and a bite every 5 seconds heard',
+      after.core === 1 && after.whole === 3 && bites >= 11 && bites <= 13,
+      `${JSON.stringify(after)} bites ${bites}`,
+    )
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-running.png` })
+    // Paused, a tap on the face asks how long again; leaving it, play carries on.
+    await card.getByRole('button', { name: 'Pause' }).click()
+    await page.clock.runFor(5000)
+    check('mouse timer: paused, the time holds', (await time()) === '3:58', await time())
+    await card.getByRole('button', { name: 'Start', exact: true }).click()
+    await page.clock.runFor(240000)
+    await page.clock.runFor(2500)
+    const up = await page.locator('.mouse-up').count()
+    const end = await page.evaluate(() => {
+      const m = document.querySelector('.mouse-scene > g:nth-last-child(2)').getBoundingClientRect()
+      const ch = [...document.querySelectorAll('.mouse-scene use')]
+        .find((u) => /cheese$/.test(u.getAttribute('href')))
+        .getBoundingClientRect()
+      return Math.hypot(m.x + m.width / 2 - (ch.x + ch.width / 2), m.y + m.height - (ch.y + ch.height)) / ch.width
+    })
+    check(
+      "mouse timer: time's up, every apple a core and the mouse at the cheese",
+      up === 1 && (await apples()).whole === 0 && end < 1.3,
+      `${up} ${end.toFixed(2)}`,
+    )
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-up.png` })
+    await page.clock.runFor(1000)
+    await page.locator('.mouse-up').click({ force: true })
+    await page.clock.runFor(300)
+    check(
+      "mouse timer: a tap on Time's up puts the apples back",
+      (await page.locator('.mouse-up').count()) === 0 && (await time()) === '5:00' && (await apples()).whole === 4,
+    )
+    check('mouse timer: no errors', page.errors.length === 0, page.errors[0] ?? '')
+    // The gear's choices, and "How long?", fit the face at the smallest screen, in every theme.
+    let worst = ''
+    for (const theme of THEMES)
+      for (const size of [
+        [1024, 500],
+        [1280, 559],
+        [1920, 1080],
+      ]) {
+        const p = await open({
+          state: stateOf(cls),
+          theme,
+          size,
+          storage: { 'seating-chart-timer-settings-v1': { face: 'mouse', seconds: 600 } },
+        })
+        await panelButton(p, 'Timer').click()
+        await p.waitForTimeout(800)
+        await p.locator('.mouse-scene').click()
+        await p.waitForTimeout(800)
+        const pick = await p.evaluate(() => {
+          if (!document.querySelector('.mouse-pick')) return 'not open'
+          const f = document.querySelector('.mouse-face').getBoundingClientRect()
+          return [...document.querySelectorAll('.mouse-pick button, .mouse-pick-title')].every((b) => {
+            const r = b.getBoundingClientRect()
+            return r.top >= f.top - 1 && r.bottom <= f.bottom + 1 && r.left >= f.left - 1 && r.right <= f.right + 1
+          })
+        })
+        if (pick === true)
+          await p
+            .locator('.mouse-pick-title')
+            .click({ timeout: 3000 })
+            .catch((e) => (worst += ` ${theme} ${size.join('x')} close: ${e.message.split('\n')[0]}`))
+        await p.waitForTimeout(800)
+        await p.locator('[data-timer-card]').getByRole('button', { name: 'Timer settings' }).click()
+        await p.waitForTimeout(400)
+        const gear = await p.evaluate(() => {
+          const c = document.querySelector('.timer-choices')
+          const card = document.querySelector('[data-timer-card]').getBoundingClientRect()
+          const inside = [...c.querySelectorAll('button')].every((b) => {
+            const r = b.getBoundingClientRect()
+            return r.right <= card.right + 1 && r.bottom <= card.bottom + 1 && b.scrollWidth <= b.clientWidth + 1
+          })
+          return inside && c.scrollHeight <= c.clientHeight + 1 && card.bottom <= innerHeight + 1
+        })
+        if (pick !== true || !gear) worst += ` ${theme} ${size.join('x')} pick:${pick} gear:${gear}`
+        if (theme === 'comic' && size[0] === 1024) await p.screenshot({ path: `${SHOTS}/mouse-timer-gear-1024.png` })
+        await p.context().close()
+      }
+    check('mouse timer: "How long?" and the gear fit the face, every theme, 1024x500 up', !worst, worst)
+    return page
+  },
+
+  /**
    * Saved lines (2026-10-16): "Start the Line" with four saved lines and the editor with six steps
    * fit every screen with nothing to scroll, in the theme with the biggest letters too, and a step's
    * name of 12 letters fits a desk whole in a class of 35.
