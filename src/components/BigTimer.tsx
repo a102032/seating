@@ -16,7 +16,7 @@ import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 import { ALARM_SOUND_LABELS, playPickerTick } from '../lib/sound'
 import { MouseFace } from './MouseFace'
 import { MoveHandIcon } from './MoveHandIcon'
-import { BackIcon, MinimizeIcon } from './RailIcons'
+import { MinimizeIcon } from './RailIcons'
 
 /** A second touch the board makes of one tap, on something that just changed under the finger. */
 const TAP_GUARD_MS = 700
@@ -275,26 +275,41 @@ function TimerCard({ t }: { t: TimerState }) {
           <MoveHandIcon />
         </span>
         <span className="grow self-stretch" />
-        <button
-          type="button"
-          className={clsx('timer-bare', t.settings && 'on')}
-          onClick={act(timer.toggleSettings)}
-          aria-label="Timer settings"
-          title="Its look, color and sound"
-        >
-          <Settings />
-        </button>
-        <button type="button" className="timer-bare" onClick={act(timer.minimise)} aria-label="Put the timer away" title="Put it away">
-          <MinimizeIcon />
-        </button>
-        <button type="button" className="timer-bare" onClick={act(timer.off)} aria-label="Turn the timer off" title="Turn it off">
-          <CloseIcon />
-        </button>
+        {/* With the choices open, the strip has only X, which closes them and leaves the clock (2026-10-21, the teacher). */}
+        {t.settings ? (
+          <button
+            type="button"
+            className="timer-bare"
+            onClick={act(timer.toggleSettings)}
+            aria-label="Close the settings"
+            title="Close the settings"
+          >
+            <CloseIcon />
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="timer-bare"
+              onClick={act(timer.toggleSettings)}
+              aria-label="Timer settings"
+              title="Its look, color and sound"
+            >
+              <Settings />
+            </button>
+            <button type="button" className="timer-bare" onClick={act(timer.minimise)} aria-label="Put the timer away" title="Put it away">
+              <MinimizeIcon />
+            </button>
+            <button type="button" className="timer-bare" onClick={act(timer.off)} aria-label="Turn the timer off" title="Turn it off">
+              <CloseIcon />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="timer-face">
         {t.settings ? (
-          <TimerChoices t={t} onBack={act(timer.toggleSettings)} />
+          <TimerChoices t={t} />
         ) : t.face === 'mouse' ? (
           <MouseFace t={t} guard={() => fresh()} onUp={timer.again} onPick={timer.setMinutes} />
         ) : (
@@ -302,50 +317,60 @@ function TimerCard({ t }: { t: TimerState }) {
         )}
       </div>
 
-      <div className="timer-foot">
-        <button type="button" data-slot="button" className="timer-round quiet" onClick={act(timer.again)} aria-label="Again" title="Again">
-          <RotateCcw />
-        </button>
-        <div className="timer-set">
-          {/* They hide while it runs: the time is set before it starts. */}
+      {/* The choices are only choices: setting the time, Again and play are the clock's (2026-10-21, the teacher). */}
+      {!t.settings && (
+        <div className="timer-foot">
           <button
             type="button"
             data-slot="button"
-            className="timer-step"
-            disabled={t.running}
-            onClick={act(() => {
-              playPickerTick()
-              timer.step(-1)
-            }, STEP_GUARD_MS)}
-            aria-label="A minute less"
+            className="timer-round quiet"
+            onClick={act(timer.again)}
+            aria-label="Again"
+            title="Again"
           >
-            <Minus />
+            <RotateCcw />
           </button>
-          <span className="timer-time">{timeText(t.left)}</span>
-          <button
-            type="button"
-            data-slot="button"
-            className="timer-step"
-            disabled={t.running}
-            onClick={act(() => {
-              playPickerTick()
-              timer.step(1)
-            }, STEP_GUARD_MS)}
-            aria-label="A minute more"
-          >
-            <Plus />
-          </button>
+          <div className="timer-set">
+            {/* They hide while it runs: the time is set before it starts. */}
+            <button
+              type="button"
+              data-slot="button"
+              className="timer-step"
+              disabled={t.running}
+              onClick={act(() => {
+                playPickerTick()
+                timer.step(-1)
+              }, STEP_GUARD_MS)}
+              aria-label="A minute less"
+            >
+              <Minus />
+            </button>
+            <span className="timer-time">{timeText(t.left)}</span>
+            <button
+              type="button"
+              data-slot="button"
+              className="timer-step"
+              disabled={t.running}
+              onClick={act(() => {
+                playPickerTick()
+                timer.step(1)
+              }, STEP_GUARD_MS)}
+              aria-label="A minute more"
+            >
+              <Plus />
+            </button>
+          </div>
+          {t.running ? (
+            <button type="button" data-slot="button" className="timer-round go" onClick={act(timer.pause)} aria-label="Pause" title="Pause">
+              <PauseIcon />
+            </button>
+          ) : (
+            <button type="button" data-slot="button" className="timer-round go" onClick={act(timer.start)} aria-label="Start" title="Start">
+              <PlayIcon />
+            </button>
+          )}
         </div>
-        {t.running ? (
-          <button type="button" data-slot="button" className="timer-round go" onClick={act(timer.pause)} aria-label="Pause" title="Pause">
-            <PauseIcon />
-          </button>
-        ) : (
-          <button type="button" data-slot="button" className="timer-round go" onClick={act(timer.start)} aria-label="Start" title="Start">
-            <PlayIcon />
-          </button>
-        )}
-      </div>
+      )}
 
       {/* The corner that makes it smaller, and back up to the size it opened at: three short lines, as on a window. */}
       <span className="timer-size" data-timer-size="" title="Slide to make it smaller or bigger">
@@ -430,28 +455,18 @@ function Dial({ t, onFace, onUp }: { t: TimerState; onFace: (e: MouseEvent<SVGSV
 }
 
 /**
- * The gear's choices, in the face's place until Back (the teacher's go-back arrow, at the top) or
- * the timer is started: the face, the dial or the mouse (beside Back, where the row had room: the
- * choices already filled the face), the wedge's colour (with the dial only: the mouse has no
- * wedge), then the time's-up sound (the app's six, and No Sound, for a test next door, which also
- * quiets the mouse's bites). A tap on a sound plays it and picks it. Words here: only the teacher
- * uses it.
+ * The gear's choices, in the face's place until the strip's X closes them (2026-10-21, the teacher:
+ * no Back button, and nothing of the clock's own below them): the type of clock, the dial or the
+ * mouse; the wedge's colour (with the dial only: the mouse has no wedge); then the time's-up sound
+ * (the app's six, and No Sound, for a test next door, which also quiets the mouse's bites). A tap
+ * on a sound plays it and picks it. Words here: only the teacher uses it.
  */
-function TimerChoices({ t, onBack }: { t: TimerState; onBack: () => void }) {
+function TimerChoices({ t }: { t: TimerState }) {
   return (
     <div className="timer-choices">
+      <div className="timer-heading">Type of clock</div>
       <div className="timer-top">
-        <button
-          type="button"
-          data-slot="button"
-          className="timer-back"
-          onClick={onBack}
-          aria-label="Back to the clock"
-          title="Back to the clock"
-        >
-          <BackIcon />
-        </button>
-        <div className="timer-faces" role="group" aria-label="Timer face">
+        <div className="timer-faces" role="group" aria-label="Type of clock">
           {FACE_CHOICES.map(({ id, label }) => (
             <button
               key={id}

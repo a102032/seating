@@ -1153,23 +1153,6 @@ button {
   gap: calc(var(--D) * 0.018);
 }
 
-.timer-back {
-  align-self: flex-start;
-  width: max(38px, calc(var(--D) * 0.12));
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-  display: grid;
-  place-items: center;
-}
-
-.timer-back svg {
-  width: max(24px, calc(var(--D) * 0.08));
-  height: max(24px, calc(var(--D) * 0.08));
-}
-
 .timer-heading {
   font-weight: 700;
   font-size: calc(var(--D) * 0.058);
@@ -1260,7 +1243,7 @@ button {
   border-color: transparent;
 }
 
-/* The face's choice sits beside Back, where the row had room: the choices already fill the face. */
+/* The type of clock: the dial or the mouse, each with its picture. */
 .timer-top {
   display: flex;
   align-items: center;
