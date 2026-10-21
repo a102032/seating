@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import { useEffect, useId, useRef, useState } from 'react'
 import { timerElapsed, timerNow, type TimerState } from '../hooks/useTimer'
-import { MouseScene } from '../lib/mouseTimer'
-import { playMouseBite, playPickerTick, primeMouseBite } from '../lib/sound'
+import { MOUSE_ENDING, MouseScene } from '../lib/mouseTimer'
+import { playMouseBite, playMouseHic, playPickerTick, primeMouseBite } from '../lib/sound'
 
 /** The times a tap on the face offers: the ones a lesson uses, up to the hour the dial has. */
 const MINUTES = [1, 2, 3, 5, 10, 15, 20, 30, 45, 60]
@@ -43,6 +43,7 @@ export function MouseFace({
     const scene = new MouseScene(svgRef.current!, id, {
       // The bite keeps quiet when the timer has No Sound: a test next door.
       onBite: () => timerNow().sound !== 'none' && playMouseBite(),
+      onHic: () => timerNow().sound !== 'none' && playMouseHic(),
       reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     })
     sceneRef.current = scene
@@ -50,10 +51,10 @@ export function MouseFace({
     let drawn = 0
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop)
-      // Eating, or running to the cheese: 30 frames a second. Waiting, only the breathing moves, so 15.
+      // Eating, or the ending at the cheese: 30 frames a second. Waiting, only the breathing moves, so 15.
       const { running, up, seconds } = timerNow()
       const elapsed = timerElapsed()
-      const busy = running || (up && elapsed < seconds + 4)
+      const busy = running || (up && elapsed < seconds + MOUSE_ENDING)
       if (now - drawn < (busy ? 32 : 64)) return
       drawn = now
       scene.draw(elapsed, now)

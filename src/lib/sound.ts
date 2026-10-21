@@ -767,3 +767,12 @@ export function playMouseBite(volume = 1) {
   source.connect(gain).connect(ctx.destination)
   source.start()
 }
+
+/** The full mouse's hiccup at the end of the mouse timer: one tiny rising blip, well above 400Hz. */
+export function playMouseHic() {
+  const ctx = getContext()
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  playTone(ctx, master, { frequency: 950, endFrequency: 1600, start: 0, duration: 0.13, type: 'triangle', peakGain: 0.11 })
+}

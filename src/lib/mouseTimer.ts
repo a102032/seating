@@ -220,6 +220,9 @@ interface AbsPose {
   behind: boolean
   happy?: boolean
   cheer?: boolean
+  /** The ending: how full its tummy is (0 to 1), and the paw patting it. */
+  full?: number
+  pat?: number
 }
 
 /** As many apples as minutes, then the cheese, on a path that snakes up from the bottom right. */
@@ -291,6 +294,18 @@ function travel(A: AbsPose, B: AbsPose, e: number, dur: number): AbsPose {
 
 /** Seconds after time's up for the mouse to reach the cheese. */
 const ARRIVE = 1.4
+/**
+ * The ending (2026-10-21, the class, the first day they saw it: "why didn't the mouse eat the
+ * cheese?"), in seconds from when the mouse is at the cheese (or, with one apple, beside its core):
+ * a happy dance (two hops and a spin), four fast chomps that eat it all, a round tummy patted, and
+ * a hiccup. About five seconds, small beside the class goal's celebration; then it sits there full
+ * until "Time's up!" is tapped.
+ */
+const CHOMPS = [1.6, 1.95, 2.3, 2.65]
+const FULL = 3.0
+const HIC = 4.5
+/** Seconds after time's up the ending is over, at most. */
+export const MOUSE_ENDING = ARRIVE + HIC + 1
 
 // The drawings, centred on 0,0. An apple can be bitten through three masks (the hole, a little
 // bigger for the flesh, bigger again for the skin), so a band of pale flesh and a darker rim show
@@ -392,6 +407,8 @@ function biteNode(b: Bite, layer: string, o: number) {
 export interface MouseSceneOptions {
   /** A bite lands: the sound, if the timer has one. */
   onBite: () => void
+  /** The full mouse's hiccup. */
+  onHic: () => void
   /** Fewer crumbs and no rocking, for a computer set to reduce motion. */
   reduceMotion: boolean
 }
@@ -417,6 +434,10 @@ export class MouseScene {
   private parts: Record<string, SVGElement> = {}
   private uses: SVGUseElement[] = []
   private cheeseUse: SVGUseElement | null = null
+  /** The cheese as it is eaten: its bites, and the group that shrinks to nothing at the last chomp. */
+  private cheeseHoles: SVGGElement
+  private cheeseBites: SVGGElement[] = []
+  private cheeseGulp: SVGGElement | null = null
   private n = 0
   private D = 0
   private min = 60
@@ -475,6 +496,19 @@ export class MouseScene {
     const cheese = el('g', { id: `${id}cheese` })
     cheese.innerHTML = CHEESE
     this.defs.appendChild(cheese)
+    const cheeseMask = el('mask', {
+      id: `${id}cheeseBite`,
+      maskUnits: 'userSpaceOnUse',
+      maskContentUnits: 'userSpaceOnUse',
+      x: -200,
+      y: -200,
+      width: 400,
+      height: 400,
+    })
+    cheeseMask.appendChild(el('rect', { x: -200, y: -200, width: 400, height: 400, fill: '#fff' }))
+    this.cheeseHoles = el('g', { fill: '#000' })
+    cheeseMask.appendChild(this.cheeseHoles)
+    this.defs.appendChild(cheeseMask)
 
     this.floor = el('ellipse', { cx: 220, cy: GROUND + (H - 268) / 2 + 4, rx: 205, ry: 16, fill: 'rgba(30, 20, 60, 0.05)' })
     this.mouseShadow = el('ellipse', { fill: SHADOW })
@@ -568,8 +602,29 @@ export class MouseScene {
       this.cheeseUse = el('use', { href: `#${this.id}cheese` })
       this.cheeseUse.style.transformBox = 'fill-box'
       this.cheeseUse.style.transformOrigin = '50% 100%'
-      wrap.appendChild(this.cheeseUse)
+      // Bitten from the mouse's side, three bites, then the last of it in one gulp.
+      this.cheeseGulp = el('g')
+      const bitten = el('g', { mask: `url(#${this.id}cheeseBite)` })
+      bitten.appendChild(this.cheeseUse)
+      this.cheeseGulp.appendChild(bitten)
+      wrap.appendChild(this.cheeseGulp)
       this.applesG.appendChild(wrap)
+      const side = cheese.m
+      this.cheeseHoles.replaceChildren()
+      this.cheeseBites = [0, 1, 2].map((k) => {
+        const cx = side * (100 - 34 * k)
+        const cy = (side > 0 ? 40 : 20) + [0, 6, -4][k]
+        const r = 32
+        const g = el('g')
+        g.appendChild(el('circle', { cx, cy, r }))
+        for (const f of [-1, -0.5, 0, 0.5, 1]) {
+          const a = Math.atan2(0, -side) + f * 1.05
+          g.appendChild(el('circle', { cx: cx + Math.cos(a) * r * 0.92, cy: cy + Math.sin(a) * r * 0.92, r: r * 0.22 }))
+        }
+        g.style.display = 'none'
+        this.cheeseHoles.appendChild(g)
+        return g
+      })
     }
     this.liveIndex = -1
     this.last = null
@@ -602,23 +657,65 @@ export class MouseScene {
       return toAbs(slots[i], poseLocal(L, T))
     }
     const e = t - D
-    const hop = (s0: number) => {
-      const h = (e - s0) / 0.42
-      return h > 0 && h < 1 ? Math.sin(h * Math.PI) : 0
-    }
     if (!this.cheese) {
-      // One apple: it sits back from the core so the class can see it, and hops.
+      // One apple: it straightens up beside the core, then eats that.
       const p = poseLocal(min, T)
       p.u = lerp(p.u, 0, ease(e / 0.35))
-      p.X += p.dir * 48 * ease(e / 0.45)
-      p.y = -(hop(0.4) + hop(0.95) * 0.8) * 16
-      return { ...toAbs(slots[0], p), happy: true, cheer: e > 0.4 }
+      return this.ending(toAbs(slots[0], p), e - this.endBase(), false)
     }
-    // More apples: off to the cheese.
+    // More apples: off to the cheese, then the cheese.
     const A = toAbs(slots[n - 1], poseLocal(min, T))
     const B = toAbs(this.cheese, { X: BITES[0].pose.X + 30, u: 0, dir: 1, y: 0 })
     if (e < ARRIVE) return travel(A, B, e, ARRIVE)
-    return { ...B, G: B.ground - (hop(ARRIVE + 0.05) + hop(ARRIVE + 0.6) * 0.8) * 16 * B.sx, happy: true, cheer: true }
+    return this.ending(B, e - ARRIVE, true)
+  }
+
+  /** Seconds after time's up the ending starts: once at the cheese, or straight away by a core. */
+  private endBase() {
+    return this.cheese ? ARRIVE : 0.35
+  }
+
+  /** The ending, `f` seconds in: a happy dance, four chomps, a full tummy patted, and a hiccup. */
+  private ending(B: AbsPose, f: number, cheese: boolean): AbsPose {
+    const p: AbsPose = { ...B, lunge: 0, chew: 0, walk: -1, behind: false, happy: true }
+    const bump = (s0: number, len: number) => {
+      const h = (f - s0) / len
+      return h > 0 && h < 1 ? Math.sin(h * Math.PI) : 0
+    }
+    // The dance: two hops, arms up, and a spin.
+    let up = bump(0, 0.4) * 16 + bump(0.45, 0.4) * 12
+    const spin = ease((f - 0.9) / 0.45)
+    if (spin > 0 && spin < 1) p.dir = B.dir * Math.cos(2 * Math.PI * spin)
+    p.cheer = f > 0 && f < CHOMPS[0] - 0.15
+    // Four fast chomps, stepping in as it goes, chewing hard all the while.
+    const facing = Math.sign(B.dir)
+    let stepIn = 0
+    CHOMPS.forEach((ck, k) => {
+      const d = f - ck
+      if (d > -0.12 && d < 0.16) p.lunge = d < 0 ? ease((d + 0.12) / 0.12) : 1 - ease(d / 0.16)
+      if (k < 3) stepIn += ease(d / 0.2)
+    })
+    p.X = B.X - facing * B.sx * (cheese ? 34 : 5) * stepIn
+    const lean = ease((f - CHOMPS[0] + 0.3) / 0.25) * (1 - ease((f - FULL) / 0.25))
+    p.u = lerp(B.u, cheese ? -0.15 : B.u, lean)
+    const cd = f - CHOMPS[0] - 0.1
+    if (cd > 0 && f < FULL + 0.5) {
+      const env = Math.min(1, cd / 0.15, (FULL + 0.5 - f) / 0.3)
+      p.chew = env * (0.5 - 0.5 * Math.cos(cd * 2 * Math.PI * 5))
+    }
+    // Full: a round tummy, patted.
+    p.full = ease((f - FULL) / 0.4)
+    const pd = f - FULL - 0.3
+    p.pat = pd > 0 && pd < 1.2 ? 0.5 - 0.5 * Math.cos(pd * 2 * Math.PI * 2.5) : 0
+    // And a hiccup.
+    up += bump(HIC, 0.25) * 7
+    p.G = B.ground - up * B.sx
+    return p
+  }
+
+  /** How much of the prize is gone, `f` seconds into the ending: each chomp, as it lands. */
+  private eatenAt(f: number) {
+    return CHOMPS.map((ck) => clamp01((f - ck) / 0.12))
   }
 
   /** Draws the moment `t` seconds into the timer; `now` (ms) keeps the mouse breathing while paused. */
@@ -649,6 +746,21 @@ export class MouseScene {
     })
     this.put(this.liveShadow, 'rx', String(30 + 50 * (1 - eaten / BITES.length)))
 
+    // The prize being eaten at the end: the cheese bitten and then gulped, or the core shrinking.
+    const gone = this.eatenAt(t >= this.D ? t - this.D - this.endBase() : -1)
+    if (this.cheese) {
+      this.cheeseBites.forEach((g, k) => this.put(g, 'display', gone[k] > 0 ? 'inline' : 'none'))
+      if (this.cheeseGulp)
+        this.put(this.cheeseGulp, 'transform', `translate(0 78) scale(${(1 - ease(gone[3])).toFixed(3)}) translate(0 -78)`)
+      this.put(this.liveG, 'transform', '')
+    } else {
+      const s0 = this.slots[0]
+      const left = 1 - gone.reduce((a, b) => a + b, 0) / 4
+      const ax = s0.cx
+      const ay = s0.cy + 78 * s0.sx
+      this.put(this.liveG, 'transform', `translate(${ax} ${ay}) scale(${left.toFixed(3)}) translate(${-ax} ${-ay})`)
+    }
+
     const p = this.poseAt(t)
     const P = this.parts
     const r = reach(p.u)
@@ -672,7 +784,14 @@ export class MouseScene {
       `translate(${(-9 * p.lunge).toFixed(2)} ${(2 * p.lunge).toFixed(2)}) rotate(${deg(p.u * HEAD).toFixed(2)} ${N.x} ${N.y}) translate(${N.x} ${N.y}) scale(${(1 + 0.02 * c).toFixed(4)} ${(1 - 0.035 * c).toFixed(4)}) translate(${-N.x} ${-N.y})`,
     )
     const armUp = p.cheer ? Math.sin(now / 140) * 1.5 + 3 : 0
-    this.put(P.arm, 'transform', `translate(${(-5 * p.lunge).toFixed(2)} ${(-1 * p.lunge - armUp + 0.6 * c).toFixed(2)})`)
+    // Full, the paw goes down to the tummy and pats it.
+    const full = p.full ?? 0
+    const pat = p.pat ?? 0
+    this.put(
+      P.arm,
+      'transform',
+      `translate(${(-5 * p.lunge + 3 * full).toFixed(2)} ${(-1 * p.lunge - armUp + 0.6 * c + 10 * full + 2.5 * pat).toFixed(2)})`,
+    )
     this.put(
       P.pouch,
       'transform',
@@ -683,7 +802,12 @@ export class MouseScene {
 
     // Alive even while paused: breathing, the tail, a blink, an ear and the whiskers.
     const s = now / 1000
-    this.put(P.body, 'transform', `scale(1 ${(1 + 0.018 * Math.sin((s * 2 * Math.PI) / 1.7)).toFixed(4)})`)
+    const breathe = 1 + 0.018 * Math.sin((s * 2 * Math.PI) / 1.7)
+    this.put(
+      P.body,
+      'transform',
+      `translate(0 -30) scale(${(1 + 0.16 * full).toFixed(4)} ${(breathe * (1 + 0.05 * full)).toFixed(4)}) translate(0 30)`,
+    )
     this.put(
       P.tail,
       'transform',
@@ -718,8 +842,59 @@ export class MouseScene {
         }
       })
     }
-    const arrive = this.D + (this.cheese ? ARRIVE : 0.4)
-    if (prev < arrive && t >= arrive) this.sparkle(t)
+    const base = this.D + this.endBase()
+    const at = (x: number) => prev < base + x && t >= base + x
+    if (at(0)) this.sparkle(t)
+    CHOMPS.forEach((ck, k) => {
+      if (!at(ck)) return
+      this.opts.onBite()
+      this.prizeCrumbs(k)
+    })
+    if (at(HIC)) {
+      this.opts.onHic()
+      this.hic(t)
+    }
+  }
+
+  /** Crumbs off the cheese, or the core, at each chomp of the ending. */
+  private prizeCrumbs(k: number) {
+    if (this.cheese) {
+      const c = this.cheese
+      const k1 = c.sx * 1.2
+      const ground = c.cy + 78 * c.sx
+      this.burst(c.cx + c.m * k1 * (72 - 34 * k), ground - k1 * (78 - (c.m > 0 ? 40 : 22)), c.m, c.sx, ground, [
+        '#ffca38',
+        '#ffe486',
+        '#eaa628',
+      ])
+    } else {
+      const s0 = this.slots[0]
+      this.burst(s0.cx - 14 * s0.sx, s0.cy, -1, s0.sx, s0.cy + 78 * s0.sx, ['#fff0c2', '#f6dd96', '#e2412f'])
+    }
+  }
+
+  /** "hic!" floating up from the full mouse. */
+  private hic(t: number) {
+    const p = this.poseAt(t)
+    const k = p.sc / S
+    const txt = el('text', {
+      x: (p.X - Math.sign(p.dir) * 30 * k).toFixed(1),
+      y: (p.ground - 130 * k).toFixed(1),
+      'text-anchor': 'middle',
+      'font-size': Math.max(15, 34 * k).toFixed(1),
+      'font-weight': '700',
+      fill: '#5b3fa0',
+    })
+    txt.textContent = 'hic!'
+    this.sparklesG.appendChild(txt)
+    txt.animate(
+      [
+        { transform: 'translateY(0)', opacity: 0 },
+        { transform: `translateY(${(-6 * k).toFixed(1)}px)`, opacity: 1, offset: 0.2 },
+        { transform: `translateY(${(-18 * k).toFixed(1)}px)`, opacity: 0 },
+      ],
+      { duration: 1100, easing: 'ease-out' },
+    ).onfinish = () => txt.remove()
   }
 
   /** Crumbs fly off each bite, and the apple rocks a little. */
@@ -728,13 +903,22 @@ export class MouseScene {
     const x = st.tx + st.m * st.sx * b.contact[0]
     const y = st.ty + st.sx * b.contact[1]
     const side = st.m * b.side
-    const k = st.sx
-    const ground = st.ty + st.sx * GROUND
-    const reduce = this.opts.reduceMotion
-    for (let j = 0; j < (reduce ? 3 : 8); j++) {
+    this.burst(x, y, side, st.sx, st.ty + st.sx * GROUND, ['#e2412f', '#fff0c2', '#f6dd96'])
+    if (!this.opts.reduceMotion) {
+      const a = -side * 2.2
+      this.liveWob.animate([{ rotate: '0deg' }, { rotate: `${a}deg` }, { rotate: `${-a * 0.45}deg` }, { rotate: '0deg' }], {
+        duration: 380,
+        easing: 'ease-out',
+      })
+    }
+  }
+
+  /** A few crumbs from a bite at x, y, flung away from the mouse and falling to the ground. */
+  private burst(x: number, y: number, side: number, k: number, ground: number, colours: string[]) {
+    for (let j = 0; j < (this.opts.reduceMotion ? 3 : 8); j++) {
       const crumb = el('circle', {
         r: Math.max(0.7, (1.4 + Math.random() * 1.9) * k).toFixed(2),
-        fill: j % 3 === 0 ? '#e2412f' : j % 2 ? '#fff0c2' : '#f6dd96',
+        fill: j % 3 === 0 ? colours[0] : j % 2 ? colours[1] : colours[2],
         cx: x,
         cy: y,
       })
@@ -749,13 +933,6 @@ export class MouseScene {
         frames.push({ transform: `translate(${(vx * tt).toFixed(1)}px, ${dy.toFixed(1)}px)`, opacity: tt < 0.75 ? 1 : 1 - (tt - 0.75) * 4 })
       }
       crumb.animate(frames, { duration: 650 + Math.random() * 250, easing: 'linear' }).onfinish = () => crumb.remove()
-    }
-    if (!reduce) {
-      const a = -side * 2.2
-      this.liveWob.animate([{ rotate: '0deg' }, { rotate: `${a}deg` }, { rotate: `${-a * 0.45}deg` }, { rotate: '0deg' }], {
-        duration: 380,
-        easing: 'ease-out',
-      })
     }
   }
 

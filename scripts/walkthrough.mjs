@@ -3056,7 +3056,9 @@ const scenarios = {
       JSON.stringify(five),
     )
     // Started: a bite every 5 seconds, and after a minute the first apple is a core.
+    // Paused, so each check looks at the moment it names: a running page clock drifts on with real time.
     await page.clock.install()
+    await page.clock.pauseAt(Date.now() + 2000)
     await card.getByRole('button', { name: 'Start', exact: true }).click()
     await page.clock.runFor(62600)
     const after = await apples()
@@ -3073,7 +3075,8 @@ const scenarios = {
     await page.clock.runFor(5000)
     check('mouse timer: paused, the time holds', (await time()) === '3:58', await time())
     await card.getByRole('button', { name: 'Start', exact: true }).click()
-    await page.clock.runFor(240000)
+    // 3:58 left, less the 0.6 s already gone of that second: to time's up exactly, then 2.5 s on.
+    await page.clock.runFor(237400)
     await page.clock.runFor(2500)
     const up = await page.locator('.mouse-up').count()
     const end = await page.evaluate(() => {
@@ -3089,6 +3092,18 @@ const scenarios = {
       `${up} ${end.toFixed(2)}`,
     )
     await page.screenshot({ path: `${SHOTS}/mouse-timer-up.png` })
+    // Then it dances and eats the cheese, four chomps (2026-10-21, the class: "why didn't the mouse eat it?").
+    const heard = await page.evaluate(() => window.__sounds.length)
+    await page.clock.runFor(5000)
+    const ate = await page.evaluate(() => {
+      const ch = [...document.querySelectorAll('.mouse-scene use')]
+        .find((u) => /cheese$/.test(u.getAttribute('href')))
+        .getBoundingClientRect()
+      return { w: ch.width, hic: document.querySelectorAll('.mouse-scene text').length }
+    })
+    const chomps = (await page.evaluate(() => window.__sounds.length)) - heard
+    check('mouse timer: the mouse eats the cheese in four chomps', ate.w < 1 && chomps === 4, `${JSON.stringify(ate)} chomps ${chomps}`)
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-full.png` })
     await page.clock.runFor(1000)
     await page.locator('.mouse-up').click({ force: true })
     await page.clock.runFor(300)
