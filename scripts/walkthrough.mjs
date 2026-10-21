@@ -3103,6 +3103,10 @@ const scenarios = {
     })
     const chomps = (await page.evaluate(() => window.__sounds.length)) - heard
     check('mouse timer: the mouse eats the cheese in four chomps', ate.w < 1 && chomps === 4, `${JSON.stringify(ate)} chomps ${chomps}`)
+    // The sparkles fade away rather than staying on top of the mouse (2026-10-21).
+    await page.clock.runFor(2000)
+    const stars = await page.evaluate(() => document.querySelectorAll('.mouse-scene path[d^="M0 -7"]').length)
+    check('mouse timer: the sparkles have faded away', stars === 0, String(stars))
     await page.screenshot({ path: `${SHOTS}/mouse-timer-full.png` })
     await page.clock.runFor(1000)
     await page.locator('.mouse-up').click({ force: true })

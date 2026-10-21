@@ -958,14 +958,16 @@ export class MouseScene {
       this.sparklesG.appendChild(g)
       s.style.transformBox = 'fill-box'
       s.style.transformOrigin = 'center'
+      // They pop, twinkle a moment and fade away (2026-10-21, the teacher: left on, they sat on top of the mouse).
       s.animate(
         [
           { transform: 'scale(0) rotate(0deg)', opacity: 0 },
-          { transform: 'scale(1.25) rotate(40deg)', opacity: 1, offset: 0.35 },
-          { transform: 'scale(1) rotate(70deg)', opacity: 1 },
+          { transform: 'scale(1.25) rotate(40deg)', opacity: 1, offset: 0.2 },
+          { transform: 'scale(1) rotate(70deg)', opacity: 1, offset: 0.55 },
+          { transform: 'scale(0.6) rotate(110deg)', opacity: 0 },
         ],
-        { duration: 520, delay: i * 70, easing: 'ease-out', fill: 'both' },
-      )
+        { duration: 1300, delay: i * 70, easing: 'ease-out', fill: 'backwards' },
+      ).onfinish = () => g.remove()
     })
     if (this.cheeseUse && !this.opts.reduceMotion) {
       this.cheeseUse.animate(
