@@ -41,9 +41,9 @@ export function MouseFace({
   useEffect(() => {
     primeMouseBite()
     const scene = new MouseScene(svgRef.current!, id, {
-      // The bite keeps quiet when the timer has No Sound: a test next door.
-      onBite: () => timerNow().sound !== 'none' && playMouseBite(),
-      onHic: () => timerNow().sound !== 'none' && playMouseHic(),
+      // Quiet with the strip's speaker off, or with No Sound (a test next door).
+      onBite: () => !timerNow().quiet && timerNow().sound !== 'none' && playMouseBite(),
+      onHic: () => !timerNow().quiet && timerNow().sound !== 'none' && playMouseHic(),
       reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     })
     sceneRef.current = scene

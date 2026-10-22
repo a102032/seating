@@ -55,7 +55,8 @@ function fresh(ms = TAP_GUARD_MS) {
  *
  * The last 20 seconds turn the whole clock orange, the last 10 red with a pulse on every second,
  * and time's up makes it dance as the alarm goes (2026-10-12, the teacher), so the room sees the
- * end coming from anywhere in it. Put away in the bar, the clock there does the same.
+ * end coming from anywhere in it; the dial only, since the mouse ends at its cheese (2026-10-22).
+ * Put away in the bar, the clock there does the same with either face: there it is only numbers.
  *
  * Like a window: its top strip has the hand (hold and slide to move it), the gear (its colour and
  * sound, in the face's place until Back), minimise (away into the goal meter's bar) and X (off).
@@ -127,7 +128,10 @@ function TimerCard({ t }: { t: TimerState }) {
   /** The tap that ends a slide sets nothing and presses nothing. */
   const swallow = useRef(false)
 
-  usePulseEachSecond(cardRef, t.left, t.running)
+  // Only the dial turns orange and red, pulses and dances at the end (2026-10-22, the teacher): the
+  // mouse is a story that ends by itself at the cheese, and the colour and the shaking spoilt it.
+  const dial = t.face === 'dial'
+  usePulseEachSecond(cardRef, t.left, t.running && dial)
 
   const pos = t.pos ?? { x: 0.5, y: 0.5 }
   const style = {
@@ -257,7 +261,7 @@ function TimerCard({ t }: { t: TimerState }) {
   return (
     <div
       ref={cardRef}
-      className={clsx('timer-card', t.settings && 'setting', endPhase(t), t.up && 'up')}
+      className={clsx('timer-card', t.settings && 'setting', dial && endPhase(t), dial && t.up && 'up')}
       style={style}
       data-timer-card=""
       role="dialog"
@@ -288,6 +292,20 @@ function TimerCard({ t }: { t: TimerState }) {
           </button>
         ) : (
           <>
+            {/* The face's sounds on or off, where the class's work is (2026-10-22, the teacher): the dial makes none. */}
+            {t.face !== 'dial' && (
+              <button
+                type="button"
+                className={clsx('timer-bare', t.quiet && 'quiet')}
+                onClick={act(timer.toggleQuiet)}
+                aria-pressed={t.quiet}
+                aria-label={t.quiet ? 'No sound. Tap for sound' : 'Sound on. Tap for no sound'}
+                title={t.quiet ? 'No sound (the alarm still rings)' : 'Sound on'}
+                data-timer-quiet={t.quiet ? 'on' : 'off'}
+              >
+                {t.quiet ? <VolumeX /> : <Volume2 />}
+              </button>
+            )}
             <button
               type="button"
               className="timer-bare"

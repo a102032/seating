@@ -36,6 +36,11 @@ interface Kept {
   color: TimerColor
   sound: TimerSound
   face: TimerFace
+  /**
+   * The face's own sounds while it runs are off (the speaker in the strip, 2026-10-22: the class
+   * found the mouse's bites distracting during independent work). The alarm at time's up still rings.
+   */
+  quiet: boolean
   /** The card's size, TIMER_MIN_SIZE to 1. */
   size: number
   /** Where the card was last put, as a share (0 to 1) of the room around it; null is the middle. */
@@ -57,7 +62,7 @@ export interface TimerState extends Kept {
 
 const KEY = 'seating-chart-timer-settings-v1'
 // Classroom Screen's starts at 10 minutes, and so does this.
-const DEFAULTS: Kept = { seconds: 600, color: 'theme', sound: 'ding', face: 'dial', size: 1, pos: null }
+const DEFAULTS: Kept = { seconds: 600, color: 'theme', sound: 'ding', face: 'dial', quiet: false, size: 1, pos: null }
 const SOUNDS: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster', 'none']
 
 function load(): Kept {
@@ -71,6 +76,7 @@ function load(): Kept {
       color: ['theme', 'blue', 'red', 'green'].includes(raw.color) ? raw.color : DEFAULTS.color,
       sound: SOUNDS.includes(raw.alarmSound) ? raw.alarmSound : DEFAULTS.sound,
       face: raw.face === 'mouse' ? 'mouse' : DEFAULTS.face,
+      quiet: raw.quiet === true,
       size: typeof raw.size === 'number' ? Math.min(1, Math.max(TIMER_MIN_SIZE, raw.size)) : DEFAULTS.size,
       pos:
         pos && typeof pos.x === 'number' && typeof pos.y === 'number'
@@ -86,7 +92,7 @@ function save(kept: Kept) {
   try {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ seconds: kept.seconds, color: kept.color, alarmSound: kept.sound, face: kept.face, size: kept.size, pos: kept.pos }),
+      JSON.stringify({ seconds: kept.seconds, color: kept.color, alarmSound: kept.sound, face: kept.face, quiet: kept.quiet, size: kept.size, pos: kept.pos }),
     )
   } catch {
     // A board that won't store it starts at the defaults next time.
@@ -105,7 +111,7 @@ let tick: ReturnType<typeof setInterval> | null = null
 
 function set(patch: Partial<TimerState>) {
   const next = { ...state, ...patch }
-  const keptChanged = (['seconds', 'color', 'sound', 'face', 'size', 'pos'] as const).some((k) => next[k] !== state[k])
+  const keptChanged = (['seconds', 'color', 'sound', 'face', 'quiet', 'size', 'pos'] as const).some((k) => next[k] !== state[k])
   state = next
   if (keptChanged) save(state)
   listeners.forEach((l) => l())
@@ -210,6 +216,10 @@ export const timer = {
     set({ face })
   },
   /** A tap on a sound plays it and picks it. */
+  /** The strip's speaker: the face's sounds on or off. */
+  toggleQuiet() {
+    set({ quiet: !state.quiet })
+  },
   setSound(sound: TimerSound) {
     set({ sound })
     if (sound !== 'none') playAlarm(sound)

@@ -993,6 +993,16 @@ button {
   color: var(--primary);
 }
 
+/* The face's sounds off: a soft red, as Get Ready!'s speaker, so a quiet clock is plain at a glance. */
+.timer-strip .timer-bare.quiet {
+  background: rgb(239 68 68 / 0.14);
+  color: #dc2626;
+}
+
+:is([data-theme='dark'], [data-theme='chalk']) .timer-strip .timer-bare.quiet {
+  color: #fca5a5;
+}
+
 .timer-face {
   width: var(--D);
   height: var(--D);

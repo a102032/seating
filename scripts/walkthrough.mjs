@@ -3070,13 +3070,32 @@ const scenarios = {
       `${JSON.stringify(after)} bites ${bites}`,
     )
     await page.screenshot({ path: `${SHOTS}/mouse-timer-running.png` })
+    // The strip's speaker turns the bites off, and is kept (2026-10-22: the class found them distracting).
+    await card.getByRole('button', { name: 'Sound on. Tap for no sound' }).click()
+    const before = await page.evaluate(() => window.__sounds.length)
+    await page.clock.runFor(10000)
+    check(
+      'mouse timer: the speaker in the strip quiets the bites, and is kept',
+      (await page.evaluate(() => window.__sounds.length)) === before &&
+        (await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')).quiet)) === true,
+    )
+    await page.screenshot({ path: `${SHOTS}/mouse-timer-quiet.png` })
+    await card.getByRole('button', { name: 'No sound. Tap for sound' }).click()
+    await page.clock.runFor(1000)
     // Paused, a tap on the face asks how long again; leaving it, play carries on.
     await card.getByRole('button', { name: 'Pause' }).click()
     await page.clock.runFor(5000)
-    check('mouse timer: paused, the time holds', (await time()) === '3:58', await time())
+    check('mouse timer: paused, the time holds', (await time()) === '3:47', await time())
     await card.getByRole('button', { name: 'Start', exact: true }).click()
-    // 3:58 left, less the 0.6 s already gone of that second: to time's up exactly, then 2.5 s on.
-    await page.clock.runFor(237400)
+    // 3:47 left, less the 0.6 s already gone of that second: to 0:15, to time's up exactly, then 2.5 s on.
+    await page.clock.runFor(211400)
+    // No orange, red or pulse near the end: only the dial does that (2026-10-22, the teacher).
+    check(
+      'mouse timer: 15 seconds left, no orange or red',
+      /^0:1[56]$/.test(await time()) && !/ending|last/.test(await card.getAttribute('class')),
+      `${await time()} ${await card.getAttribute('class')}`,
+    )
+    await page.clock.runFor(15000)
     await page.clock.runFor(2500)
     const up = await page.locator('.mouse-up').count()
     const end = await page.evaluate(() => {
@@ -3091,6 +3110,7 @@ const scenarios = {
       up === 1 && (await apples()).whole === 0 && end < 1.3,
       `${up} ${end.toFixed(2)}`,
     )
+    check("mouse timer: time's up with no red and no dance", !/\b(up|last)\b/.test(await card.getAttribute('class')), await card.getAttribute('class'))
     await page.screenshot({ path: `${SHOTS}/mouse-timer-up.png` })
     // Then it dances and eats the cheese, four chomps (2026-10-21, the class: "why didn't the mouse eat it?").
     const heard = await page.evaluate(() => window.__sounds.length)
