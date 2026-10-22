@@ -108,7 +108,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   - `FlipDeck.tsx` / `FlipCard.tsx`: flip cards (their settings are in Class Settings' Tools, which their gear opens).
   - `BigTimer.tsx`: the timer, big over the board (a 60-minute face, moved by its strip, made smaller by its corner, its
     face, colour and sound behind its gear) and `TimerClock`, the clock it becomes in the bar when put away. Its other face,
-    the mouse eating an apple a minute to the cheese, is `MouseFace.tsx`, drawn by `lib/mouseTimer.ts` from `timerElapsed`.
+    the mouse eating an apple a minute to the cheese, is `MouseFace.tsx`, drawn by `lib/mouseTimer.ts` from `timerElapsed`; its third, the mouse at its desk writing a page a minute, is the same face drawing `lib/writerTimer.ts`.
   - `GroupActivity*.tsx`, `GroupStatusPicker.tsx`, `GroupExitModal.tsx`: Group Activity. Groups are made from the seats in
     `lib/seatGroups.ts` (pairs side by side, the room cut into patches, and `placeGroups`, which numbers them and lays their
     cards out like the room); `lib/groups.ts` deals them and Shuffle mixes. `GroupBuilder.tsx`: I'll choose, the names tapped

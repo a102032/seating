@@ -3003,6 +3003,85 @@ const scenarios = {
    * "How long?" from a tap on the stopped face, bites as the time goes, the cheese at time's up,
    * and the gear's choices fitting the face down to 1024x500.
    */
+  /**
+   * The writing mouse (2026-10-22, the class's idea): a page a minute at its desk, the blank pages the
+   * minutes left, the finished ones on the line, no sound while it works, and "Done!" at time's up
+   * with no orange, red or dance.
+   */
+  async 'the writing mouse'() {
+    const cls = makeClass('c1', 'Writer', 12, { pointsGoal: 50 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559], before: countSounds })
+    const card = page.locator('[data-timer-card]')
+    const scene = page.locator('.mouse-scene')
+    const hung = () =>
+      page.evaluate(
+        () =>
+          [...document.querySelectorAll('.mouse-scene use')].filter(
+            (u) => /page$/.test(u.getAttribute('href')) && u.getAttribute('display') !== 'none' && u.parentElement.tagName === 'g',
+          ).length,
+      )
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(800)
+    await card.getByRole('button', { name: 'Timer settings' }).click()
+    await page.waitForTimeout(800)
+    await card.getByRole('button', { name: 'Writing' }).click()
+    await page.waitForTimeout(300)
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')))
+    check('writing mouse: chosen behind the gear and kept', kept.face === 'writer', JSON.stringify(kept))
+    await page.screenshot({ path: `${SHOTS}/writer-gear.png` })
+    await card.getByRole('button', { name: 'Close the settings' }).click()
+    await page.waitForTimeout(800)
+    check('writing mouse: no speaker, since it makes no sound', (await card.locator('[data-timer-quiet]').count()) === 0)
+    await scene.click()
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: '5 minutes', exact: true }).click()
+    await page.waitForTimeout(800)
+    check(
+      'writing mouse: five minutes is five pages',
+      (await scene.getAttribute('aria-label')) === '5 pages left',
+      await scene.getAttribute('aria-label'),
+    )
+    await page.screenshot({ path: `${SHOTS}/writer-5.png` })
+    await page.clock.install()
+    await page.clock.pauseAt(Date.now() + 2000)
+    await card.getByRole('button', { name: 'Start', exact: true }).click()
+    const heard = await page.evaluate(() => window.__sounds.length)
+    await page.clock.runFor(30000)
+    const inked = await page.evaluate(
+      () =>
+        [...document.querySelectorAll('.mouse-scene path[stroke-dasharray]')].filter((p) => p.getAttribute('display') !== 'none').length,
+    )
+    check('writing mouse: half a minute in, the page is half written', inked > 3, String(inked))
+    await page.screenshot({ path: `${SHOTS}/writer-running.png` })
+    await page.clock.runFor(31000)
+    check(
+      'writing mouse: a minute in, a page on the line and nothing heard',
+      (await hung()) === 1 && (await page.evaluate(() => window.__sounds.length)) === heard,
+      `${await hung()} hung`,
+    )
+    // To time's up (5 minutes from the start), then the ending.
+    await page.clock.runFor(239000)
+    await page.clock.runFor(3000)
+    const done = await page.evaluate(() =>
+      [...document.querySelectorAll('.mouse-scene text')].some(
+        (t) => t.textContent === 'Done!' && t.parentElement.getAttribute('display') !== 'none',
+      ),
+    )
+    check(
+      'writing mouse: time\'s up, all five pages hung, "Done!", and no red or dance',
+      done &&
+        (await hung()) === 5 &&
+        (await page.locator('.mouse-up').count()) === 1 &&
+        !/\b(up|last|ending)\b/.test(await card.getAttribute('class')),
+      `${done} ${await hung()} ${await card.getAttribute('class')}`,
+    )
+    await page.screenshot({ path: `${SHOTS}/writer-done.png` })
+    await page.locator('.mouse-up').click({ force: true })
+    await page.clock.runFor(300)
+    check("writing mouse: a tap on Time's up puts the pages back", (await page.locator('.mouse-up').count()) === 0 && (await hung()) === 0)
+    check('writing mouse: no errors', page.errors.length === 0, page.errors[0] ?? '')
+  },
+
   async 'the mouse timer'() {
     const cls = makeClass('c1', 'Mouse', 12, { pointsGoal: 50 })
     const page = await open({ state: stateOf(cls), size: [1280, 559], before: countSounds })
@@ -3024,7 +3103,7 @@ const scenarios = {
     await card.getByRole('button', { name: 'Timer settings' }).click()
     await page.waitForTimeout(800)
     check('mouse timer: the dial has its colours', (await page.locator('.timer-colors').count()) === 1)
-    await card.getByRole('button', { name: 'Mouse' }).click()
+    await card.getByRole('button', { name: 'Apples' }).click()
     await page.waitForTimeout(300)
     const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')))
     check(
@@ -3110,7 +3189,11 @@ const scenarios = {
       up === 1 && (await apples()).whole === 0 && end < 1.3,
       `${up} ${end.toFixed(2)}`,
     )
-    check("mouse timer: time's up with no red and no dance", !/\b(up|last)\b/.test(await card.getAttribute('class')), await card.getAttribute('class'))
+    check(
+      "mouse timer: time's up with no red and no dance",
+      !/\b(up|last)\b/.test(await card.getAttribute('class')),
+      await card.getAttribute('class'),
+    )
     await page.screenshot({ path: `${SHOTS}/mouse-timer-up.png` })
     // Then it dances and eats the cheese, four chomps (2026-10-21, the class: "why didn't the mouse eat it?").
     const heard = await page.evaluate(() => window.__sounds.length)

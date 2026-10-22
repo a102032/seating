@@ -158,7 +158,11 @@ export const TOUR: TourPart[] = [
       { shot: 'timer', at: 'again', text: 'Again starts it over.' },
       { shot: 'timer', at: 'grip', text: 'Hold here and slide to move it.' },
       { shot: 'timer', at: 'size', text: 'Slide this corner to make it smaller.' },
-      { shot: 'timer', at: 'gear', text: 'Its look (the dial, or a mouse eating an apple a minute), color and time’s-up sound.' },
+      {
+        shot: 'timer',
+        at: 'gear',
+        text: 'Its look (the dial, a mouse eating an apple a minute, or a mouse writing a page a minute), color and time’s-up sound.',
+      },
       { shot: 'timer', at: 'minimise', text: 'Put it away: it becomes a small clock along the top, still counting.' },
       { shot: 'timer', at: 'off', text: 'Turn it off.' },
     ],

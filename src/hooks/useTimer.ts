@@ -15,8 +15,8 @@ import type { AlarmSound } from '../types'
 
 export type TimerColor = 'theme' | 'blue' | 'red' | 'green'
 export type TimerSound = AlarmSound | 'none'
-/** The dial, or the mouse eating an apple a minute (2026-10-20, `MouseFace.tsx`). */
-export type TimerFace = 'dial' | 'mouse'
+/** The dial, the mouse eating an apple a minute (2026-10-20, `MouseFace.tsx`), or the mouse writing a page a minute (2026-10-22). */
+export type TimerFace = 'dial' | 'mouse' | 'writer'
 /** Off; open big over the board; or put away as a clock in the goal meter's bar. */
 export type TimerView = 'off' | 'big' | 'bar'
 
@@ -75,7 +75,7 @@ function load(): Kept {
       seconds: Number.isInteger(raw.seconds) && raw.seconds >= 60 && raw.seconds <= 3600 ? raw.seconds : DEFAULTS.seconds,
       color: ['theme', 'blue', 'red', 'green'].includes(raw.color) ? raw.color : DEFAULTS.color,
       sound: SOUNDS.includes(raw.alarmSound) ? raw.alarmSound : DEFAULTS.sound,
-      face: raw.face === 'mouse' ? 'mouse' : DEFAULTS.face,
+      face: raw.face === 'mouse' || raw.face === 'writer' ? raw.face : DEFAULTS.face,
       quiet: raw.quiet === true,
       size: typeof raw.size === 'number' ? Math.min(1, Math.max(TIMER_MIN_SIZE, raw.size)) : DEFAULTS.size,
       pos:
@@ -92,7 +92,15 @@ function save(kept: Kept) {
   try {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ seconds: kept.seconds, color: kept.color, alarmSound: kept.sound, face: kept.face, quiet: kept.quiet, size: kept.size, pos: kept.pos }),
+      JSON.stringify({
+        seconds: kept.seconds,
+        color: kept.color,
+        alarmSound: kept.sound,
+        face: kept.face,
+        quiet: kept.quiet,
+        size: kept.size,
+        pos: kept.pos,
+      }),
     )
   } catch {
     // A board that won't store it starts at the defaults next time.

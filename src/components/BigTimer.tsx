@@ -33,7 +33,8 @@ const COLOR_CHOICES: { id: TimerColor; label: string }[] = [
 ]
 const FACE_CHOICES: { id: TimerFace; label: string }[] = [
   { id: 'dial', label: 'Dial' },
-  { id: 'mouse', label: 'Mouse' },
+  { id: 'mouse', label: 'Apples' },
+  { id: 'writer', label: 'Writing' },
 ]
 const SOUND_CHOICES: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster', 'none']
 
@@ -293,7 +294,7 @@ function TimerCard({ t }: { t: TimerState }) {
         ) : (
           <>
             {/* The face's sounds on or off, where the class's work is (2026-10-22, the teacher): the dial makes none. */}
-            {t.face !== 'dial' && (
+            {t.face === 'mouse' && (
               <button
                 type="button"
                 className={clsx('timer-bare', t.quiet && 'quiet')}
@@ -328,8 +329,8 @@ function TimerCard({ t }: { t: TimerState }) {
       <div className="timer-face">
         {t.settings ? (
           <TimerChoices t={t} />
-        ) : t.face === 'mouse' ? (
-          <MouseFace t={t} guard={() => fresh()} onUp={timer.again} onPick={timer.setMinutes} />
+        ) : t.face !== 'dial' ? (
+          <MouseFace key={t.face} kind={t.face} t={t} guard={() => fresh()} onUp={timer.again} onPick={timer.setMinutes} />
         ) : (
           <Dial t={t} onFace={onFace} onUp={act(timer.again)} />
         )}
@@ -497,7 +498,7 @@ function TimerChoices({ t }: { t: TimerState }) {
                 timer.setFace(id)
               }}
             >
-              {id === 'dial' ? <DialPicture /> : <ApplePicture />}
+              {id === 'dial' ? <DialPicture /> : id === 'mouse' ? <ApplePicture /> : <PencilPicture />}
               <span>{label}</span>
             </button>
           ))}
@@ -679,6 +680,21 @@ function ApplePicture() {
         <circle cx="20.4" cy="11" r="4.2" fill="#000" />
       </mask>
       <path d="M12 6.5c0-1.5.4-2.7 1.4-3.6" stroke="#6b3f22" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** The writing choice's picture: a yellow pencil, in its own colours like the apple. */
+function PencilPicture() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <g transform="rotate(45 12 12)">
+        <path d="M12 21.5 L9.6 16.5 L14.4 16.5 Z" fill="#f2d3a6" stroke="#fff" strokeWidth="0.9" paintOrder="stroke" />
+        <path d="M12 21.5 L11.1 19.6 L12.9 19.6 Z" fill="#3a3550" />
+        <rect x="9.6" y="5.5" width="4.8" height="11" fill="#ffc531" stroke="#fff" strokeWidth="0.9" paintOrder="stroke" />
+        <rect x="9.5" y="3.6" width="5" height="2.2" fill="#c9cbd6" />
+        <path d="M9.6 3.6 V2.6 Q12 0.8 14.4 2.6 V3.6 Z" fill="#f48aa0" />
+      </g>
     </svg>
   )
 }
