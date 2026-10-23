@@ -51,9 +51,9 @@ export function MouseFace({
     if (kind === 'mouse') {
       primeMouseBite()
       scene = new MouseScene(svgRef.current!, id, {
-        // Quiet with the strip's speaker off, or with No Sound (a test next door).
-        onBite: () => !timerNow().quiet && timerNow().sound !== 'none' && playMouseBite(),
-        onHic: () => !timerNow().quiet && timerNow().sound !== 'none' && playMouseHic(),
+        // Quiet with the strip's speaker off.
+        onBite: () => !timerNow().quiet && playMouseBite(),
+        onHic: () => !timerNow().quiet && playMouseHic(),
         reduceMotion,
       })
     } else scene = new WriterScene(svgRef.current!, id, { reduceMotion })

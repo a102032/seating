@@ -15,6 +15,7 @@ import {
 import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 import { ALARM_SOUND_LABELS, playPickerTick } from '../lib/sound'
 import { MouseFace } from './MouseFace'
+import { Switch } from './ui/switch'
 import { MoveHandIcon } from './MoveHandIcon'
 import { MinimizeIcon } from './RailIcons'
 
@@ -36,7 +37,7 @@ const FACE_CHOICES: { id: TimerFace; label: string }[] = [
   { id: 'mouse', label: 'Apples' },
   { id: 'writer', label: 'Writing' },
 ]
-const SOUND_CHOICES: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster', 'none']
+const SOUND_CHOICES: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster']
 
 let lastChange = 0
 /** True when a tap may act: not the board's second touch of a tap that just changed the card. */
@@ -526,19 +527,24 @@ function TimerChoices({ t }: { t: TimerState }) {
           ))}
         </div>
       )}
-      <div className="timer-heading">Time&rsquo;s up sound</div>
-      <div className="timer-sounds">
+      {/* The alarm's own switch, beside its heading (2026-10-23, the teacher); off, the sounds are greyed,
+          and a tap on one turns it back on with that sound. */}
+      <div className="timer-heading timer-heading-row">
+        <span>Time&rsquo;s up sound</span>
+        <Switch checked={t.alarmOn} onCheckedChange={(on) => timer.setAlarmOn(on)} aria-label="Time’s up sound" className="timer-switch" />
+      </div>
+      <div className={clsx('timer-sounds', !t.alarmOn && 'off')}>
         {SOUND_CHOICES.map((sound) => (
           <button
             key={sound}
             type="button"
             data-slot="button"
-            className={clsx('timer-sound', t.sound === sound && 'on', sound === 'none' && 'wide')}
-            aria-pressed={t.sound === sound}
+            className={clsx('timer-sound', t.alarmOn && t.sound === sound && 'on')}
+            aria-pressed={t.alarmOn && t.sound === sound}
             onClick={() => timer.setSound(sound)}
           >
-            {sound === 'none' ? <VolumeX /> : <Volume2 />}
-            <span>{sound === 'none' ? 'No Sound' : ALARM_SOUND_LABELS[sound]}</span>
+            <Volume2 />
+            <span>{ALARM_SOUND_LABELS[sound]}</span>
           </button>
         ))}
       </div>

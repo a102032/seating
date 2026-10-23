@@ -14,7 +14,7 @@ import type { AlarmSound } from '../types'
  */
 
 export type TimerColor = 'theme' | 'blue' | 'red' | 'green'
-export type TimerSound = AlarmSound | 'none'
+export type TimerSound = AlarmSound
 /** The dial, the mouse eating an apple a minute (2026-10-20, `MouseFace.tsx`), or the mouse writing a page a minute (2026-10-22). */
 export type TimerFace = 'dial' | 'mouse' | 'writer'
 /** Off; open big over the board; or put away as a clock in the goal meter's bar. */
@@ -35,10 +35,15 @@ interface Kept {
   seconds: number
   color: TimerColor
   sound: TimerSound
+  /**
+   * The time's-up sound rings (2026-10-23, the teacher: a switch on the sounds themselves, in place
+   * of No Sound among them, which gave no sound when tapped and so seemed to do nothing).
+   */
+  alarmOn: boolean
   face: TimerFace
   /**
    * The face's own sounds while it runs are off (the speaker in the strip, 2026-10-22: the class
-   * found the mouse's bites distracting during independent work). The alarm at time's up still rings.
+   * found the mouse's bites distracting during independent work). The alarm has its own switch, `alarmOn`.
    */
   quiet: boolean
   /** The card's size, TIMER_MIN_SIZE to 1. */
@@ -62,8 +67,8 @@ export interface TimerState extends Kept {
 
 const KEY = 'seating-chart-timer-settings-v1'
 // Classroom Screen's starts at 10 minutes, and so does this.
-const DEFAULTS: Kept = { seconds: 600, color: 'theme', sound: 'ding', face: 'dial', quiet: false, size: 1, pos: null }
-const SOUNDS: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster', 'none']
+const DEFAULTS: Kept = { seconds: 600, color: 'theme', sound: 'ding', alarmOn: true, face: 'dial', quiet: false, size: 1, pos: null }
+const SOUNDS: TimerSound[] = ['ding', 'chime', 'bell', 'trainWhistle', 'guitar', 'rooster']
 
 function load(): Kept {
   try {
@@ -75,8 +80,10 @@ function load(): Kept {
       seconds: Number.isInteger(raw.seconds) && raw.seconds >= 60 && raw.seconds <= 3600 ? raw.seconds : DEFAULTS.seconds,
       color: ['theme', 'blue', 'red', 'green'].includes(raw.color) ? raw.color : DEFAULTS.color,
       sound: SOUNDS.includes(raw.alarmSound) ? raw.alarmSound : DEFAULTS.sound,
+      // No Sound was a seventh sound until 2026-10-23, and quieted the mouse's bites too.
+      alarmOn: raw.alarmSound !== 'none' && raw.alarmOn !== false,
       face: raw.face === 'mouse' || raw.face === 'writer' ? raw.face : DEFAULTS.face,
-      quiet: raw.quiet === true,
+      quiet: raw.quiet === true || raw.alarmSound === 'none',
       size: typeof raw.size === 'number' ? Math.min(1, Math.max(TIMER_MIN_SIZE, raw.size)) : DEFAULTS.size,
       pos:
         pos && typeof pos.x === 'number' && typeof pos.y === 'number'
@@ -96,6 +103,7 @@ function save(kept: Kept) {
         seconds: kept.seconds,
         color: kept.color,
         alarmSound: kept.sound,
+        alarmOn: kept.alarmOn,
         face: kept.face,
         quiet: kept.quiet,
         size: kept.size,
@@ -119,7 +127,7 @@ let tick: ReturnType<typeof setInterval> | null = null
 
 function set(patch: Partial<TimerState>) {
   const next = { ...state, ...patch }
-  const keptChanged = (['seconds', 'color', 'sound', 'face', 'quiet', 'size', 'pos'] as const).some((k) => next[k] !== state[k])
+  const keptChanged = (['seconds', 'color', 'sound', 'alarmOn', 'face', 'quiet', 'size', 'pos'] as const).some((k) => next[k] !== state[k])
   state = next
   if (keptChanged) save(state)
   listeners.forEach((l) => l())
@@ -146,7 +154,7 @@ function onTick() {
   upAt = Date.now()
   // Time's up comes back on the floating window even if it was tapped away, so the class sees it.
   set({ left: 0, running: false, up: true, floatHidden: false })
-  if (state.sound !== 'none') playAlarm(state.sound)
+  if (state.alarmOn) playAlarm(state.sound)
 }
 
 export const timer = {
@@ -223,14 +231,19 @@ export const timer = {
   setFace(face: TimerFace) {
     set({ face })
   },
-  /** A tap on a sound plays it and picks it. */
   /** The strip's speaker: the face's sounds on or off. */
   toggleQuiet() {
     set({ quiet: !state.quiet })
   },
+  /** A tap on a sound plays it and picks it, and turns the alarm on if it was off: no tap does nothing. */
   setSound(sound: TimerSound) {
-    set({ sound })
-    if (sound !== 'none') playAlarm(sound)
+    set({ sound, alarmOn: true })
+    playAlarm(sound)
+  },
+  /** The switch beside "Time's up sound"; turned on, it plays the sound picked, so the teacher hears it is back. */
+  setAlarmOn(on: boolean) {
+    set({ alarmOn: on })
+    if (on) playAlarm(state.sound)
   },
   /** Where the card was put down, and how big it was made. */
   place(pos: { x: number; y: number }, size: number) {

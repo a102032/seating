@@ -3028,6 +3028,25 @@ const scenarios = {
     await page.waitForTimeout(300)
     const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')))
     check('writing mouse: chosen behind the gear and kept', kept.face === 'writer', JSON.stringify(kept))
+    // The time's-up sound has its own switch (2026-10-23): off greys the sounds, and a tap on one turns it back on with that one.
+    const timerKept = () => page.evaluate(() => JSON.parse(localStorage.getItem('seating-chart-timer-settings-v1')))
+    await card.getByRole('switch', { name: 'Time’s up sound' }).click()
+    await page.waitForTimeout(300)
+    check(
+      "time's up sound: the switch turns it off, kept, and No Sound is gone",
+      (await timerKept()).alarmOn === false &&
+        (await card.locator('.timer-sounds.off').count()) === 1 &&
+        (await card.getByRole('button', { name: 'No Sound' }).count()) === 0,
+    )
+    await page.screenshot({ path: `${SHOTS}/timer-alarm-off.png` })
+    await card.getByRole('button', { name: 'Chime' }).click()
+    await page.waitForTimeout(300)
+    const back = await timerKept()
+    check(
+      "time's up sound: a tap on Chime turns it back on with Chime",
+      back.alarmOn === true && back.alarmSound === 'chime',
+      JSON.stringify(back),
+    )
     await page.screenshot({ path: `${SHOTS}/writer-gear.png` })
     await card.getByRole('button', { name: 'Close the settings' }).click()
     await page.waitForTimeout(800)

@@ -1242,9 +1242,35 @@ button {
   flex: none;
 }
 
-.timer-sound.wide {
-  grid-column: span 2;
-  justify-content: center;
+.timer-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* The alarm's switch, the size of the card's other buttons rather than a settings window's. */
+.timer-switch {
+  height: max(24px, calc(var(--D) * 0.075));
+  width: max(44px, calc(var(--D) * 0.135));
+}
+
+.timer-switch > span {
+  width: calc(max(24px, calc(var(--D) * 0.075)) - 4px);
+  height: calc(max(24px, calc(var(--D) * 0.075)) - 4px);
+}
+
+.timer-switch[data-state='checked'] > span {
+  translate: calc(max(44px, calc(var(--D) * 0.135)) - max(24px, calc(var(--D) * 0.075)) - 2px) 0;
+  transform: none;
+}
+
+.timer-switch[data-state='unchecked'] {
+  background: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+}
+
+/* With the alarm off the sounds are greyed, but still answer a tap (it turns the alarm back on). */
+.timer-sounds.off .timer-sound {
+  opacity: 0.45;
 }
 
 .timer-sound.on {
