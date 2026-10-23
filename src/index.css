@@ -989,6 +989,27 @@ button {
   height: var(--tap);
 }
 
+/* Done on the strip while the choices are open, as Class Settings has it. */
+.timer-done {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  height: var(--tap);
+  padding: 0 0.9em;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
+  font-size: max(15px, calc(var(--D) * 0.05));
+}
+
+.timer-done svg {
+  width: 1.1em;
+  height: 1.1em;
+  stroke-width: 3;
+}
+
 .timer-bare.on {
   color: var(--primary);
 }

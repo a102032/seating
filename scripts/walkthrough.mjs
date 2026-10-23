@@ -2867,7 +2867,7 @@ const scenarios = {
     await pause()
     await card.getByRole('button', { name: 'Green', exact: true }).click()
     await pause()
-    await card.getByRole('button', { name: 'Close the settings' }).click()
+    await card.getByRole('button', { name: 'Done' }).click()
     await page.waitForTimeout(300)
     const colours = await page.evaluate(() => ({
       wedge: getComputedStyle(document.querySelector('.timer-wedge')).fill,
@@ -3110,7 +3110,7 @@ const scenarios = {
       JSON.stringify(back),
     )
     await page.screenshot({ path: `${SHOTS}/writer-gear.png` })
-    await card.getByRole('button', { name: 'Close the settings' }).click()
+    await card.getByRole('button', { name: 'Done' }).click()
     await page.waitForTimeout(800)
     check('writing mouse: no speaker, since it makes no sound', (await card.locator('[data-timer-quiet]').count()) === 0)
     await scene.click()
@@ -3193,7 +3193,7 @@ const scenarios = {
       JSON.stringify(kept),
     )
     await page.screenshot({ path: `${SHOTS}/mouse-timer-gear.png` })
-    await card.getByRole('button', { name: 'Close the settings' }).click()
+    await card.getByRole('button', { name: 'Done' }).click()
     await page.waitForTimeout(800)
     const ten = await apples()
     check(
@@ -3679,7 +3679,7 @@ const scenarios = {
         await look('timer choices')
         await page.waitForTimeout(800)
         // The choices' X closes them, leaving the clock (2026-10-21); then away into the bar.
-        await page.locator('[data-timer-card] button[aria-label="Close the settings"]').click()
+        await page.locator('[data-timer-card] button.timer-done').click()
         await page.waitForTimeout(800)
         await page.locator('[data-timer-card] button[aria-label="Put the timer away"]').click()
         await page.waitForTimeout(500)

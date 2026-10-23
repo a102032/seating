@@ -281,16 +281,12 @@ function TimerCard({ t }: { t: TimerState }) {
           <MoveHandIcon />
         </span>
         <span className="grow self-stretch" />
-        {/* With the choices open, the strip has only X, which closes them and leaves the clock (2026-10-21, the teacher). */}
+        {/* With the choices open, the strip has only Done, which closes them and leaves the clock: X went
+            (2026-10-21), then Done took its place (2026-10-23, the teacher), as Class Settings has, since
+            every choice is kept the moment it is made. */}
         {t.settings ? (
-          <button
-            type="button"
-            className="timer-bare"
-            onClick={act(timer.toggleSettings)}
-            aria-label="Close the settings"
-            title="Close the settings"
-          >
-            <CloseIcon />
+          <button type="button" data-slot="button" className="timer-done" onClick={act(timer.toggleSettings)} title="Close the settings">
+            <Check /> Done
           </button>
         ) : (
           <>
