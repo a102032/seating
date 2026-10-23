@@ -1113,6 +1113,30 @@ button {
   text-align: center;
 }
 
+.timer-time-tap {
+  border: 0;
+  background: none;
+  padding: 0.08em 0;
+  border-radius: 0.2em;
+  color: inherit;
+}
+
+.timer-time-tap:disabled {
+  opacity: 1;
+}
+
+/* The box to type the minutes in: the time's own size, underlined so it reads as something to fill in. */
+.timer-type {
+  width: 3.1em;
+  border: 0;
+  border-bottom: max(2px, calc(var(--D) * 0.008)) solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  color: inherit;
+  font-family: inherit;
+  outline: none;
+  border-radius: 0.15em 0.15em 0 0;
+}
+
 .timer-step {
   width: max(28px, calc(var(--D) * 0.125));
   aspect-ratio: 1;

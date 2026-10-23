@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Check, Minus, Plus, RotateCcw, Settings, Volume2, VolumeX } from 'lucide-react'
-import { useEffect, useRef, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import {
   TIMER_COLORS,
   TIMER_MIN_SIZE,
@@ -350,36 +350,7 @@ function TimerCard({ t }: { t: TimerState }) {
           >
             <RotateCcw />
           </button>
-          <div className="timer-set">
-            {/* They hide while it runs: the time is set before it starts. */}
-            <button
-              type="button"
-              data-slot="button"
-              className="timer-step"
-              disabled={t.running}
-              onClick={act(() => {
-                playPickerTick()
-                timer.step(-1)
-              }, STEP_GUARD_MS)}
-              aria-label="A minute less"
-            >
-              <Minus />
-            </button>
-            <span className="timer-time">{timeText(t.left)}</span>
-            <button
-              type="button"
-              data-slot="button"
-              className="timer-step"
-              disabled={t.running}
-              onClick={act(() => {
-                playPickerTick()
-                timer.step(1)
-              }, STEP_GUARD_MS)}
-              aria-label="A minute more"
-            >
-              <Plus />
-            </button>
-          </div>
+          <TimeSetter t={t} />
           {t.running ? (
             <button type="button" data-slot="button" className="timer-round go" onClick={act(timer.pause)} aria-label="Pause" title="Pause">
               <PauseIcon />
@@ -644,6 +615,132 @@ export function FloatClock({ win, strip, tap }: { win: Window; strip: boolean; t
           {running ? <PauseIcon /> : <PlayIcon />}
         </button>
       )}
+    </div>
+  )
+}
+
+/** How long a finger rests on − or + before the time starts running, and how fast it then runs. */
+const HOLD_MS = 450
+const REPEAT_SLOW_MS = 150
+const REPEAT_FAST_MS = 60
+
+/**
+ * The time and its − and + (2026-10-23, the teacher: the time needs changing quickly). A tap on −
+ * or + moves it a minute; a finger held on one runs it on, a minute at a time and faster the
+ * longer it is held, until it is lifted. A tap on the time opens a box to type the minutes in
+ * (1 to 60), with the board's own keyboard; Enter or a tap away sets it, Esc leaves it as it was.
+ * Only while stopped: the time is set before it starts.
+ */
+function TimeSetter({ t }: { t: TimerState }) {
+  const [typing, setTyping] = useState(false)
+  const [draft, setDraft] = useState('')
+  // Running, the box closes: a time being typed belongs to a stopped clock.
+  if (typing && t.running) setTyping(false)
+  const hold = useRef<{ wait: number; repeat: number; held: boolean }>({ wait: 0, repeat: 0, held: false })
+
+  const stopHold = () => {
+    window.clearTimeout(hold.current.wait)
+    window.clearTimeout(hold.current.repeat)
+  }
+  useEffect(() => stopHold, [])
+
+  const startHold = (by: 1 | -1) => (e: PointerEvent<HTMLButtonElement>) => {
+    // Only the first finger: the board's second touch must not start a second run.
+    if (!e.isPrimary || e.button > 0) return
+    stopHold()
+    hold.current.held = false
+    const started = performance.now()
+    const tick = () => {
+      hold.current.held = true
+      playPickerTick()
+      timer.step(by)
+      const gap = performance.now() - started > 1500 ? REPEAT_FAST_MS : REPEAT_SLOW_MS
+      hold.current.repeat = window.setTimeout(tick, gap)
+    }
+    hold.current.wait = window.setTimeout(tick, HOLD_MS)
+  }
+
+  const tap = (by: 1 | -1) => () => {
+    stopHold()
+    // A hold already moved the time: the click that ends it moves nothing more.
+    if (hold.current.held) {
+      hold.current.held = false
+      return
+    }
+    if (!fresh(STEP_GUARD_MS)) return
+    playPickerTick()
+    timer.step(by)
+  }
+
+  const commit = () => {
+    const minutes = Number(draft.trim())
+    if (Number.isInteger(minutes) && minutes >= 1 && minutes <= 60) {
+      if (minutes * 60 !== t.left) playPickerTick()
+      timer.setMinutes(minutes)
+    }
+    setTyping(false)
+  }
+
+  const step = (by: 1 | -1, label: string) => (
+    <button
+      type="button"
+      data-slot="button"
+      className="timer-step"
+      disabled={t.running}
+      onPointerDown={startHold(by)}
+      onPointerUp={stopHold}
+      onPointerCancel={stopHold}
+      onPointerLeave={stopHold}
+      onClick={tap(by)}
+      aria-label={label}
+      title={`${label} (hold to keep going)`}
+      style={{ touchAction: 'none' }}
+    >
+      {by < 0 ? <Minus /> : <Plus />}
+    </button>
+  )
+
+  return (
+    <div className="timer-set">
+      {/* − and + hide while it runs: the time is set before it starts. */}
+      {step(-1, 'A minute less')}
+      {typing ? (
+        <input
+          className="timer-time timer-type"
+          // A number pad on the board's keyboard.
+          inputMode="numeric"
+          maxLength={2}
+          autoFocus
+          value={draft}
+          aria-label="Minutes"
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setDraft(e.currentTarget.value.replace(/\D/g, ''))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+            if (e.key === 'Escape') {
+              setDraft('')
+              setTyping(false)
+            }
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="timer-time timer-time-tap"
+          disabled={t.running}
+          onClick={() => {
+            if (!fresh()) return
+            setDraft(String(Math.max(1, Math.round(t.left / 60))))
+            setTyping(true)
+          }}
+          aria-label={`${timeText(t.left)}. Tap to type the minutes`}
+          title="Tap to type the minutes"
+        >
+          {timeText(t.left)}
+        </button>
+      )}
+      {step(1, 'A minute more')}
     </div>
   )
 }

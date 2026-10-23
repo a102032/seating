@@ -153,7 +153,7 @@ export const TOUR: TourPart[] = [
     stops: [
       { shot: 'timer', at: 'rail', text: 'The hourglass opens the timer.' },
       { shot: 'timer', at: 'face', text: 'Tap the face to set the time, to the nearest minute.' },
-      { shot: 'timer', at: 'minusplus', text: 'Or a minute less or more.' },
+      { shot: 'timer', at: 'minusplus', text: 'Or a minute less or more: hold one to keep going, or tap the time to type the minutes.' },
       { shot: 'timer', at: 'start', text: 'Start, and pause.' },
       { shot: 'timer', at: 'again', text: 'Again starts it over.' },
       { shot: 'timer', at: 'grip', text: 'Hold here and slide to move it.' },

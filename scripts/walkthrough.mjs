@@ -3008,6 +3008,68 @@ const scenarios = {
    * minutes left, the finished ones on the line, no sound while it works, and "Done!" at time's up
    * with no orange, red or dance.
    */
+  /**
+   * Setting the time quickly (2026-10-23, the teacher): a finger held on − or + keeps the time
+   * moving until it is lifted, and a tap on the time opens a box to type the minutes in.
+   */
+  async 'setting the time quickly'() {
+    const cls = makeClass('c1', 'Quick', 12, { pointsGoal: 50 })
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    const card = page.locator('[data-timer-card]')
+    const time = () => card.locator('.timer-time').first().textContent()
+    const mins = async () => Number((await time()).split(':')[0])
+    await panelButton(page, 'Timer').click()
+    await page.waitForTimeout(800)
+    const start = await mins()
+    const hold = async (name, ms) => {
+      const b = await card.getByRole('button', { name }).boundingBox()
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+      await page.mouse.down()
+      await page.waitForTimeout(ms)
+      await page.mouse.up()
+    }
+    await hold('A minute more', 1400)
+    const afterUp = await mins()
+    await page.waitForTimeout(600)
+    check(
+      'quick time: holding + runs the time up, and stops when let go',
+      afterUp >= start + 4 && (await mins()) === afterUp,
+      `${start} -> ${afterUp} -> ${await mins()}`,
+    )
+    await hold('A minute less', 1100)
+    const afterDown = await mins()
+    check('quick time: holding − runs it down', afterDown <= afterUp - 3, `${afterUp} -> ${afterDown}`)
+    await page.waitForTimeout(800)
+    await card.getByRole('button', { name: 'A minute more' }).click()
+    await page.waitForTimeout(400)
+    check('quick time: a tap on + is still one minute', (await mins()) === afterDown + 1, `${afterDown} -> ${await mins()}`)
+    await page.waitForTimeout(800)
+    await card.locator('.timer-time-tap').click()
+    await page.waitForTimeout(300)
+    const box = card.getByRole('textbox', { name: 'Minutes' })
+    check('quick time: a tap on the time opens a box to type in', (await box.count()) === 1)
+    await page.screenshot({ path: `${SHOTS}/timer-type.png` })
+    await box.fill('25')
+    await box.press('Enter')
+    await page.waitForTimeout(300)
+    check('quick time: typing 25 sets 25:00', (await time()) === '25:00', await time())
+    await page.waitForTimeout(800)
+    await card.locator('.timer-time-tap').click()
+    await page.waitForTimeout(300)
+    await box.fill('99')
+    await box.press('Enter')
+    await page.waitForTimeout(300)
+    check('quick time: a time past the hour changes nothing', (await time()) === '25:00', await time())
+    await page.waitForTimeout(800)
+    await card.locator('.timer-time-tap').click()
+    await page.waitForTimeout(300)
+    await box.fill('7')
+    await box.press('Escape')
+    await page.waitForTimeout(300)
+    check('quick time: Esc leaves it as it was', (await time()) === '25:00' && (await box.count()) === 0, await time())
+    check('quick time: no errors', page.errors.length === 0, page.errors[0] ?? '')
+  },
+
   async 'the writing mouse'() {
     const cls = makeClass('c1', 'Writer', 12, { pointsGoal: 50 })
     const page = await open({ state: stateOf(cls), size: [1280, 559], before: countSounds })
