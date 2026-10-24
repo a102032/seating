@@ -952,3 +952,42 @@ export function playJarFull() {
     playTone(ctx, master, { frequency, start: i * 0.11, duration: i === 4 ? 1.1 : 0.3, type: 'triangle', peakGain: 0.16 }),
   )
 }
+
+/**
+ * The marble wheel landing (2026-10-24, the teacher: the spin landed flat). Bigger for the rarer
+ * wedges, and every one short of the full jar's prize, which keeps the fanfare: a bright ta-da for
+ * 2, 3 or 4 marbles; a crackle and a gold run for the Power Marble; a drum roll and a long run with
+ * a ringing top for the Mega. All above 400Hz.
+ */
+export function playSpinWin(kind: 'plain' | 'power' | 'mega') {
+  const { ctx, master } = cardContext()
+  if (kind === 'plain') {
+    ;[783.99, 1046.5, 1318.5, 1567.98].forEach((frequency, i) =>
+      playTone(ctx, master, { frequency, start: i * 0.08, duration: i === 3 ? 0.7 : 0.18, type: 'triangle', peakGain: 0.22 }),
+    )
+    playTone(ctx, master, { frequency: 3136, start: 0.3, duration: 0.5, type: 'sine', peakGain: 0.06 })
+    return
+  }
+  if (kind === 'power') {
+    playKnock(ctx, master, 0, 0.25, 3000, 2, 0.25)
+    playTone(ctx, master, { frequency: 700, endFrequency: 2100, start: 0, duration: 0.28, type: 'sawtooth', peakGain: 0.04 })
+    ;[1046.5, 1318.5, 1567.98, 2093, 2637].forEach((frequency, i) =>
+      playTone(ctx, master, { frequency, start: 0.22 + i * 0.07, duration: i === 4 ? 0.9 : 0.2, type: 'triangle', peakGain: 0.22 }),
+    )
+    playTone(ctx, master, { frequency: 3520, start: 0.55, duration: 0.7, type: 'sine', peakGain: 0.08 })
+    return
+  }
+  // The Mega: a drum roll quickening, then up two octaves to a ringing top.
+  for (let i = 0; i < 10; i++) playKnock(ctx, master, i * 0.055, 0.05, 1200 + i * 30, 3, 0.2 + i * 0.02)
+  ;[523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98, 2093].forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: 0.6 + i * 0.08, duration: i === 6 ? 1.2 : 0.22, type: 'triangle', peakGain: 0.2 })
+    playTone(ctx, master, { frequency: frequency * 2, start: 0.6 + i * 0.08, duration: i === 6 ? 0.9 : 0.16, type: 'sine', peakGain: 0.04 })
+  })
+}
+
+/** A firework bursting over the wheel: a soft crack and a fizz. */
+export function playFireworkPop() {
+  const { ctx, master } = cardContext()
+  playNoiseBurst(ctx, master, 0, 0.09, 0.16)
+  playTone(ctx, master, { frequency: 2600, endFrequency: 1200, start: 0.02, duration: 0.35, type: 'sine', peakGain: 0.05 })
+}

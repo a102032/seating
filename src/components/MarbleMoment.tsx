@@ -1,10 +1,25 @@
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { drawJarBack, drawJarFront, jarPicture, marbleWheelSVG } from '../lib/marbleArt'
+import { burst, firework } from '../lib/burst'
+import { drawJarBack, drawJarFront, jarPicture, marbleSVG, marbleWheelSVG } from '../lib/marbleArt'
 import { MarbleLayer } from '../lib/marbleLayer'
 import { MarbleJarWorld } from '../lib/marblePhysics'
-import { JAR, WEDGES, WEDGE_WORDS, jarIsFull, marblesFor, spinLanding, type MarbleJarState, type SavedMarble } from '../lib/marbles'
+import {
+  JAR,
+  MARBLE_COLOURS,
+  MEGA_COLOUR,
+  POWER_COLOUR,
+  RADIUS,
+  WEDGES,
+  WEDGE_WORDS,
+  jarIsFull,
+  marblesFor,
+  spinLanding,
+  type MarbleJarState,
+  type SavedMarble,
+  type WedgeId,
+} from '../lib/marbles'
 import { pointerSVG } from '../lib/questArt'
 import {
   playJarFull,
@@ -15,6 +30,8 @@ import {
   playMegaThud,
   playPickerLand,
   playPickerTick,
+  playFireworkPop,
+  playSpinWin,
   primeMarbles,
 } from '../lib/sound'
 
@@ -26,6 +43,18 @@ import {
  * it just to look. Loaded as its own chunk, with the physics, only when a class has the Marble Jar.
  * Every step waits for a tap; nothing ends on a clock.
  */
+
+/** The marbles a wedge won, small, beside the banner's words. */
+function winMarbles(id: WedgeId): string {
+  const kinds = marblesFor(id)
+  return kinds
+    .map((kind, n) => {
+      const colour = kind === 'power' ? POWER_COLOUR : kind === 'mega' ? MEGA_COLOUR : MARBLE_COLOURS[(n * 3) % MARBLE_COLOURS.length]
+      const size = kind === 'mega' ? 1.2 : kind === 'power' ? 1 : 0.75
+      return `<svg viewBox="-11 -11 22 22" style="width:${size}em;height:${size}em">${marbleSVG(colour, { r: 10, bolt: kind === 'power', swirl: kind === 'mega' })}</svg>`
+    })
+    .join('')
+}
 
 export type MarbleMode = 'spin' | 'look' | 'empty'
 
@@ -73,6 +102,9 @@ export default function MarbleMoment({
   const [pointerHtml] = useState(() => ({ __html: pointerSVG() }))
   const [spinsLeft, setSpinsLeft] = useState(mode === 'spin' ? Math.max(1, jar.spins) : 0)
   const [spun, setSpun] = useState(false)
+  /** What the wheel last landed on, shown as a banner until the next spin. */
+  const [win, setWin] = useState<WedgeId | null>(null)
+  const wheelBoxRef = useRef<HTMLDivElement>(null)
   const [step, setStep] = useState<Step>(() => (mode === 'spin' ? 'ready' : jarIsFull(jar) ? 'full' : 'settled'))
   const [title, setTitle] = useState(() =>
     mode === 'spin' ? 'Spin for marbles!' : mode === 'empty' ? 'A new jar!' : jarIsFull(jar) ? 'Our jar is full!' : 'Our jar',
@@ -222,6 +254,7 @@ export default function MarbleMoment({
     if (step !== 'ready' || performance.now() - shownAt.current < GUARD_MS) return
     setStep('spinning')
     resetFaces()
+    setWin(null)
     say('Spinning...')
     const { wedge, at } = spinLanding()
     const start = angle.current
@@ -267,13 +300,88 @@ export default function MarbleMoment({
       { duration: 420, delay: 120, easing: 'ease-out', fill: 'backwards' },
     )
     const id = WEDGES[i].id
+    const kind = id === 'power' || id === 'mega' ? id : 'plain'
     say(WEDGE_WORDS[id])
-    later(() => {
-      setStep('pouring')
-      worldRef.current?.pour(marblesFor(id))
-      afterSettle.current = poured
-      wake()
-    }, 700)
+    setWin(id)
+    celebrate(kind)
+    // The marbles leap from the wedge across into the jar's mouth, then pour in.
+    later(
+      () =>
+        flyToJar(r?.querySelector('[data-pop]') ?? null, marblesFor(id), () => {
+          setStep('pouring')
+          worldRef.current?.pour(marblesFor(id))
+          afterSettle.current = poured
+          wake()
+        }),
+      kind === 'mega' ? 1500 : 900,
+    )
+  }
+
+  /**
+   * The wheel's landing, scaled to how rare it is (2026-10-24, the teacher: it landed flat). Confetti
+   * from the wheel for 2, 3 or 4 marbles; gold stars for the Power Marble; fireworks over the wheel
+   * and a shake for the Mega. All short of the full jar's prize, which keeps the fanfare and the GIF.
+   */
+  function celebrate(kind: 'plain' | 'power' | 'mega') {
+    playSpinWin(kind)
+    const box = wheelBoxRef.current?.getBoundingClientRect()
+    if (!box) return
+    const cx = box.left + box.width / 2
+    const cy = box.top + box.height / 2
+    wheelBoxRef.current?.animate(
+      kind === 'mega'
+        ? [0, -1.5, 1.5, -1, 1, 0].map((d, n) => ({ transform: `scale(${n === 0 || n === 5 ? 1 : 1.06}) rotate(${d}deg)` }))
+        : [{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }],
+      { duration: kind === 'mega' ? 600 : 420, easing: 'ease-out' },
+    )
+    if (kind === 'plain') return burst(cx, cy, 70, false, 1)
+    if (kind === 'power') {
+      playMarbleZap()
+      return burst(cx, cy, 60, true, 1.1, true)
+    }
+    burst(cx, cy, 50, false, 1.2)
+    const spots: [number, number, string][] = [
+      [box.left + box.width * 0.15, box.top + box.height * 0.05, '#f472b6'],
+      [box.left + box.width * 0.85, box.top + box.height * 0.1, '#38bdf8'],
+      [cx, Math.max(60, box.top - box.height * 0.05), '#fbbf24'],
+    ]
+    spots.forEach(([tx, ty, colour], n) => later(() => firework(cx, cy, tx, ty, colour, playFireworkPop), 250 + n * 320))
+    later(() => burst(cx, cy, 28, true, 1.3, true), 1150)
+  }
+
+  /** Copies of the marbles won, flown from the wedge to the jar's mouth, where the world drops them in. */
+  function flyToJar(from: Element | null, kinds: ReturnType<typeof marblesFor>, then: () => void) {
+    const jarBox = jarRef.current?.getBoundingClientRect()
+    const start = from?.getBoundingClientRect()
+    if (!jarBox || !start || reduceMotion()) return then()
+    const scale = jarBox.width / JAR.W
+    const tx = jarBox.left + jarBox.width * (JAR.CX / JAR.W)
+    const ty = jarBox.top + jarBox.height * ((JAR.MOUTH - 3.5) / JAR.H)
+    const sx = start.left + start.width / 2
+    const sy = start.top + start.height / 2
+    let left = kinds.length
+    kinds.forEach((kind, n) => {
+      const r = RADIUS[kind] * scale
+      const el = document.createElement('div')
+      el.className = 'pointer-events-none fixed z-[61]'
+      el.style.cssText += `left:${sx - r}px;top:${sy - r}px;width:${r * 2}px;height:${r * 2}px`
+      const colour = kind === 'power' ? POWER_COLOUR : kind === 'mega' ? MEGA_COLOUR : MARBLE_COLOURS[n % MARBLE_COLOURS.length]
+      el.innerHTML = `<svg viewBox="-11 -11 22 22" width="100%" height="100%">${marbleSVG(colour, { r: 10, bolt: kind === 'power', swirl: kind === 'mega' })}</svg>`
+      document.body.append(el)
+      const dx = tx - sx
+      const dy = ty - sy
+      el.animate(
+        [
+          { transform: 'translate(0,0) scale(.6)' },
+          { transform: `translate(${dx * 0.5}px, ${Math.min(dy, 0) - 90}px) scale(1.15)`, offset: 0.5 },
+          { transform: `translate(${dx}px, ${dy}px) scale(1)` },
+        ],
+        { duration: 620, delay: n * 110, easing: 'ease-in-out', fill: 'both' },
+      ).onfinish = () => {
+        el.remove()
+        if (--left === 0) then()
+      }
+    })
   }
 
   function poured() {
@@ -287,6 +395,8 @@ export default function MarbleMoment({
     setSpinner(null)
     shownAt.current = performance.now()
     if (jarIsFull({ ...jar, marbles })) {
+      // The full jar takes the title from what was won: it is the bigger news.
+      setWin(null)
       playJarFull()
       say('Our jar is full!')
       setStep('full')
@@ -349,14 +459,20 @@ export default function MarbleMoment({
         <div
           key={titleKey}
           data-marble-title=""
-          className="marble-title text-balance text-center font-bold leading-tight text-white"
-          style={{ fontSize: 'clamp(1.4rem, 5.5vmin, 3rem)' }}
+          data-marble-win={win ?? undefined}
+          className={
+            win
+              ? `marble-title marble-win flex items-center gap-[0.35em] whitespace-nowrap rounded-full px-[0.7em] py-[0.1em] font-bold leading-tight ${win === 'power' || win === 'mega' ? 'bg-amber-300 text-amber-950' : 'bg-white text-violet-900'}`
+              : 'marble-title text-balance text-center font-bold leading-tight text-white'
+          }
+          style={{ fontSize: win ? 'clamp(1.6rem, 6.5vmin, 3.4rem)' : 'clamp(1.4rem, 5.5vmin, 3rem)' }}
         >
-          {title}
+          {win && <span className="flex gap-[0.08em]" aria-hidden dangerouslySetInnerHTML={{ __html: winMarbles(win) }} />}
+          {win === 'mega' ? 'MEGA MARBLE!' : win === 'power' ? 'POWER MARBLE!' : win ? WEDGE_WORDS[win] : title}
         </div>
         {wheelShown && (
           // The wheel takes no taps: turned, its square's corners reach over the buttons under it, and a tap on Done landed on the wheel.
-          <div data-marble-wheel="" className="pointer-events-none relative aspect-square w-[min(54vh,40vw)] max-w-full">
+          <div ref={wheelBoxRef} data-marble-wheel="" className="pointer-events-none relative aspect-square w-[min(54vh,40vw)] max-w-full">
             <div
               ref={pointerRef}
               className="absolute left-1/2 top-[-3.5%] z-[2] -ml-[5.5%] w-[11%] origin-[50%_20%] drop-shadow-[0_3px_4px_rgba(0,0,0,0.35)]"

@@ -371,10 +371,17 @@ await measure('marbles: the wheel comes up', async () => {
   await page.locator('aside button[title="Award Point"]').click()
   await wait(2000)
 })
+// It lands on the Mega, the biggest of the landings (fireworks over the wheel, 2026-10-24).
+await page.evaluate(() => {
+  window.__realRandom = Math.random
+  Math.random = () => 136.5 / 158
+})
 await measure('marbles: the wheel spinning', async () => {
   await page.getByRole('button', { name: 'Spin!' }).click()
-  await wait(6000)
+  await page.evaluate(() => (Math.random = window.__realRandom))
+  await wait(5600)
 })
+await measure('marbles: the Mega celebration', () => wait(2200))
 await measure('marbles: the pour', () => wait(5000))
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')

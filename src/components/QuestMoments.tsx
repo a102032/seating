@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { buildWheel, CHESTS, MEGA, type QuestPrize, type Slice } from '../lib/quest'
 import { chestSVG, keySVG, pointerSVG, prizeIconSVG, sliceFaceSVG, wheelSVG } from '../lib/questArt'
 import { playChestBurst, playChestKnocks, playGoalCelebration, playKeyJingle, playPickerLand, playPickerTick } from '../lib/sound'
+import { burst } from '../lib/burst'
 import { GoalCelebration } from './GoalCelebration'
 
 /**
@@ -19,40 +20,6 @@ const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)
 /** The meter's chest, where a key flies and where the chest flies from. */
 function questChestRect(): DOMRect | null {
   return document.querySelector('[data-quest-chest]')?.getBoundingClientRect() ?? null
-}
-
-/** A small burst of gold bits from a point: a few dozen spans, each moved by the graphics chip. */
-function burst(x: number, y: number, count: number, gold: boolean, spread = 1) {
-  const layer = document.createElement('div')
-  layer.className = 'pointer-events-none fixed inset-0 z-[70]'
-  document.body.append(layer)
-  const colours = gold
-    ? ['#fbbf24', '#fde68a', '#f59e0b', '#fff7cc', '#ffffff']
-    : ['#38bdf8', '#a3e635', '#f472b6', '#a78bfa', '#fbbf24', '#2dd4bf']
-  let left = count
-  for (let i = 0; i < count; i++) {
-    const s = document.createElement('span')
-    s.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:10px;height:14px;border-radius:${i % 3 ? 2 : 7}px;background:${colours[i % colours.length]}`
-    layer.append(s)
-    const a = Math.random() * Math.PI * 2
-    const v = (120 + Math.random() * 300) * spread
-    const dx = Math.cos(a) * v
-    const dy = Math.sin(a) * v * 0.7 - 120 * spread
-    s.animate(
-      [
-        { transform: 'translate(-50%,-50%) rotate(0deg)', opacity: 1 },
-        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${Math.random() * 360}deg)`, opacity: 1, offset: 0.35 },
-        {
-          transform: `translate(calc(-50% + ${dx * 1.2}px), calc(-50% + ${dy + 420 * spread}px)) rotate(${Math.random() * 900}deg)`,
-          opacity: 0,
-        },
-      ],
-      { duration: 1500 + Math.random() * 1100, easing: 'cubic-bezier(.2,.65,.45,1)' },
-    ).onfinish = () => {
-      s.remove()
-      if (--left === 0) layer.remove()
-    }
-  }
 }
 
 /**

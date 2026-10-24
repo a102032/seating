@@ -670,8 +670,9 @@ const scenarios = {
       'marbles: the wheel lands on one wedge, the rest fade',
       (await page.locator('[data-marble-wheel] .quest-slice-dim').count()) === 7,
     )
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-win-plain.png' })
     const said = await page.locator('[data-marble-title]').innerText()
-    check('marbles: it says what it landed on', /marbles!|Marble!/.test(said), said)
+    check('marbles: it says what it landed on', /marbles!|marble!/i.test(said), said)
     await page.getByRole('button', { name: 'Done' }).waitFor({ timeout: 20000 })
     c = await activeSaved(page)
     check(
@@ -710,7 +711,7 @@ const scenarios = {
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 0,
-      marbleJar: jar({ marbles: rows(1), spins: 4 }),
+      marbleJar: jar({ marbles: rows(1), spins: 5 }),
     })
     page = await open({ state: stateOf(two), size: [1280, 559] })
     await page.locator('[data-marble-next]').click({ force: true })
@@ -719,9 +720,10 @@ const scenarios = {
     await page.getByRole('button', { name: 'Later' }).waitFor({ timeout: 20000 })
     await page.waitForTimeout(800)
     // A Mega (then a Power) on a later spin: they once stayed asleep at the top of the jar, since the jar was still from the spin before.
-    for (const [kind, code, spot] of [
-      ['Mega', 2, 136.5 / 158],
-      ['Power', 1, 57.5 / 158],
+    for (const [kind, code, spot, words] of [
+      ['Mega', 2, 136.5 / 158, 'MEGA MARBLE!'],
+      ['Power', 1, 57.5 / 158, 'POWER MARBLE!'],
+      ['3-marble', 0, 36.25 / 158, '3 MARBLES!'],
     ]) {
       await page.evaluate((x) => {
         window.__realRandom = Math.random
@@ -729,7 +731,11 @@ const scenarios = {
       }, spot)
       await page.getByRole('button', { name: 'Spin!' }).click()
       await page.evaluate(() => (Math.random = window.__realRandom))
-      await page.waitForTimeout(6800)
+      await page.waitForTimeout(6300)
+      await page.screenshot({ path: `/tmp/walkthrough/marbles-win-${kind}.png` })
+      const banner = await page.locator('[data-marble-win]').innerText()
+      check(`marbles: a ${kind} win is announced`, banner.toUpperCase().includes(words), banner)
+      await page.waitForTimeout(500)
       await page
         .getByRole('button', { name: /Later|Done/ })
         .first()
@@ -737,7 +743,7 @@ const scenarios = {
       await page.waitForTimeout(800)
       c = await activeSaved(page)
       const big = c.marbleJar.marbles.find((m) => m[0] === code)
-      check(`marbles: a ${kind} Marble on a later spin falls into the jar`, !!big && big[3] > 15, JSON.stringify(big))
+      check(`marbles: a ${kind} win on a later spin falls into the jar`, !!big && big[3] > 15, JSON.stringify(big))
       await page.screenshot({ path: `/tmp/walkthrough/marbles-later-${kind}.png` })
     }
     await page
