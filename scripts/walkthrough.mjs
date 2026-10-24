@@ -422,6 +422,8 @@ const scenarios = {
       JSON.stringify(c.quest),
     )
     check('quest: "You got a key!"', (await page.locator('[data-quest-moment="key"]').innerText()).includes('You got a key!'))
+    // The key ignores taps for 0.7 s after it shows (the board's second touch).
+    await page.waitForTimeout(900)
     await page.mouse.click(640, 300)
     await page.waitForTimeout(2200)
     check(

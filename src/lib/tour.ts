@@ -134,13 +134,13 @@ export const TOUR: TourPart[] = [
     stops: [
       { shot: 'marbles', at: 'meter', text: 'On the Marble Jar, a marble rides the meter. When the goal fills, the class wins a spin.' },
       { shot: 'marbles', at: 'wheel', text: 'The marble wheel waits here. A spin not used yet shows its number, and a tap spins it.' },
-      { shot: 'marbles', at: 'jar', text: 'The class jar, with every marble where it landed. Tap it to look inside.' },
+      { shot: 'marbles', at: 'jar', text: 'The class jar, with every marble where it landed. Tap it for the jar’s settings, or for the prize wheel when it is full.' },
       {
         shot: 'marblespin',
         at: 'wheel',
         text: 'The marble wheel: 2, 3 or 4 marbles, and gold for a Power Marble or a rare Mega Marble. Only the wedge it lands on turns over.',
       },
-      { shot: 'marblespin', at: 'spin', text: 'Pick a Spinner chooses a student. Spin!, and the marbles pour into the jar.' },
+      { shot: 'marblespin', at: 'spin', text: 'Pick a Spinner chooses a student. Spin! The wheel cheers what it lands on, and the marbles jump into the jar.' },
       {
         shot: 'marblespin',
         at: 'jar',
