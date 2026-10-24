@@ -31,7 +31,9 @@ const LANDMARKS = [
   { name: 'forest', left: 29, top: 70, h: 23 },
   { name: 'hills', left: 49, top: 12, h: 15 },
   { name: 'bridge', left: 63, top: 74, h: 16 },
-  { name: 'mountain-cave', left: 89, top: 3, h: 30 },
+  // The dragon's mountain, in the corner past the Mega chest: it sleeps at its foot (2026-10-24, the teacher).
+  { name: 'mountain-cave', left: 89, top: 69, h: 27 },
+  { name: 'windmill', left: 89, top: 4, h: 24 },
 ]
 
 export function OurQuest({ quest, onClose }: { quest: QuestState; onClose: () => void }) {
@@ -113,13 +115,13 @@ export function OurQuest({ quest, onClose }: { quest: QuestState; onClose: () =>
         ))}
         <svg ref={pathRef} className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden />
 
-        {/* The dragon asleep by the Mega chest, most of the term: it wakes for the term's last goal (part 2). */}
+        {/* The dragon asleep at the foot of its mountain, most of the term: it wakes for the term's last goal (part 2). */}
         <img
           src={assetUrl('/quest/dragon-asleep.webp')}
           alt=""
           draggable={false}
           className="pointer-events-none absolute select-none"
-          style={{ left: '87%', top: '72%', height: '22cqh', maxWidth: '20cqw', objectFit: 'contain', transform: 'translateX(-50%)' }}
+          style={{ left: '83%', top: '81%', height: '18cqh', maxWidth: '18cqw', objectFit: 'contain', transform: 'translateX(-50%)' }}
         />
 
         {CHESTS.map((T, i) => {
@@ -144,12 +146,6 @@ export function OurQuest({ quest, onClose }: { quest: QuestState; onClose: () =>
                 </span>
               )}
               <div className="relative">
-                {/* A red X marks the spot under the Mega chest. */}
-                {mega && (
-                  <svg viewBox="0 0 100 40" className="absolute inset-x-0 -bottom-[12%] h-[42%] w-full opacity-60" aria-hidden>
-                    <path d="M14 6 Q50 22 86 34 M86 6 Q50 20 14 34" fill="none" stroke="#c0392b" strokeWidth="7" strokeLinecap="round" />
-                  </svg>
-                )}
                 {/* The knight on the trail, arriving at the chest the class is on. */}
                 {now && (
                   <img
