@@ -3,7 +3,7 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Eight parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Nine parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
@@ -15,6 +15,8 @@ export type TourShot =
   | 'questmap'
   | 'wheel'
   | 'prize'
+  | 'marbles'
+  | 'marblespin'
   | 'flip'
   | 'chooser'
   | 'who'
@@ -123,6 +125,26 @@ export const TOUR: TourPart[] = [
         shot: 'prize',
         at: 'card',
         text: 'The prize, with your celebration GIF beside it. Tap to close. Your prizes are in Class Settings, Points.',
+      },
+    ],
+  },
+  {
+    title: 'The Marble Jar',
+    intro: 'The Class Quest’s other adventure: a class marble jar. Choose it in Class Settings, Points, under Class Quest.',
+    stops: [
+      { shot: 'marbles', at: 'meter', text: 'On the Marble Jar, a marble rides the meter. When the goal fills, the class wins a spin.' },
+      { shot: 'marbles', at: 'wheel', text: 'The marble wheel waits here. A spin not used yet shows its number, and a tap spins it.' },
+      { shot: 'marbles', at: 'jar', text: 'The class jar, with every marble where it landed. Tap it to look inside.' },
+      {
+        shot: 'marblespin',
+        at: 'wheel',
+        text: 'The marble wheel: 2, 3 or 4 marbles, and gold for a Power Marble or a rare Mega Marble. Only the wedge it lands on turns over.',
+      },
+      { shot: 'marblespin', at: 'spin', text: 'Pick a Spinner chooses a student. Spin!, and the marbles pour into the jar.' },
+      {
+        shot: 'marblespin',
+        at: 'jar',
+        text: 'Fill the jar to the line, and a prize wheel rises out of it. Your prizes are in Class Settings, Points.',
       },
     ],
   },

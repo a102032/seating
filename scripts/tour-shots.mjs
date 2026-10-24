@@ -475,6 +475,65 @@ const all = {}
   await page.context().close()
 }
 
+// The Marble Jar: the same class on it, its jar filled by three real spins (so the marbles lie where
+// they fell), the meter partway to the next spin, then the wheel up for a spin.
+{
+  const onMarbles = {
+    ...STATE,
+    classes: [
+      {
+        ...STATE.classes[0],
+        pointsMode: 'quest',
+        questAdventure: 'marbles',
+        pointsGoal: 40,
+        classPoints: 26,
+        marbleJar: { number: 1, marbles: [], spins: 4, filled: [], spinDays: [today], startedOn: today },
+      },
+    ],
+  }
+  const page = await open(onMarbles)
+  await page.locator('[data-marble-next]').click({ force: true })
+  await page.waitForTimeout(1200)
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(7000)
+    await page
+      .waitForFunction(
+        () => [...document.querySelectorAll('[data-marble-moment] button')].some((b) => /^Spin!$/.test(b.textContent.trim())),
+        null,
+        { timeout: 20000 },
+      )
+      .catch(async (e) => {
+        await page.screenshot({ path: '/tmp/walkthrough/tour-marbles-stuck.png' })
+        console.error('stuck at spin', i, await page.locator('[data-marble-title]').innerText())
+        throw e
+      })
+    await page.waitForTimeout(900)
+  }
+  await page.locator('button[aria-label="Not now"]').click()
+  await page.waitForTimeout(600)
+  await page.evaluate(() => {
+    let m = document.querySelector('[data-marble-mini]')
+    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
+    m?.setAttribute('data-tour-mark', 'mmeter')
+  })
+  all.marbles = await rects(page, { meter: '[data-tour-mark="mmeter"]', wheel: '[data-marble-next]', jar: '[data-marble-mini]' })
+  await shot(page, 'marbles')
+  await page.locator('[data-marble-next]').click({ force: true })
+  await page.waitForTimeout(1200)
+  await mark(page, [
+    ['mpick', '^Pick a Spinner$'],
+    ['mspin', '^Spin!$'],
+  ])
+  all.marblespin = await rects(page, {
+    wheel: '[data-marble-wheel]',
+    spin: '[data-tour-mark="mpick"], [data-tour-mark="mspin"]',
+    jar: '[data-marble-jar]',
+  })
+  await shot(page, 'marblespin')
+  await page.context().close()
+}
+
 writeFileSync(RECTS, JSON.stringify(all, null, 1) + '\n')
 console.log(JSON.stringify(all))
 await browser.close()

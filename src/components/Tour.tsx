@@ -464,7 +464,7 @@ export function Tour({ onClose }: { onClose: () => void }) {
       )}
       {at.phase === 'end' && (
         <Card
-          step="All eight parts"
+          step="All nine parts"
           title="That’s the tour!"
           buttons={
             <>

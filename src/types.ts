@@ -2,6 +2,7 @@ import type { RoomLayout } from './lib/layouts'
 import type { ParticipationRecord } from './lib/participation'
 import type { GroupScheme } from './lib/groups'
 import type { Theme } from './lib/theme'
+import type { Adventure, MarbleJarState } from './lib/marbles'
 import type { QuestPrize, QuestState } from './lib/quest'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
@@ -191,6 +192,10 @@ export interface ClassData {
   quest?: QuestState
   /** The teacher's prizes for the Quest's wheels, each small, medium or big. Unset is lib/quest's starting list. */
   questPrizes?: QuestPrize[]
+  /** The Class Quest's adventure: the Knight's keys and chests (unset), or the Marble Jar (lib/marbles). */
+  questAdventure?: Adventure
+  /** The Marble Jar: the marbles where they settled, spins waiting, and the jars filled. Read through jarOf. */
+  marbleJar?: MarbleJarState
   /**
    * Stars a class had to earn for one class point, and the stars banked toward the next. No longer
    * used (2026-10-11, the teacher: a bigger goal is the same challenge, with one setting fewer):

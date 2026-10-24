@@ -1,5 +1,6 @@
 import type { SettingsSection } from '../components/ClassSettingsModal'
 import type { ClassData } from '../types'
+import { adventureOf } from './marbles'
 import { hasClassGoal, pointsModeOf } from './points'
 
 /**
@@ -40,6 +41,8 @@ const hasStudents = ({ cls }: GuideContext) => cls.students.length > 0
 const goal = ({ cls }: GuideContext) => hasClassGoal(pointsModeOf(cls))
 const plainGoal = ({ cls }: GuideContext) => pointsModeOf(cls) === 'goal'
 const quest = ({ cls }: GuideContext) => pointsModeOf(cls) === 'quest'
+const knight = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'knight'
+const marbles = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'marbles'
 const avatarsShown = ({ cls }: GuideContext) => !cls.avatarsOff && cls.students.length > 0
 const photosShown = ({ cls }: GuideContext) => cls.photosOn === true && !cls.avatarsOff && cls.students.length > 0
 const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photosOn && cls.students.length > 0
@@ -158,9 +161,23 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     section: 'points',
+    targets: [g('adventure-row')],
+    text: 'Pick an adventure: the Knight, with keys and five chests, or the Marble Jar, with a wheel that fills the class jar.',
+    when: quest,
+    maybe: true,
+  },
+  {
+    section: 'points',
     targets: [g('goal-row')],
     text: 'How many stars win a key? About a key a week makes a quest last a semester.',
-    when: quest,
+    when: knight,
+    maybe: true,
+  },
+  {
+    section: 'points',
+    targets: [g('goal-row')],
+    text: 'How many stars win a spin of the marble wheel? About a spin a week fills a jar in a semester.',
+    when: marbles,
     maybe: true,
   },
   {
@@ -173,7 +190,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'points',
     targets: [g('prizes-row')],
-    text: 'The prizes on the wheels, small, medium and big, and the GIF that dances beside a prize.',
+    text: 'The prizes on the prize wheel, small, medium and big, and the GIF that dances beside a prize.',
     when: quest,
     maybe: true,
   },
@@ -189,7 +206,14 @@ export const GUIDE_STEPS: GuideStep[] = [
     targets: [g('quest-row')],
     text: 'Where the class is on its quest, and how long the last key took. Start Over goes back to the Wood chest.',
     only: 'section',
-    when: quest,
+    when: knight,
+  },
+  {
+    section: 'points',
+    targets: [g('quest-row')],
+    text: 'How full the jar is, and how long the last spin took. Start Over empties the jar.',
+    only: 'section',
+    when: marbles,
   },
   {
     section: 'points',

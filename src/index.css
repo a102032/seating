@@ -3611,3 +3611,37 @@ button {
 .hint-button:active {
   transform: scale(0.96);
 }
+
+/* The Marble Jar's line over the wheel: each new one pops in (components/MarbleMoment). */
+.marble-title {
+  animation: marble-title-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes marble-title-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marble-title {
+    animation: none;
+  }
+}
+
+/* A marble in the Marble Jar: two pictures, moved and turned by the graphics chip (lib/marbleLayer). */
+.marble-sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+  transform-origin: center;
+  pointer-events: none;
+}
+.marble-sprite > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  user-select: none;
+}

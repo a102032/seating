@@ -627,6 +627,236 @@ const scenarios = {
     await page.context().close()
   },
 
+  async 'the marble jar'() {
+    // A jar laid out in rows, as if it had settled: 8 rows of 7 plain marbles and a Mega is past the line.
+    const rows = (n) => {
+      const out = []
+      for (let r = 0; r < n; r++) for (let k = 0; k < 7; k++) out.push([0, r * 7 + k, 4 + k * 2, 24.6 - r * 2, 0, 1])
+      return out
+    }
+    const jar = (extra = {}) => ({ number: 1, marbles: [], spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01', ...extra })
+    const cls = makeClass('c1', 'Marbles', 12, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 9,
+      marbleJar: jar({ marbles: rows(2) }),
+    })
+    let page = await open({ state: stateOf(cls), size: [1280, 559] })
+    check(
+      'marbles: a marble rides the meter, the wheel waits at its end, then the jar',
+      (await page.locator('[data-goal-coin="marble"]').count()) === 1 &&
+        (await page.locator('[data-marble-next]').count()) === 1 &&
+        (await page.locator('[data-marble-mini]').count()) === 1 &&
+        (await page.locator('[data-quest-next-key]').count()) === 0,
+    )
+    await desk(page, 'Amy').click()
+    await award(page)
+    await page.waitForTimeout(1600)
+    let c = await activeSaved(page)
+    check(
+      'marbles: a filled goal wins a spin, kept as it is won, and the wheel comes up',
+      c.marbleJar?.spins === 1 && c.goalsReached === 1 && (await page.locator('[data-marble-moment="spin"]').count()) === 1,
+      JSON.stringify(c.marbleJar?.spins),
+    )
+    check('marbles: the wheel shows a ? on every wedge', (await page.locator('[data-marble-wheel] [data-face]').count()) === 8)
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-1-spin.png' })
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(6600)
+    check(
+      'marbles: the wheel lands on one wedge, the rest fade',
+      (await page.locator('[data-marble-wheel] .quest-slice-dim').count()) === 7,
+    )
+    const said = await page.locator('[data-marble-title]').innerText()
+    check('marbles: it says what it landed on', /marbles!|Marble!/.test(said), said)
+    await page.getByRole('button', { name: 'Done' }).waitFor({ timeout: 20000 })
+    c = await activeSaved(page)
+    check(
+      'marbles: the marbles pour in, settle, and are kept where they came to rest',
+      c.marbleJar.spins === 0 && c.marbleJar.marbles.length > 14 && c.marbleJar.marbles.every((m) => m[3] > 6 && m[3] < 26),
+      `${c.marbleJar.marbles.length} marbles`,
+    )
+    const kept = JSON.stringify(c.marbleJar.marbles)
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-2-poured.png' })
+    // Done waits out the board's second touch after it appears.
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Done' }).click()
+    await page.waitForTimeout(1200)
+    const after = (await meterText(page)).trim()
+    check(
+      'marbles: Done puts it away and the meter empties',
+      (await page.locator('[data-marble-moment]').count()) === 0 && after === '0 / 10',
+      after,
+    )
+    await refresh(page)
+    await page.locator('[data-marble-mini]').click()
+    await page.waitForTimeout(1500)
+    c = await activeSaved(page)
+    check(
+      'marbles: a reload shows the same jar, and a look at it moves nothing',
+      (await page.locator('[data-marble-moment="look"]').count()) === 1 && JSON.stringify(c.marbleJar.marbles) === kept,
+    )
+    await page.locator('button[aria-label="Close"]').click()
+    await page.context().close()
+
+    // A full jar: the prize wheel rises out of it, then it empties, marbles popping away.
+    const full = makeClass('c1', 'Marbles', 12, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 0,
+      marbleJar: jar({ marbles: [...rows(8), [2, 0, 10, 8, 0, 2.2]], spins: 1 }),
+    })
+    page = await open({ state: stateOf(full), size: [1280, 559] })
+    check('marbles: a full jar rattles at the meter', (await page.locator('[data-marble-mini].meter-chest-rattle').count()) === 1)
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-0-meter.png', clip: { x: 0, y: 0, width: 1280, height: 70 } })
+    await page.locator('[data-marble-mini]').click()
+    await page.waitForTimeout(800)
+    check('marbles: "Our jar is full!"', (await page.locator('[data-marble-title]').innerText()).includes('Our jar is full!'))
+    await page.getByRole('button', { name: 'Prize wheel!' }).click()
+    await page.waitForTimeout(3300)
+    check(
+      'marbles: the prize wheel rises out of the jar',
+      (await page.locator('[data-quest-moment="chest"]').count()) === 1 &&
+        (await page.locator('[data-quest-moment="chest"] img').count()) >= 1,
+    )
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-3-prize-wheel.png' })
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(8000)
+    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
+    check('marbles: the prize fills the screen', !!prize, prize)
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(600)
+    c = await activeSaved(page)
+    check(
+      'marbles: the prize is kept, a new jar starts, and the spin waiting goes into it',
+      c.marbleJar.number === 2 && c.marbleJar.marbles.length === 0 && c.marbleJar.filled.length === 1 && c.marbleJar.spins === 1,
+      JSON.stringify({ n: c.marbleJar.number, m: c.marbleJar.marbles.length, f: c.marbleJar.filled, s: c.marbleJar.spins }),
+    )
+    check('marbles: the full jar empties in front of the class', (await page.locator('[data-marble-moment="empty"]').count()) === 1)
+    await page.getByRole('button', { name: 'Done' }).waitFor({ timeout: 8000 })
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Done' }).click()
+    await page.waitForTimeout(500)
+    check(
+      "marbles: the spin still waiting shows on the meter's wheel",
+      (await page.locator('[data-marble-next]').innerText()).trim() === '1',
+    )
+    // It bobs while a spin waits, which Playwright reads as never still enough to tap.
+    await page.locator('[data-marble-next]').click({ force: true })
+    await page.waitForTimeout(500)
+    check('marbles: a tap on it spins it', (await page.locator('[data-marble-moment="spin"]').count()) === 1)
+    await page.locator('button[aria-label="Not now"]').click()
+    check('marbles: no errors', page.errors.length === 0, page.errors.join('; '))
+    await page.context().close()
+
+    // Points: the adventure, how full the jar is, and Start Over; fitting at 1024x500.
+    const pts = makeClass('c1', 'Marbles', 12, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      marbleJar: jar({ marbles: rows(4), spinDays: ['2026-10-14', '2026-10-20'] }),
+    })
+    page = await open({ state: stateOf(pts), size: [1024, 500] })
+    await openPointsTab(page)
+    const row = await page.locator('[data-guide="quest-row"]').innerText()
+    check(
+      'marbles: Points says how full the jar is and how long the last spin took',
+      /% full/.test(row) && row.includes('The last spin took 6 days.'),
+      row,
+    )
+    const over = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-points-1024.png' })
+    check('marbles: Points fits at 1024x500', over <= 0, `${over}px over`)
+    for (const theme of ['comic', 'chalkboard']) {
+      const themed = await open({ state: stateOf(pts), size: [1024, 500], theme })
+      await openPointsTab(themed)
+      const o = await themed.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+      check(`marbles: Points fits at 1024x500 in ${theme}`, o <= 0, `${o}px over`)
+      await themed.context().close()
+    }
+    await page.getByRole('button', { name: 'Knight', exact: true }).click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check('marbles: back to the Knight, the jar kept for later', c.questAdventure === 'knight' && c.marbleJar.marbles.length === 28)
+    await page.getByRole('button', { name: 'Marble Jar', exact: true }).click()
+    await page.getByRole('button', { name: /Start Over/ }).click()
+    await page.getByRole('button', { name: 'Yes, Start Over' }).click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check('marbles: Start Over empties the jar', c.questAdventure === 'marbles' && c.marbleJar.marbles.length === 0)
+    await page.context().close()
+
+    // The wheel and the jar, whole on every screen from the smallest up, and nothing scrolls.
+    const sized = makeClass('c1', 'Marbles', 12, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      marbleJar: jar({ marbles: rows(3), spins: 2 }),
+    })
+    const bad = []
+    for (const size of [
+      [1024, 500],
+      [1280, 559],
+      [1366, 620],
+      [1920, 1080],
+    ]) {
+      page = await open({ state: stateOf(sized), size })
+      await page.locator('[data-marble-next]').click({ force: true })
+      await page.waitForTimeout(900)
+      const r = await page.evaluate(() => {
+        const inside = (sel) => {
+          const b = document.querySelector(sel)?.getBoundingClientRect()
+          return !!b && b.width > 0 && b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight
+        }
+        return {
+          wheel: inside('[data-marble-wheel]'),
+          jar: inside('[data-marble-jar]'),
+          spin: [...document.querySelectorAll('[data-marble-moment] button')]
+            .filter((b) => b.textContent.includes('Spin!'))
+            .every((b) => {
+              const x = b.getBoundingClientRect()
+              return x.bottom <= innerHeight && x.right <= innerWidth
+            }),
+          scroll: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+        }
+      })
+      if (!r.wheel || !r.jar || !r.spin || r.scroll > 0) bad.push(`${size.join('x')}: ${JSON.stringify(r)}`)
+      await page.context().close()
+    }
+    check('marbles: the wheel, the jar and Spin! fit every screen, nothing scrolls', bad.length === 0, bad.join('; '))
+
+    // The floating window: the class's jar, and a spin won over the lesson waits for the board.
+    const fl = makeClass('c1', 'Marbles', 12, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 2,
+      marbleJar: jar({ marbles: rows(2), spins: 1 }),
+    })
+    page = await open({ state: stateOf(fl), size: [1280, 559] })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await page.waitForTimeout(600)
+    check(
+      'float: the class jar, and Spin the wheel with a spin waiting',
+      (await win.locator('[data-float-chest] canvas').count()) === 1 && (await win.getByText('Spin the wheel').count()) === 1,
+    )
+    await win.getByText('Spin the wheel').click()
+    await page.bringToFront()
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await page.waitForTimeout(1500)
+    check('float: Spin the wheel opens it in the app', (await page.locator('[data-marble-moment="spin"]').count()) === 1)
+    await page.context().close()
+  },
+
   async 'points: a class goal, student points, or none'() {
     const cls = makeClass('c1', 'Points', 12, { pointsGoal: 50, classPoints: 10, goalEnabled: true })
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
@@ -2861,7 +3091,7 @@ const scenarios = {
     let stops = 0
     let bad = 0
     const parts = []
-    for (let guard = 0; guard < 140; guard++) {
+    for (let guard = 0; guard < 150; guard++) {
       // Past the lit ring's own slide to its new place (0.2 s).
       await page.waitForTimeout(300)
       if (await page.locator('[data-tour-card]').count()) {
@@ -2888,12 +3118,12 @@ const scenarios = {
     }
     check(
       // 97: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
-      // the board's lock (2026-10-19), and the Class Quest's part (2026-10-24).
-      'tour: 97 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 97 && bad === 0,
+      // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24).
+      'tour: 103 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 103 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 8, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 9, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -2913,8 +3143,9 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 21 stops to the card before the Class Quest, then skip it and Flip Cards to Group Activity's card.
+    // Through the board's 21 stops to the card before the Class Quest, then skip it, the Marble Jar and Flip Cards to Group Activity's card.
     for (let i = 0; i < 21; i++) await page.locator('[data-tour-action="next"]').click()
+    await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
@@ -2936,7 +3167,7 @@ const scenarios = {
     const before = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
     check(
       'tour: Back on the card between parts, to the last stop of the part before',
-      new RegExp(`^${parts[1]} · (\\d+) of \\1$`).test(before),
+      new RegExp(`^${parts[2]} · (\\d+) of \\1$`).test(before),
       before,
     )
     await page.keyboard.press('Escape')

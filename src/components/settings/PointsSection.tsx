@@ -5,6 +5,8 @@ import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
 import { CHESTS, lastKeyWords, PRIZE_NAME_MAX, prizesOf, questOf, SIZE_NAMES, type PrizeSize, type QuestPrize } from '../../lib/quest'
 import { chestSVG, prizeIconSVG } from '../../lib/questArt'
+import { adventureOf, CAPACITY, jarFill, jarOf, lastSpinWords, type Adventure } from '../../lib/marbles'
+import { marbleSVG } from '../../lib/marbleArt'
 import type { ClassData, PointsMode } from '../../types'
 import { Btn, NumberStepper, Tick } from './parts'
 
@@ -23,8 +25,10 @@ interface PointsSectionProps {
   onChoosingGif: (choosing: boolean) => void
   /** The Quest's prize list, each prize small, medium or big. */
   onSetQuestPrizes: (prizes: QuestPrize[]) => void
-  /** Start the quest over from the Wood chest (asks first). */
+  /** Start the quest over from the Wood chest, or the Marble Jar from an empty jar (asks first). */
   onAskRestartQuest: () => void
+  /** The Class Quest's adventure: the Knight's chests or the Marble Jar. */
+  onSetAdventure: (adventure: Adventure) => void
 }
 
 const chestClosed = assetUrl('/treasure/chest-closed.svg')
@@ -75,6 +79,7 @@ export function PointsSection({
   onChoosingGif,
   onSetQuestPrizes,
   onAskRestartQuest,
+  onSetAdventure,
 }: PointsSectionProps) {
   const [choosingPrizes, setChoosingPrizes] = useState(false)
   const mode = pointsModeOf(activeClass)
@@ -203,7 +208,9 @@ export function PointsSection({
           ))}
         </div>
         <p className="cs-hint" style={{ margin: '6px 2px 0' }}>
-          {MODES.find((m) => m.mode === mode)?.says}
+          {mode === 'quest' && adventureOf(activeClass) === 'marbles'
+            ? 'Fill the goal to spin the marble wheel. The marbles fill the class jar, and a full jar has a prize wheel.'
+            : MODES.find((m) => m.mode === mode)?.says}
         </p>
       </div>
 
@@ -231,9 +238,11 @@ export function PointsSection({
             <div className="cs-row-label">
               <b>Goal</b>
               <small>
-                {mode === 'quest'
-                  ? 'How many stars win a key. About a key a week makes a quest a semester.'
-                  : 'Set the goal for your class: how many stars are needed to fill the chest.'}
+                {mode === 'quest' && adventureOf(activeClass) === 'marbles'
+                  ? 'How many stars win a spin. About a spin a week fills a jar in a semester.'
+                  : mode === 'quest'
+                    ? 'How many stars win a key. About a key a week makes a quest a semester.'
+                    : 'Set the goal for your class: how many stars are needed to fill the chest.'}
               </small>
             </div>
             {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}
@@ -243,7 +252,11 @@ export function PointsSection({
             <div className="cs-row" data-guide="prizes-row">
               <div className="cs-row-label">
                 <b>Prizes</b>
-                <small>What the chests hold, and the GIF beside a prize.</small>
+                <small>
+                  {adventureOf(activeClass) === 'marbles'
+                    ? 'What a full jar can win, and the GIF beside a prize.'
+                    : 'What the chests hold, and the GIF beside a prize.'}
+                </small>
               </div>
               <Btn onClick={() => setChoosingPrizes(true)}>
                 {prizesOf(activeClass).length} prizes <ChevronRight />
@@ -283,7 +296,7 @@ export function PointsSection({
               <RotateCcw /> Empty
             </Btn>
           </div>
-          {mode === 'quest' && <QuestRow activeClass={activeClass} onAskRestart={onAskRestartQuest} />}
+          {mode === 'quest' && <QuestRow activeClass={activeClass} onAskRestart={onAskRestartQuest} onSetAdventure={onSetAdventure} />}
         </div>
       )}
 
@@ -306,19 +319,54 @@ export function PointsSection({
   )
 }
 
-/** Where the class is on its quest, how long the last key took (to help set the goal), and Start Over. */
-function QuestRow({ activeClass, onAskRestart }: { activeClass: ClassData; onAskRestart: () => void }) {
+/**
+ * The quest's adventure, where the class is on it, how long the last key or spin took (to help set
+ * the goal), and Start Over. Two adventures, one row (2026-10-24): the Knight's keys and chests, or
+ * the Marble Jar. Each keeps its own place, so trying the other loses nothing.
+ */
+function QuestRow({
+  activeClass,
+  onAskRestart,
+  onSetAdventure,
+}: {
+  activeClass: ClassData
+  onAskRestart: () => void
+  onSetAdventure: (a: Adventure) => void
+}) {
+  const adventure = adventureOf(activeClass)
   const q = questOf(activeClass)
   const T = CHESTS[q.chest]
-  const fresh = q.number === 1 && q.chest === 0 && q.keys === 0
+  const j = jarOf(activeClass)
+  const fresh =
+    adventure === 'marbles' ? j.number === 1 && j.marbles.length === 0 && j.spins === 0 : q.number === 1 && q.chest === 0 && q.keys === 0
+  const full = Math.min(100, Math.round((jarFill(j) / CAPACITY) * 100))
   return (
     <div className="cs-row" data-guide="quest-row">
       <div className="cs-row-label">
         <b>
-          {q.number > 1 ? `Quest ${q.number}: ` : ''}
-          {T.name} chest, {Math.min(q.keys, T.keys)} of {T.keys} {T.keys === 1 ? 'key' : 'keys'}
+          {adventure === 'marbles'
+            ? `${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`
+            : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
         </b>
-        <small>{lastKeyWords(q)}</small>
+        <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
+      </div>
+      {/* Each on one line: wrapped, "Marble Jar" made the row taller and Points ran past the window's edge at 1024x500. */}
+      <div className="cs-choices whitespace-nowrap" data-guide="adventure-row" style={{ flex: '0 0 auto' }}>
+        <button type="button" className="cs-choice" aria-pressed={adventure === 'knight'} onClick={() => onSetAdventure('knight')}>
+          <img src={assetUrl('/quest/knight-head.svg')} alt="" className="h-6 w-6 shrink-0" />
+          Knight
+          {adventure === 'knight' && <Tick />}
+        </button>
+        <button type="button" className="cs-choice" aria-pressed={adventure === 'marbles'} onClick={() => onSetAdventure('marbles')}>
+          <svg
+            viewBox="-12 -12 24 24"
+            className="h-6 w-6 shrink-0"
+            aria-hidden
+            dangerouslySetInnerHTML={{ __html: marbleSVG('#2b9be0', { r: 10 }) }}
+          />
+          Marble Jar
+          {adventure === 'marbles' && <Tick />}
+        </button>
       </div>
       <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>
         <RotateCcw /> Start Over

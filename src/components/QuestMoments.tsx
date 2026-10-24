@@ -145,6 +145,7 @@ const unease = (p: number) => 1 - Math.pow(1 - p, 1 / 3)
  */
 export function ChestOpening({
   chest,
+  jarPicture,
   prizes,
   gifUrl,
   pickSpinner,
@@ -153,6 +154,11 @@ export function ChestOpening({
   onNotNow,
 }: {
   chest: number
+  /**
+   * The Marble Jar's full jar, as a picture: it flies in and bursts as a chest does, and the prize
+   * wheel (the Gold chest's) rises out of it. Empty when the picture couldn't be taken; the chest is drawn then.
+   */
+  jarPicture?: string
   prizes: QuestPrize[]
   /** The class's celebration GIF, loaded; null shows the prize alone. */
   gifUrl: string | null
@@ -381,11 +387,17 @@ export function ChestOpening({
           >
             Pick a Spinner
           </button>
-          <div
-            ref={chestRef}
-            className="w-[min(26vh,34vw)] [&>svg]:block [&>svg]:h-auto [&>svg]:w-full [&>svg]:overflow-visible"
-            dangerouslySetInnerHTML={chestHtml}
-          />
+          {jarPicture ? (
+            <div ref={chestRef} className="w-[min(22vh,30vw)]">
+              <img src={jarPicture} alt="" draggable={false} className="block h-auto w-full select-none" />
+            </div>
+          ) : (
+            <div
+              ref={chestRef}
+              className="w-[min(26vh,34vw)] [&>svg]:block [&>svg]:h-auto [&>svg]:w-full [&>svg]:overflow-visible"
+              dangerouslySetInnerHTML={chestHtml}
+            />
+          )}
           <button
             type="button"
             className={`quest-stage-btn quest-spin mb-[2vh] ${ready ? '' : 'invisible'}`}

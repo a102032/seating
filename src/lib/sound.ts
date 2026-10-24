@@ -841,5 +841,114 @@ export function playChestBurst(mega: boolean) {
     playTone(ctx, master, { frequency: frequency * 2, start: 0.2 + i * 0.11, duration: i === 3 ? 0.8 : 0.18, type: 'sine', peakGain: 0.05 })
   })
   const sparkle = mega ? [1318.5, 1567.98, 2093, 2637, 3136] : [1567.98, 2093, 2637]
-  sparkle.forEach((frequency, i) => playTone(ctx, master, { frequency, start: 0.75 + i * 0.06, duration: 0.35, type: 'sine', peakGain: 0.08 }))
+  sparkle.forEach((frequency, i) =>
+    playTone(ctx, master, { frequency, start: 0.75 + i * 0.06, duration: 0.35, type: 'sine', peakGain: 0.08 }),
+  )
+}
+
+// --- The Marble Jar ------------------------------------------------------------------------------
+
+/**
+ * The marbles' clinks are the teacher's own recordings (2026-10-24; the originals in
+ * design/sounds/marbles), trimmed to start on the hit and levelled to one another: plain marbles
+ * use the small clink, the Power Marble's size the medium one, the Mega the two big ones. He
+ * chose them by ear from seven, taking out the one that sounded like a wind chime, the lowest,
+ * and a second small one, as the jar was too busy. Each plays a shade higher or lower than the
+ * last, never more than one every 0.12 s.
+ */
+type MarbleClip = 'small' | 'medium' | 'big' | 'bigLow'
+const MARBLE_FILES: Record<MarbleClip, string> = {
+  small: '/sounds/marbles/small.mp3',
+  medium: '/sounds/marbles/medium.mp3',
+  big: '/sounds/marbles/big.mp3',
+  bigLow: '/sounds/marbles/big-low.mp3',
+}
+const marbleBuffers: Partial<Record<MarbleClip, AudioBuffer>> = {}
+let marblesPending = false
+
+/** Decoded once, ahead, as the jar first opens. */
+export function primeMarbles(): void {
+  if (marblesPending) return
+  marblesPending = true
+  for (const clip of Object.keys(MARBLE_FILES) as MarbleClip[]) {
+    fetch(assetUrl(MARBLE_FILES[clip]))
+      .then((r) => r.arrayBuffer())
+      .then((buf) => getContext().decodeAudioData(buf))
+      .then((decoded) => {
+        marbleBuffers[clip] = decoded
+      })
+      .catch(() => {
+        marblesPending = false
+      })
+  }
+}
+
+function playMarbleClip(clip: MarbleClip, volume: number, rate: number): boolean {
+  const buffer = marbleBuffers[clip]
+  if (!buffer) return false
+  const ctx = getContext()
+  const source = ctx.createBufferSource()
+  const gain = ctx.createGain()
+  source.buffer = buffer
+  source.playbackRate.value = rate
+  gain.gain.value = volume
+  source.connect(gain).connect(ctx.destination)
+  source.start()
+  return true
+}
+
+let lastClinkAt = 0
+let lastClinkClip: MarbleClip | null = null
+
+/** A marble landing: size is the bigger marble's radius (a plain one is 1), strength how hard it hit. */
+export function playMarbleClink(size: number, strength: number) {
+  const now = performance.now()
+  if (now - lastClinkAt < 120) return
+  lastClinkAt = now
+  const set: MarbleClip[] = size >= 2 ? ['big', 'bigLow'] : size >= 1.3 ? ['medium'] : ['small']
+  let clip = set[Math.floor(Math.random() * set.length)]
+  if (clip === lastClinkClip && set.length > 1) clip = set[(set.indexOf(clip) + 1) % set.length]
+  lastClinkClip = clip
+  const volume = Math.min(1, 0.25 + strength * 0.1)
+  if (playMarbleClip(clip, volume, 0.94 + Math.random() * 0.12)) return
+  primeMarbles()
+  const { ctx, master } = cardContext()
+  const base = (3400 / Math.sqrt(size)) * (0.92 + Math.random() * 0.16)
+  playTone(ctx, master, { frequency: base, start: 0, duration: 0.09, type: 'sine', peakGain: volume * 0.16 })
+}
+
+/** The Mega landing: the two big clinks together and a short thump, with the jar's shake. */
+export function playMegaThud() {
+  const { ctx, master } = cardContext()
+  const both = playMarbleClip('bigLow', 1, 0.9) && playMarbleClip('big', 0.6, 0.85)
+  playNoiseBurst(ctx, master, 0, 0.12, both ? 0.12 : 0.3)
+  if (!both) playTone(ctx, master, { frequency: 620, endFrequency: 420, start: 0, duration: 0.3, type: 'sine', peakGain: 0.3 })
+}
+
+/** The Power Marble's lightning: a crackle and a rising buzz, all above 400Hz. */
+export function playMarbleZap() {
+  const { ctx, master } = cardContext()
+  playKnock(ctx, master, 0, 0.32, 3000, 2, 0.3)
+  playTone(ctx, master, { frequency: 700, endFrequency: 2100, start: 0, duration: 0.3, type: 'sawtooth', peakGain: 0.05 })
+  playTone(ctx, master, { frequency: 2400, endFrequency: 900, start: 0.05, duration: 0.25, type: 'square', peakGain: 0.035 })
+}
+
+/** The zapped marbles swelling. */
+export function playMarbleGrow() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 600, endFrequency: 1400, start: 0, duration: 0.5, type: 'triangle', peakGain: 0.06 })
+}
+
+/** A marble popping away as the jar empties. */
+export function playMarblePop() {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 900, endFrequency: 1700, start: 0, duration: 0.06, type: 'triangle', peakGain: 0.08 })
+}
+
+/** The jar full: a run up to a ringing top, the medium moment before the prize wheel. */
+export function playJarFull() {
+  const { ctx, master } = cardContext()
+  ;[523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((frequency, i) =>
+    playTone(ctx, master, { frequency, start: i * 0.11, duration: i === 4 ? 1.1 : 0.3, type: 'triangle', peakGain: 0.16 }),
+  )
 }

@@ -93,6 +93,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
   fills), `lib/questArt.ts` (the chests, key and wheel drawn in code), `components/QuestMoments.tsx` (the key moment and the
   chest opening with its wheel and prize), `components/OurQuest.tsx` (the map) and `public/quest/` (the teacher's Flow pieces,
   made by `design/quest/prepare-art.py`).
+- The Marble Jar, the Class Quest's second adventure (`questAdventure`): `lib/marbles.ts` (the jar, the wheel's odds, a spin kept the
+  moment the goal fills, the jar full by how much the marbles fill), `lib/marblePhysics.ts` (Planck: the marbles falling and settling,
+  kept where they came to rest), `lib/marbleArt.ts` and `lib/marbleLayer.ts` (each marble two small pictures the graphics chip moves),
+  `components/MarbleMoment.tsx` (the wheel and the jar, a lazy chunk with the physics) and `components/MiniJar.tsx`.
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
   step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useTimer.ts`: the timer, kept outside React so a
   running clock redraws only itself (its time, size, place, colour and sound are kept in `seating-chart-timer-settings-v1`).

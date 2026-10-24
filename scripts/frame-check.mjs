@@ -312,7 +312,12 @@ await measure('timer running, the writer', () => wait(6000))
 // The Class Quest (2026-10-24): the same class on a quest, a star from the goal. A reload goes
 // straight back to the class (lib/resume).
 await page.evaluate((s) => {
-  const c = { ...s.classes[0], pointsMode: 'quest', classPoints: 49, quest: { number: 1, chest: 2, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01' } }
+  const c = {
+    ...s.classes[0],
+    pointsMode: 'quest',
+    classPoints: 49,
+    quest: { number: 1, chest: 2, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01' },
+  }
   sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
 }, state)
 await page.reload()
@@ -343,6 +348,34 @@ await measure('quest: Our Quest sliding in', async () => {
   await page.locator('[data-quest-chest]').click()
   await wait(1500)
 })
+// The Marble Jar (2026-10-24): the same class on it, its jar a third full, a star from a spin.
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+await page.evaluate((s) => {
+  const marbles = []
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 7; k++) marbles.push([0, r * 7 + k, 4 + k * 2, 24.6 - r * 2, 0, 1])
+  const c = {
+    ...s.classes[0],
+    pointsMode: 'quest',
+    questAdventure: 'marbles',
+    classPoints: 49,
+    marbleJar: { number: 1, marbles, spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01' },
+  }
+  sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
+}, state)
+await page.reload()
+await wait(3000)
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
+await desk('Amy').click()
+await wait(300)
+await measure('marbles: the wheel comes up', async () => {
+  await page.locator('aside button[title="Award Point"]').click()
+  await wait(2000)
+})
+await measure('marbles: the wheel spinning', async () => {
+  await page.getByRole('button', { name: 'Spin!' }).click()
+  await wait(6000)
+})
+await measure('marbles: the pour', () => wait(5000))
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')
 for (const r of results)

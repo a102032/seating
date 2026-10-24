@@ -49,6 +49,7 @@ import {
 } from './lib/groups'
 import { pickChances, weightedChoice } from './lib/participation'
 import { prizesOf, questOf } from './lib/quest'
+import { jarIsFull, jarOf, marblesOn } from './lib/marbles'
 import { OurQuest } from './components/OurQuest'
 import {
   playCoinTick,
@@ -139,6 +140,10 @@ export default function App() {
     openQuestChest,
     setQuestPrizes,
     restartQuest,
+    setQuestAdventure,
+    spendMarbleSpin,
+    fillMarbleJar,
+    restartMarbleJar,
     setShowAllHomerooms,
     setDeskPictures,
     setStudentPhotos,
@@ -1226,6 +1231,13 @@ export default function App() {
                       spinnerNames: seatedIds.map((id) => studentsById.get(id)?.name ?? '').filter(Boolean),
                       openRequested: chestOpenRequested,
                       onOpenRequestDone: () => setChestOpenRequested(false),
+                      marbles: marblesOn(activeClass)
+                        ? {
+                            jar: jarOf(activeClass),
+                            onSpun: (marbles) => spendMarbleSpin(activeClass.id, marbles),
+                            onJarFilled: (prize) => fillMarbleJar(activeClass.id, prize),
+                          }
+                        : undefined,
                     }
                   : undefined
               }
@@ -1616,7 +1628,8 @@ export default function App() {
         onSetGoal={(goal) => setGoal(activeClass.id, goal)}
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
         onSetQuestPrizes={(prizes) => setQuestPrizes(activeClass.id, prizes)}
-        onRestartQuest={() => restartQuest(activeClass.id)}
+        onRestartQuest={() => (marblesOn(activeClass) ? restartMarbleJar(activeClass.id) : restartQuest(activeClass.id))}
+        onSetAdventure={(adventure) => setQuestAdventure(activeClass.id, adventure)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onClearDeskStars={() => clearDeskStars(activeClass.id)}
@@ -1685,7 +1698,14 @@ export default function App() {
           }}
           quest={
             questIsOn(activeClass)
-              ? { chest: questOf(activeClass).chest, keys: questOf(activeClass).keys, appBehind: !appInFront }
+              ? marblesOn(activeClass)
+                ? {
+                    chest: 0,
+                    keys: 0,
+                    appBehind: !appInFront,
+                    marbles: { spins: jarOf(activeClass).spins, full: jarIsFull(jarOf(activeClass)), jar: jarOf(activeClass).marbles },
+                  }
+                : { chest: questOf(activeClass).chest, keys: questOf(activeClass).keys, appBehind: !appInFront }
               : undefined
           }
           pick={

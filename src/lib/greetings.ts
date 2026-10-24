@@ -131,8 +131,9 @@ function classNews(classes: ClassData[], now: Date, name: string): string[] {
   for (const c of classes) {
     if (!goalIsLive(c) || !c.pointsGoal) continue
     // On a quest a filled goal is a key, and the chest is what the keys open.
-    const won = questIsOn(c) ? 'won a key' : 'opened the chest'
-    const aim = questIsOn(c) ? 'a key' : 'the chest'
+    const spins = questIsOn(c) && c.questAdventure === 'marbles'
+    const won = spins ? 'won a spin' : questIsOn(c) ? 'won a key' : 'opened the chest'
+    const aim = spins ? 'a spin' : questIsOn(c) ? 'a key' : 'the chest'
     if (c.goalReachedOn === today) news.push(`${name}, ${c.name} ${won} today!`)
     else if (c.goalReachedOn === yesterday) news.push(`${name}, ${c.name} ${won} yesterday!`)
     const left = c.pointsGoal - (c.classPoints ?? 0)

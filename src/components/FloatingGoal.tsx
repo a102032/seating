@@ -12,7 +12,10 @@ import { findMover, type Mover } from '../lib/moveExtension'
 import { FloatClock } from './BigTimer'
 import { CHESTS } from '../lib/quest'
 import { chestSVG } from '../lib/questArt'
-import { playKeyClick } from '../lib/sound'
+import { miniWheelSVG } from '../lib/marbleArt'
+import type { SavedMarble } from '../lib/marbles'
+import { MiniJar } from './MiniJar'
+import { playKeyClick, playPickerLand } from '../lib/sound'
 import { FloatGetReady } from './FloatGetReady'
 import { GRIP_ROOM, MoveGrip } from './MoveGrip'
 
@@ -41,7 +44,16 @@ interface FloatingGoalProps {
    * won from here drops into it with the click, no tap to wait for; a chest with all its keys is
    * `waiting`, and the button opens it in the app (2026-10-12, the teacher).
    */
-  quest?: { chest: number; keys: number; appBehind: boolean }
+  quest?: {
+    chest: number
+    keys: number
+    appBehind: boolean
+    /**
+     * The Marble Jar: the window shows the class's jar. A spin won here needs the board for its
+     * wheel, so it waits, as a full chest does: the button says Spin the wheel and brings the app forward.
+     */
+    marbles?: { spins: number; full: boolean; jar: SavedMarble[] }
+  }
   /** Get Ready! from here, over the lesson. */
   getReady: {
     /** False while the app is busy: Get Ready! open there, a pick running, Swap Seats, Attendance or avatars being chosen. */
@@ -125,10 +137,13 @@ export function FloatingGoal({
 }: FloatingGoalProps) {
   // A key won while the app is behind the lesson clicks into this window's chest. In front of the
   // class the app's own key moment does it, so the click isn't heard twice.
-  const keysNow = quest ? quest.chest * 10 + quest.keys : 0
+  const keysNow = quest ? (quest.marbles ? quest.marbles.spins : quest.chest * 10 + quest.keys) : 0
   const lastKeys = useRef(keysNow)
   useEffect(() => {
-    if (quest && keysNow > lastKeys.current && quest.appBehind) playKeyClick()
+    if (quest && keysNow > lastKeys.current && quest.appBehind) {
+      if (quest.marbles) playPickerLand()
+      else playKeyClick()
+    }
     lastKeys.current = keysNow
   }, [keysNow, quest])
   const lastTap = useRef(0)
@@ -254,7 +269,16 @@ export function FloatingGoal({
       style={{ touchAction: 'manipulation' }}
     >
       <span className="flex items-center gap-2" style={{ fontSize: strip ? '1.05rem' : 'clamp(1.1rem, 18vh, 2.4rem)' }}>
-        {quest ? (
+        {quest?.marbles ? (
+          quest.marbles.full ? (
+            <MiniJar marbles={quest.marbles.jar} full className="block h-[1.3em] w-[1em]" />
+          ) : (
+            <span
+              className="block h-[1.1em] w-[1.1em] [&>svg]:h-full [&>svg]:w-full"
+              dangerouslySetInnerHTML={{ __html: miniWheelSVG() }}
+            />
+          )
+        ) : quest ? (
           <span
             className="block h-[1.1em] w-[1.25em] [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible"
             dangerouslySetInnerHTML={{ __html: chestSVG(quest.chest, { keys: CHESTS[quest.chest].keys }) }}
@@ -262,7 +286,15 @@ export function FloatingGoal({
         ) : (
           <PartyPopper className="size-[1em]" />
         )}{' '}
-        {strip && asked ? 'Open the app' : quest ? 'Open the chest' : 'Celebrate!'}
+        {strip && asked
+          ? 'Open the app'
+          : quest?.marbles
+            ? quest.marbles.full
+              ? 'Open the jar'
+              : 'Spin the wheel'
+            : quest
+              ? 'Open the chest'
+              : 'Celebrate!'}
       </span>
       {!strip && asked && <span className="text-sm font-bold">Open the app to see it</span>}
     </button>
@@ -439,7 +471,15 @@ export function FloatingGoal({
               />
             </div>
           </div>
-          {quest ? (
+          {quest?.marbles ? (
+            <span data-float-chest="" className={clsx('block shrink-0', waiting && 'float-chest-rattle')}>
+              <MiniJar
+                marbles={quest.marbles.jar}
+                full={quest.marbles.full}
+                className={clockShown ? 'block h-7 w-5' : 'block h-9 w-[26px]'}
+              />
+            </span>
+          ) : quest ? (
             <span
               data-float-chest=""
               className={clsx(

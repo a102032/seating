@@ -8,6 +8,16 @@ import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoi
 import { LINE_NAME_MAX, lineOf, MAX_SAVED_LINES, STEP_NAME_MAX, type ClassLine } from '../lib/line'
 import { goalIsLive, hasClassGoal, pointsModeOf, questIsOn, starsWaitOnDesks } from '../lib/points'
 import { withChestOpened, withKeysWon, withQuestRestarted, type QuestPrize } from '../lib/quest'
+import {
+  adventureOf,
+  withJarFilled,
+  withJarRestarted,
+  withMarblesSettled,
+  withSpinsWon,
+  withSpinUsed,
+  type Adventure,
+  type SavedMarble,
+} from '../lib/marbles'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
@@ -141,7 +151,9 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
   }
   const next = { ...c, classPoints, goalsReached, goalReachedOn }
   // On a quest each goal filled is a key, kept the moment it is won (the key moment only shows it).
-  return filled && questIsOn(c) ? withKeysWon(next, filled) : next
+  // On the Marble Jar, a spin of the marble wheel instead.
+  if (!filled || !questIsOn(c)) return next
+  return adventureOf(c) === 'marbles' ? withSpinsWon(next, filled) : withKeysWon(next, filled)
 }
 
 /**
@@ -581,6 +593,27 @@ export function useClasses() {
   /** The quest from the Wood chest again, for a teacher who tried it out first. */
   const restartQuest = useCallback((classId: string) => updateClass(classId, (c) => withQuestRestarted(c)), [updateClass])
 
+  /** The Class Quest's adventure: the Knight's chests or the Marble Jar. Each keeps its own place for when it comes back. */
+  const setQuestAdventure = useCallback(
+    (classId: string, adventure: Adventure) => updateClass(classId, (c) => ({ ...c, questAdventure: adventure })),
+    [updateClass],
+  )
+  /** The Marble Jar: a spin spun and its marbles settled, kept where they came to rest. */
+  const spendMarbleSpin = useCallback(
+    (classId: string, marbles: SavedMarble[]) => updateClass(classId, (c) => withSpinUsed(c, marbles)),
+    [updateClass],
+  )
+  const settleMarbles = useCallback(
+    (classId: string, marbles: SavedMarble[]) => updateClass(classId, (c) => withMarblesSettled(c, marbles)),
+    [updateClass],
+  )
+  /** The full jar's prize won: a new jar. */
+  const fillMarbleJar = useCallback(
+    (classId: string, prize: QuestPrize) => updateClass(classId, (c) => withJarFilled(c, { name: prize.name, size: prize.size })),
+    [updateClass],
+  )
+  const restartMarbleJar = useCallback((classId: string) => updateClass(classId, (c) => withJarRestarted(c)), [updateClass])
+
   /** Clear All Stars, with student points: everyone back to 0, when the teacher says a week or a term is over. */
   const clearDeskStars = useCallback((classId: string) => updateClass(classId, withDesksEmpty), [updateClass])
 
@@ -833,6 +866,11 @@ export function useClasses() {
     openQuestChest,
     setQuestPrizes,
     restartQuest,
+    setQuestAdventure,
+    spendMarbleSpin,
+    settleMarbles,
+    fillMarbleJar,
+    restartMarbleJar,
     setShowAllHomerooms,
     setDeskPictures,
     setStudentPhotos,

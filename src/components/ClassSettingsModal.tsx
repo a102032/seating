@@ -1,4 +1,5 @@
 import type { QuestPrize } from '../lib/quest'
+import { adventureOf, type Adventure } from '../lib/marbles'
 import {
   Check,
   CircleCheck,
@@ -138,6 +139,7 @@ interface ClassSettingsModalProps {
   onClearDeskStars: () => void
   onSetQuestPrizes: (prizes: QuestPrize[]) => void
   onRestartQuest: () => void
+  onSetAdventure: (adventure: Adventure) => void
   // Tools
   tools: ToolsProps
   // Attendance and participation
@@ -279,6 +281,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onChoosingGif={setChoosingGif}
           onSetQuestPrizes={props.onSetQuestPrizes}
           onAskRestartQuest={() => setConfirming('restart-quest')}
+          onSetAdventure={props.onSetAdventure}
         />
       )
       break
@@ -476,8 +479,12 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
         />
         <ConfirmModal
           open={confirming === 'restart-quest'}
-          title="Start the quest over?"
-          message={`"${activeClass.name}" goes back to the Wood chest with no keys, and the chests opened come off the map. The stars on the meter stay.`}
+          title={adventureOf(activeClass) === 'marbles' ? 'Start a new jar?' : 'Start the quest over?'}
+          message={
+            adventureOf(activeClass) === 'marbles'
+              ? `"${activeClass.name}" starts again with an empty jar and no spins waiting. The stars on the meter stay.`
+              : `"${activeClass.name}" goes back to the Wood chest with no keys, and the chests opened come off the map. The stars on the meter stay.`
+          }
           confirmLabel="Yes, Start Over"
           cancelLabel="No"
           onCancel={() => setConfirming(null)}
