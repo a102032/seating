@@ -72,6 +72,7 @@ export default function MarbleMoment({
   const [wheelHtml] = useState(() => ({ __html: marbleWheelSVG() }))
   const [pointerHtml] = useState(() => ({ __html: pointerSVG() }))
   const [spinsLeft, setSpinsLeft] = useState(mode === 'spin' ? Math.max(1, jar.spins) : 0)
+  const [spun, setSpun] = useState(false)
   const [step, setStep] = useState<Step>(() => (mode === 'spin' ? 'ready' : jarIsFull(jar) ? 'full' : 'settled'))
   const [title, setTitle] = useState(() =>
     mode === 'spin' ? 'Spin for marbles!' : mode === 'empty' ? 'A new jar!' : jarIsFull(jar) ? 'Our jar is full!' : 'Our jar',
@@ -282,6 +283,7 @@ export default function MarbleMoment({
     spunRef.current(marbles)
     const left = spinsLeft - 1
     setSpinsLeft(left)
+    setSpun(true)
     setSpinner(null)
     shownAt.current = performance.now()
     if (jarIsFull({ ...jar, marbles })) {
@@ -321,7 +323,7 @@ export default function MarbleMoment({
   return createPortal(
     <div
       data-marble-moment={mode}
-      className="fixed inset-0 z-[60] grid grid-cols-2 items-center gap-3 bg-[rgba(14,22,44,0.84)] px-[max(18px,2vw)] py-3"
+      className="fixed inset-0 z-[60] grid grid-cols-2 items-center gap-3 bg-[rgba(14,22,44,0.95)] px-[max(18px,2vw)] py-3"
     >
       {!busy && (
         <button
@@ -386,6 +388,12 @@ export default function MarbleMoment({
           {step === 'settled' && (
             <button type="button" className="quest-stage-btn" onClick={done}>
               Done
+            </button>
+          )}
+          {/* A way out after every spin, in words beside the next thing to tap: spins still waiting, or the prize, are kept for later. */}
+          {((step === 'ready' && spun) || step === 'full') && (
+            <button type="button" className="quest-stage-btn" onClick={done}>
+              Later
             </button>
           )}
         </div>

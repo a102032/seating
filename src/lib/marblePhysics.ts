@@ -41,6 +41,7 @@ export class MarbleJarWorld {
   private nextDrop = 0
   private acc = 0
   private quiet = 0
+  private lastDropAt = 0
   private bolts: { from: Live; to: Live; until: number }[] = []
   private nextColour = 0
   private sounds: JarSounds
@@ -168,6 +169,7 @@ export class MarbleJarWorld {
       const m = this.add(kind, JAR.CX + (Math.random() - 0.5) * 2.4, JAR.MOUTH - 3.2 - r, kind === 'plain' ? this.nextColour++ : 0)
       m.body.setAngularVelocity((Math.random() - 0.5) * 6)
       this.nextDrop = now + 260 + Math.random() * 120
+      this.lastDropAt = now
     }
     this.acc += Math.min(0.05, dt)
     while (this.acc >= STEP) {
@@ -197,7 +199,10 @@ export class MarbleJarWorld {
         }
       }
     this.quiet = moving ? 0 : this.quiet + 1
-    if (this.quiet > 40) {
+    // A marble left creeping on the pile must never hold the moment open: 5 s after the last one
+    // fell in, the jar counts as settled (the teacher found no way out after a spin).
+    const busy = this.pending.length > 0 || this.bolts.length > 0 || this.marbles.some((m) => m.grow || m.pop !== undefined)
+    if (this.quiet > 40 || (!busy && this.lastDropAt && now - this.lastDropAt > 5000)) {
       for (const m of this.marbles) m.body.setAwake(false)
       return false
     }

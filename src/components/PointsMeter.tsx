@@ -309,7 +309,8 @@ export function PointsMeter({
   function tapChest() {
     if (!quest) return onOpenGoalSettings()
     if (phase !== 'idle') return
-    if (jar) return setPhase('look')
+    // A full jar opens for its prize; otherwise the jar is the goal's settings, as the plain goal's chest is (2026-10-24, the teacher).
+    if (jar) return jarFull ? setPhase('look') : onOpenGoalSettings()
     if (chestReady) setPhase('chest')
     else quest.onOpenMap()
   }
@@ -389,14 +390,17 @@ export function PointsMeter({
 
       {/* Where the voyage starts. It unrolls again when a new run begins. 40px, a third up from
           30, because the teacher found it hard to see; it still fits the 56px row. */}
-      <motion.img
-        src={treasure('map')}
-        alt=""
-        draggable={false}
-        className="h-10 w-10 shrink-0 select-none"
-        animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
-        transition={{ duration: 0.7 }}
-      />
+      {/* The Marble Jar has no map: it is a jar, not a voyage (2026-10-24, the teacher). */}
+      {!jar && (
+        <motion.img
+          src={treasure('map')}
+          alt=""
+          draggable={false}
+          className="h-10 w-10 shrink-0 select-none"
+          animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
+          transition={{ duration: 0.7 }}
+        />
+      )}
 
       {/*
         Everything that moves here is CSS, so the board's graphics chip runs it and the main
@@ -519,8 +523,8 @@ export function PointsMeter({
         <button
           type="button"
           onClick={tapChest}
-          title={jarFull ? 'Our jar is full!' : 'Our jar'}
-          aria-label={jarFull ? 'Our jar is full!' : 'Our jar'}
+          title={jarFull ? 'Our jar is full!' : 'Our jar: Goal settings'}
+          aria-label={jarFull ? 'Our jar is full!' : 'Our jar: Goal settings'}
           className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
         >
           <div ref={chestRef} data-quest-chest="" data-marble-mini="" className={clsx(jarFull && phase !== 'look' && 'meter-chest-rattle')}>

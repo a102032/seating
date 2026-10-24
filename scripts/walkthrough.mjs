@@ -651,6 +651,10 @@ const scenarios = {
         (await page.locator('[data-marble-mini]').count()) === 1 &&
         (await page.locator('[data-quest-next-key]').count()) === 0,
     )
+    check(
+      'marbles: no map at the meter\'s start',
+      (await page.locator('img[src*="map"]').count()) === 0,
+    )
     await desk(page, 'Amy').click()
     await award(page)
     await page.waitForTimeout(1600)
@@ -691,14 +695,40 @@ const scenarios = {
       after,
     )
     await refresh(page)
+    await page.waitForTimeout(800)
+    c = await activeSaved(page)
+    check('marbles: a reload keeps the same jar', JSON.stringify(c.marbleJar.marbles) === kept)
     await page.locator('[data-marble-mini]').click()
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(800)
+    check(
+      'marbles: a tap on the jar that isn\'t full opens Points',
+      (await page.locator('[data-marble-moment]').count()) === 0 && (await page.getByText('How many stars win a spin.').count()) > 0,
+    )
+    await page.context().close()
+
+    // Two spins waiting: after the first, Later is a way out, and the second spin is kept.
+    const two = makeClass('c1', 'Marbles', 12, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 0,
+      marbleJar: jar({ marbles: rows(1), spins: 2 }),
+    })
+    page = await open({ state: stateOf(two), size: [1280, 559] })
+    await page.locator('[data-marble-next]').click({ force: true })
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.getByRole('button', { name: 'Later' }).waitFor({ timeout: 20000 })
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Later' }).click()
+    await page.waitForTimeout(800)
     c = await activeSaved(page)
     check(
-      'marbles: a reload shows the same jar, and a look at it moves nothing',
-      (await page.locator('[data-marble-moment="look"]').count()) === 1 && JSON.stringify(c.marbleJar.marbles) === kept,
+      'marbles: after a spin, Later puts it away and keeps the spin still waiting',
+      (await page.locator('[data-marble-moment]').count()) === 0 && c.marbleJar.spins === 1,
+      JSON.stringify(c.marbleJar.spins),
     )
-    await page.locator('button[aria-label="Close"]').click()
     await page.context().close()
 
     // A full jar: the prize wheel rises out of it, then it empties, marbles popping away.
