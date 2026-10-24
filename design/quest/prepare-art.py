@@ -147,3 +147,12 @@ for name, (x0, y0, x1, y1) in {'castle': (60, 20, 380, 350), 'forest': (480, 60,
     Image.fromarray(np.dstack([np.broadcast_to(MAP_INK, al.shape + (3,)), al * 255]).astype(np.uint8)).save(
         OUT / f'landmark-{name}.png')
     print(f'landmark-{name}: {al.shape[1]}x{al.shape[0]}')
+
+# What the app loads (public/quest): the pieces Our Quest shows, as WebP. The traced SVGs are 100 to 300 KB of paths
+# a weak board redraws as the map slides in; a WebP twice the size it is shown at is 4 to 50 KB and stays sharp.
+for name, width in [('dragon-asleep', 900), ('knight', 560)] + [(f'landmark-{n}', 0) for n in
+                    ('castle', 'forest', 'hills', 'bridge', 'mountain-cave', 'windmill', 'signpost')]:
+    im = Image.open(OUT / f'{name}.png').convert('RGBA')
+    if width and im.width > width:
+        im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
+    im.save(OUT / f'{name}.webp', 'WEBP', quality=88, method=6)

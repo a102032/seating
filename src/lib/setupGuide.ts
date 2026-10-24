@@ -1,6 +1,6 @@
 import type { SettingsSection } from '../components/ClassSettingsModal'
 import type { ClassData } from '../types'
-import { pointsModeOf } from './points'
+import { hasClassGoal, pointsModeOf } from './points'
 
 /**
  * The guide through Class Settings (2026-10-11, the teacher: tell the teacher what to do one thing
@@ -37,7 +37,9 @@ export interface GuideStep {
 
 const g = (name: string) => `[data-guide="${name}"]`
 const hasStudents = ({ cls }: GuideContext) => cls.students.length > 0
-const goal = ({ cls }: GuideContext) => pointsModeOf(cls) === 'goal'
+const goal = ({ cls }: GuideContext) => hasClassGoal(pointsModeOf(cls))
+const plainGoal = ({ cls }: GuideContext) => pointsModeOf(cls) === 'goal'
+const quest = ({ cls }: GuideContext) => pointsModeOf(cls) === 'quest'
 const avatarsShown = ({ cls }: GuideContext) => !cls.avatarsOff && cls.students.length > 0
 const photosShown = ({ cls }: GuideContext) => cls.photosOn === true && !cls.avatarsOff && cls.students.length > 0
 const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photosOn && cls.students.length > 0
@@ -147,12 +149,32 @@ export const GUIDE_STEPS: GuideStep[] = [
     when: goal,
     maybe: true,
   },
-  { section: 'points', targets: [g('goal-row')], text: 'How many stars fill the chest? Type it, or use − and +.', when: goal, maybe: true },
+  {
+    section: 'points',
+    targets: [g('goal-row')],
+    text: 'How many stars fill the chest? Type it, or use − and +.',
+    when: plainGoal,
+    maybe: true,
+  },
+  {
+    section: 'points',
+    targets: [g('goal-row')],
+    text: 'How many stars win a key? About a key a week makes a quest last a semester.',
+    when: quest,
+    maybe: true,
+  },
   {
     section: 'points',
     targets: [g('celebration-row')],
     text: 'Pick a celebration for when the class fills the chest.',
-    when: goal,
+    when: plainGoal,
+    maybe: true,
+  },
+  {
+    section: 'points',
+    targets: [g('prizes-row')],
+    text: 'The prizes on the wheels, small, medium and big, and the GIF that dances beside a prize.',
+    when: quest,
     maybe: true,
   },
   {
@@ -161,6 +183,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     text: 'If a star was given by mistake, fix the number here, or tap Empty to start the meter again.',
     only: 'section',
     when: goal,
+  },
+  {
+    section: 'points',
+    targets: [g('quest-row')],
+    text: 'Where the class is on its quest, and how long the last key took. Start Over goes back to the Wood chest.',
+    only: 'section',
+    when: quest,
   },
   {
     section: 'points',

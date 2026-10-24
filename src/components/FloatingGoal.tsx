@@ -10,6 +10,9 @@ import { assetUrl } from '../lib/assets'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { findMover, type Mover } from '../lib/moveExtension'
 import { FloatClock } from './BigTimer'
+import { CHESTS } from '../lib/quest'
+import { chestSVG } from '../lib/questArt'
+import { playKeyClick } from '../lib/sound'
 import { FloatGetReady } from './FloatGetReady'
 import { GRIP_ROOM, MoveGrip } from './MoveGrip'
 
@@ -33,6 +36,12 @@ interface FloatingGoalProps {
   canPick: boolean
   onPick: () => void
   onClearPick: () => void
+  /**
+   * The class is on a quest: the window's chest is the chest the class is on, with its locks. A key
+   * won from here drops into it with the click, no tap to wait for; a chest with all its keys is
+   * `waiting`, and the button opens it in the app (2026-10-12, the teacher).
+   */
+  quest?: { chest: number; keys: number; appBehind: boolean }
   /** Get Ready! from here, over the lesson. */
   getReady: {
     /** False while the app is busy: Get Ready! open there, a pick running, Swap Seats, Attendance or avatars being chosen. */
@@ -112,7 +121,16 @@ export function FloatingGoal({
   onPick,
   onClearPick,
   getReady,
+  quest,
 }: FloatingGoalProps) {
+  // A key won while the app is behind the lesson clicks into this window's chest. In front of the
+  // class the app's own key moment does it, so the click isn't heard twice.
+  const keysNow = quest ? quest.chest * 10 + quest.keys : 0
+  const lastKeys = useRef(keysNow)
+  useEffect(() => {
+    if (quest && keysNow > lastKeys.current && quest.appBehind) playKeyClick()
+    lastKeys.current = keysNow
+  }, [keysNow, quest])
   const lastTap = useRef(0)
   // Celebrate was tapped, but the app is still behind the lesson.
   const [asked, setAsked] = useState(false)
@@ -170,7 +188,7 @@ export function FloatingGoal({
   }
 
   // Held full while the chest waits, as the meter on the board is.
-  const shown = waiting ? goal : classPoints
+  const shown = waiting && !quest ? goal : classPoints
   const pct = goal > 0 ? Math.min(100, (shown / goal) * 100) : 0
 
   /** Whether the last tap that counted was +1, so another +1 can follow it quickly. */
@@ -236,7 +254,15 @@ export function FloatingGoal({
       style={{ touchAction: 'manipulation' }}
     >
       <span className="flex items-center gap-2" style={{ fontSize: strip ? '1.05rem' : 'clamp(1.1rem, 18vh, 2.4rem)' }}>
-        <PartyPopper className="size-[1em]" /> {strip && asked ? 'Open the app' : 'Celebrate!'}
+        {quest ? (
+          <span
+            className="block h-[1.1em] w-[1.25em] [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible"
+            dangerouslySetInnerHTML={{ __html: chestSVG(quest.chest, { keys: CHESTS[quest.chest].keys }) }}
+          />
+        ) : (
+          <PartyPopper className="size-[1em]" />
+        )}{' '}
+        {strip && asked ? 'Open the app' : quest ? 'Open the chest' : 'Celebrate!'}
       </span>
       {!strip && asked && <span className="text-sm font-bold">Open the app to see it</span>}
     </button>
@@ -413,12 +439,24 @@ export function FloatingGoal({
               />
             </div>
           </div>
-          <img
-            src={treasure('chest-closed')}
-            alt=""
-            draggable={false}
-            className={clsx('shrink-0', clockShown ? 'h-7 w-7' : 'h-8 w-8', waiting && 'float-chest-rattle')}
-          />
+          {quest ? (
+            <span
+              data-float-chest=""
+              className={clsx(
+                'block shrink-0 [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible',
+                clockShown ? 'h-7 w-8' : 'h-8 w-9',
+                waiting && 'float-chest-rattle',
+              )}
+              dangerouslySetInnerHTML={{ __html: chestSVG(quest.chest, { keys: Math.min(quest.keys, CHESTS[quest.chest].keys) }) }}
+            />
+          ) : (
+            <img
+              src={treasure('chest-closed')}
+              alt=""
+              draggable={false}
+              className={clsx('shrink-0', clockShown ? 'h-7 w-7' : 'h-8 w-8', waiting && 'float-chest-rattle')}
+            />
+          )}
           {count}
           {sizeButton}
         </div>

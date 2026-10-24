@@ -1864,6 +1864,91 @@ button {
   }
 }
 
+/* The Quest (QuestMoments.tsx, OurQuest.tsx). Fixed colours on purpose, the same in every theme,
+   as the flip cards' backs and the groups' colours are: gold is gold. */
+.our-quest {
+  color: #3b2410;
+  /* An old treasure map: parchment, a faint ink grid, darker burnt edges. */
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(122, 72, 22, 0.26) 100%),
+    radial-gradient(circle at 16% 78%, rgba(150, 98, 36, 0.12), transparent 14%),
+    radial-gradient(circle at 74% 18%, rgba(150, 98, 36, 0.1), transparent 12%),
+    repeating-linear-gradient(0deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(90deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px),
+    linear-gradient(135deg, #f9ecc9, #f0d9a4);
+  box-shadow: -6px 0 24px rgba(30, 42, 68, 0.15);
+}
+@keyframes quest-key-bob {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  50% {
+    translate: 0 -10px;
+    rotate: -5deg;
+  }
+}
+.quest-key-bob {
+  animation: quest-key-bob 1.4s ease-in-out infinite;
+}
+/* The key waiting at the end of the meter's track, bobbing as the goal comes near. */
+@keyframes quest-key-near {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  50% {
+    translate: 0 -3px;
+    rotate: -8deg;
+  }
+}
+.quest-key-near {
+  animation: quest-key-near 1.1s ease-in-out infinite;
+}
+.quest-rays {
+  /* Still, on purpose: a sunburst this big turning made the wheel spin at 16 frames a second on a
+     board's processor, and 55 with it still (scripts/frame-check.mjs). */
+  background: repeating-conic-gradient(rgba(255, 226, 122, 0.17) 0deg 9deg, transparent 9deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 0%, transparent 55%);
+  mask: radial-gradient(circle, #000 0%, transparent 55%);
+}
+.quest-slice-dim {
+  opacity: 0.32;
+  transition: opacity 0.4s;
+}
+.quest-stage-btn {
+  min-width: min(22vw, 13rem);
+  font-family: 'Andika', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1rem, 3vmin, 1.6rem);
+  line-height: 1.2;
+  padding: 0.6em 1em;
+  border-radius: 18px;
+  color: #5b3fa0;
+  background: #f6f1ff;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  touch-action: manipulation;
+  transition: transform 0.15s;
+}
+.quest-stage-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.quest-stage-btn.quest-spin {
+  font-size: clamp(1.3rem, 4.2vmin, 2.3rem);
+  color: #6b3f00;
+  background: #ffd84d;
+  border-color: #e9b800;
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-key-bob,
+  .quest-key-near {
+    animation: none;
+  }
+}
+
 /* The floating class goal (FloatingGoal.tsx). All CSS, because the page that draws that window
    stops getting animation frames while the lesson covers it. Small moments only: the count
    pops, and a full jar rattles and glows until it's celebrated - the celebration itself stays
@@ -2746,6 +2831,92 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* The Quest's prizes (Points): three columns, small, medium and big; only each column's list scrolls. */
+.cs-prizes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.cs-prize-col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px;
+}
+.cs-prize-col[data-size='m'] {
+  background: color-mix(in srgb, #94a3b8 10%, var(--card));
+}
+.cs-prize-col[data-size='b'] {
+  background: color-mix(in srgb, #fbbf24 14%, var(--card));
+}
+.cs-prize-col > small {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  line-height: 1.3;
+}
+.cs-prize-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cs-prize-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 4px 4px 8px;
+  font-weight: 700;
+  font-size: 15px;
+}
+.cs-prize-ic {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--primary);
+}
+.cs-prize-ic svg,
+.cs-prize-list li button svg {
+  width: 100%;
+  height: 100%;
+}
+.cs-prize-list li button {
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  flex: none;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+}
+.cs-prize-add {
+  display: flex;
+  gap: 6px;
+}
+.cs-prize-add input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  font: inherit;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 8px;
+  background: var(--card);
+  color: var(--card-foreground);
 }
 
 /* Lists that may scroll: more of the same kind, never a setting. */

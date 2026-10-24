@@ -776,3 +776,70 @@ export function playMouseHic() {
   master.connect(ctx.destination)
   playTone(ctx, master, { frequency: 950, endFrequency: 1600, start: 0, duration: 0.13, type: 'triangle', peakGain: 0.11 })
 }
+
+// --- The Quest -----------------------------------------------------------------------------------
+
+/** A short knock or click: noise through a band-pass, so it sits well above a board speaker's floor. */
+function playKnock(ctx: AudioContext, master: GainNode, start: number, duration: number, frequency: number, q: number, peakGain: number) {
+  const size = Math.ceil(ctx.sampleRate * (duration + 0.02))
+  const buffer = ctx.createBuffer(1, size, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1
+  const source = ctx.createBufferSource()
+  source.buffer = buffer
+  const filter = ctx.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.value = frequency
+  filter.Q.value = q
+  const gain = ctx.createGain()
+  const t0 = ctx.currentTime + start
+  gain.gain.setValueAtTime(peakGain, t0)
+  gain.gain.exponentialRampToValueAtTime(0.0008, t0 + duration)
+  source.connect(filter).connect(gain).connect(master)
+  source.start(t0)
+  source.stop(t0 + duration + 0.02)
+}
+
+/**
+ * "You got a key!": a short jingle, four bright notes up with a ring on top. A medium moment, as
+ * agreed (2026-10-12): bigger than a point's coin, far short of the chest's fanfare.
+ */
+export function playKeyJingle() {
+  const { ctx, master } = cardContext()
+  ;[1046.5, 1318.5, 1567.98, 2093].forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: i * 0.09, duration: i === 3 ? 0.8 : 0.2, type: 'triangle', peakGain: 0.2 })
+  })
+  playTone(ctx, master, { frequency: 3136, start: 0.3, duration: 0.6, type: 'sine', peakGain: 0.07 })
+}
+
+/** The key going into its lock: a click, then two notes as the lock turns gold. */
+export function playKeyClick() {
+  const { ctx, master } = cardContext()
+  playKnock(ctx, master, 0, 0.035, 3800, 5, 0.45)
+  playTone(ctx, master, { frequency: 1318.5, start: 0.06, duration: 0.25, type: 'triangle', peakGain: 0.15 })
+  playTone(ctx, master, { frequency: 1760, start: 0.13, duration: 0.45, type: 'triangle', peakGain: 0.15 })
+  playTone(ctx, master, { frequency: 3520, start: 0.13, duration: 0.3, type: 'sine', peakGain: 0.03 })
+}
+
+/** The full chest straining at its locks in the middle of the board: wooden knocks, quicker and quicker. */
+export function playChestKnocks() {
+  const { ctx, master } = cardContext()
+  for (let i = 0; i < 7; i++) playKnock(ctx, master, i * 0.13, 0.06, 1100 + i * 40, 3, 0.35)
+}
+
+/**
+ * The chest bursting open: the lock's notes, then a run up to a ringing top with a sparkle. The
+ * goal's recorded fanfare is kept for the prize, where the suspense breaks (2026-10-24).
+ */
+export function playChestBurst(mega: boolean) {
+  const { ctx, master } = cardContext()
+  playTone(ctx, master, { frequency: 1046.5, start: 0, duration: 0.12, type: 'triangle', peakGain: 0.16 })
+  playTone(ctx, master, { frequency: 1568, start: 0.1, duration: 0.5, type: 'triangle', peakGain: 0.16 })
+  const run = [523.25, 659.25, 783.99, 1046.5]
+  run.forEach((frequency, i) => {
+    playTone(ctx, master, { frequency, start: 0.2 + i * 0.11, duration: i === 3 ? 1 : 0.22, type: 'triangle', peakGain: 0.17 })
+    playTone(ctx, master, { frequency: frequency * 2, start: 0.2 + i * 0.11, duration: i === 3 ? 0.8 : 0.18, type: 'sine', peakGain: 0.05 })
+  })
+  const sparkle = mega ? [1318.5, 1567.98, 2093, 2637, 3136] : [1567.98, 2093, 2637]
+  sparkle.forEach((frequency, i) => playTone(ctx, master, { frequency, start: 0.75 + i * 0.06, duration: 0.35, type: 'sine', peakGain: 0.08 }))
+}

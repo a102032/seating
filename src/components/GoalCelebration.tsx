@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { assetUrl } from '../lib/assets'
 import { goalFanfareDurationMs } from '../lib/sound'
@@ -10,6 +10,11 @@ interface GoalCelebrationProps {
   /** A preloaded gif to show instead of the chest. Null falls back to the chest. */
   gifUrl: string | null
   onDone: () => void
+  /**
+   * What the card says, in place of the chest or GIF and "Congratulations!": the Quest's prize
+   * (QuestMoments), with the class's GIF beside it. The sky and the stars are the same.
+   */
+  children?: ReactNode
 }
 
 // Sized for a smartboard seen from the back of a room: a couple of hundred specks reads as
@@ -78,7 +83,7 @@ function drawStar(ctx: CanvasRenderingContext2D, r: number) {
  * thirty desks stutters on a classroom smartboard, and a canvas overlay costs the layout
  * nothing. Tap anywhere to cut it short - it shares the screen with a lesson.
  */
-export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps) {
+export function GoalCelebration({ origin, gifUrl, onDone, children }: GoalCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const doneRef = useRef(onDone)
   useEffect(() => {
@@ -262,8 +267,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
           <motion.div
             className="absolute h-[140vmin] w-[140vmin] rounded-full opacity-[0.22]"
             style={{
-              background:
-                'repeating-conic-gradient(#fff 0deg 9deg, transparent 9deg 18deg)',
+              background: 'repeating-conic-gradient(#fff 0deg 9deg, transparent 9deg 18deg)',
               maskImage: 'radial-gradient(circle, #000 18%, transparent 62%)',
               WebkitMaskImage: 'radial-gradient(circle, #000 18%, transparent 62%)',
             }}
@@ -273,7 +277,7 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
           <div className="absolute h-[70vmin] w-[70vmin] rounded-full bg-amber-300/35 blur-3xl" />
 
           <motion.div
-            className="celebration-card relative flex w-[min(92vw,620px)] flex-col items-center gap-5 overflow-hidden rounded-[2.5rem] border-[6px] border-amber-200 px-10 py-9 shadow-[0_25px_80px_-12px_rgba(0,0,0,0.45)]"
+            className={`celebration-card relative flex ${children ? 'w-[min(94vw,860px)]' : 'w-[min(92vw,620px)]'} flex-col items-center gap-5 overflow-hidden rounded-[2.5rem] border-[6px] border-amber-200 px-10 py-9 shadow-[0_25px_80px_-12px_rgba(0,0,0,0.45)]`}
             initial={{ scale: 0.35, rotate: -10, y: 30 }}
             animate={{ scale: [0.35, 1.1, 1], rotate: [-10, 4, 0], y: [30, -8, 0] }}
             transition={{ duration: 0.75, ease: 'backOut' }}
@@ -297,54 +301,55 @@ export function GoalCelebration({ origin, gifUrl, onDone }: GoalCelebrationProps
                   }
                 >
                   <svg viewBox="0 0 24 24" className={st.pale ? 'h-full w-full text-white' : 'h-full w-full text-amber-100'}>
-                    <path
-                      fill="currentColor"
-                      d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"
-                    />
+                    <path fill="currentColor" d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z" />
                   </svg>
                 </span>
               ))}
             </div>
 
-            <motion.div
-              className="relative w-full"
-              animate={{ y: [0, -7, 0] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              {gifUrl ? (
-                <img
-                  src={gifUrl}
-                  alt=""
-                  className="mx-auto max-h-[42vh] w-auto max-w-full rounded-2xl border-4 border-amber-100 object-contain shadow-lg"
-                />
-              ) : (
-                <img
-                  src={assetUrl('/treasure/chest-open.svg')}
-                  alt=""
-                  className="mx-auto h-36 w-36 drop-shadow-[0_8px_16px_rgba(0,0,0,0.25)]"
-                />
-              )}
-            </motion.div>
+            {children ?? (
+              <>
+                <motion.div
+                  className="relative w-full"
+                  animate={{ y: [0, -7, 0] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  {gifUrl ? (
+                    <img
+                      src={gifUrl}
+                      alt=""
+                      className="mx-auto max-h-[42vh] w-auto max-w-full rounded-2xl border-4 border-amber-100 object-contain shadow-lg"
+                    />
+                  ) : (
+                    <img
+                      src={assetUrl('/treasure/chest-open.svg')}
+                      alt=""
+                      className="mx-auto h-36 w-36 drop-shadow-[0_8px_16px_rgba(0,0,0,0.25)]"
+                    />
+                  )}
+                </motion.div>
 
-            <div className="relative text-center leading-none">
-              <motion.div
-                className="text-5xl font-extrabold tracking-tight text-amber-950 drop-shadow-sm sm:text-6xl"
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.25, type: 'spring', stiffness: 260, damping: 14 }}
-              >
-                Congratulations!
-              </motion.div>
-              <motion.div
-                className="mt-2 text-2xl font-bold text-amber-900 sm:text-3xl"
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.45, duration: 0.35 }}
-              >
-                You did it!
-              </motion.div>
-              <div className="mt-3 text-sm font-semibold text-amber-900/70">Tap anywhere to close</div>
-            </div>
+                <div className="relative text-center leading-none">
+                  <motion.div
+                    className="text-5xl font-extrabold tracking-tight text-amber-950 drop-shadow-sm sm:text-6xl"
+                    initial={{ scale: 0.7, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.25, type: 'spring', stiffness: 260, damping: 14 }}
+                  >
+                    Congratulations!
+                  </motion.div>
+                  <motion.div
+                    className="mt-2 text-2xl font-bold text-amber-900 sm:text-3xl"
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.45, duration: 0.35 }}
+                  >
+                    You did it!
+                  </motion.div>
+                  <div className="mt-3 text-sm font-semibold text-amber-900/70">Tap anywhere to close</div>
+                </div>
+              </>
+            )}
           </motion.div>
         </div>
       </motion.div>

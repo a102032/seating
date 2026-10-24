@@ -137,7 +137,7 @@ export function ToolsSection({
               on={flip.bonusCards && gifts}
               disabled={!gifts}
               note={gifts ? undefined : 'Needs points: the extra stars have to go somewhere.'}
-              onText={`On: three surprise cards in the deck that award 2 to 5 extra stars ${pointsMode === 'goal' ? 'to the class goal' : 'to student points'}.`}
+              onText={`On: three surprise cards in the deck that award 2 to 5 extra stars ${pointsMode === 'goal' || pointsMode === 'quest' ? 'to the class goal' : 'to student points'}.`}
               offText="Off: no surprise cards in the deck."
               onChange={(on) => onUpdateFlip({ bonusCards: on })}
             />

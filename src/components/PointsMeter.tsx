@@ -3,7 +3,10 @@ import { motion } from 'framer-motion'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
-import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
+import { playCoinTick, playGoalCelebration, playKeyClick, primeGoalFanfare } from '../lib/sound'
+import { CHESTS, chestIsReady, type QuestPrize, type QuestState } from '../lib/quest'
+import { chestSVG, keySVG } from '../lib/questArt'
+import { ChestOpening, KeyMoment } from './QuestMoments'
 import { landingIsLoud, landingIsSilent, starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
 import { barClass } from '../lib/topBar'
@@ -36,6 +39,22 @@ interface PointsMeterProps {
   trailing?: ReactNode
   /** Which side the rail is on, so the put-away clock sits at the meter's end nearer the rail's timer button. */
   side: 'left' | 'right'
+  /**
+   * The class is on a quest (lib/quest): a filled goal wins a key, which waits for a tap and flies
+   * into the chest at the meter's end; a chest with all its keys rattles there until tapped open.
+   */
+  quest?: {
+    state: QuestState
+    prizes: QuestPrize[]
+    /** A tap on the chest while it still needs keys: Our Quest, on its map. */
+    onOpenMap: () => void
+    onOpened: (prize: QuestPrize) => void
+    pickSpinner: () => string | null
+    spinnerNames: string[]
+    /** Open the chest in the floating window was tapped: the chest opens once the app is in front. */
+    openRequested: boolean
+    onOpenRequestDone: () => void
+  }
 }
 
 /** How full the meter has to get before the chest starts straining. */
@@ -69,11 +88,16 @@ export function PointsMeter({
   leading,
   trailing,
   side,
+  quest,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
   // 'waiting' is a filled goal whose chest hasn't opened yet, because the app wasn't in front.
-  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing'>('idle')
+  // On a quest, 'key' is the key moment and 'chest' the chest opening.
+  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing' | 'key' | 'chest'>('idle')
+  /** Keys won but not yet shown going in: the key moment flies them in. */
+  const [heldKeys, setHeldKeys] = useState(0)
+  const questRef = useRef(quest)
   const holdRef = useRef(holdCelebration)
   const waitingChangeRef = useRef(onWaitingChange)
   const phaseRef = useRef(phase)
@@ -84,6 +108,7 @@ export function PointsMeter({
     waitingChangeRef.current = onWaitingChange
     phaseRef.current = phase
     latestPoints.current = classPoints
+    questRef.current = quest
   })
   const [burstOrigin, setBurstOrigin] = useState<{ x: number; y: number } | null>(null)
   // Normally mirrors classPoints, but holds at full through the celebration so the bar
@@ -109,6 +134,7 @@ export function PointsMeter({
       stopFanfare.current = null
       setDisplayPoints(classPoints)
       setPhase('idle')
+      setHeldKeys(0)
       return
     }
 
@@ -130,13 +156,27 @@ export function PointsMeter({
     // The chest is already open, or waiting to be: the bar stays full until it shuts, and
     // what landed meanwhile is picked up then. A second party on top of the first would play
     // two fanfares at once.
-    if (phaseRef.current === 'opening' || phaseRef.current === 'waiting') {
+    if (phaseRef.current === 'opening' || phaseRef.current === 'waiting' || phaseRef.current === 'key' || phaseRef.current === 'chest') {
       if ((classPoints > prev.value || goalsReached > prev.reached) && !landingIsSilent()) playCoinTick()
       return
     }
 
     // The goal was filled: celebrate. This used to key off the total dropping, which is
     // also what a reset or a correction looks like - so Reset Class Goal threw the party.
+    if (goalsReached > prev.reached && questRef.current) {
+      // On a quest a filled goal is a key, already kept (lib/quest). In front of the class it comes
+      // to the middle of the board and waits for a tap; won from the floating window over a lesson,
+      // it has dropped into the window's chest with its click there, so the app just shows it in.
+      if (holdRef.current) {
+        setDisplayPoints(classPoints)
+        if (!landingIsSilent()) playCoinTick()
+        return
+      }
+      setDisplayPoints(goal)
+      setHeldKeys(goalsReached - prev.reached)
+      setPhase('key')
+      return
+    }
     if (goalsReached > prev.reached) {
       setDisplayPoints(goal)
       if (holdRef.current) {
@@ -178,9 +218,47 @@ export function PointsMeter({
     }
   }, [phase, holdCelebration])
 
+  // A chest with all its keys, on a quest, waits for the app as a filled goal does: the floating
+  // window says Open the chest, and opens it here once the app is in front.
+  const need = quest ? CHESTS[quest.state.chest].keys : 0
+  const chestReady = !!quest && chestIsReady(quest.state) && phase !== 'key'
   useEffect(() => {
-    waitingChangeRef.current(phase === 'waiting')
-  }, [phase])
+    waitingChangeRef.current(phase === 'waiting' || (chestReady && phase !== 'chest'))
+  }, [phase, chestReady])
+  const openRequested = quest?.openRequested ?? false
+  useEffect(() => {
+    if (!openRequested || holdCelebration) return
+    questRef.current?.onOpenRequestDone()
+    if (chestReady && phase === 'idle') setPhase('chest')
+  }, [openRequested, holdCelebration, chestReady, phase])
+
+  /** The key went in: one lock turns gold, then the meter empties for the next goal, as after a celebration. */
+  function keyLanded() {
+    playKeyClick()
+    setHeldKeys(0)
+    chestRef.current?.animate(
+      [
+        { transform: 'rotate(0)' },
+        { transform: 'rotate(-12deg) scale(1.15)' },
+        { transform: 'rotate(10deg) scale(1.15)' },
+        { transform: 'rotate(0)' },
+      ],
+      { duration: 420 },
+    )
+    setPhase('closing')
+    setDisplayPoints(0)
+    setTimeout(() => {
+      setPhase('idle')
+      setDisplayPoints(latestPoints.current)
+    }, CLOSE_UP_MS)
+  }
+
+  function tapChest() {
+    if (!quest) return onOpenGoalSettings()
+    if (phase !== 'idle') return
+    if (chestReady) setPhase('chest')
+    else quest.onOpenMap()
+  }
   useEffect(() => () => waitingChangeRef.current(false), [])
 
   // Decode the fanfare as soon as this class has a goal, so it's in memory long before the
@@ -236,7 +314,8 @@ export function PointsMeter({
 
   const pct = goal > 0 ? Math.min(100, (displayPoints / goal) * 100) : 0
   const open = phase === 'opening'
-  const rattling = !open && goal > 0 && pct / 100 >= RATTLE_FROM
+  const rattling = quest ? chestReady && phase !== 'chest' : !open && goal > 0 && pct / 100 >= RATTLE_FROM
+  const shownKeys = quest ? Math.max(0, Math.min(need, quest.state.keys - heldKeys)) : 0
 
   return (
     <div
@@ -320,19 +399,60 @@ export function PointsMeter({
         </div>
       </div>
 
+      {/* On a quest, the key the goal wins waits at the end of the track, bobbing as it comes near. */}
+      {quest && (
+        <span
+          aria-hidden
+          data-quest-next-key=""
+          className={clsx(
+            'block h-[18px] w-9 shrink-0 transition-opacity [&>svg]:h-full [&>svg]:w-full',
+            pct >= RATTLE_FROM * 100 ? 'quest-key-near opacity-100' : 'opacity-50',
+            phase === 'key' && 'invisible',
+          )}
+          dangerouslySetInnerHTML={{ __html: keySVG() }}
+        />
+      )}
+
       {/* Where it's going. Straining near the end, then open. */}
-      <button
-        type="button"
-        onClick={onOpenGoalSettings}
-        title="Class goal settings"
-        className="shrink-0 rounded-xl p-0.5 transition-transform active:scale-90"
-      >
-        {/* The rattle runs for as long as the class sits near the goal - a whole lesson,
+      {quest ? (
+        <button
+          type="button"
+          onClick={tapChest}
+          title={chestReady ? 'Open the chest' : 'Our Quest'}
+          aria-label={chestReady ? 'Open the chest' : 'Our Quest'}
+          className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
+        >
+          <div ref={chestRef} data-quest-chest="" className={clsx('flex flex-col items-center', rattling && 'meter-chest-rattle')}>
+            <span
+              className="block h-[31px] w-9 [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible"
+              dangerouslySetInnerHTML={{ __html: chestSVG(quest.state.chest, { keys: shownKeys }) }}
+            />
+            {/* A little key for each lock, gold as it goes in. */}
+            <span className="flex h-[7px] gap-px" aria-hidden>
+              {Array.from({ length: need }, (_, i) => (
+                <span
+                  key={i}
+                  className="block h-[7px] w-[13px] [&>svg]:h-full [&>svg]:w-full"
+                  dangerouslySetInnerHTML={{ __html: keySVG(i >= shownKeys) }}
+                />
+              ))}
+            </span>
+          </div>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenGoalSettings}
+          title="Class goal settings"
+          className="shrink-0 rounded-xl p-0.5 transition-transform active:scale-90"
+        >
+          {/* The rattle runs for as long as the class sits near the goal - a whole lesson,
             sometimes - which is why it had to leave framer for CSS above all. */}
-        <div ref={chestRef} className={clsx(open ? 'meter-chest-open' : rattling && 'meter-chest-rattle')}>
-          <img src={treasure(open ? 'chest-open' : 'chest-closed')} alt="" draggable={false} className="h-8 w-8 select-none" />
-        </div>
-      </button>
+          <div ref={chestRef} className={clsx(open ? 'meter-chest-open' : rattling && 'meter-chest-rattle')}>
+            <img src={treasure(open ? 'chest-open' : 'chest-closed')} alt="" draggable={false} className="h-8 w-8 select-none" />
+          </div>
+        </button>
+      )}
 
       <span
         key={displayPoints}
@@ -346,6 +466,22 @@ export function PointsMeter({
 
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}
+      {phase === 'key' && <KeyMoment keys={heldKeys} onLanded={keyLanded} />}
+      {phase === 'chest' && quest && (
+        <ChestOpening
+          chest={quest.state.chest}
+          prizes={quest.prizes}
+          gifUrl={readyGif && readyGif.id === celebrationGifId ? readyGif.url : null}
+          pickSpinner={quest.pickSpinner}
+          spinnerNames={quest.spinnerNames}
+          onDone={(prize) => {
+            setPhase('idle')
+            quest.onOpened(prize)
+          }}
+          onNotNow={() => setPhase('idle')}
+        />
+      )}
+
       {open && (
         <GoalCelebration
           origin={burstOrigin}

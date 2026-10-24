@@ -1,6 +1,6 @@
 import type { ClassData } from '../types'
 import { dateKey } from './attendance'
-import { goalIsLive } from './points'
+import { goalIsLive, questIsOn } from './points'
 
 /**
  * What the splash says to a signed-in teacher: "Good morning, Derek!" most of the time, and now
@@ -130,10 +130,13 @@ function classNews(classes: ClassData[], now: Date, name: string): string[] {
   const news: string[] = []
   for (const c of classes) {
     if (!goalIsLive(c) || !c.pointsGoal) continue
-    if (c.goalReachedOn === today) news.push(`${name}, ${c.name} opened the chest today!`)
-    else if (c.goalReachedOn === yesterday) news.push(`${name}, ${c.name} opened the chest yesterday!`)
+    // On a quest a filled goal is a key, and the chest is what the keys open.
+    const won = questIsOn(c) ? 'won a key' : 'opened the chest'
+    const aim = questIsOn(c) ? 'a key' : 'the chest'
+    if (c.goalReachedOn === today) news.push(`${name}, ${c.name} ${won} today!`)
+    else if (c.goalReachedOn === yesterday) news.push(`${name}, ${c.name} ${won} yesterday!`)
     const left = c.pointsGoal - (c.classPoints ?? 0)
-    if (left >= 1 && left <= 5) news.push(`${name}, ${c.name} is ${left} ${left === 1 ? 'star' : 'stars'} from the chest!`)
+    if (left >= 1 && left <= 5) news.push(`${name}, ${c.name} is ${left} ${left === 1 ? 'star' : 'stars'} from ${aim}!`)
   }
   return news
 }

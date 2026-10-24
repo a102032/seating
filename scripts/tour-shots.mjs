@@ -72,7 +72,7 @@ const TEACHER = { uid: 't1', firstName: 'Derek', email: 'derek@example.com', dir
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 
-async function open() {
+async function open(state = STATE) {
   const context = await browser.newContext({ viewport: { width: SIZE[0], height: SIZE[1] } })
   const page = await context.newPage()
   if (FONTS) {
@@ -96,7 +96,7 @@ async function open() {
       localStorage.setItem('seating-chart-guide-v1', JSON.stringify({ t1: true }))
       localStorage.setItem('seating-chart-tour-offer-v1', 'true')
     },
-    [STATE, TEACHER],
+    [state, TEACHER],
   )
   await page.goto(URL)
   await page.locator('.splash-board button', { hasText: '4B English' }).first().click()
@@ -414,6 +414,64 @@ const all = {}
     stop: '[data-tour-mark="stop"]',
   })
   await shot(page, 'star')
+  await page.context().close()
+}
+
+// The Class Quest: the same class on a quest, partway through (the Wood chest opened, a key in the
+// Bronze chest), then with the Bronze chest's keys all in, opened, its wheel spun and its prize up.
+{
+  const onQuest = (keys) => ({
+    ...STATE,
+    classes: [
+      {
+        ...STATE.classes[0],
+        pointsMode: 'quest',
+        pointsGoal: 40,
+        classPoints: 26,
+        quest: {
+          number: 1,
+          chest: 1,
+          keys,
+          opened: [{ chest: 0, prize: { name: 'Drawing time', size: 's' }, on: today }],
+          keyDays: [today],
+          startedOn: today,
+        },
+      },
+    ],
+  })
+  let page = await open(onQuest(1))
+  await page.evaluate(() => {
+    let m = document.querySelector('[data-quest-chest]')
+    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
+    m?.setAttribute('data-tour-mark', 'qmeter')
+  })
+  all.quest = await rects(page, { meter: '[data-tour-mark="qmeter"]', nextKey: '[data-quest-next-key]', chest: '[data-quest-chest]' })
+  await shot(page, 'quest')
+  await page.click('[data-quest-chest]')
+  await page.waitForTimeout(900)
+  all.questmap = await rects(page, {
+    map: '[data-our-quest]',
+    opened: '[data-our-quest] [data-station="0"]',
+    now: '[data-our-quest] [data-station="1"]',
+    mega: '[data-our-quest] [data-station="4"]',
+    close: 'button[aria-label="Close Our Quest"]',
+  })
+  await shot(page, 'questmap')
+  await page.context().close()
+
+  page = await open(onQuest(2))
+  await page.click('[data-quest-chest]')
+  await page.waitForTimeout(3400)
+  await mark(page, [
+    ['qpick', '^Pick a Spinner$'],
+    ['qspin', '^Spin!$'],
+  ])
+  all.wheel = await rects(page, { wheel: '[data-quest-wheel]', pick: '[data-tour-mark="qpick"]', spin: '[data-tour-mark="qspin"]' })
+  await shot(page, 'wheel')
+  await page.click('[data-tour-mark="qspin"]')
+  await page.waitForTimeout(9000)
+  all.prize = await rects(page, { card: '.celebration-card' })
+  await shot(page, 'prize')
   await page.context().close()
 }
 

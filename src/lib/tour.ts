@@ -3,13 +3,27 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Seven parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Eight parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
  * of these screens changes.
  */
-export type TourShot = 'board' | 'flip' | 'chooser' | 'who' | 'builder' | 'groups' | 'line' | 'timer' | 'howlong' | 'star'
+export type TourShot =
+  | 'board'
+  | 'quest'
+  | 'questmap'
+  | 'wheel'
+  | 'prize'
+  | 'flip'
+  | 'chooser'
+  | 'who'
+  | 'builder'
+  | 'groups'
+  | 'line'
+  | 'timer'
+  | 'howlong'
+  | 'star'
 
 export interface TourStop {
   /** The picture: one of the screens, or 'slides', the floating class goal drawn over a lesson slide. */
@@ -80,6 +94,32 @@ export const TOUR: TourPart[] = [
       { shot: 'board', at: 'gear', text: 'Class Settings: everything about this class. Help, and this tour, are in there.' },
       { shot: 'board', at: 'saved', text: 'Whether your classes are saved to your Google account. A cloud with a tick means they are.' },
       { shot: 'board', at: 'side', text: 'Moves the side buttons to the other side of the screen.' },
+    ],
+  },
+  {
+    title: 'The Class Quest',
+    intro: 'A class goal that wins keys. The keys open five chests, each with a prize wheel. Choose it in Class Settings, Points.',
+    stops: [
+      { shot: 'quest', at: 'meter', text: 'On a Class Quest, each time the class fills the goal it wins a key.' },
+      {
+        shot: 'quest',
+        at: 'nextKey',
+        text: 'The key waits here. When the goal fills, it comes to the middle of the board. A student taps it, and it flies into the chest.',
+      },
+      { shot: 'quest', at: 'chest', text: 'Each lock turns gold as its key goes in. Tap the chest to see the whole quest.' },
+      { shot: 'questmap', at: 'map', text: 'Our Quest: five chests, needing 1 to 5 keys. About a key a week makes a quest a semester.' },
+      { shot: 'questmap', at: 'opened', text: 'A chest the class opened, and the prize that was inside.' },
+      { shot: 'questmap', at: 'now', text: 'The chest the class is on, and its keys.' },
+      { shot: 'questmap', at: 'mega', text: 'The Mega chest, at the end. Its wheel is all gold.' },
+      { shot: 'questmap', at: 'close', text: 'Back to the desks.' },
+      { shot: 'wheel', at: 'wheel', text: 'A chest with all its keys rattles. Tap it to open it, and a prize wheel rises out.' },
+      { shot: 'wheel', at: 'pick', text: 'Pick a Spinner chooses a student to spin.' },
+      { shot: 'wheel', at: 'spin', text: 'Spin! Silver slices are medium prizes, gold ones big.' },
+      {
+        shot: 'prize',
+        at: 'card',
+        text: 'The prize, with your celebration GIF beside it. Tap to close. Your prizes are in Class Settings, Points.',
+      },
     ],
   },
   {

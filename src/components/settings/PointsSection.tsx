@@ -1,8 +1,10 @@
-import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, RotateCcw, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
+import { CHESTS, lastKeyWords, PRIZE_NAME_MAX, prizesOf, questOf, SIZE_NAMES, type PrizeSize, type QuestPrize } from '../../lib/quest'
+import { chestSVG, prizeIconSVG } from '../../lib/questArt'
 import type { ClassData, PointsMode } from '../../types'
 import { Btn, NumberStepper, Tick } from './parts'
 
@@ -19,6 +21,10 @@ interface PointsSectionProps {
   /** The celebration's pictures are up, in place of the section (with Back). */
   choosingGif: boolean
   onChoosingGif: (choosing: boolean) => void
+  /** The Quest's prize list, each prize small, medium or big. */
+  onSetQuestPrizes: (prizes: QuestPrize[]) => void
+  /** Start the quest over from the Wood chest (asks first). */
+  onAskRestartQuest: () => void
 }
 
 const chestClosed = assetUrl('/treasure/chest-closed.svg')
@@ -43,6 +49,7 @@ function MiniDesk({ star }: { star: boolean }) {
 
 const MODES: { mode: PointsMode; label: string; says: string }[] = [
   { mode: 'goal', label: 'Class Goal', says: 'All points go to the class goal.' },
+  { mode: 'quest', label: 'Class Quest', says: 'Fill the goal to win a key. Keys open five chests, and each chest has a prize wheel.' },
   { mode: 'students', label: 'Student Points (No Goal)', says: 'Each student keeps their own stars, on their desk, until you clear them.' },
   { mode: 'none', label: 'No Points', says: 'No stars. The pickers, the cards, groups and Get Ready! still work.' },
 ]
@@ -66,7 +73,10 @@ export function PointsSection({
   onAskClearStars,
   choosingGif,
   onChoosingGif,
+  onSetQuestPrizes,
+  onAskRestartQuest,
 }: PointsSectionProps) {
+  const [choosingPrizes, setChoosingPrizes] = useState(false)
   const mode = pointsModeOf(activeClass)
   const goalOn = goalIsLive(activeClass)
   const onDesks = activeClass.starsOnDesks === true
@@ -105,13 +115,21 @@ export function PointsSection({
     }, COMMIT_DELAY_MS)
   }
 
+  if (choosingPrizes && mode === 'quest') {
+    return <PrizesPage prizes={prizesOf(activeClass)} onChange={onSetQuestPrizes} onBack={() => setChoosingPrizes(false)} />
+  }
+
   if (choosingGif) {
     const chosen = activeClass.celebrationGifId ?? ''
     return (
       <>
         <div className="cs-page-head">
           <h2 className="m-0 text-xl font-bold">Celebration</h2>
-          <p>What fills the board when the class fills the chest.</p>
+          <p>
+            {mode === 'quest'
+              ? 'What dances beside the prize when the wheel stops.'
+              : 'What fills the board when the class fills the chest.'}
+          </p>
           <div className="cs-right">
             <Btn small onClick={() => onChoosingGif(false)}>
               <ChevronLeft /> Back
@@ -171,6 +189,11 @@ export function PointsSection({
             <button key={m.mode} type="button" className="cs-choice" aria-pressed={mode === m.mode} onClick={() => onSetPointsMode(m.mode)}>
               {m.mode === 'goal' ? (
                 <img src={chestClosed} alt="" className="h-6 w-6 shrink-0" />
+              ) : m.mode === 'quest' ? (
+                <span
+                  className="block h-6 w-7 shrink-0 [&>svg]:h-full [&>svg]:w-full"
+                  dangerouslySetInnerHTML={{ __html: chestSVG(2, { keys: 1 }) }}
+                />
               ) : (
                 <MiniDesk star={m.mode === 'students'} />
               )}
@@ -207,26 +230,46 @@ export function PointsSection({
           <div className="cs-row" data-guide="goal-row">
             <div className="cs-row-label">
               <b>Goal</b>
-              <small>Set the goal for your class: how many stars are needed to fill the chest.</small>
+              <small>
+                {mode === 'quest'
+                  ? 'How many stars win a key. About a key a week makes a quest a semester.'
+                  : 'Set the goal for your class: how many stars are needed to fill the chest.'}
+              </small>
             </div>
             {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}
             <NumberStepper value={goal} min={1} max={Math.max(999, activeClass.pointsGoal ?? 0)} label="Goal" onChange={changeGoal} />
           </div>
-          <div className="cs-row" data-guide="celebration-row">
-            <div className="cs-row-label">
-              <b>Celebration</b>
-              <small>Pick a celebration animation when the class achieves their goal.</small>
+          {mode === 'quest' ? (
+            <div className="cs-row" data-guide="prizes-row">
+              <div className="cs-row-label">
+                <b>Prizes</b>
+                <small>What the chests hold, and the GIF beside a prize.</small>
+              </div>
+              <Btn onClick={() => setChoosingPrizes(true)}>
+                {prizesOf(activeClass).length} prizes <ChevronRight />
+              </Btn>
+              <Btn onClick={() => onChoosingGif(true)} title="Celebration">
+                <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
+                {gif?.label ?? 'No GIF'} <ChevronRight />
+              </Btn>
             </div>
-            <Btn onClick={() => onChoosingGif(true)}>
-              <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
-              {gif?.label ?? 'Treasure chest'} <ChevronRight />
-            </Btn>
-          </div>
+          ) : (
+            <div className="cs-row" data-guide="celebration-row">
+              <div className="cs-row-label">
+                <b>Celebration</b>
+                <small>Pick a celebration animation when the class achieves their goal.</small>
+              </div>
+              <Btn onClick={() => onChoosingGif(true)}>
+                <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
+                {gif?.label ?? 'Treasure chest'} <ChevronRight />
+              </Btn>
+            </div>
+          )}
           {/* The one place the meter can be corrected: a point that landed by mistake had no way
               back short of starting the meter again. Held to the goal; never opens the chest. */}
           <div className="cs-row" data-guide="meter-row">
             <div className="cs-row-label">
-              <b>Number of stars currently on the class goal meter</b>
+              <b>{mode === 'quest' ? 'Stars on the meter now' : 'Number of stars currently on the class goal meter'}</b>
               <small>Fix a point given by mistake.</small>
             </div>
             <NumberStepper
@@ -240,6 +283,7 @@ export function PointsSection({
               <RotateCcw /> Empty
             </Btn>
           </div>
+          {mode === 'quest' && <QuestRow activeClass={activeClass} onAskRestart={onAskRestartQuest} />}
         </div>
       )}
 
@@ -258,6 +302,107 @@ export function PointsSection({
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+/** Where the class is on its quest, how long the last key took (to help set the goal), and Start Over. */
+function QuestRow({ activeClass, onAskRestart }: { activeClass: ClassData; onAskRestart: () => void }) {
+  const q = questOf(activeClass)
+  const T = CHESTS[q.chest]
+  const fresh = q.number === 1 && q.chest === 0 && q.keys === 0
+  return (
+    <div className="cs-row" data-guide="quest-row">
+      <div className="cs-row-label">
+        <b>
+          {q.number > 1 ? `Quest ${q.number}: ` : ''}
+          {T.name} chest, {Math.min(q.keys, T.keys)} of {T.keys} {T.keys === 1 ? 'key' : 'keys'}
+        </b>
+        <small>{lastKeyWords(q)}</small>
+      </div>
+      <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>
+        <RotateCcw /> Start Over
+      </Btn>
+    </div>
+  )
+}
+
+const SIZES: PrizeSize[] = ['s', 'm', 'b']
+const SIZE_SAYS: Record<PrizeSize, string> = {
+  s: 'Plain slices. Most of the Wood and Bronze wheels.',
+  m: 'Silver slices, on every wheel but the Mega.',
+  b: 'Gold slices, from the Silver chest. The Mega chest is all gold.',
+}
+
+/**
+ * The prize list, in place of the section (as the celebration's pictures are), with Back: three
+ * columns, small, medium and big. A prize is typed, since a list is made ahead at a desk; only a
+ * column's list scrolls.
+ */
+function PrizesPage({ prizes, onChange, onBack }: { prizes: QuestPrize[]; onChange: (p: QuestPrize[]) => void; onBack: () => void }) {
+  const [drafts, setDrafts] = useState<Record<PrizeSize, string>>({ s: '', m: '', b: '' })
+  function add(size: PrizeSize) {
+    const name = drafts[size].trim().slice(0, PRIZE_NAME_MAX)
+    if (!name) return
+    onChange([...prizes, { name, size }])
+    setDrafts((d) => ({ ...d, [size]: '' }))
+  }
+  return (
+    <>
+      <div className="cs-page-head">
+        <h2 className="m-0 text-xl font-bold">Prizes</h2>
+        <p>The wheels are made from these. Whole-class activities work best.</p>
+        <div className="cs-right">
+          <Btn small onClick={onBack}>
+            <ChevronLeft /> Back
+          </Btn>
+        </div>
+      </div>
+      <div className="cs-prizes">
+        {SIZES.map((size) => {
+          const list = prizes.map((p, i) => ({ p, i })).filter(({ p }) => p.size === size)
+          return (
+            <div key={size} className="cs-prize-col" data-size={size}>
+              <b>{SIZE_NAMES[size]}</b>
+              <small>{SIZE_SAYS[size]}</small>
+              <ul className="cs-prize-list">
+                {list.map(({ p, i }) => (
+                  <li key={`${i}-${p.name}`}>
+                    <span className="cs-prize-ic" dangerouslySetInnerHTML={{ __html: prizeIconSVG(p.name) }} />
+                    <span className="min-w-0 flex-1 break-words">{p.name}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${p.name}`}
+                      title="Remove"
+                      onClick={() => onChange(prizes.filter((_, k) => k !== i))}
+                    >
+                      <X />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <form
+                className="cs-prize-add"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  add(size)
+                }}
+              >
+                <input
+                  value={drafts[size]}
+                  maxLength={PRIZE_NAME_MAX}
+                  placeholder="A new prize"
+                  aria-label={`A new ${SIZE_NAMES[size].toLowerCase()} prize`}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [size]: e.target.value }))}
+                />
+                <Btn small type="submit" disabled={!drafts[size].trim()} aria-label={`Add a ${SIZE_NAMES[size].toLowerCase()} prize`}>
+                  <Plus />
+                </Btn>
+              </form>
+            </div>
+          )
+        })}
+      </div>
     </>
   )
 }

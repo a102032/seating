@@ -11,9 +11,19 @@ export function pointsModeOf(c: ClassData): PointsMode {
   return (c.pointsGoal ?? 0) > 0 && c.goalEnabled !== false ? 'goal' : 'none'
 }
 
+/** A class goal the whole class fills: the plain one, or the Quest's, where each goal filled wins a key. */
+export function hasClassGoal(mode: PointsMode): boolean {
+  return mode === 'goal' || mode === 'quest'
+}
+
 /** The class goal is on, with a number to fill: the meter is on the board and stars can go into it. */
 export function goalIsLive(c: ClassData): boolean {
-  return pointsModeOf(c) === 'goal' && (c.pointsGoal ?? 0) > 0
+  return hasClassGoal(pointsModeOf(c)) && (c.pointsGoal ?? 0) > 0
+}
+
+/** The class is on a quest: a filled goal wins a key rather than opening the chest. */
+export function questIsOn(c: ClassData): boolean {
+  return pointsModeOf(c) === 'quest' && goalIsLive(c)
 }
 
 /**

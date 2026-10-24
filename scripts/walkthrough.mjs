@@ -396,6 +396,233 @@ const scenarios = {
    * points go to each member, Clear All Stars empties them, and leaving asks first. No points: no
    * star, no scores on the group cards, and Get Ready! is a challenge with no prize.
    */
+  /**
+   * The Class Quest (DECISIONS, "Treasure Quest"): a filled goal wins a key that waits for a tap and
+   * flies into the chest; a chest with all its keys opens on a tap, a wheel rises with the agreed
+   * odds, Pick a Spinner names someone here and counts it as their turn, Spin lands on one slice and
+   * the prize fills the screen until tapped; the class walks on to the next chest, and after the Mega
+   * chest a new quest starts. Our Quest on its map never scrolls, and the floating window shows the
+   * chest and says Open the chest when it has all its keys.
+   */
+  async 'the class quest'() {
+    const quest = (chest, keys, extra = {}) => ({ number: 1, chest, keys, opened: [], keyDays: [], startedOn: '2026-09-01', ...extra })
+    const cls = makeClass('c1', 'Quest', 12, { pointsMode: 'quest', goalEnabled: true, pointsGoal: 10, classPoints: 9 })
+    let page = await open({ state: stateOf(cls), size: [1280, 559], before: () => sessionStorage.setItem('picks', '0') })
+    await desk(page, 'Amy').click()
+    await award(page)
+    await page.waitForTimeout(1300)
+    let c = await activeSaved(page)
+    check(
+      'quest: a filled goal wins a key, kept as it is won',
+      c.quest?.keys === 1 && c.goalsReached === 1 && (await page.locator('[data-quest-moment="key"]').count()) === 1,
+      JSON.stringify(c.quest),
+    )
+    check('quest: "You got a key!"', (await page.locator('[data-quest-moment="key"]').innerText()).includes('You got a key!'))
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(2200)
+    check(
+      'quest: a tap sends the key into the chest, and the chest is ready',
+      (await page.locator('[data-quest-moment]').count()) === 0 &&
+        (await page.locator('[data-quest-chest]').locator('..').getAttribute('title')) === 'Open the chest',
+    )
+    // The chest opening: the wheel, Pick a Spinner, Spin, the prize.
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(3300)
+    const fills = await page
+      .locator('[data-quest-wheel] [data-slice] > path:first-child')
+      .evaluateAll((ps) => ps.map((p) => p.getAttribute('fill')))
+    const count = (k) => fills.filter((f) => f.includes(k)).length
+    check(
+      'quest: the Wood wheel is 6 plain, 2 silver, no gold',
+      count('silver') === 2 && count('gold') === 0 && fills.length === 8,
+      fills.join(' '),
+    )
+    const picksBefore = Object.values((await activeSaved(page)).participation ?? {})
+      .flatMap((d) => Object.values(d))
+      .reduce((n, [p]) => n + p, 0)
+    await page.getByRole('button', { name: 'Pick a Spinner' }).click()
+    await page.waitForTimeout(3300)
+    const spinner = await page.locator('[data-quest-spinner]').innerText()
+    c = await activeSaved(page)
+    const picksAfter = Object.values(c.participation ?? {})
+      .flatMap((d) => Object.values(d))
+      .reduce((n, [p]) => n + p, 0)
+    check(
+      'quest: Pick a Spinner names a student, and it is their turn',
+      /, spin!$/.test(spinner) && picksAfter === picksBefore + 1,
+      spinner,
+    )
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(6600)
+    check('quest: the wheel lands on one slice, the rest fade', (await page.locator('.quest-slice-dim').count()) === 7)
+    await page.waitForTimeout(1200)
+    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
+    check('quest: the prize fills the screen', !!prize, prize)
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(900)
+    c = await activeSaved(page)
+    check(
+      'quest: the chest goes on the map and the class walks on to Bronze',
+      c.quest.chest === 1 &&
+        c.quest.keys === 0 &&
+        c.quest.opened[0]?.prize.name === prize &&
+        (await page.locator('[data-quest-moment]').count()) === 0,
+      JSON.stringify(c.quest),
+    )
+    // Our Quest: a tap on the chest while it needs keys.
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(800)
+    check('quest: the chest opens Our Quest when it needs keys', await page.locator('[data-our-quest]').isVisible())
+    check(
+      'quest: the map shows the prize under the Wood chest',
+      (await page.locator('[data-our-quest] [data-station="0"]').innerText()).includes(prize),
+    )
+    const mapOver = []
+    for (const size of SCROLL_SIZES) {
+      await page.setViewportSize({ width: size[0], height: size[1] })
+      await page.waitForTimeout(250)
+      const o = await overflow(page)
+      const out = await page.evaluate(() => {
+        const m = document.querySelector('[data-our-quest]').getBoundingClientRect()
+        return [...document.querySelectorAll('[data-our-quest] [data-station]')].some((e) => {
+          const r = e.getBoundingClientRect()
+          return r.top < m.top - 1 || r.bottom > m.bottom + 1 || r.left < m.left - 1 || r.right > m.right + 1
+        })
+      })
+      if (out || Object.values(o).some((v) => v > 0)) mapOver.push(`${size.join('x')} ${JSON.stringify(o)} ${out}`)
+    }
+    check('quest: Our Quest fits every screen, nothing scrolls', mapOver.length === 0, mapOver.join('; '))
+    await page.setViewportSize({ width: 1280, height: 559 })
+    await page.locator('button[aria-label="Close Our Quest"]').click()
+    await page.waitForTimeout(300)
+    check('quest: Our Quest closes on its X', (await page.locator('[data-our-quest]').count()) === 0)
+    await page.context().close()
+
+    // The Silver wheel's first gold slice, and the Mega chest starting a new quest.
+    const silver = makeClass('c1', 'Quest', 12, {
+      pointsMode: 'quest',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 0,
+      quest: quest(2, 3),
+    })
+    page = await open({ state: stateOf(silver), size: [1024, 500] })
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(3300)
+    const sf = await page
+      .locator('[data-quest-wheel] [data-slice] > path:first-child')
+      .evaluateAll((ps) => ps.map((p) => p.getAttribute('fill')))
+    check(
+      'quest: the Silver wheel is 2 plain, 5 silver, 1 gold',
+      sf.filter((f) => f.includes('silver')).length === 5 && sf.filter((f) => f.includes('gold')).length === 1,
+    )
+    const fit = await page.evaluate(() => {
+      const r = document.querySelector('[data-quest-wheel]').getBoundingClientRect()
+      const b = [...document.querySelectorAll('.quest-stage-btn')].map((e) => e.getBoundingClientRect())
+      return r.top >= 0 && b.every((x) => x.bottom <= innerHeight && x.right <= innerWidth)
+    })
+    check('quest: the chest opening fits 1024x500', fit)
+    await page.locator('button[aria-label="Not now"]').click()
+    await page.waitForTimeout(400)
+    c = await activeSaved(page)
+    check(
+      'quest: Not now puts it back, the chest still full',
+      (await page.locator('[data-quest-moment]').count()) === 0 && c.quest.keys === 3 && c.quest.chest === 2,
+    )
+    await page.context().close()
+
+    const mega = makeClass('c1', 'Quest', 12, {
+      pointsMode: 'quest',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 0,
+      quest: quest(4, 6),
+    })
+    page = await open({ state: stateOf(mega), size: [1280, 559] })
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(3300)
+    const mf = await page
+      .locator('[data-quest-wheel] [data-slice] > path:first-child')
+      .evaluateAll((ps) => ps.map((p) => p.getAttribute('fill')))
+    check('quest: the Mega wheel is all gold', mf.length === 8 && mf.every((f) => f.includes('gold')), mf.join(' '))
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(8000)
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(900)
+    c = await activeSaved(page)
+    check(
+      'quest: after the Mega chest a new quest starts, with the spare key',
+      c.quest.number === 2 && c.quest.chest === 0 && c.quest.keys === 1 && c.quest.opened.length === 0,
+      JSON.stringify(c.quest),
+    )
+    await page.locator('[data-quest-chest]').click()
+    await page.waitForTimeout(3300)
+    await page.locator('button[aria-label="Not now"]').click()
+    await page.context().close()
+
+    // Points: four choices, the prize list, and how long the last key took.
+    const pts = makeClass('c1', 'Quest', 12, {
+      pointsMode: 'quest',
+      goalEnabled: true,
+      pointsGoal: 10,
+      quest: quest(1, 1, { keyDays: ['2026-10-14', '2026-10-20'] }),
+    })
+    page = await open({ state: stateOf(pts), size: [1024, 500] })
+    await openPointsTab(page)
+    await page.waitForTimeout(300)
+    const body = await page.locator('.cs-page').innerText()
+    check(
+      'quest: Points has four choices and says the last key took 6 days',
+      ['Class Goal', 'Class Quest', 'Student Points (No Goal)', 'No Points'].every((l) => body.includes(l)) &&
+        body.includes('The last key took 6 days.'),
+    )
+    check('quest: Points fits at 1024x500', (await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)) <= 0)
+    await page.getByRole('button', { name: /^10 prizes/ }).click()
+    await page.waitForTimeout(200)
+    await page.locator('input[aria-label="A new big prize"]').fill('Library trip')
+    await page.locator('button[aria-label="Add a big prize"]').click()
+    await page.locator('button[aria-label="Remove Candy treat"]').click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check(
+      'quest: a prize is added and one taken out',
+      c.questPrizes.some((p) => p.name === 'Library trip' && p.size === 'b') &&
+        !c.questPrizes.some((p) => p.name === 'Candy treat') &&
+        c.questPrizes.length === 10,
+    )
+    check('quest: the prize list fits at 1024x500', (await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)) <= 0)
+    await page.getByRole('button', { name: 'Back' }).click()
+    await page.getByRole('button', { name: /Start Over/ }).click()
+    await page.getByRole('button', { name: 'Yes, Start Over' }).click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check('quest: Start Over goes back to the Wood chest', c.quest.chest === 0 && c.quest.keys === 0)
+    await page.getByRole('button', { name: 'Class Goal', exact: true }).click()
+    await page.waitForTimeout(300)
+    c = await activeSaved(page)
+    check('quest: back to a plain class goal, the quest kept for later', c.pointsMode === 'goal' && c.goalEnabled === true && !!c.quest)
+    await page.context().close()
+
+    // The floating window: the chest the class is on, and Open the chest.
+    const fl = makeClass('c1', 'Quest', 12, { pointsMode: 'quest', goalEnabled: true, pointsGoal: 10, classPoints: 2, quest: quest(1, 2) })
+    page = await open({ state: stateOf(fl), size: [1280, 559] })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await page.waitForTimeout(600)
+    check(
+      'float: the quest chest, and Open the chest when it has its keys',
+      (await win.locator('[data-float-chest]').count()) === 1 && (await win.getByText('Open the chest').count()) === 1,
+    )
+    await win.getByText('Open the chest').click()
+    await page.bringToFront()
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await page.waitForTimeout(1500)
+    check('float: Open the chest opens it in the app', (await page.locator('[data-quest-moment="chest"]').count()) === 1)
+    check('quest: no errors', page.errors.length === 0, page.errors.join('; '))
+    await page.context().close()
+  },
+
   async 'points: a class goal, student points, or none'() {
     const cls = makeClass('c1', 'Points', 12, { pointsGoal: 50, classPoints: 10, goalEnabled: true })
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
@@ -2630,7 +2857,7 @@ const scenarios = {
     let stops = 0
     let bad = 0
     const parts = []
-    for (let guard = 0; guard < 100; guard++) {
+    for (let guard = 0; guard < 140; guard++) {
       // Past the lit ring's own slide to its new place (0.2 s).
       await page.waitForTimeout(300)
       if (await page.locator('[data-tour-card]').count()) {
@@ -2656,13 +2883,13 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 85: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
-      // and the board's lock (2026-10-19).
-      'tour: 85 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 85 && bad === 0,
+      // 97: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
+      // the board's lock (2026-10-19), and the Class Quest's part (2026-10-24).
+      'tour: 97 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 97 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 8, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -2682,8 +2909,9 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 21 stops to the card before Flip Cards, then skip to Group Activity's card.
+    // Through the board's 21 stops to the card before the Class Quest, then skip it and Flip Cards to Group Activity's card.
     for (let i = 0; i < 21; i++) await page.locator('[data-tour-action="next"]').click()
+    await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
     await page.locator('button[aria-label="Class Settings"]').click()
@@ -2704,7 +2932,7 @@ const scenarios = {
     const before = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
     check(
       'tour: Back on the card between parts, to the last stop of the part before',
-      new RegExp(`^${parts[0]} · (\\d+) of \\1$`).test(before),
+      new RegExp(`^${parts[1]} · (\\d+) of \\1$`).test(before),
       before,
     )
     await page.keyboard.press('Escape')

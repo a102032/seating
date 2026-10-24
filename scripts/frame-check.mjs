@@ -90,7 +90,8 @@ await page.route(
 )
 await page.addInitScript(
   ([s, t]) => {
-    localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+    // A reload can bring another class in (the Quest's, at the end), set in this tab's sessionStorage.
+    localStorage.setItem('seating-chart-state-v1', sessionStorage.getItem('frame-check-state') ?? JSON.stringify(s))
     localStorage.setItem(
       'seating-chart-account-v1',
       JSON.stringify({ uid: 'frame-check-teacher', firstName: 'Test', email: 'test@example.com', dirty: [], deleted: [] }),
@@ -308,6 +309,40 @@ await page.locator('[data-timer-card]').getByRole('button', { name: 'Writing' })
 await page.locator('[data-timer-card] button.timer-done').click()
 await wait(800)
 await measure('timer running, the writer', () => wait(6000))
+// The Class Quest (2026-10-24): the same class on a quest, a star from the goal. A reload goes
+// straight back to the class (lib/resume).
+await page.evaluate((s) => {
+  const c = { ...s.classes[0], pointsMode: 'quest', classPoints: 49, quest: { number: 1, chest: 2, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01' } }
+  sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
+}, state)
+await page.reload()
+await wait(3000)
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
+await desk('Amy').click()
+await wait(300)
+await measure('quest: the key comes in', async () => {
+  await page.locator('aside button[title="Award Point"]').click()
+  await wait(2000)
+})
+await measure('quest: the key flies in', async () => {
+  await page.mouse.click(700, 400)
+  await wait(2500)
+})
+await measure('quest: the chest opening', async () => {
+  await page.locator('[data-quest-chest]').click()
+  await wait(3500)
+})
+await measure('quest: the wheel spinning', async () => {
+  await page.getByRole('button', { name: 'Spin!' }).click()
+  await wait(6500)
+})
+await measure('quest: the prize', () => wait(3000))
+await page.mouse.click(700, 400)
+await wait(1200)
+await measure('quest: Our Quest sliding in', async () => {
+  await page.locator('[data-quest-chest]').click()
+  await wait(1500)
+})
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')
 for (const r of results)

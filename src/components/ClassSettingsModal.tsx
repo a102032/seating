@@ -1,3 +1,4 @@
+import type { QuestPrize } from '../lib/quest'
 import {
   Check,
   CircleCheck,
@@ -135,6 +136,8 @@ interface ClassSettingsModalProps {
   onSetClassPoints: (points: number) => void
   onResetClassGoal: () => void
   onClearDeskStars: () => void
+  onSetQuestPrizes: (prizes: QuestPrize[]) => void
+  onRestartQuest: () => void
   // Tools
   tools: ToolsProps
   // Attendance and participation
@@ -159,7 +162,9 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   const { open, onClose, section, onSection, activeClass, classes, cloud } = props
   const [helpOpen, setHelpOpen] = useState(false)
   const [choosingGif, setChoosingGif] = useState(false)
-  const [confirming, setConfirming] = useState<'delete' | 'empty' | 'clear' | 'photos' | 'remove-photos' | PointsMode | null>(null)
+  const [confirming, setConfirming] = useState<
+    'delete' | 'empty' | 'clear' | 'restart-quest' | 'photos' | 'remove-photos' | PointsMode | null
+  >(null)
   const [photoRequest, setPhotoRequest] = useState<PhotoRequest | null>(null)
 
   // Opening, or another section, starts with the celebration's pictures put away.
@@ -272,6 +277,8 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onAskClearStars={() => setConfirming('clear')}
           choosingGif={choosingGif}
           onChoosingGif={setChoosingGif}
+          onSetQuestPrizes={props.onSetQuestPrizes}
+          onAskRestartQuest={() => setConfirming('restart-quest')}
         />
       )
       break
@@ -468,6 +475,18 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           }}
         />
         <ConfirmModal
+          open={confirming === 'restart-quest'}
+          title="Start the quest over?"
+          message={`"${activeClass.name}" goes back to the Wood chest with no keys, and the chests opened come off the map. The stars on the meter stay.`}
+          confirmLabel="Yes, Start Over"
+          cancelLabel="No"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            props.onRestartQuest()
+            setConfirming(null)
+          }}
+        />
+        <ConfirmModal
           open={confirming === 'clear'}
           title="Clear All Stars?"
           message={`Every student in "${activeClass.name}" goes back to 0 stars. This can't be undone.`}
@@ -480,14 +499,14 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           }}
         />
         <ConfirmModal
-          open={confirming === 'goal' || confirming === 'none'}
+          open={confirming === 'goal' || confirming === 'quest' || confirming === 'none'}
           title="Clear the students' stars?"
-          message={`Switching to ${confirming === 'goal' ? 'a class goal' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
+          message={`Switching to ${confirming === 'goal' ? 'a class goal' : confirming === 'quest' ? 'a class quest' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
           confirmLabel="Yes, Switch"
           cancelLabel="No"
           onCancel={() => setConfirming(null)}
           onConfirm={() => {
-            if (confirming === 'goal' || confirming === 'none') props.onSetPointsMode(confirming)
+            if (confirming === 'goal' || confirming === 'quest' || confirming === 'none') props.onSetPointsMode(confirming)
             setConfirming(null)
           }}
         />

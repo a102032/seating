@@ -30,7 +30,7 @@ import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
-import { goalIsLive, MAX_CLASSES, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
+import { goalIsLive, MAX_CLASSES, pointsModeOf, questIsOn, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useClassPhotos } from './hooks/useClassPhotos'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
@@ -47,7 +47,9 @@ import {
   summarizeGroupPoints,
   type GroupScheme,
 } from './lib/groups'
-import { pickChances } from './lib/participation'
+import { pickChances, weightedChoice } from './lib/participation'
+import { prizesOf, questOf } from './lib/quest'
+import { OurQuest } from './components/OurQuest'
 import {
   playCoinTick,
   playGroupsDone,
@@ -134,6 +136,9 @@ export default function App() {
     setRoom,
     setPointsMode,
     clearDeskStars,
+    openQuestChest,
+    setQuestPrizes,
+    restartQuest,
     setShowAllHomerooms,
     setDeskPictures,
     setStudentPhotos,
@@ -281,6 +286,10 @@ export default function App() {
   const appInFront = useAppInFront()
   /** A goal filled from the floating window, whose chest is waiting for the app to be in front. */
   const [goalWaiting, setGoalWaiting] = useState(false)
+  /** Our Quest, the map, over the board (a tap on the meter's chest while it still needs keys). */
+  const [questMapOpen, setQuestMapOpen] = useState(false)
+  /** Open the chest was tapped in the floating window: the chest opens once the app is in front. */
+  const [chestOpenRequested, setChestOpenRequested] = useState(false)
   /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
   const [guide, setGuide] = useState<{ scope: GuideScope; index: number } | null>(null)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
@@ -368,6 +377,18 @@ export default function App() {
     },
   })
   const seatedIds = useMemo(() => presentSeating.filter((id): id is string => Boolean(id)), [presentSeating])
+
+  /**
+   * Pick a Spinner, as the chest opens: someone here today, the students picked less often lately
+   * given the better chance, as every picker does. It is a turn, so it goes in the record.
+   */
+  const pickSpinner = useCallback((): string | null => {
+    if (!activeClassId || seatedIds.length === 0) return null
+    const id = weightedChoice(seatedIds, chanceOf)
+    recordPick(activeClassId, id, today)
+    return studentsById.get(id)?.name ?? null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeClassId, seatedIds, chanceOf, today])
 
   /** Today's line (lib/line), and each student's mark on their desk while the Line is up. */
   const line = useMemo(() => lineOf(activeClass, today), [activeClass, today])
@@ -1194,6 +1215,20 @@ export default function App() {
               side={panelSide}
               leading={<TimerClock />}
               trailing={cornerButtons}
+              quest={
+                questIsOn(activeClass)
+                  ? {
+                      state: questOf(activeClass),
+                      prizes: prizesOf(activeClass),
+                      onOpenMap: () => setQuestMapOpen(true),
+                      onOpened: (prize) => openQuestChest(activeClass.id, prize),
+                      pickSpinner,
+                      spinnerNames: seatedIds.map((id) => studentsById.get(id)?.name ?? '').filter(Boolean),
+                      openRequested: chestOpenRequested,
+                      onOpenRequestDone: () => setChestOpenRequested(false),
+                    }
+                  : undefined
+              }
             />
           ) : (
             <>
@@ -1246,6 +1281,8 @@ export default function App() {
                 lineMarks={lineMarks}
                 onTapDesk={handleTapDesk}
               />
+
+              {questMapOpen && questIsOn(activeClass) && <OurQuest quest={questOf(activeClass)} onClose={() => setQuestMapOpen(false)} />}
 
               {/* The flip deck slides up over the seating chart and back down on the way out,
                 keeping the side panel's points buttons and the class goal meter in play. */}
@@ -1578,6 +1615,8 @@ export default function App() {
         onSetStarsOnDesks={(on) => setStarsOnDesks(activeClass.id, on)}
         onSetGoal={(goal) => setGoal(activeClass.id, goal)}
         onSetCelebrationGif={(gifId) => setCelebrationGif(activeClass.id, gifId)}
+        onSetQuestPrizes={(prizes) => setQuestPrizes(activeClass.id, prizes)}
+        onRestartQuest={() => restartQuest(activeClass.id)}
         onSetClassPoints={(points) => setClassPoints(activeClass.id, points)}
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onClearDeskStars={() => clearDeskStars(activeClass.id)}
@@ -1639,7 +1678,16 @@ export default function App() {
           onAdd={() => addToClassGoal(activeClass.id, 1)}
           // The browser may or may not bring the app forward for this. Either way the chest
           // opens only once the app is in front, so the fanfare never plays behind the lesson.
-          onCelebrate={() => window.focus()}
+          onCelebrate={() => {
+            // On a quest the chest opens once the app is in front; a plain goal's celebration already does.
+            if (questIsOn(activeClass)) setChestOpenRequested(true)
+            window.focus()
+          }}
+          quest={
+            questIsOn(activeClass)
+              ? { chest: questOf(activeClass).chest, keys: questOf(activeClass).keys, appBehind: !appInFront }
+              : undefined
+          }
           pick={
             picker.mode === 'student-flashing' || picker.mode === 'student-result'
               ? (() => {

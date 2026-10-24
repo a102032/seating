@@ -2,11 +2,16 @@ import type { RoomLayout } from './lib/layouts'
 import type { ParticipationRecord } from './lib/participation'
 import type { GroupScheme } from './lib/groups'
 import type { Theme } from './lib/theme'
+import type { QuestPrize, QuestState } from './lib/quest'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
-/** How a class runs points: a class goal, each student's own stars, or none (ClassData.pointsMode). */
-export type PointsMode = 'goal' | 'students' | 'none'
+/**
+ * How a class runs points: a class goal, a class goal that wins keys on a quest (2026-10-24, the
+ * teacher: the goal as it was and the Quest, each a choice), each student's own stars, or none
+ * (ClassData.pointsMode).
+ */
+export type PointsMode = 'goal' | 'quest' | 'students' | 'none'
 
 export interface Student {
   id: string
@@ -178,6 +183,14 @@ export interface ClassData {
    * hasn't loaded, so a bad network never leaves the moment blank.
    */
   celebrationGifId?: string
+  /**
+   * The Quest (pointsMode 'quest', lib/quest): which chest the class is on, its keys, and the
+   * chests opened so far. Read through questOf, which gives a class that hasn't started one the
+   * Wood chest with no keys.
+   */
+  quest?: QuestState
+  /** The teacher's prizes for the Quest's wheels, each small, medium or big. Unset is lib/quest's starting list. */
+  questPrizes?: QuestPrize[]
   /**
    * Stars a class had to earn for one class point, and the stars banked toward the next. No longer
    * used (2026-10-11, the teacher: a bigger goal is the same challenge, with one setting fewer):

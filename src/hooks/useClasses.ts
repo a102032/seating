@@ -6,7 +6,8 @@ import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { LINE_NAME_MAX, lineOf, MAX_SAVED_LINES, STEP_NAME_MAX, type ClassLine } from '../lib/line'
-import { goalIsLive, pointsModeOf, starsWaitOnDesks } from '../lib/points'
+import { goalIsLive, hasClassGoal, pointsModeOf, questIsOn, starsWaitOnDesks } from '../lib/points'
+import { withChestOpened, withKeysWon, withQuestRestarted, type QuestPrize } from '../lib/quest'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
 import { useCloudSync } from './useCloudSync'
@@ -131,12 +132,16 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
   const goal = c.pointsGoal ?? 0
   let goalsReached = c.goalsReached ?? 0
   let goalReachedOn = c.goalReachedOn
+  let filled = 0
   if (goal > 0 && classPoints >= goal) {
-    goalsReached += Math.floor(classPoints / goal)
+    filled = Math.floor(classPoints / goal)
+    goalsReached += filled
     classPoints %= goal
     goalReachedOn = dateKey()
   }
-  return { ...c, classPoints, goalsReached, goalReachedOn }
+  const next = { ...c, classPoints, goalsReached, goalReachedOn }
+  // On a quest each goal filled is a key, kept the moment it is won (the key moment only shows it).
+  return filled && questIsOn(c) ? withKeysWon(next, filled) : next
 }
 
 /**
@@ -164,7 +169,7 @@ function withDayTaken(c: ClassData, day: string): ClassData {
   return { ...c, attendanceTaken: taken.includes(day) ? taken : [...taken, day].sort() }
 }
 
-export { goalIsLive, pointsModeOf, starsWaitOnDesks }
+export { goalIsLive, hasClassGoal, pointsModeOf, questIsOn, starsWaitOnDesks }
 
 /** Every desk's stars back to none. */
 function withDesksEmpty(c: ClassData): ClassData {
@@ -555,12 +560,26 @@ export function useClasses() {
         return {
           ...withDesksEmpty(banked),
           pointsMode: mode,
-          goalEnabled: mode === 'goal',
-          ...(mode === 'goal' && !((c.pointsGoal ?? 0) > 0) && { pointsGoal: NEW_CLASS_GOAL }),
+          goalEnabled: hasClassGoal(mode),
+          ...(hasClassGoal(mode) && !((c.pointsGoal ?? 0) > 0) && { pointsGoal: NEW_CLASS_GOAL }),
         }
       }),
     [updateClass],
   )
+
+  /** The Quest: a chest with all its keys opened, and the prize the wheel landed on won. */
+  const openQuestChest = useCallback(
+    (classId: string, prize: QuestPrize) => updateClass(classId, (c) => withChestOpened(c, { name: prize.name, size: prize.size })),
+    [updateClass],
+  )
+
+  const setQuestPrizes = useCallback(
+    (classId: string, prizes: QuestPrize[]) => updateClass(classId, (c) => ({ ...c, questPrizes: prizes })),
+    [updateClass],
+  )
+
+  /** The quest from the Wood chest again, for a teacher who tried it out first. */
+  const restartQuest = useCallback((classId: string) => updateClass(classId, (c) => withQuestRestarted(c)), [updateClass])
 
   /** Clear All Stars, with student points: everyone back to 0, when the teacher says a week or a term is over. */
   const clearDeskStars = useCallback((classId: string) => updateClass(classId, withDesksEmpty), [updateClass])
@@ -767,7 +786,7 @@ export function useClasses() {
         const groups = c.groups ?? []
         const total = groups.reduce((sum, g) => sum + g.points, 0)
         let next = c
-        if (pointsModeOf(c) === 'goal') next = addClassPoints(c, total)
+        if (hasClassGoal(pointsModeOf(c))) next = addClassPoints(c, total)
         else if (pointsModeOf(c) === 'students') {
           const earned = new Map<string, number>()
           groups.forEach((g) => g.studentIds.forEach((id) => earned.set(id, (earned.get(id) ?? 0) + g.points)))
@@ -811,6 +830,9 @@ export function useClasses() {
     setRoom,
     setPointsMode,
     clearDeskStars,
+    openQuestChest,
+    setQuestPrizes,
+    restartQuest,
     setShowAllHomerooms,
     setDeskPictures,
     setStudentPhotos,
