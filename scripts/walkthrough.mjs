@@ -651,10 +651,7 @@ const scenarios = {
         (await page.locator('[data-marble-mini]').count()) === 1 &&
         (await page.locator('[data-quest-next-key]').count()) === 0,
     )
-    check(
-      'marbles: no map at the meter\'s start',
-      (await page.locator('img[src*="map"]').count()) === 0,
-    )
+    check("marbles: no map at the meter's start", (await page.locator('img[src*="map"]').count()) === 0)
     await desk(page, 'Amy').click()
     await award(page)
     await page.waitForTimeout(1600)
@@ -701,7 +698,7 @@ const scenarios = {
     await page.locator('[data-marble-mini]').click()
     await page.waitForTimeout(800)
     check(
-      'marbles: a tap on the jar that isn\'t full opens Points',
+      "marbles: a tap on the jar that isn't full opens Points",
       (await page.locator('[data-marble-moment]').count()) === 0 && (await page.getByText('How many stars win a spin.').count()) > 0,
     )
     await page.context().close()
@@ -713,7 +710,7 @@ const scenarios = {
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 0,
-      marbleJar: jar({ marbles: rows(1), spins: 2 }),
+      marbleJar: jar({ marbles: rows(1), spins: 4 }),
     })
     page = await open({ state: stateOf(two), size: [1280, 559] })
     await page.locator('[data-marble-next]').click({ force: true })
@@ -721,7 +718,32 @@ const scenarios = {
     await page.getByRole('button', { name: 'Spin!' }).click()
     await page.getByRole('button', { name: 'Later' }).waitFor({ timeout: 20000 })
     await page.waitForTimeout(800)
-    await page.getByRole('button', { name: 'Later' }).click()
+    // A Mega (then a Power) on a later spin: they once stayed asleep at the top of the jar, since the jar was still from the spin before.
+    for (const [kind, code, spot] of [
+      ['Mega', 2, 136.5 / 158],
+      ['Power', 1, 57.5 / 158],
+    ]) {
+      await page.evaluate((x) => {
+        window.__realRandom = Math.random
+        Math.random = () => x
+      }, spot)
+      await page.getByRole('button', { name: 'Spin!' }).click()
+      await page.evaluate(() => (Math.random = window.__realRandom))
+      await page.waitForTimeout(6800)
+      await page
+        .getByRole('button', { name: /Later|Done/ })
+        .first()
+        .waitFor({ timeout: 20000 })
+      await page.waitForTimeout(800)
+      c = await activeSaved(page)
+      const big = c.marbleJar.marbles.find((m) => m[0] === code)
+      check(`marbles: a ${kind} Marble on a later spin falls into the jar`, !!big && big[3] > 15, JSON.stringify(big))
+      await page.screenshot({ path: `/tmp/walkthrough/marbles-later-${kind}.png` })
+    }
+    await page
+      .getByRole('button', { name: /Later|Done/ })
+      .first()
+      .click()
     await page.waitForTimeout(800)
     c = await activeSaved(page)
     check(

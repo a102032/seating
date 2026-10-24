@@ -145,11 +145,16 @@ export class MarbleJarWorld {
   /** Marbles poured in from above the mouth, one after another. */
   pour(kinds: MarbleKind[]) {
     this.pending.push(...kinds)
+    // Still from the last spin: without this, a single Power or Mega Marble, not yet falling on its
+    // first frame, read as a jar already settled and was put to sleep at the top (the teacher, on a
+    // second spin).
+    this.quiet = 0
     this.nextDrop = Math.min(this.nextDrop, performance.now())
   }
 
   /** Every marble pops away, quickly and in no order. */
   popAll() {
+    this.quiet = 0
     const order = [...this.marbles].sort(() => Math.random() - 0.5)
     const now = performance.now()
     order.forEach((m, i) => {
@@ -170,6 +175,7 @@ export class MarbleJarWorld {
       m.body.setAngularVelocity((Math.random() - 0.5) * 6)
       this.nextDrop = now + 260 + Math.random() * 120
       this.lastDropAt = now
+      this.quiet = 0
     }
     this.acc += Math.min(0.05, dt)
     while (this.acc >= STEP) {
@@ -198,6 +204,8 @@ export class MarbleJarWorld {
           break
         }
       }
+    // A marble that has only just appeared counts as moving until it has had time to fall.
+    if (this.lastDropAt && now - this.lastDropAt < 400) moving = true
     this.quiet = moving ? 0 : this.quiet + 1
     // A marble left creeping on the pile must never hold the moment open: 5 s after the last one
     // fell in, the jar counts as settled (the teacher found no way out after a spin).
