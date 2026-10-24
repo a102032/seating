@@ -215,9 +215,22 @@ export function flyStarsFrom(
 
 let bumping: Animation | null = null
 
-/** The coin swells as a star lands in it, so a star that only banks toward a point still lands somewhere. */
+/**
+ * The coin swells as a star lands in it, so a star that only banks toward a point still lands somewhere. On a
+ * quest the knight there hops instead, a small one, so a stream of thirty stars is a run of hops, not a bounce.
+ */
 function bump(coin: HTMLElement) {
   if (!coin.isConnected) return
   bumping?.cancel()
-  bumping = coin.animate([{ scale: '1' }, { scale: '1.35' }, { scale: '1' }], { duration: 240, easing: 'ease-out' })
+  bumping =
+    coin.dataset.goalCoin === 'knight'
+      ? coin.animate(
+          [
+            { translate: '0 0', scale: '1' },
+            { translate: '0 -7px', scale: '1.08', offset: 0.4 },
+            { translate: '0 0', scale: '1' },
+          ],
+          { duration: 300, easing: 'ease-out' },
+        )
+      : coin.animate([{ scale: '1' }, { scale: '1.35' }, { scale: '1' }], { duration: 240, easing: 'ease-out' })
 }

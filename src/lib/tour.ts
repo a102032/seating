@@ -100,7 +100,11 @@ export const TOUR: TourPart[] = [
     title: 'The Class Quest',
     intro: 'A class goal that wins keys. The keys open five chests, each with a prize wheel. Choose it in Class Settings, Points.',
     stops: [
-      { shot: 'quest', at: 'meter', text: 'On a Class Quest, each time the class fills the goal it wins a key.' },
+      {
+        shot: 'quest',
+        at: 'meter',
+        text: 'On a Class Quest, the knight is the class. Each star moves it on, and when it reaches the key, the class wins it.',
+      },
       {
         shot: 'quest',
         at: 'nextKey',

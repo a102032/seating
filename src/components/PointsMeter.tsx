@@ -383,18 +383,34 @@ export function PointsMeter({
             `img { max-width: 100% }` resolves against this anchor's zero-width content box and
             would otherwise squash the coin to nothing.
           */}
-            <img
-              src={treasure('star-coin')}
-              alt=""
-              draggable={false}
-              // Where a student's star flies to (lib/starFlight).
-              data-goal-coin=""
-              className={clsx(
-                'absolute h-[26px] w-[26px] max-w-none select-none drop-shadow',
-                open && 'animate-[spin_0.8s_linear_infinite]',
-              )}
-              style={{ left: -13, top: -13 }}
-            />
+            {/*
+              On a quest the class is the knight (2026-10-24, the teacher's cute knight, Flaticon): it rides the
+              fill where the coin would, every star lands in it with a little hop, and a full bar brings it to the
+              key, so the class sees the knight move on every star without the map opening.
+            */}
+            {quest ? (
+              <img
+                src={assetUrl('/quest/knight-head.svg')}
+                alt=""
+                draggable={false}
+                data-goal-coin="knight"
+                className="absolute h-[34px] w-[34px] max-w-none select-none drop-shadow"
+                style={{ left: -17, top: -19 }}
+              />
+            ) : (
+              <img
+                src={treasure('star-coin')}
+                alt=""
+                draggable={false}
+                // Where a student's star flies to (lib/starFlight).
+                data-goal-coin=""
+                className={clsx(
+                  'absolute h-[26px] w-[26px] max-w-none select-none drop-shadow',
+                  open && 'animate-[spin_0.8s_linear_infinite]',
+                )}
+                style={{ left: -13, top: -13 }}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -408,6 +408,10 @@ const scenarios = {
     const quest = (chest, keys, extra = {}) => ({ number: 1, chest, keys, opened: [], keyDays: [], startedOn: '2026-09-01', ...extra })
     const cls = makeClass('c1', 'Quest', 12, { pointsMode: 'quest', goalEnabled: true, pointsGoal: 10, classPoints: 9 })
     let page = await open({ state: stateOf(cls), size: [1280, 559], before: () => sessionStorage.setItem('picks', '0') })
+    check(
+      'quest: the knight rides the meter where the coin would',
+      (await page.locator('[data-goal-coin="knight"]').count()) === 1 && (await page.locator('[data-goal-coin=""]').count()) === 0,
+    )
     await desk(page, 'Amy').click()
     await award(page)
     await page.waitForTimeout(1300)
