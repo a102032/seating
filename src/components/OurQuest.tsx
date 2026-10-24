@@ -31,9 +31,9 @@ const LANDMARKS = [
   { name: 'forest', left: 29, top: 70, h: 23 },
   { name: 'hills', left: 49, top: 12, h: 15 },
   { name: 'bridge', left: 63, top: 74, h: 16 },
-  // The dragon's mountain, in the corner past the Mega chest: it sleeps at its foot (2026-10-24, the teacher).
-  { name: 'mountain-cave', left: 89, top: 69, h: 27 },
-  { name: 'windmill', left: 89, top: 4, h: 24 },
+  // The dragon's mountain, above the Mega chest and a little behind it, the dragon asleep at its foot (2026-10-24,
+  // the teacher's sketch).
+  { name: 'mountain-cave', left: 88, top: 1, h: 27 },
 ]
 
 export function OurQuest({ quest, onClose }: { quest: QuestState; onClose: () => void }) {
@@ -121,7 +121,7 @@ export function OurQuest({ quest, onClose }: { quest: QuestState; onClose: () =>
           alt=""
           draggable={false}
           className="pointer-events-none absolute select-none"
-          style={{ left: '83%', top: '81%', height: '18cqh', maxWidth: '18cqw', objectFit: 'contain', transform: 'translateX(-50%)' }}
+          style={{ left: '92%', top: '19%', height: '14cqh', maxWidth: '18cqw', objectFit: 'contain', transform: 'translateX(-50%)' }}
         />
 
         {CHESTS.map((T, i) => {
