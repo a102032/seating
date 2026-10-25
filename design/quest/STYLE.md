@@ -256,3 +256,128 @@ Doodles for an old hand-drawn treasure map, in one colour only: dark brown ink l
 
 Plain, flat, pure white background. No words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
 ```
+
+## The Pirate Quest and the Space Quest (the next two adventures)
+
+Named 2026-10-25 (the teacher: "The names work for me"). One engine under every quest (DECISIONS, "Four quests,
+one engine"): the goal wins a piece, the pieces open five stages, bigger and bigger, and the prize wheel rises
+from the shared chests at each. Only the pictures, words and sounds change. **Made after the Knight and the Marble
+Jar have been used with a class**; the art can come first.
+
+### What each one is
+
+- **The Pirate Quest**: a top-down sea, five islands growing in size along a dotted sea route, the class's pirate
+  ship sailing it. **A goal wins a piece of a torn treasure map**; each island needs more pieces to find its X, and
+  at the X is that rank's chest (Wood on the first island, Mega on the last). **The guardian**: a sleepy, friendly
+  sea monster by the last island. **The look** (the teacher's reference, 2026-10-25, a stock picture from Dreamstime,
+  for looking at only, never traced or used): bright flat islands, sand rims, palm trees and green bushes, pale
+  shallows round each island, little white waves, a dashed route, a small ship with a skull-free flag. **Drawn in
+  code**: the sea, the shallows, the waves, the route, the compass, and the torn map pieces (parchment with a jagged
+  edge and part of the X). **From Flow**: the five islands, the ship, the sea monster's poses, and a few sea
+  doodles.
+- **The Space Quest**: a dark blue sky, five planets growing in size along a dotted flight path, the class's rocket
+  flying it. **A goal wins a battery** (the teacher's own battery wall, on the board); each planet needs more
+  batteries to reach, and the chest is waiting there. **The guardian**: a sleepy, friendly alien on the last planet.
+  **Drawn in code**: the sky, a few stars, the path, the batteries, the rocket's flame. **From Flow**: the five
+  planets, the rocket, the alien's poses, and a few space doodles.
+
+### Colours (for checking)
+
+- **Pirate**: deep sea `#4FA9D9`, shallows `#A9DDF2`, sand `#F6D58E`, grass `#7DC243` and `#4E9A2F`, palm trunk
+  `#9B6649`, ship wood `#9B6649`, sails `#FFF7E6`, sea monster `#8E6FD8` with belly `#F6D77A` (purple, so it stands
+  apart from the green islands and from the Knight's green dragon).
+- **Space**: sky `#1E2A5A` and `#2C3B78`, stars `#FFF7CC`, rocket `#F2F4F8` with red `#E8524A`, planets each their
+  own colour, alien `#7FD36B` with spots `#4E9A2F`.
+
+### Prompt 9: the pirate style test (for Flow, with the dragon on guard attached)
+
+```
+Same flat style as this dragon: solid colours, each with one darker shade and one lighter shade, light from the top left, no outlines, no gradients, no texture. Game art for a children's classroom app, seen from above like a map.
+
+Draw these three things spread out across the picture, well apart, not touching:
+- A small tropical island seen from above: a rim of yellow sand, green grass in the middle, two palm trees and a round green bush.
+- A small, cute wooden pirate ship seen from the side, sailing to the right, round and chunky, one white sail and a little red flag (no skull, no words).
+- An original, friendly sea monster: round and chubby, purple with a pale yellow belly, a little fin on its head, big kind sleepy eyes, half in the water. Proud and a little grumpy, never scary. Not like any famous cartoon character.
+
+Plain, flat, pure white background. No sea, no water around them, no shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 10: the five islands (for Flow, with the approved pirate test attached)
+
+The stages, smallest first. Each must still read as an island at a quarter of its size.
+
+```
+Same style as this picture. Five tropical islands seen from above, in a row from left to right, each bigger and richer than the one before, well apart, not touching:
+1. a tiny sandbar with one palm tree;
+2. a small round island with grass, two palm trees and a bush;
+3. a middle-sized island with a little rocky hill and three palm trees;
+4. a bigger island with a small waterfall, palm trees and bushes;
+5. the biggest island, with a grey rocky mountain and a cave at its foot, palm trees all round.
+Each island has a yellow sand rim. No sea around them, no X, no treasure, no people.
+
+Plain, flat, pure white background. No shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 11: the sea monster's poses (for Flow, with the approved pirate test attached)
+
+```
+Same style as this picture, the same purple sea monster, five poses in one row, well apart, not touching: on guard holding a rolled-up treasure map; asleep, curled in a ring; wobbling, eyes shut, as if bumped; sitting back tired but happy, tongue out; holding the rolled-up map out with both fins to give it away, smiling. Each pose with only its top half above a small flat patch of pale blue water.
+
+Plain, flat, pure white background. No shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 12: sea doodles (for Flow, with the approved pirate test attached)
+
+```
+Same style as this picture. Small sea pieces, well apart, not touching: a smiling yellow fish, a little green sea turtle swimming, a red and white buoy, a round rock with two seagulls, a wooden barrel floating, a small starfish.
+
+Plain, flat, pure white background. No water, no shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 13: the space style test (for Flow, with the dragon on guard attached)
+
+The space pieces go on bright green, since the sky behind them in the app is dark and a white rocket must cut out cleanly.
+
+```
+Same flat style as this dragon: solid colours, each with one darker shade and one lighter shade, light from the top left, no outlines, no gradients, no texture. Game art for a children's classroom app.
+
+Draw these three things spread out across the picture, well apart, not touching:
+- A small, cute, chunky rocket flying to the right, white with red fins and a round window. No flame.
+- A small planet, orange with a few round craters.
+- An original, friendly alien: round and chubby, green with darker green spots, two short antennae with little balls on the ends, big kind sleepy eyes. Proud and a little grumpy, never scary. Not like any famous cartoon alien.
+
+Plain, flat, pure bright green background (#00FF00). No stars, no space, no shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 14: the five planets (for Flow, with the approved space test attached)
+
+```
+Same style as this picture. Five planets in a row from left to right, each bigger and richer than the one before, well apart, not touching:
+1. a tiny grey moon with craters;
+2. a small orange rocky planet;
+3. a middle-sized blue ice planet with white frosty patches;
+4. a bigger purple planet with a ring around it;
+5. the biggest planet, green and blue like a little world, with a small mountain and a cave on top.
+No rockets, no aliens, no stars.
+
+Plain, flat, pure bright green background (#00FF00). No shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 15: the alien's poses (for Flow, with the approved space test attached)
+
+```
+Same style as this picture, the same green alien, five poses in one row, well apart, not touching: on guard holding a glowing battery; asleep, sitting with its head nodding; wobbling, eyes shut, as if bumped; sitting back tired but happy, tongue out; holding the battery out with both hands to give it away, smiling.
+
+Plain, flat, pure bright green background (#00FF00). No shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+### Prompt 16: space doodles (for Flow, with the approved space test attached)
+
+```
+Same style as this picture. Small space pieces, well apart, not touching: a comet with a short tail, a little satellite, a round asteroid, a ringed mini planet, a flying saucer far away, a shooting star.
+
+Plain, flat, pure bright green background (#00FF00). No stars behind them, no shadows, no words, no frame, no checkerboard. Wide picture, 16:9, the biggest size available.
+```
+
+**The order**: the style test first (9 or 13), shown here before the rest, then attached to every prompt after it,
+as the dragon was for the Knight.
