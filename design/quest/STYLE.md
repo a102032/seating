@@ -381,3 +381,29 @@ Plain, flat, pure bright green background (#00FF00). No stars behind them, no sh
 
 **The order**: the style test first (9 or 13), shown here before the rest, then attached to every prompt after it,
 as the dragon was for the Knight.
+
+### The Pirate Quest's pieces from Flaticon (2026-10-25)
+
+The teacher found a Flaticon pirate pack in the app's own flat style, so **the Pirate Quest needs no Flow art**
+(Prompts 9 to 12 are kept only in case a piece is missing). The ones kept are in `design/quest/pirate/`:
+
+- **The ship**: `galleon`, its skull taken off the sail in code (the skulls and swords went from the avatars too).
+- **The guardian**: `octopus`, in its pirate hat, asleep by the cave on the last island. Its other poses wait for
+  the guardian's fight (part 2).
+- **The islands**, drawn in code (sand rim, grass, the pale shallows in two rings), with these as their landmarks,
+  one more each island: `palm-tree_coconuts`, `two_palm-trees`, `grass`, `stone`, `stone-1`, `granite`,
+  `sign-post`, `waterfall`, `waterfall-1`, `mountain`, `cave`, `volcano-1`.
+- **In the sea**: `crab`, `whale_1`, `whale` (the tail), `shark` (the fin only), `message-in-a-bottle`, `seagull`,
+  `anchor`, `anchor_1`, `barrel`.
+- **Small parts**: `shovel-1` (digging at the X), `steering-wheel`, `telescope`, `coins`, `key-1`, `parrot`
+  (perhaps the marker on the meter, as the knight's head is), and two chests, `treasure-chest-1` and
+  `treasure-chest-2`, kept in case the pirates have chests of their own.
+- **Left out**: the skulls (the flag, the bomb, the pirate hat), the cannon, the toothy sharks, the kraken and the
+  fish bone (too scary or sad for young children), Chichen Itza, Machu Picchu and the ruin (real places, off the
+  theme) and the shiny barrel (a gradient, so not flat).
+
+**The map** (the teacher's four reference maps, stock pictures, for looking at only): **an archipelago of five
+islands, as in the bright sea map**, not one big island with a road across it: each island is a stage and grows,
+and the islands sit on the zigzag the Knight's chests use, so it fits every screen. Taken from the others: the
+shallows round each coast in two rings of pale blue, a compass in a corner, a dashed route on the water between
+islands and a red X on each island, and the guardian peeking out of the water beside the last one.
