@@ -111,8 +111,11 @@ export function PirateMap({
   async function sail(curve: Curve, t0: number, t1: number) {
     const ship = boxRef.current?.querySelector('[data-pirate-ship]')
     if (!ship) return
-    await ship.animate(shipFrames(curve, t0, t1), { duration: quick ? 300 : 900 + (t1 - t0) * 1800, easing: 'ease-in-out', fill: 'forwards' })
-      .finished
+    await ship.animate(shipFrames(curve, t0, t1), {
+      duration: quick ? 300 : 900 + (t1 - t0) * 1800,
+      easing: 'ease-in-out',
+      fill: 'forwards',
+    }).finished
   }
   async function glide(from: number, to: number) {
     const g = world()
@@ -158,7 +161,15 @@ export function PirateMap({
       return e as SVGElement
     }
     const hole = make('ellipse', { cx: xx, cy: xy, rx: 0, ry: 0, fill: '#b8873f' })
-    const mound = make('ellipse', { cx: xx + S * 0.42, cy: xy + S * 0.04, rx: 0, ry: 0, fill: '#efc670', stroke: '#d9a94e', 'stroke-width': 2 })
+    const mound = make('ellipse', {
+      cx: xx + S * 0.42,
+      cy: xy + S * 0.04,
+      rx: 0,
+      ry: 0,
+      fill: '#efc670',
+      stroke: '#d9a94e',
+      'stroke-width': 2,
+    })
     // The teacher's shovel, the tip of its blade on the X: pushed in, levered back to scoop, lifted out.
     const shovel = make('g', {})
     make('image', { href: pirateArtUrl('shovel'), x: -0.06 * S, y: -0.94 * S, width: S, height: S }, shovel)
@@ -173,7 +184,8 @@ export function PirateMap({
       playPickerTick()
       for (let q = 0; q < 7; q++) {
         const c = make('circle', { cx: xx, cy: xy, r: 2.5 + Math.random() * 3.5, fill: '#e9bf6a' })
-        const dx = S * (0.2 + Math.random() * 0.35), dy = -S * (0.15 + Math.random() * 0.25)
+        const dx = S * (0.2 + Math.random() * 0.35),
+          dy = -S * (0.15 + Math.random() * 0.25)
         c.animate(
           [
             { transform: 'none', opacity: 1 },
@@ -186,10 +198,13 @@ export function PirateMap({
     }
     for (let n = 0; n < 3; n++) {
       if (!quick) {
-        const a = shovel.animate([T(-S * 0.34, -36), T(S * 0.03, -36, 0.32), T(S * 0.03, -58, 0.52), T(-S * 0.4, -50, 0.78), T(-S * 0.34, -36)], {
-          duration: 950,
-          easing: 'ease-in-out',
-        })
+        const a = shovel.animate(
+          [T(-S * 0.34, -36), T(S * 0.03, -36, 0.32), T(S * 0.03, -58, 0.52), T(-S * 0.4, -50, 0.78), T(-S * 0.34, -36)],
+          {
+            duration: 950,
+            easing: 'ease-in-out',
+          },
+        )
         await new Promise((r) => setTimeout(r, 480))
         if (!alive.current) return
         scoop()
@@ -255,15 +270,35 @@ export function PirateMap({
     const prizes = q.opened.map((o) => o.prize.name)
     let seen = loadSeen(classId) ?? { quest: q.number, island: q.chest, ship: 0, cleared: 0 }
     // A quest started over, or a place this screen never saw: start from where the class is.
-    if (seen.quest > q.number || (seen.quest === q.number && (seen.island > q.chest || (seen.island === q.chest && seen.cleared > found)))) {
+    if (
+      seen.quest > q.number ||
+      (seen.quest === q.number && (seen.island > q.chest || (seen.island === q.chest && seen.cleared > found)))
+    ) {
       seen = { quest: q.number, island: q.chest, ship: 0, cleared: 0 }
     }
     const show = (extra: Partial<ChartView>) =>
-      render({ at: seen.island, pieces: found, ship: seen.ship, cleared: seen.cleared, prizes, quest: q.number, cam: camX(seen.island, w), ...extra })
+      render({
+        at: seen.island,
+        pieces: found,
+        ship: seen.ship,
+        cleared: seen.cleared,
+        prizes,
+        quest: q.number,
+        cam: camX(seen.island, w),
+        ...extra,
+      })
 
     // The last quest was finished: the whole voyage, then Start Quest.
     if (seen.quest < q.number) {
-      render({ at: 5, pieces: 0, ship: 1, cleared: 0, prizes: (q.previous ?? []).map((o) => o.prize.name), quest: seen.quest, cam: camX(4, w) })
+      render({
+        at: 5,
+        pieces: 0,
+        ship: 1,
+        cleared: 0,
+        prizes: (q.previous ?? []).map((o) => o.prize.name),
+        quest: seen.quest,
+        cam: camX(4, w),
+      })
       const { h } = view()
       const k = (w / chartWidth(w)) * 0.96
       const end = `translate(${((w - chartWidth(w) * k) / 2).toFixed(1)}px, ${((h - h * k) / 2 + 10).toFixed(1)}px) scale(${k.toFixed(3)})`
@@ -350,7 +385,10 @@ export function PirateMap({
       </button>
       {finished !== null && (
         <div className="pirate-finale absolute bottom-[7%] left-1/2 flex -translate-x-1/2 flex-col items-center gap-3.5">
-          <b className="whitespace-nowrap text-white [text-shadow:0_3px_10px_rgba(0,0,0,.5)]" style={{ fontSize: 'clamp(1.4rem, 5vmin, 2.2rem)' }}>
+          <b
+            className="whitespace-nowrap text-white [text-shadow:0_3px_10px_rgba(0,0,0,.5)]"
+            style={{ fontSize: 'clamp(1.4rem, 5vmin, 2.2rem)' }}
+          >
             We sailed the whole sea!
           </b>
           <button type="button" className="quest-stage-btn quest-spin" onClick={startNext}>

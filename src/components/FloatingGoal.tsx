@@ -492,7 +492,11 @@ export function FloatingGoal({
           ) : quest?.pirate ? (
             <span
               data-float-chest=""
-              className={clsx('block shrink-0 [&>svg]:h-full [&>svg]:w-full', clockShown ? 'h-7 w-9' : 'h-8 w-11', waiting && 'float-chest-rattle')}
+              className={clsx(
+                'block shrink-0 [&>svg]:h-full [&>svg]:w-full',
+                clockShown ? 'h-7 w-9' : 'h-8 w-11',
+                waiting && 'float-chest-rattle',
+              )}
               dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.chest, quest.keys) }}
             />
           ) : quest ? (

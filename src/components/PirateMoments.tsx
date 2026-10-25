@@ -88,10 +88,21 @@ export function PieceMoment({
   }
 
   const won = to - from
-  const title = whole || done ? 'The map is whole!' : lifting && placed === from ? (won > 1 ? `You found ${won} map pieces!` : 'You found a map piece!') : `${placed} of ${need} pieces!`
+  const title =
+    whole || done
+      ? 'The map is whole!'
+      : lifting && placed === from
+        ? won > 1
+          ? `You found ${won} map pieces!`
+          : 'You found a map piece!'
+        : `${placed} of ${need} pieces!`
   const say = done ? `X marks the spot on island ${island + 1}.` : lifting ? 'Tap to put it in.' : 'Tap to sail on.'
   return createPortal(
-    <div data-quest-moment="piece" className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-[2.4vh]" onPointerDown={tap}>
+    <div
+      data-quest-moment="piece"
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-[2.4vh]"
+      onPointerDown={tap}
+    >
       <div className="absolute inset-0 bg-[rgba(14,22,44,0.82)]" />
       <div className="relative text-center font-bold text-white" style={{ fontSize: 'clamp(1.6rem, 7vmin, 3.4rem)' }}>
         {title}

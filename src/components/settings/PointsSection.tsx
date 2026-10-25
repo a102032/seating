@@ -3,7 +3,17 @@ import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
-import { CHESTS, keysNeeded, lastKeyWords, PRIZE_NAME_MAX, prizesOf, questOf, SIZE_NAMES, type PrizeSize, type QuestPrize } from '../../lib/quest'
+import {
+  CHESTS,
+  keysNeeded,
+  lastKeyWords,
+  PRIZE_NAME_MAX,
+  prizesOf,
+  questOf,
+  SIZE_NAMES,
+  type PrizeSize,
+  type QuestPrize,
+} from '../../lib/quest'
 import { chestSVG, prizeIconSVG } from '../../lib/questArt'
 import { adventureOf, CAPACITY, jarFill, jarOf, lastSpinWords, type Adventure } from '../../lib/marbles'
 import { marbleSVG } from '../../lib/marbleArt'
@@ -245,8 +255,8 @@ export function PointsSection({
                   : mode === 'quest' && adventureOf(activeClass) === 'pirate'
                     ? 'How many stars win a map piece. A quest is 20 pieces: about one a week takes a semester.'
                     : mode === 'quest'
-                    ? 'How many stars win a key. About a key a week makes a quest a semester.'
-                    : 'Set the goal for your class: how many stars are needed to fill the chest.'}
+                      ? 'How many stars win a key. About a key a week makes a quest a semester.'
+                      : 'Set the goal for your class: how many stars are needed to fill the chest.'}
               </small>
             </div>
             {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}

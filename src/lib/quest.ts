@@ -124,14 +124,31 @@ export function withChestOpened(c: ClassData, prize: QuestPrize, day = dateKey()
   const spare = q.keys - keysNeeded(q)
   const opened = [...q.opened, { chest: q.chest, prize, on: day }]
   if (q.chest === MEGA) {
-    return withState(c, { number: q.number + 1, chest: 0, keys: spare, opened: [], keyDays: q.keyDays, startedOn: day, kind: q.kind, previous: opened })
+    return withState(c, {
+      number: q.number + 1,
+      chest: 0,
+      keys: spare,
+      opened: [],
+      keyDays: q.keyDays,
+      startedOn: day,
+      kind: q.kind,
+      previous: opened,
+    })
   }
   return withState(c, { ...q, chest: q.chest + 1, keys: spare, opened })
 }
 
 /** The quest from the start, for a teacher who tried it out first (Points' Start Over). The meter is left alone. */
 export function withQuestRestarted(c: ClassData, day = dateKey()): ClassData {
-  return withState(c, { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: day, ...(isPirate(c) && { kind: 'pirate' as const }) })
+  return withState(c, {
+    number: 1,
+    chest: 0,
+    keys: 0,
+    opened: [],
+    keyDays: [],
+    startedOn: day,
+    ...(isPirate(c) && { kind: 'pirate' as const }),
+  })
 }
 
 function daysFrom(a: string, b: string): number {
@@ -150,7 +167,8 @@ export function lastKeyTook(q: QuestState): number | null {
 }
 
 export function lastKeyWords(q: QuestState): string {
-  const days = lastKeyTook(q), what = q.kind === 'pirate' ? 'piece' : 'key'
+  const days = lastKeyTook(q),
+    what = q.kind === 'pirate' ? 'piece' : 'key'
   if (days === null) return `No ${what}s yet.`
   if (days === 0) return `The last ${what} took less than a day.`
   return `The last ${what} took ${days} ${days === 1 ? 'day' : 'days'}.`

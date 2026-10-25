@@ -137,13 +137,21 @@ export const TOUR: TourPart[] = [
     stops: [
       { shot: 'marbles', at: 'meter', text: 'On the Marble Jar, a marble rides the meter. When the goal fills, the class wins a spin.' },
       { shot: 'marbles', at: 'wheel', text: 'The marble wheel waits here. A spin not used yet shows its number, and a tap spins it.' },
-      { shot: 'marbles', at: 'jar', text: 'The class jar, with every marble where it landed. Tap it for the jar’s settings, or for the prize wheel when it is full.' },
+      {
+        shot: 'marbles',
+        at: 'jar',
+        text: 'The class jar, with every marble where it landed. Tap it for the jar’s settings, or for the prize wheel when it is full.',
+      },
       {
         shot: 'marblespin',
         at: 'wheel',
         text: 'The marble wheel: 2, 3 or 4 marbles, and gold for a Power Marble or a rare Mega Marble. Only the wedge it lands on turns over.',
       },
-      { shot: 'marblespin', at: 'spin', text: 'Pick a Spinner chooses a student. Spin! The wheel cheers what it lands on, and the marbles jump into the jar.' },
+      {
+        shot: 'marblespin',
+        at: 'spin',
+        text: 'Pick a Spinner chooses a student. Spin! The wheel cheers what it lands on, and the marbles jump into the jar.',
+      },
       {
         shot: 'marblespin',
         at: 'jar',
@@ -155,9 +163,17 @@ export const TOUR: TourPart[] = [
     title: 'The Pirate Quest',
     intro: 'The Class Quest’s third adventure: a ship sailing to five islands. Choose it in Class Settings, Points, under Class Quest.',
     stops: [
-      { shot: 'pirate', at: 'meter', text: 'On the Pirate Quest, the parrot rides the meter. When the goal fills, the class finds a piece of the next island’s map.' },
+      {
+        shot: 'pirate',
+        at: 'meter',
+        text: 'On the Pirate Quest, the parrot rides the meter. When the goal fills, the class finds a piece of the next island’s map.',
+      },
       { shot: 'pirate', at: 'puzzle', text: 'The island’s puzzle fills in here, piece by piece. Tap it to see the map.' },
-      { shot: 'piratepiece', at: 'puzzle', text: 'A piece found hovers over its gap. A student taps it in. Island 1 needs 2 pieces, island 5 needs 6.' },
+      {
+        shot: 'piratepiece',
+        at: 'puzzle',
+        text: 'A piece found hovers over its gap. A student taps it in. Island 1 needs 2 pieces, island 5 needs 6.',
+      },
       { shot: 'piratemap', at: 'ship', text: 'The ship sails a little way with every star.' },
       { shot: 'piratemap', at: 'clouds', text: 'The island ahead is under clouds. Each piece found clears its part of the island.' },
       {

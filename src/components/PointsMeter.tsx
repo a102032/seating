@@ -119,7 +119,9 @@ export function PointsMeter({
   // On a quest, 'key' is the key moment and 'chest' the chest opening.
   // On the Marble Jar, 'spin' is the marble wheel, 'look' the jar opened from the meter, and 'empty' the full jar popping away after its prize.
   // On the Pirate Quest, 'key' is a map piece found and 'whole' the whole puzzle shown from the meter.
-  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing' | 'key' | 'chest' | 'spin' | 'look' | 'empty' | 'whole'>('idle')
+  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing' | 'key' | 'chest' | 'spin' | 'look' | 'empty' | 'whole'>(
+    'idle',
+  )
   /** The full jar's marbles, kept a moment longer than the class's jar, to pop away after the prize. */
   const [popFrom, setPopFrom] = useState<SavedMarble[] | null>(null)
   /** The full jar's picture, flown out to be the prize wheel's chest. */

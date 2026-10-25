@@ -598,7 +598,6 @@ const all = {}
   all.piratepiece = await rects(page, { puzzle: '[data-pirate-puzzle]' })
   await shot(page, 'piratepiece')
   await page.context().close()
-
 }
 
 writeFileSync(RECTS, JSON.stringify(all, null, 1) + '\n')

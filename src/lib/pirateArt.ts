@@ -41,7 +41,10 @@ export function blob(cx: number, cy: number, r: number, seed: number, squash = 0
   }
   let d = ''
   for (let i = 0; i < n; i++) {
-    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n]
+    const p0 = pts[(i - 1 + n) % n],
+      p1 = pts[i],
+      p2 = pts[(i + 1) % n],
+      p3 = pts[(i + 2) % n]
     if (i === 0) d += `M${f(p1[0])} ${f(p1[1])}`
     const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6]
     const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6]
@@ -77,7 +80,12 @@ export const ISLANDS: IslandArt[] = [
     glow: 0,
     size: 0.9,
     squash: 0.74,
-    land: [['palm-tree_coconuts', -0.32, -0.52, 0.85], ['grass', 0.24, -0.3, 0.34], ['pirate-hat', -0.52, 0.2, 0.32], ['barrel', 0.6, -0.04, 0.3]],
+    land: [
+      ['palm-tree_coconuts', -0.32, -0.52, 0.85],
+      ['grass', 0.24, -0.3, 0.34],
+      ['pirate-hat', -0.52, 0.2, 0.32],
+      ['barrel', 0.6, -0.04, 0.3],
+    ],
   },
   {
     name: 'Lookout Hill',
@@ -86,7 +94,12 @@ export const ISLANDS: IslandArt[] = [
     size: 0.95,
     squash: 0.7,
     hill: true,
-    land: [['telescope', -0.08, -0.86, 0.44], ['palm-tree_coconuts', -0.64, -0.3, 0.55], ['grass', 0.5, -0.26, 0.34], ['crab', 0.6, 0.3, 0.28]],
+    land: [
+      ['telescope', -0.08, -0.86, 0.44],
+      ['palm-tree_coconuts', -0.64, -0.3, 0.55],
+      ['grass', 0.5, -0.26, 0.34],
+      ['crab', 0.6, 0.3, 0.28],
+    ],
   },
   {
     name: 'Cave Island',
@@ -94,7 +107,13 @@ export const ISLANDS: IslandArt[] = [
     glow: 0,
     size: 1,
     squash: 0.82,
-    land: [['granite', -0.52, -0.42, 0.62], ['cave', 0.14, -0.5, 0.8], ['stone-1', 0.62, -0.16, 0.32], ['sign-post', -0.44, 0.12, 0.36], ['fish-bone', 0.56, 0.36, 0.26]],
+    land: [
+      ['granite', -0.52, -0.42, 0.62],
+      ['cave', 0.14, -0.5, 0.8],
+      ['stone-1', 0.62, -0.16, 0.32],
+      ['sign-post', -0.44, 0.12, 0.36],
+      ['fish-bone', 0.56, 0.36, 0.26],
+    ],
   },
   {
     name: 'Waterfall Island',
@@ -102,7 +121,12 @@ export const ISLANDS: IslandArt[] = [
     glow: 1,
     size: 1.05,
     squash: 0.76,
-    land: [['waterfall', -0.15, -0.66, 0.98], ['palm-tree_coconuts', 0.52, -0.45, 0.68], ['grass', -0.62, -0.12, 0.4], ['steering-wheel', 0.58, 0.3, 0.3]],
+    land: [
+      ['waterfall', -0.15, -0.66, 0.98],
+      ['palm-tree_coconuts', 0.52, -0.45, 0.68],
+      ['grass', -0.62, -0.12, 0.4],
+      ['steering-wheel', 0.58, 0.3, 0.3],
+    ],
   },
   {
     name: 'Volcano Island',
@@ -111,7 +135,11 @@ export const ISLANDS: IslandArt[] = [
     size: 1.15,
     squash: 0.8,
     volcano: true,
-    land: [['volcano-1', 0, -0.62, 1.2], ['two_palm-trees', -0.64, -0.2, 0.58], ['stone', 0.62, -0.1, 0.34]],
+    land: [
+      ['volcano-1', 0, -0.62, 1.2],
+      ['two_palm-trees', -0.64, -0.2, 0.58],
+      ['stone', 0.62, -0.1, 0.34],
+    ],
   },
 ]
 
@@ -131,7 +159,8 @@ export function openChest(i: number, x: number, y: number, size: number): string
   if (isl.glow) s += `<circle cx="${f(x)}" cy="${f(y)}" r="${f(size * (0.55 + isl.glow * 0.12))}" fill="#ffe27a" opacity=".55"/>`
   s += `<image href="${art(isl.chest)}" x="${f(x - size / 2)}" y="${f(y - size / 2)}" width="${f(size)}" height="${f(size)}" style="clip-path:inset(46% 0 0 0)"/>`
   s += im('coins', x, y - size * 0.02, size * 0.62)
-  if (isl.glow > 1) s += im('coins', x - size * 0.45, y + size * 0.3, size * 0.4) + im('key-1', x + size * 0.5, y + size * 0.25, size * 0.38)
+  if (isl.glow > 1)
+    s += im('coins', x - size * 0.45, y + size * 0.3, size * 0.4) + im('key-1', x + size * 0.5, y + size * 0.25, size * 0.38)
   return s
 }
 
@@ -171,9 +200,15 @@ const seedOf = (island: number) => island * 31 + 5
 function edge(a: number[], b: number[], sign: number, k: number): string {
   const L = (x: number, y: number) => `L${f(x)} ${f(y)}`
   if (!sign) return L(b[0], b[1])
-  const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len
-  const nx = -uy * sign, ny = ux * sign
-  const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+  const dx = b[0] - a[0],
+    dy = b[1] - a[1],
+    len = Math.hypot(dx, dy),
+    ux = dx / len,
+    uy = dy / len
+  const nx = -uy * sign,
+    ny = ux * sign
+  const mx = (a[0] + b[0]) / 2,
+    my = (a[1] + b[1]) / 2
   const P = (t: number, v: number) => `${f(mx + ux * t * k + nx * v * k)} ${f(my + uy * t * k + ny * v * k)}`
   return (
     `L${P(-0.45, 0)} C${P(-0.22, 0)} ${P(-0.12, 0.1)} ${P(-0.2, 0.25)} C${P(-0.32, 0.46)} ${P(-0.28, 0.72)} ${P(0, 0.72)} ` +
@@ -249,7 +284,8 @@ function islandPicture(i: number, w: number, h: number): string {
   const R = rng(i * 7 + 3)
   let waves = ''
   for (let n = 0; n < 9; n++) {
-    const x = R() * w, y = R() * h
+    const x = R() * w,
+      y = R() * h
     if (Math.hypot(x - w / 2, (y - h * 0.55) * 1.4) < PR * k * 1.5) continue
     waves += `<path d="M${f(x)} ${f(y)} q ${6 * k} ${-5 * k} ${12 * k} 0 t ${12 * k} 0" fill="none" stroke="#ffffffaa" stroke-width="${2 * k}" stroke-linecap="round"/>`
   }
@@ -267,7 +303,9 @@ export function puzzleSVG(island: number, found: number, { only = -1, lift = -1,
   const id = `pz${++puzzleCount}`
   const sw = Math.max(1, Math.min(PW, PH) * 0.012)
   const gap = light ? '#ffffffcc' : '#8a6a43'
-  let defs = '', body = '', top = ''
+  let defs = '',
+    body = '',
+    top = ''
   pieces.forEach((pc, i) => {
     if (only >= 0 && i !== only) return
     defs += `<clipPath id="${id}c${i}"><path d="${pc.d}"/></clipPath>`
@@ -315,8 +353,13 @@ export type Curve = [number[], number[], number[]]
 const BENDS = [0.16, -0.16, 0.16, -0.16, -0.16]
 /** The way to island i, from the island before or from home's dock: a gentle curve from shore to shore. */
 export function route(P: Stop[], i: number): Curve {
-  const a = P[i], b = P[i + 1]
-  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len
+  const a = P[i],
+    b = P[i + 1]
+  const dx = b.x - a.x,
+    dy = b.y - a.y,
+    len = Math.hypot(dx, dy),
+    ux = dx / len,
+    uy = dy / len
   const s = i ? [a.x + ux * a.r * 1.45, a.y + uy * a.r * 1.1] : [a.x + a.r * 1.75, a.y + a.r * 0.05]
   const e = [b.x - ux * b.r * 1.5, b.y - uy * b.r * 1.15]
   return [s, [(s[0] + e[0]) / 2 - uy * len * BENDS[i], (s[1] + e[1]) / 2 + ux * len * BENDS[i]], e]
@@ -337,10 +380,15 @@ function compass(x: number, y: number, r: number): string {
   let s = `<g transform="translate(${x} ${y})" opacity=".85">`
   for (let i = 0; i < 4; i++) {
     const a = (i * Math.PI) / 2 - Math.PI / 2
-    const [tx, ty] = at(a, r), [lx, ly] = at(a - Math.PI / 4, r * 0.22), [rx, ry] = at(a + Math.PI / 4, r * 0.22)
+    const [tx, ty] = at(a, r),
+      [lx, ly] = at(a - Math.PI / 4, r * 0.22),
+      [rx, ry] = at(a + Math.PI / 4, r * 0.22)
     s += `<path d="M0 0 L${f(lx)} ${f(ly)} L${f(tx)} ${f(ty)} Z" fill="#ffffff"/><path d="M0 0 L${f(rx)} ${f(ry)} L${f(tx)} ${f(ty)} Z" fill="#d7ecf8"/>`
   }
-  return s + `<circle r="${r * 0.12}" fill="#1d4e7a"/><text y="${-r - 6}" text-anchor="middle" font-size="${r * 0.4}" font-weight="700" fill="#fff">N</text></g>`
+  return (
+    s +
+    `<circle r="${r * 0.12}" fill="#1d4e7a"/><text y="${-r - 6}" text-anchor="middle" font-size="${r * 0.4}" font-weight="700" fill="#fff">N</text></g>`
+  )
 }
 
 /** Home: a little beach with a dock, where the ship sets out from. */
@@ -348,7 +396,8 @@ function homeArt({ x, y, r }: Stop): string {
   let s = `<path d="${blob(x, y, r * 1.3, 3, 0.7)}" fill="${SEA.shallow}"/><path d="${blob(x, y, r, 3, 0.7)}" fill="${SEA.sand}" stroke="${SEA.sandEdge}" stroke-width="2"/>`
   s += `<path d="${blob(x - r * 0.15, y - r * 0.1, r * 0.55, 8, 0.7)}" fill="${SEA.grass}"/>`
   s += `<rect x="${f(x + r * 0.55)}" y="${f(y - r * 0.13)}" width="${f(r * 1.05)}" height="${f(r * 0.26)}" rx="${f(r * 0.04)}" fill="#c08a4e" stroke="#8a5a2b" stroke-width="2"/>`
-  for (let n = 1; n < 5; n++) s += `<path d="M${f(x + r * (0.55 + n * 0.21))} ${f(y - r * 0.13)} v${f(r * 0.26)}" stroke="#8a5a2b" stroke-width="1.5"/>`
+  for (let n = 1; n < 5; n++)
+    s += `<path d="M${f(x + r * (0.55 + n * 0.21))} ${f(y - r * 0.13)} v${f(r * 0.26)}" stroke="#8a5a2b" stroke-width="1.5"/>`
   return s + im('palm-tree_coconuts', x - r * 0.25, y - r * 0.5, r * 0.9) + im('anchor', x + r * 0.3, y + r * 0.3, r * 0.38)
 }
 
@@ -359,17 +408,26 @@ function homeArt({ x, y, r }: Stop): string {
  */
 function cloudsFor(j: number, g: Stop, from: number): string {
   const k = g.r / PR
-  const ox = g.x - (PW / 2) * k, oy = g.y - PH * 0.55 * k
+  const ox = g.x - (PW / 2) * k,
+    oy = g.y - PH * 0.55 * k
   let out = ''
   jigsaw(j).forEach((pc, n) => {
     if (n < from) return
     const [x0, y0, cw, ch] = pc.cell
-    const X = ox + x0 * k, Y = oy + y0 * k, W = cw * k, H = ch * k
+    const X = ox + x0 * k,
+      Y = oy + y0 * k,
+      W = cw * k,
+      H = ch * k
     const R = rng(j * 97 + n * 13 + 1)
     const rr = Math.min(W, H) * 0.34
-    const cols = Math.max(2, Math.ceil(W / (rr * 1.15))), rows = Math.max(2, Math.ceil(H / (rr * 1.15)))
-    let low = '', high = ''
-    let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity
+    const cols = Math.max(2, Math.ceil(W / (rr * 1.15))),
+      rows = Math.max(2, Math.ceil(H / (rr * 1.15)))
+    let low = '',
+      high = ''
+    let l = Infinity,
+      t = Infinity,
+      r = -Infinity,
+      b = -Infinity
     for (let a = 0; a < rows; a++)
       for (let c = 0; c < cols; c++) {
         const px = X + ((c + 0.5) * W) / cols + (R() - 0.5) * rr * 0.5
@@ -378,7 +436,10 @@ function cloudsFor(j: number, g: Stop, from: number): string {
         const pr = rr * (0.85 + R() * 0.35)
         low += circle(px, py + rr * 0.16, pr, '#cfe0ec')
         high += circle(px, py, pr * 0.94, '#ffffff')
-        l = Math.min(l, px - pr); r = Math.max(r, px + pr); t = Math.min(t, py - pr); b = Math.max(b, py + pr + rr * 0.16)
+        l = Math.min(l, px - pr)
+        r = Math.max(r, px + pr)
+        t = Math.min(t, py - pr)
+        b = Math.max(b, py + pr + rr * 0.16)
       }
     if (l === Infinity) return
     out += layer(`data-island="${j}" data-piece="${n}"`, [l, t, r - l, b - t], low + high)
@@ -426,13 +487,16 @@ export function chartHTML(w: number, h: number, v: ChartView): { html: string; s
   const R = rng(99)
   let waves = ''
   for (let n = 0; n < 150; n++) {
-    const x = R() * Ww, y = R() * h
+    const x = R() * Ww,
+      y = R() * h
     if (P.some((g) => Math.hypot(g.x - x, (g.y - y) * 1.3) < g.r * 1.7)) continue
     waves += `<path d="M${f(x)} ${f(y)} q 6 -5 12 0 t 12 0" fill="none" stroke="#ffffffaa" stroke-width="2.2" stroke-linecap="round"/>`
   }
   // The way sailed in dark ink, the way ahead in white.
-  const sailed = (c: Curve) => `<path d="${qd(c)}" fill="none" stroke="${SEA.sailed}" stroke-width="4" stroke-dasharray="9 8" stroke-linecap="round"/>`
-  const ahead = (c: Curve) => `<path d="${qd(c)}" fill="none" stroke="#ffffffcc" stroke-width="3" stroke-dasharray="6 9" stroke-linecap="round" opacity=".85"/>`
+  const sailed = (c: Curve) =>
+    `<path d="${qd(c)}" fill="none" stroke="${SEA.sailed}" stroke-width="4" stroke-dasharray="9 8" stroke-linecap="round"/>`
+  const ahead = (c: Curve) =>
+    `<path d="${qd(c)}" fill="none" stroke="#ffffffcc" stroke-width="3" stroke-dasharray="6 9" stroke-linecap="round" opacity=".85"/>`
   let routes = ''
   for (let i = 0; i < 5; i++) {
     const c = route(P, i)
@@ -445,7 +509,11 @@ export function chartHTML(w: number, h: number, v: ChartView): { html: string; s
     }
   }
   const fs = Math.min(26, Math.max(16, base * 0.13))
-  let land = homeArt(P[0]), clouds = '', labels = '', moving = '', fx = ''
+  let land = homeArt(P[0]),
+    clouds = '',
+    labels = '',
+    moving = '',
+    fx = ''
   for (let j = 0; j < 5; j++) {
     const g = P[j + 1]
     land += islandArt(j, g.x, g.y, g.r, { opened: j < v.at, smoke: false })
@@ -464,7 +532,8 @@ export function chartHTML(w: number, h: number, v: ChartView): { html: string; s
     const n = PIRATE_PIECES[j]
     const label = j < v.at ? (v.prizes[j] ?? ISLANDS[j].name) : j === v.at ? `${Math.min(v.pieces, n)} of ${n} pieces` : `${n} pieces`
     // The words grow with the board, so they read from the back of the room on a big one too.
-    const lw = Math.max(fs * 9.4, label.length * fs * 0.6 + fs * 1.9), ly = g.y + g.r * 0.95
+    const lw = Math.max(fs * 9.4, label.length * fs * 0.6 + fs * 1.9),
+      ly = g.y + g.r * 0.95
     labels += `<g font-weight="700" text-anchor="middle"><rect x="${f(g.x - lw / 2)}" y="${f(ly)}" width="${f(lw)}" height="${f(fs * 1.75)}" rx="${f(fs * 0.875)}" fill="#ffffff"/><text x="${f(g.x)}" y="${f(ly + fs * 1.25)}" font-size="${f(fs)}" fill="#3b3366">${escapeXml(label)}</text></g>`
   }
   // The sea's life in the open water between islands, on the side away from the course; nothing in the sea that wouldn't float.
@@ -472,9 +541,14 @@ export function chartHTML(w: number, h: number, v: ChartView): { html: string; s
   const mid = (j: number) => (P[j].x + P[j + 1].x) / 2
   let life = im('whale', mid(0) - w * 0.05, h * 0.24, sz) + im('shark', mid(1) + w * 0.04, h * 0.86, sz * 0.8)
   life += im('message-in-a-bottle', mid(1) - w * 0.08, h * 0.9, sz * 0.55)
-  life += im('seagull', mid(2) - w * 0.04, h * 0.22, sz * 0.6) + im('seagull', mid(2) + w * 0.03, h * 0.17, sz * 0.42) + im('kraken', mid(3), h * 0.87, sz * 1.15)
+  life +=
+    im('seagull', mid(2) - w * 0.04, h * 0.22, sz * 0.6) +
+    im('seagull', mid(2) + w * 0.03, h * 0.17, sz * 0.42) +
+    im('kraken', mid(3), h * 0.87, sz * 1.15)
   // The guardian, asleep in the water before the last island.
-  const orr = base * 0.8, ox = mid(4) + base * 0.3, oy = h - orr * 0.5
+  const orr = base * 0.8,
+    ox = mid(4) + base * 0.3,
+    oy = h - orr * 0.5
   life +=
     `${im('octopus', ox, oy, orr)}<rect x="${f(ox - orr * 0.55)}" y="${f(oy + orr * 0.12)}" width="${f(orr * 1.1)}" height="${f(orr * 0.5)}" fill="${SEA.sea}"/>` +
     `<path d="M${f(ox - orr * 0.55)} ${f(oy + orr * 0.14)} q ${f(orr * 0.14)} -9 ${f(orr * 0.28)} 0 t ${f(orr * 0.28)} 0 t ${f(orr * 0.28)} 0 t ${f(orr * 0.28)} 0" fill="none" stroke="#fff" stroke-width="3"/>`
@@ -485,7 +559,8 @@ export function chartHTML(w: number, h: number, v: ChartView): { html: string; s
   const ship =
     `<div data-pirate-ship="" style="position:absolute;left:${f(-shipSize / 2)}px;top:${f(-shipSize / 2)}px;width:${f(shipSize)}px;height:${f(shipSize)}px;transform:translate(${f(sx)}px,${f(sy - shipSize * 0.22)}px)">` +
     `<img class="pirate-ship" src="${art('galleon')}" alt="" draggable="false" style="display:block;width:100%;height:100%"></div>`
-  const tf = Math.min(40, Math.max(28, h * 0.04)), tw = tf * 9.3
+  const tf = Math.min(40, Math.max(28, h * 0.04)),
+    tw = tf * 9.3
   const title = `<g font-weight="700" text-anchor="middle"><rect x="${f(w / 2 - tw / 2)}" y="14" width="${f(tw)}" height="${f(tf * 1.65)}" rx="${f(tf * 0.82)}" fill="#ffffffe6"/><text x="${f(w / 2)}" y="${f(14 + tf * 1.15)}" font-size="${f(tf)}" fill="#3b3366">Our Quest${v.quest > 1 ? ' ' + v.quest : ''}</text></g>`
   const full = `viewBox="0 0 ${f(Ww)} ${h}" style="position:absolute;left:0;top:0;width:${f(Ww)}px;height:${h}px;pointer-events:none"`
   const html =
