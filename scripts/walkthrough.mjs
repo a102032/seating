@@ -3359,12 +3359,12 @@ const scenarios = {
     }
     check(
       // 97: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
-      // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24).
-      'tour: 103 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 103 && bad === 0,
+      // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24), and the Pirate Quest's (2026-10-25).
+      'tour: 110 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 110 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 9, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 10, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -3384,8 +3384,9 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 21 stops to the card before the Class Quest, then skip it, the Marble Jar and Flip Cards to Group Activity's card.
+    // Through the board's 21 stops to the card before the Class Quest, then skip it, the Marble Jar, the Pirate Quest and Flip Cards to Group Activity's card.
     for (let i = 0; i < 21; i++) await page.locator('[data-tour-action="next"]').click()
+    await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
