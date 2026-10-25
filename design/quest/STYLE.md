@@ -407,3 +407,10 @@ islands, as in the bright sea map**, not one big island with a road across it: e
 and the islands sit on the zigzag the Knight's chests use, so it fits every screen. Taken from the others: the
 shallows round each coast in two rings of pale blue, a compass in a corner, a dashed route on the water between
 islands and a red X on each island, and the guardian peeking out of the water beside the last one.
+
+**Changed the same day** (the teacher: "the shark, Kraken, fish bone, pirate hat, those help it feel more
+adventurous. Not too scary."): `shark-1`, `kraken`, `fish-bone` and `pirate-hat` are in, and **the pirates try
+their own chests from the pack** rather than the Knight's ("let's try from my pack and see how it goes"):
+`treasure-chest`, `treasure-chest-1`, `treasure-chest-2`, `treasure-box` and `treasure-box-1` (open, full of
+coins), ranked in the preview. A pirate chest needs no lock plate: the Pirate Quest's pieces are map pieces, not
+keys. The galleon keeps its skull too, as the hat does.
