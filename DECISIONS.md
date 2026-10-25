@@ -1,7 +1,7 @@
 # Decisions
 
 Running record of what we've settled and why, so the reasoning survives between sessions.
-Newest thinking at the top of each section. Last updated 2026-10-24. Loaded into every new Claude Code session through CLAUDE.md.
+Newest thinking at the top of each section. Last updated 2026-10-25. Loaded into every new Claude Code session through CLAUDE.md.
 
 ## What this app is
 
@@ -31,6 +31,7 @@ Newest thinking at the top of each section. Last updated 2026-10-24. Loaded into
      - [ ] **The Move extension on the Chrome Web Store** (below, "Getting the Move extension to other teachers"). On a classroom board the floating window's bar still opens the menu, so teachers at boards need it.
      - [ ] **Celebration GIFs from the teacher's own Giphy search** instead of the built-in list, for copyright (below, "Celebration GIFs").
      - [ ] **Classes saved in each teacher's own Google Drive**, not the teacher's Firebase project (below, "Before the app goes out widely").
+     - [ ] **A student-privacy check of the code** (2026-10-25, the teacher; on hold until the app is finished). Every piece of student data the app keeps or sends (names, homerooms, gender, photos, attendance, participation, points) and where it goes (Firebase, Drive, Giphy, fonts), held against the laws where the app may be used: the US (FERPA, COPPA and the states' student-privacy laws, such as Illinois' SOPPA), Europe (GDPR), Taiwan (the Personal Data Protection Act) and wider Asia (Japan, Korea, Thailand and others). It ends in a gap list in priority order, talked through before anything is built. The move into each teacher's Drive (above) is expected to close the most, since the teacher then holds no children's names; a privacy policy and a list of the data collected will still be needed.
   - **Later, once the other features are built: the phone page, a remote control that also takes photos** (go, 2026-10-12, the teacher: "maybe wait until all features are done being built"; Wish list, below). Photo Day joined it the same day: one phone page, one sign-in on the phone, built once. Better after classes move into each teacher's own Drive (step 6), since the remote's way of reaching the board depends on where classes live; photos already come in from the computer meanwhile.
 - **The review's ideas, in priority order** (2026-10-18, the teacher: "I agree with everything that you said and everything that you recommended", but nothing is to be built yet). They came from a look over the whole app and the code beside ClassDojo (going schoolwide: announcements, translated messages to families), Classroomscreen (widgets: a spinner wheel, undo) and Classcraft (closed, which leaves the Quest's ground empty). None of them changes the to-do list above: the Quest's part 1 stays next, and these slot in around it. Each still gets its own talk before it is built, as everything does.
   - **First, after the Quest's part 1**:
