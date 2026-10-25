@@ -3409,7 +3409,7 @@ const scenarios = {
     const before = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
     check(
       'tour: Back on the card between parts, to the last stop of the part before',
-      new RegExp(`^${parts[2]} · (\\d+) of \\1$`).test(before),
+      new RegExp(`^${parts[3]} · (\\d+) of \\1$`).test(before),
       before,
     )
     await page.keyboard.press('Escape')
