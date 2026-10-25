@@ -383,6 +383,43 @@ await measure('marbles: the wheel spinning', async () => {
 })
 await measure('marbles: the Mega celebration', () => wait(2200))
 await measure('marbles: the pour', () => wait(5000))
+// The Pirate Quest (2026-10-25): a piece found, the map sailing and clearing clouds, the dig, the glide on.
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+await page.evaluate((s) => {
+  const c = {
+    ...s.classes[0],
+    pointsMode: 'quest',
+    questAdventure: 'pirate',
+    classPoints: 49,
+    pirateQuest: { number: 1, chest: 0, keys: 1, opened: [], keyDays: [], startedOn: '2026-09-01', kind: 'pirate' },
+  }
+  sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
+  localStorage.removeItem('seating-chart-pirate-seen-v1')
+}, state)
+await page.reload()
+await wait(3000)
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
+await desk('Amy').click()
+await wait(300)
+await measure('pirate: a map piece found', async () => {
+  await page.locator('aside button[title="Award Point"]').click()
+  await wait(2500)
+})
+await measure('pirate: the piece clicks in', async () => {
+  await page.locator('[data-quest-moment="piece"]').click()
+  await wait(1500)
+})
+await measure('pirate: the map, ship and clouds', async () => {
+  await page.getByRole('button', { name: 'Sail and dig!' }).click()
+  await wait(5000)
+})
+await measure('pirate: the dig', () => wait(4500))
+await wait(2500)
+await page.getByRole('button', { name: 'Spin!' }).click()
+await wait(8500)
+await page.mouse.click(700, 400)
+await measure('pirate: gliding to the next island', () => wait(3000))
+await measure('pirate: the map open, smoke and waves', () => wait(2500))
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')
 for (const r of results)

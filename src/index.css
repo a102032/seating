@@ -3645,3 +3645,82 @@ button {
   max-width: none;
   user-select: none;
 }
+
+/* The Pirate Quest (PirateMap.tsx, PirateMoments.tsx, lib/pirateArt). Fixed colours, the same in every
+   theme, as the Knight's are. Everything that keeps moving is CSS, which the graphics chip runs. */
+.pirate-ship {
+  animation: pirate-sway 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 90%;
+}
+@keyframes pirate-sway {
+  50% {
+    transform: rotate(-3deg) translateY(2px);
+  }
+}
+.pirate-smoke {
+  opacity: 0;
+  animation: pirate-smoke 3.6s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes pirate-smoke {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(14px, -46px) scale(1.7);
+  }
+}
+.pirate-zzz {
+  animation: pirate-zzz 2.4s ease-in-out infinite;
+}
+@keyframes pirate-zzz {
+  0% {
+    opacity: 0;
+    transform: translate(0, 6px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(8px, -14px);
+  }
+}
+.pirate-x-pop {
+  animation: pirate-x-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes pirate-x-pop {
+  from {
+    transform: scale(0);
+  }
+}
+.pirate-hover {
+  animation: pirate-hover 1.4s ease-in-out infinite;
+}
+@keyframes pirate-hover {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.pirate-finale {
+  animation: pirate-x-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pirate-ship,
+  .pirate-smoke,
+  .pirate-zzz,
+  .pirate-x-pop,
+  .pirate-hover,
+  .pirate-finale {
+    animation: none;
+  }
+}

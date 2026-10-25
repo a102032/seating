@@ -113,6 +113,7 @@ const unease = (p: number) => 1 - Math.pow(1 - p, 1 / 3)
 export function ChestOpening({
   chest,
   jarPicture,
+  fromRect,
   prizes,
   gifUrl,
   pickSpinner,
@@ -126,6 +127,8 @@ export function ChestOpening({
    * wheel (the Gold chest's) rises out of it. Empty when the picture couldn't be taken; the chest is drawn then.
    */
   jarPicture?: string
+  /** Where the chest flies in from, when not the meter's: the Pirate Quest's, dug up on the map. */
+  fromRect?: DOMRect
   prizes: QuestPrize[]
   /** The class's celebration GIF, loaded; null shows the prize alone. */
   gifUrl: string | null
@@ -172,7 +175,7 @@ export function ChestOpening({
     let cancelled = false
     ;(async () => {
       if (el) {
-        const m = questChestRect()
+        const m = fromRect ?? questChestRect()
         const c = el.getBoundingClientRect()
         if (m && c.width) {
           await el.animate(

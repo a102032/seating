@@ -483,7 +483,9 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           message={
             adventureOf(activeClass) === 'marbles'
               ? `"${activeClass.name}" starts again with an empty jar and no spins waiting. The stars on the meter stay.`
-              : `"${activeClass.name}" goes back to the Wood chest with no keys, and the chests opened come off the map. The stars on the meter stay.`
+              : adventureOf(activeClass) === 'pirate'
+                ? `"${activeClass.name}" sails back to the first island with no map pieces, and the islands visited come off the map. The stars on the meter stay.`
+                : `"${activeClass.name}" goes back to the Wood chest with no keys, and the chests opened come off the map. The stars on the meter stay.`
           }
           confirmLabel="Yes, Start Over"
           cancelLabel="No"

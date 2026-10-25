@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
-import { CHESTS, lastKeyWords, PRIZE_NAME_MAX, prizesOf, questOf, SIZE_NAMES, type PrizeSize, type QuestPrize } from '../../lib/quest'
+import { CHESTS, keysNeeded, lastKeyWords, PRIZE_NAME_MAX, prizesOf, questOf, SIZE_NAMES, type PrizeSize, type QuestPrize } from '../../lib/quest'
 import { chestSVG, prizeIconSVG } from '../../lib/questArt'
 import { adventureOf, CAPACITY, jarFill, jarOf, lastSpinWords, type Adventure } from '../../lib/marbles'
 import { marbleSVG } from '../../lib/marbleArt'
@@ -210,7 +210,9 @@ export function PointsSection({
         <p className="cs-hint" style={{ margin: '6px 2px 0' }}>
           {mode === 'quest' && adventureOf(activeClass) === 'marbles'
             ? 'Fill the goal to spin the marble wheel. The marbles fill the class jar, and a full jar has a prize wheel.'
-            : MODES.find((m) => m.mode === mode)?.says}
+            : mode === 'quest' && adventureOf(activeClass) === 'pirate'
+              ? 'Fill the goal to win a piece of the next island’s map. A whole map shows where to dig for treasure.'
+              : MODES.find((m) => m.mode === mode)?.says}
         </p>
       </div>
 
@@ -240,7 +242,9 @@ export function PointsSection({
               <small>
                 {mode === 'quest' && adventureOf(activeClass) === 'marbles'
                   ? 'How many stars win a spin. About a spin a week fills a jar in a semester.'
-                  : mode === 'quest'
+                  : mode === 'quest' && adventureOf(activeClass) === 'pirate'
+                    ? 'How many stars win a map piece. A quest is 20 pieces: about one a week takes a semester.'
+                    : mode === 'quest'
                     ? 'How many stars win a key. About a key a week makes a quest a semester.'
                     : 'Set the goal for your class: how many stars are needed to fill the chest.'}
               </small>
@@ -321,8 +325,9 @@ export function PointsSection({
 
 /**
  * The quest's adventure, where the class is on it, how long the last key or spin took (to help set
- * the goal), and Start Over. Two adventures, one row (2026-10-24): the Knight's keys and chests, or
- * the Marble Jar. Each keeps its own place, so trying the other loses nothing.
+ * the goal), and Start Over. Three adventures, one row: the Knight's keys and chests, the Marble Jar
+ * (2026-10-24), or the Pirate Quest's islands and map pieces (2026-10-25). Each keeps its own place,
+ * so trying another loses nothing.
  */
 function QuestRow({
   activeClass,
@@ -336,6 +341,7 @@ function QuestRow({
   const adventure = adventureOf(activeClass)
   const q = questOf(activeClass)
   const T = CHESTS[q.chest]
+  const need = keysNeeded(q)
   const j = jarOf(activeClass)
   const fresh =
     adventure === 'marbles' ? j.number === 1 && j.marbles.length === 0 && j.spins === 0 : q.number === 1 && q.chest === 0 && q.keys === 0
@@ -346,7 +352,9 @@ function QuestRow({
         <b>
           {adventure === 'marbles'
             ? `${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`
-            : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
+            : adventure === 'pirate'
+              ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Island ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} pieces`
+              : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
         </b>
         <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
       </div>
@@ -366,6 +374,11 @@ function QuestRow({
           />
           Marble Jar
           {adventure === 'marbles' && <Tick />}
+        </button>
+        <button type="button" className="cs-choice" aria-pressed={adventure === 'pirate'} onClick={() => onSetAdventure('pirate')}>
+          <img src={assetUrl('/quest/pirate/parrot.svg')} alt="" className="h-6 w-6 shrink-0" />
+          Pirate
+          {adventure === 'pirate' && <Tick />}
         </button>
       </div>
       <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>

@@ -43,6 +43,7 @@ const plainGoal = ({ cls }: GuideContext) => pointsModeOf(cls) === 'goal'
 const quest = ({ cls }: GuideContext) => pointsModeOf(cls) === 'quest'
 const knight = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'knight'
 const marbles = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'marbles'
+const pirate = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'pirate'
 const avatarsShown = ({ cls }: GuideContext) => !cls.avatarsOff && cls.students.length > 0
 const photosShown = ({ cls }: GuideContext) => cls.photosOn === true && !cls.avatarsOff && cls.students.length > 0
 const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photosOn && cls.students.length > 0
@@ -162,7 +163,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'points',
     targets: [g('adventure-row')],
-    text: 'Pick an adventure: the Knight, with keys and five chests, or the Marble Jar, with a wheel that fills the class jar.',
+    text: 'Pick an adventure: the Knight, with keys and five chests; the Marble Jar, with a wheel that fills the class jar; or the Pirate Quest, sailing to five islands.',
     when: quest,
     maybe: true,
   },
@@ -178,6 +179,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     targets: [g('goal-row')],
     text: 'How many stars win a spin of the marble wheel? About a spin a week fills a jar in a semester.',
     when: marbles,
+    maybe: true,
+  },
+  {
+    section: 'points',
+    targets: [g('goal-row')],
+    text: 'How many stars win a map piece? A quest is 20 pieces, so about one a week takes a semester.',
+    when: pirate,
     maybe: true,
   },
   {
@@ -214,6 +222,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     text: 'How full the jar is, and how long the last spin took. Start Over empties the jar.',
     only: 'section',
     when: marbles,
+  },
+  {
+    section: 'points',
+    targets: [g('quest-row')],
+    text: 'The island the class is sailing to, its map pieces, and how long the last piece took. Start Over sails back to the first island.',
+    only: 'section',
+    when: pirate,
   },
   {
     section: 'points',

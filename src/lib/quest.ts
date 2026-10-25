@@ -32,6 +32,13 @@ export interface QuestState {
   keyDays: string[]
   /** When this quest started, for how long its first key took. */
   startedOn: string
+  /**
+   * The Pirate Quest (2026-10-25): the same quest with islands for chests and map pieces for keys,
+   * each island needing one more piece than the last, 2 to 6. Unset is the Knight's.
+   */
+  kind?: 'pirate'
+  /** The last quest's islands and prizes, kept when a new one starts, for the whole voyage shown at its end. */
+  previous?: { chest: number; prize: QuestPrize; on: string }[]
 }
 
 export const CHESTS = [
@@ -82,10 +89,19 @@ export function prizesOf(c: ClassData): QuestPrize[] {
 }
 
 export function questOf(c: ClassData): QuestState {
-  return c.quest ?? { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: c.createdAt?.slice(0, 10) ?? dateKey() }
+  const startedOn = c.createdAt?.slice(0, 10) ?? dateKey()
+  if (isPirate(c)) return c.pirateQuest ?? { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn, kind: 'pirate' }
+  return c.quest ?? { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn }
 }
 
-export const keysNeeded = (q: QuestState) => CHESTS[q.chest].keys
+/** The pieces each island needs on the Pirate Quest: one more than the last, starting at two, since one piece is no puzzle. */
+export const PIRATE_PIECES = [2, 3, 4, 5, 6]
+
+export const keysNeeded = (q: QuestState) => (q.kind === 'pirate' ? PIRATE_PIECES[q.chest] : CHESTS[q.chest].keys)
+
+/** Each adventure keeps its own place, so trying the other loses nothing. */
+const isPirate = (c: ClassData) => c.questAdventure === 'pirate'
+const withState = (c: ClassData, q: QuestState): ClassData => (q.kind === 'pirate' ? { ...c, pirateQuest: q } : { ...c, quest: q })
 
 /** The chest has all its keys and waits for the teacher's tap. */
 export const chestIsReady = (q: QuestState) => q.keys >= keysNeeded(q)
@@ -94,7 +110,7 @@ export const chestIsReady = (q: QuestState) => q.keys >= keysNeeded(q)
 export function withKeysWon(c: ClassData, keys: number, day = dateKey()): ClassData {
   if (keys <= 0) return c
   const q = questOf(c)
-  return { ...c, quest: { ...q, keys: q.keys + keys, keyDays: [...q.keyDays, day].slice(-2) } }
+  return withState(c, { ...q, keys: q.keys + keys, keyDays: [...q.keyDays, day].slice(-2) })
 }
 
 /**
@@ -106,15 +122,16 @@ export function withChestOpened(c: ClassData, prize: QuestPrize, day = dateKey()
   const q = questOf(c)
   if (!chestIsReady(q)) return c
   const spare = q.keys - keysNeeded(q)
+  const opened = [...q.opened, { chest: q.chest, prize, on: day }]
   if (q.chest === MEGA) {
-    return { ...c, quest: { number: q.number + 1, chest: 0, keys: spare, opened: [], keyDays: q.keyDays, startedOn: day } }
+    return withState(c, { number: q.number + 1, chest: 0, keys: spare, opened: [], keyDays: q.keyDays, startedOn: day, kind: q.kind, previous: opened })
   }
-  return { ...c, quest: { ...q, chest: q.chest + 1, keys: spare, opened: [...q.opened, { chest: q.chest, prize, on: day }] } }
+  return withState(c, { ...q, chest: q.chest + 1, keys: spare, opened })
 }
 
 /** The quest from the start, for a teacher who tried it out first (Points' Start Over). The meter is left alone. */
 export function withQuestRestarted(c: ClassData, day = dateKey()): ClassData {
-  return { ...c, quest: { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: day } }
+  return withState(c, { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: day, ...(isPirate(c) && { kind: 'pirate' as const }) })
 }
 
 function daysFrom(a: string, b: string): number {
@@ -133,10 +150,10 @@ export function lastKeyTook(q: QuestState): number | null {
 }
 
 export function lastKeyWords(q: QuestState): string {
-  const days = lastKeyTook(q)
-  if (days === null) return 'No keys yet.'
-  if (days === 0) return 'The last key took less than a day.'
-  return `The last key took ${days} ${days === 1 ? 'day' : 'days'}.`
+  const days = lastKeyTook(q), what = q.kind === 'pirate' ? 'piece' : 'key'
+  if (days === null) return `No ${what}s yet.`
+  if (days === 0) return `The last ${what} took less than a day.`
+  return `The last ${what} took ${days} ${days === 1 ? 'day' : 'days'}.`
 }
 
 /** A slice of the wheel: a prize, and how good a slice it is (its colour), which is the size it was dealt as. */

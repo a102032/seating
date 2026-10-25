@@ -3,7 +3,7 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Nine parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Ten parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
@@ -17,6 +17,9 @@ export type TourShot =
   | 'prize'
   | 'marbles'
   | 'marblespin'
+  | 'pirate'
+  | 'piratepiece'
+  | 'piratemap'
   | 'flip'
   | 'chooser'
   | 'who'
@@ -146,6 +149,23 @@ export const TOUR: TourPart[] = [
         at: 'jar',
         text: 'Fill the jar to the line, and a prize wheel rises out of it. Your prizes are in Class Settings, Points.',
       },
+    ],
+  },
+  {
+    title: 'The Pirate Quest',
+    intro: 'The Class Quest’s third adventure: a ship sailing to five islands. Choose it in Class Settings, Points, under Class Quest.',
+    stops: [
+      { shot: 'pirate', at: 'meter', text: 'On the Pirate Quest, the parrot rides the meter. When the goal fills, the class finds a piece of the next island’s map.' },
+      { shot: 'pirate', at: 'puzzle', text: 'The island’s puzzle fills in here, piece by piece. Tap it to see the map.' },
+      { shot: 'piratepiece', at: 'puzzle', text: 'A piece found hovers over its gap. A student taps it in. Island 1 needs 2 pieces, island 5 needs 6.' },
+      { shot: 'piratemap', at: 'ship', text: 'The ship sails a little way with every star.' },
+      { shot: 'piratemap', at: 'clouds', text: 'The island ahead is under clouds. Each piece found clears its part of the island.' },
+      {
+        shot: 'piratemap',
+        at: 'island',
+        text: 'When the puzzle is whole, an X shows where to dig. The shovel digs, and a prize wheel rises out of the chest.',
+      },
+      { shot: 'piratemap', at: 'close', text: 'Back to the desks.' },
     ],
   },
   {

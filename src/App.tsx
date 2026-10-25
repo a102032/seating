@@ -51,6 +51,7 @@ import { pickChances, weightedChoice } from './lib/participation'
 import { prizesOf, questOf } from './lib/quest'
 import { jarIsFull, jarOf, marblesOn } from './lib/marbles'
 import { OurQuest } from './components/OurQuest'
+import { PirateMap } from './components/PirateMap'
 import {
   playCoinTick,
   playGroupsDone,
@@ -295,6 +296,9 @@ export default function App() {
   const [questMapOpen, setQuestMapOpen] = useState(false)
   /** Open the chest was tapped in the floating window: the chest opens once the app is in front. */
   const [chestOpenRequested, setChestOpenRequested] = useState(false)
+  /** On the Pirate Quest: dig for the treasure once the map has played what happened, and the chest once it is dug up. */
+  const [pirateDig, setPirateDig] = useState(false)
+  const [pirateDug, setPirateDug] = useState<{ from: DOMRect; picture: string } | null>(null)
   /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
   const [guide, setGuide] = useState<{ scope: GuideScope; index: number } | null>(null)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
@@ -1225,8 +1229,15 @@ export default function App() {
                   ? {
                       state: questOf(activeClass),
                       prizes: prizesOf(activeClass),
-                      onOpenMap: () => setQuestMapOpen(true),
-                      onOpened: (prize) => openQuestChest(activeClass.id, prize),
+                      onOpenMap: (dig) => {
+                        setQuestMapOpen(true)
+                        setPirateDig(!!dig)
+                      },
+                      onOpened: (prize) => {
+                        openQuestChest(activeClass.id, prize)
+                        setPirateDug(null)
+                        setPirateDig(false)
+                      },
                       pickSpinner,
                       spinnerNames: seatedIds.map((id) => studentsById.get(id)?.name ?? '').filter(Boolean),
                       openRequested: chestOpenRequested,
@@ -1238,6 +1249,14 @@ export default function App() {
                             onJarFilled: (prize) => fillMarbleJar(activeClass.id, prize),
                           }
                         : undefined,
+                      pirate: {
+                        dug: pirateDug,
+                        onNotNow: () => {
+                          setPirateDug(null)
+                          setPirateDig(false)
+                          setQuestMapOpen(false)
+                        },
+                      },
                     }
                   : undefined
               }
@@ -1294,7 +1313,28 @@ export default function App() {
                 onTapDesk={handleTapDesk}
               />
 
-              {questMapOpen && questIsOn(activeClass) && <OurQuest quest={questOf(activeClass)} onClose={() => setQuestMapOpen(false)} />}
+              {questMapOpen &&
+                questIsOn(activeClass) &&
+                (questOf(activeClass).kind === 'pirate' ? (
+                  <PirateMap
+                    key={activeClass.id}
+                    classId={activeClass.id}
+                    quest={questOf(activeClass)}
+                    share={(activeClass.pointsGoal ?? 0) > 0 ? Math.min(1, (activeClass.classPoints ?? 0) / activeClass.pointsGoal!) : 0}
+                    dig={pirateDig}
+                    onDug={(from, picture) => {
+                      setPirateDig(false)
+                      setPirateDug({ from, picture })
+                      setChestOpenRequested(true)
+                    }}
+                    onClose={() => {
+                      setQuestMapOpen(false)
+                      setPirateDig(false)
+                    }}
+                  />
+                ) : (
+                  <OurQuest quest={questOf(activeClass)} onClose={() => setQuestMapOpen(false)} />
+                ))}
 
               {/* The flip deck slides up over the seating chart and back down on the way out,
                 keeping the side panel's points buttons and the class goal meter in play. */}
@@ -1705,7 +1745,12 @@ export default function App() {
                     appBehind: !appInFront,
                     marbles: { spins: jarOf(activeClass).spins, full: jarIsFull(jarOf(activeClass)), jar: jarOf(activeClass).marbles },
                   }
-                : { chest: questOf(activeClass).chest, keys: questOf(activeClass).keys, appBehind: !appInFront }
+                : {
+                    chest: questOf(activeClass).chest,
+                    keys: questOf(activeClass).keys,
+                    appBehind: !appInFront,
+                    pirate: questOf(activeClass).kind === 'pirate',
+                  }
               : undefined
           }
           pick={

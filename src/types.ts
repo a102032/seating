@@ -192,8 +192,10 @@ export interface ClassData {
   quest?: QuestState
   /** The teacher's prizes for the Quest's wheels, each small, medium or big. Unset is lib/quest's starting list. */
   questPrizes?: QuestPrize[]
-  /** The Class Quest's adventure: the Knight's keys and chests (unset), or the Marble Jar (lib/marbles). */
+  /** The Class Quest's adventure: the Knight's keys and chests (unset), the Marble Jar (lib/marbles) or the Pirate Quest. */
   questAdventure?: Adventure
+  /** The Pirate Quest's islands and map pieces, kept apart from the Knight's so each keeps its place. Read through questOf. */
+  pirateQuest?: QuestState
   /** The Marble Jar: the marbles where they settled, spins waiting, and the jars filled. Read through jarOf. */
   marbleJar?: MarbleJarState
   /**

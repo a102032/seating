@@ -97,6 +97,11 @@ checks the live URL. Confirm it went green before saying something is live. It a
   moment the goal fills, the jar full by how much the marbles fill), `lib/marblePhysics.ts` (Planck: the marbles falling and settling,
   kept where they came to rest), `lib/marbleArt.ts` and `lib/marbleLayer.ts` (each marble two small pictures the graphics chip moves),
   `components/MarbleMoment.tsx` (the wheel and the jar, a lazy chunk with the physics) and `components/MiniJar.tsx`.
+- The Pirate Quest, the Class Quest's third adventure (`questAdventure: 'pirate'`, its place in `pirateQuest`): the Knight's engine
+  (`lib/quest.ts`, `kind: 'pirate'`, islands needing `PIRATE_PIECES`), `lib/pirateArt.ts` (the islands, the jigsaw puzzles, the
+  clouds and the sea chart, as layers the graphics chip moves), `components/PirateMap.tsx` (the chart, the ship, the clouds, the dig,
+  sailing on; what this screen last showed in `seating-chart-pirate-seen-v1`), `components/PirateMoments.tsx` (a piece found) and
+  `public/quest/pirate/` (the teacher's Flaticon pieces).
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
   step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useTimer.ts`: the timer, kept outside React so a
   running clock redraws only itself (its time, size, place, colour and sound are kept in `seating-chart-timer-settings-v1`).

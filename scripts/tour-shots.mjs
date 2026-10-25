@@ -534,6 +534,73 @@ const all = {}
   await page.context().close()
 }
 
+// The Pirate Quest: the same class sailing to island 2 (3 pieces), one piece found, the meter partway.
+{
+  const pirate = (pieces) => ({
+    ...STATE,
+    classes: [
+      {
+        ...STATE.classes[0],
+        pointsMode: 'quest',
+        questAdventure: 'pirate',
+        pointsGoal: 40,
+        classPoints: pieces === 3 ? 0 : 26,
+        pirateQuest: {
+          number: 1,
+          chest: 1,
+          keys: pieces,
+          opened: [{ chest: 0, prize: { name: 'Drawing time', size: 's' }, on: today }],
+          keyDays: [today],
+          startedOn: today,
+          kind: 'pirate',
+        },
+      },
+    ],
+  })
+  // What the map last showed, so it opens as it is rather than playing the voyage so far.
+  const seen = async (page, pieces) => {
+    await page.evaluate(
+      ([id, pieces]) =>
+        localStorage.setItem(
+          'seating-chart-pirate-seen-v1',
+          JSON.stringify({ [id]: { quest: 1, island: 1, ship: pieces === 3 ? 1 : (pieces + 26 / 40) / 3, cleared: pieces } }),
+        ),
+      [STATE.classes[0].id, pieces],
+    )
+  }
+  let page = await open(pirate(1))
+  await page.evaluate(() => {
+    let m = document.querySelector('[data-pirate-mini]')
+    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
+    m?.setAttribute('data-tour-mark', 'pmeter')
+  })
+  all.pirate = await rects(page, { meter: '[data-tour-mark="pmeter"]', puzzle: '[data-pirate-mini]' })
+  await shot(page, 'pirate')
+  await seen(page, 1)
+  await page.click('[data-quest-chest]')
+  await page.waitForTimeout(1200)
+  all.piratemap = await rects(page, {
+    ship: '[data-pirate-ship]',
+    clouds: '[data-pirate-world] [data-island="1"]',
+    island: '[data-pirate-world] [data-island="1"]',
+    close: 'button[aria-label="Close Our Quest"]',
+  })
+  await shot(page, 'piratemap')
+  await page.context().close()
+
+  // A piece found: a star to fill the goal, and the piece hovering over its gap.
+  const one = pirate(1)
+  one.classes[0].classPoints = 39
+  page = await open(one)
+  await page.locator('[data-ink=desk]').first().click()
+  await page.locator('aside button[title="Award Point"]').click()
+  await page.waitForTimeout(1800)
+  all.piratepiece = await rects(page, { puzzle: '[data-pirate-puzzle]' })
+  await shot(page, 'piratepiece')
+  await page.context().close()
+
+}
+
 writeFileSync(RECTS, JSON.stringify(all, null, 1) + '\n')
 console.log(JSON.stringify(all))
 await browser.close()

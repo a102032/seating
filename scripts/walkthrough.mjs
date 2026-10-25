@@ -917,6 +917,187 @@ const scenarios = {
     await page.context().close()
   },
 
+  async 'the pirate quest'() {
+    const pq = (extra = {}) => ({ number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: '2026-10-01', kind: 'pirate', ...extra })
+    const pirate = (extra = {}) =>
+      makeClass('c1', 'Pirates', 12, { pointsMode: 'quest', questAdventure: 'pirate', goalEnabled: true, pointsGoal: 10, ...extra })
+    // A goal filled: a map piece, kept the moment it is won, shown hovering over its gap.
+    let page = await open({ state: stateOf(pirate({ classPoints: 9 })), size: [1280, 559] })
+    check(
+      'pirate: the parrot rides the meter, the island puzzle at its end',
+      (await page.locator('[data-goal-coin="parrot"]').count()) === 1 && (await page.locator('[data-pirate-mini] svg').count()) === 1,
+    )
+    await desk(page, 'Amy').click()
+    await award(page)
+    await page.waitForTimeout(1600)
+    let c = await activeSaved(page)
+    check('pirate: a filled goal wins a map piece, kept as it is won', c.pirateQuest?.keys === 1 && !c.quest, JSON.stringify(c.pirateQuest))
+    check(
+      'pirate: "You found a map piece!" with the piece over its gap',
+      (await page.locator('[data-quest-moment="piece"]').innerText()).includes('You found a map piece!') &&
+        (await page.locator('[data-pirate-puzzle] [data-lift]').count()) === 1,
+    )
+    await page.waitForTimeout(400)
+    await page.locator('[data-quest-moment="piece"]').click()
+    await page.waitForTimeout(1300)
+    check('pirate: a tap puts it in', (await page.locator('[data-quest-moment="piece"]').innerText()).includes('1 of 2 pieces!'))
+    await page.locator('[data-quest-moment="piece"]').click()
+    await page.waitForTimeout(600)
+    check('pirate: a tap sails on, to the map', (await page.locator('[data-pirate-map] [data-pirate-chart]').count()) === 1)
+    check('pirate: the island ahead is under clouds', (await page.locator('[data-pirate-map] [data-island="0"]').count()) === 2)
+    await page.waitForTimeout(5000)
+    const ship = await page.locator('[data-pirate-ship]').evaluate((e) => e.style.transform)
+    check(
+      "pirate: the ship has sailed, and the found piece's clouds are gone",
+      (await page.locator('[data-pirate-map] [data-island="0"]').count()) === 1 && !/translate\(0/.test(ship),
+      ship,
+    )
+    await page.getByRole('button', { name: 'Close Our Quest' }).click()
+    await page.waitForTimeout(500)
+    check('pirate: the map closes', (await page.locator('[data-pirate-map]').count()) === 0)
+    page.errors.length && check('pirate: no errors (piece)', false, page.errors.join('; '))
+    await page.context().close()
+
+    // A whole puzzle: the X, Sail and dig!, the shovel, and the prize wheel out of the dug-up chest.
+    page = await open({ state: stateOf(pirate({ pirateQuest: pq({ keys: 2 }) })), size: [1280, 559] })
+    check('pirate: a whole puzzle rattles on the meter', (await page.locator('[data-pirate-mini].meter-chest-rattle').count()) === 1)
+    await page.locator('[data-quest-chest]').click({ force: true })
+    await page.waitForTimeout(900)
+    check(
+      'pirate: "The map is whole!" with the X',
+      (await page.locator('[data-quest-moment="piece"]').innerText()).includes('The map is whole!') &&
+        (await page.locator('[data-pirate-puzzle] .pirate-x').count()) === 1,
+    )
+    await page.getByRole('button', { name: 'Sail and dig!' }).click()
+    await page.waitForTimeout(3500)
+    check('pirate: the X on the island, the ship arrived', (await page.locator('[data-pirate-world] .pirate-x').count()) === 1)
+    await page.waitForTimeout(1400)
+    check('pirate: the shovel digs', (await page.locator('[data-pirate-fx] image[href*="shovel"]').count()) === 1)
+    await page.waitForTimeout(5000)
+    check('pirate: the prize wheel rises out of the dug-up chest', (await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').count()) === 1)
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(8800)
+    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(900)
+    c = await activeSaved(page)
+    check(
+      'pirate: the prize goes on the island, and the class sails on to island 2',
+      c.pirateQuest.chest === 1 && c.pirateQuest.keys === 0 && c.pirateQuest.opened[0]?.prize.name === prize,
+      JSON.stringify(c.pirateQuest),
+    )
+    await page.waitForTimeout(3500)
+    check(
+      'pirate: the view glides on, the prize on the island behind',
+      (await page.locator('[data-pirate-world]').textContent()).includes(prize) &&
+        (await page.locator('[data-pirate-world]').textContent()).includes('0 of 3 pieces'),
+    )
+    page.errors.length && check('pirate: no errors (dig)', false, page.errors.join('; '))
+    await page.context().close()
+
+    // The fifth island's prize: the whole voyage, then the next quest.
+    const opened = ['Drawing time', 'Reading time', 'Game time', 'Sit with a friend'].map((name, i) => ({ chest: i, prize: { name, size: 's' }, on: '2026-10-10' }))
+    page = await open({ state: stateOf(pirate({ pirateQuest: pq({ chest: 4, keys: 6, opened }) })), size: [1280, 559] })
+    await page.locator('[data-quest-chest]').click({ force: true })
+    await page.waitForTimeout(900)
+    await page.getByRole('button', { name: 'Sail and dig!' }).click()
+    await page.waitForTimeout(10000)
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(8800)
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(3600)
+    c = await activeSaved(page)
+    check(
+      'pirate: after the fifth island, the whole voyage and a new quest',
+      c.pirateQuest.number === 2 && c.pirateQuest.previous?.length === 5 && (await page.getByText('We sailed the whole sea!').count()) === 1,
+      JSON.stringify(c.pirateQuest),
+    )
+    await page.getByRole('button', { name: 'Start Quest 2' }).click()
+    await page.waitForTimeout(1200)
+    check('pirate: Start Quest 2 sets sail from home', (await page.locator('[data-pirate-world]').textContent()).includes('0 of 2 pieces'))
+    await page.context().close()
+
+    // Points: the third adventure, where the class is, and fitting at 1024x500.
+    const pts = pirate({ pirateQuest: pq({ chest: 2, keys: 1, keyDays: ['2026-10-14', '2026-10-20'] }) })
+    for (const theme of ['vibrant', 'comic', 'chalkboard']) {
+      page = await open({ state: stateOf(pts), size: [1024, 500], theme })
+      await openPointsTab(page)
+      const o = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+      check(`pirate: Points fits at 1024x500 in ${theme}`, o <= 0, `${o}px over`)
+      if (theme === 'vibrant') {
+        await page.screenshot({ path: '/tmp/walkthrough/pirate-points-1024.png' })
+        const row = await page.locator('[data-guide="quest-row"]').innerText()
+        check('pirate: Points says the island, its pieces and how long the last took', row.includes('Island 3, 1 of 4 pieces') && row.includes('The last piece took 6 days.'), row)
+        await page.getByRole('button', { name: 'Knight', exact: true }).click()
+        await page.waitForTimeout(300)
+        c = await activeSaved(page)
+        check('pirate: back to the Knight, the voyage kept for later', c.questAdventure === 'knight' && c.pirateQuest.chest === 2)
+        await page.getByRole('button', { name: 'Pirate', exact: true }).click()
+        await page.getByRole('button', { name: /Start Over/ }).click()
+        await page.getByRole('button', { name: 'Yes, Start Over' }).click()
+        await page.waitForTimeout(300)
+        c = await activeSaved(page)
+        check('pirate: Start Over sails back to the first island', c.pirateQuest.chest === 0 && c.pirateQuest.keys === 0 && c.pirateQuest.kind === 'pirate')
+      }
+      await page.context().close()
+    }
+
+    // The map and the piece moment, whole on every screen, nothing scrolling.
+    const bad = []
+    for (const size of [
+      [1024, 500],
+      [1280, 559],
+      [1366, 620],
+      [1920, 1080],
+    ]) {
+      page = await open({ state: stateOf(pirate({ pirateQuest: pq({ chest: 4, keys: 3 }) })), size })
+      await page.locator('[data-quest-chest]').click({ force: true })
+      await page.waitForTimeout(800)
+      const r = await page.evaluate(() => {
+        const b = document.querySelector('[data-pirate-map]')?.getBoundingClientRect()
+        const t = [...document.querySelectorAll('[data-pirate-world] text')].map((e) => e.getBoundingClientRect()).filter((x) => x.right > 0 && x.left < innerWidth)
+        return {
+          map: !!b && b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight,
+          labels: t.every((x) => x.bottom <= innerHeight && x.top >= 0),
+          scroll: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+        }
+      })
+      await page.screenshot({ path: `/tmp/walkthrough/pirate-map-${size.join('x')}.png` })
+      if (!r.map || !r.labels || r.scroll > 0) bad.push(`${size.join('x')}: ${JSON.stringify(r)}`)
+      await page.context().close()
+      page = await open({ state: stateOf(pirate({ classPoints: 9, pirateQuest: pq({ chest: 4, keys: 2 }) })), size })
+      await desk(page, 'Amy').click()
+      await award(page)
+      await page.waitForTimeout(1600)
+      const m = await page.evaluate(() => {
+        const b = document.querySelector('[data-pirate-puzzle]')?.getBoundingClientRect()
+        return !!b && b.top >= 0 && b.bottom <= innerHeight && b.right <= innerWidth
+      })
+      if (!m) bad.push(`${size.join('x')}: the puzzle`)
+      await page.context().close()
+    }
+    check('pirate: the map and the puzzle fit every screen, nothing scrolls', bad.length === 0, bad.join('; '))
+
+    // The floating window: the island's puzzle, and a whole one waits for the board to dig.
+    page = await open({ state: stateOf(pirate({ classPoints: 2, pirateQuest: pq({ keys: 2 }) })), size: [1280, 559] })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await page.waitForTimeout(600)
+    check(
+      'float: the island puzzle, and Dig for treasure with the map whole',
+      (await win.locator('[data-float-chest] svg').count()) === 1 && (await win.getByText('Dig for treasure').count()) === 1,
+    )
+    await win.getByText('Dig for treasure').click()
+    await page.bringToFront()
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await page.waitForTimeout(800)
+    const mapOpen = (await page.locator('[data-pirate-map]').count()) === 1
+    await page.waitForTimeout(5200)
+    check('float: Dig for treasure opens the map in the app and digs', mapOpen && (await page.locator('[data-pirate-fx] image').count()) >= 1)
+    await page.context().close()
+  },
+
   async 'points: a class goal, student points, or none'() {
     const cls = makeClass('c1', 'Points', 12, { pointsGoal: 50, classPoints: 10, goalEnabled: true })
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
