@@ -324,8 +324,8 @@ export function PointsMeter({
   function tapChest() {
     if (!quest) return onOpenGoalSettings()
     if (phase !== 'idle') return
-    // A full jar opens for its prize; otherwise the jar is the goal's settings, as the plain goal's chest is (2026-10-24, the teacher).
-    if (jar) return jarFull ? setPhase('look') : onOpenGoalSettings()
+    // The jar opens big, as the Knight's chest opens Our Quest and the puzzle the map: to look, or for its prize once full (2026-10-26, the teacher).
+    if (jar) return setPhase('look')
     if (pirate) return chestReady ? setPhase('whole') : quest.onOpenMap()
     if (chestReady) setPhase('chest')
     else quest.onOpenMap()
@@ -559,8 +559,8 @@ export function PointsMeter({
         <button
           type="button"
           onClick={tapChest}
-          title={jarFull ? 'Our jar is full!' : 'Our jar: Goal settings'}
-          aria-label={jarFull ? 'Our jar is full!' : 'Our jar: Goal settings'}
+          title={jarFull ? 'Our jar is full!' : 'Our jar'}
+          aria-label={jarFull ? 'Our jar is full!' : 'Our jar'}
           className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
         >
           <div ref={chestRef} data-quest-chest="" data-marble-mini="" className={clsx(jarFull && phase !== 'look' && 'meter-chest-rattle')}>

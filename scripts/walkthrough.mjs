@@ -704,9 +704,15 @@ const scenarios = {
     await page.locator('[data-marble-mini]').click()
     await page.waitForTimeout(800)
     check(
-      "marbles: a tap on the jar that isn't full opens Points",
-      (await page.locator('[data-marble-moment]').count()) === 0 && (await page.getByText('How many stars win a spin.').count()) > 0,
+      "marbles: a tap on the jar that isn't full opens it big, with Done",
+      (await page.locator('[data-marble-moment]').count()) === 1 &&
+        (await page.getByRole('button', { name: 'Done' }).count()) > 0 &&
+        (await page.getByRole('button', { name: 'Prize wheel!' }).count()) === 0,
     )
+    await page.screenshot({ path: process.env.SHOT_JAR || '/dev/null' }).catch(() => {})
+    await page.getByRole('button', { name: 'Done' }).click()
+    await page.waitForTimeout(600)
+    check('marbles: Done puts the jar back', (await page.locator('[data-marble-moment]').count()) === 0)
     await page.context().close()
 
     // Two spins waiting: after the first, Later is a way out, and the second spin is kept.

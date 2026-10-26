@@ -140,7 +140,7 @@ export const TOUR: TourPart[] = [
       {
         shot: 'marbles',
         at: 'jar',
-        text: 'The class jar, with every marble where it landed. Tap it for the jar’s settings, or for the prize wheel when it is full.',
+        text: 'The class jar, with every marble where it landed. Tap it to see it big, or for the prize wheel when it is full.',
       },
       {
         shot: 'marblespin',
