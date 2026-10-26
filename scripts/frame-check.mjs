@@ -207,6 +207,9 @@ await measure('flip 3 cards', async () => {
 // them in it (not measured), then one gift from wrapped to sent.
 await page.getByTitle('Flip card settings').click()
 await wait(600)
+// Since 2026-10-26 the gear opens Tools' list, and the cards' own page is behind its Settings.
+await page.locator('[data-guide="flip-settings"]').click()
+await wait(300)
 await page.locator('[data-guide="gifts"] [role="switch"]').click()
 await page.keyboard.press('Escape')
 await wait(600)
