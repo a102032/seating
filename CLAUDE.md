@@ -70,6 +70,9 @@ checks the live URL. Confirm it went green before saying something is live. It a
   `useChooseAvatars`, `useFloat` (the floating window), `usePointsSelection` (desks picked by hand, and the rail's star, −, Pick
   All and Pick Whole Row), `useToday`, `usePanelSide` and `Toast`. Something new for one screen goes in that screen's file.
 - `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`. A class seats at most 35 (`MAX_DESKS`).
+- `src/components/SafetyScreen.tsx`: `SafetyNet`, round the whole app in `main.tsx`. If anything on screen breaks, the board
+  shows the cheering chalkboard, "Your classes are safe." and "Tap to reload." rather than going blank; the error is in small
+  print at the foot and in the console. Drawn with its own colours, needing nothing else from the app.
 - `src/lib/upgrade.ts`: the one place that knows what older versions saved. Every class passes through `upgradeClass` as it
   comes in (this board's copy, the account, the board's classes taken into an account), so nothing else reads an old shape.
   When a field of `ClassData` changes shape, add a step there with its test in `lib/test/upgrade.test.ts`, never a fallback

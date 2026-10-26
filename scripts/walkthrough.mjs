@@ -241,6 +241,50 @@ async function overflow(page) {
 
 const scenarios = {
   /**
+   * The safety screen (2026-10-26): something on screen breaks - here a save the app can't read -
+   * and the board says the classes are safe rather than going blank. It fits the smallest screen,
+   * and a tap reloads; with the save mended, the class comes back.
+   */
+  async 'safety screen'() {
+    const good = makeClass('c1', 'Safe Class', 12)
+    const broken = { ...makeClass('c1', 'Safe Class', 12), students: 5 }
+    for (const size of [
+      [1024, 500],
+      [1920, 1080],
+    ]) {
+      const page = await open({ state: stateOf(broken), size, splash: false })
+      await page.waitForTimeout(500)
+      const screen = page.locator('[data-safety-screen]')
+      const fits = await page.evaluate(() => {
+        const r = document.querySelector('[data-safety-screen]')?.getBoundingClientRect()
+        const words = [...document.querySelectorAll('[data-safety-screen] > *')].map((e) => e.getBoundingClientRect())
+        return Boolean(r) && words.every((w) => w.top >= 0 && w.bottom <= innerHeight && w.left >= 0 && w.right <= innerWidth)
+      })
+      check(
+        `safety screen: shown, and whole, at ${size.join('x')}`,
+        (await screen.count()) === 1 &&
+          (await screen.textContent()).includes('Your classes are safe.') &&
+          (await screen.textContent()).includes('Tap to reload.') &&
+          fits,
+      )
+      await page.screenshot({ path: `${SHOTS}/safety-screen-${size.join('x')}.png` })
+      if (size[0] === 1024) {
+        await page.evaluate((s) => localStorage.setItem('seating-chart-state-v1', JSON.stringify(s)), stateOf(good))
+        await screen.click()
+        await page.waitForLoadState()
+        await page.waitForTimeout(900)
+        check(
+          'safety screen: a tap reloads, and the class is back',
+          (await page.locator('[data-safety-screen]').count()) === 0 && (await page.getByText('Safe Class').count()) > 0,
+        )
+      }
+      // The error it caught is expected here.
+      page.errors.length = 0
+      await page.context().close()
+    }
+  },
+
+  /**
    * The beta testers' changes (2026-10-14): the tour offered once above the desks; a line saying
    * what a desk tap does in Swap Seats and Attendance, with Done; side desks while Swap Seats is on,
    * a student moved to one staying there; and a picked row lighting only desks with a student.
