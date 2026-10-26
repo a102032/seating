@@ -333,6 +333,56 @@ button {
   opacity: 0.25;
 }
 
+/* All Stars In!'s question (SendStarsModal): stars leave a desk along the dotted way into the meter,
+   on a loop, and the bar fills a little as they land. Motion path and transforms only, run by the
+   graphics chip. */
+.send-star {
+  offset-path: path('M 41 44 Q 150 -25 238 62');
+  offset-rotate: 0deg;
+  offset-anchor: center;
+  animation: send-star 1.8s ease-in infinite;
+}
+@keyframes send-star {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+.send-fill {
+  width: 100%;
+  transform-origin: left;
+  animation: send-fill 3.6s ease-out infinite;
+}
+@keyframes send-fill {
+  0% {
+    transform: scaleX(0.35);
+  }
+  70%,
+  100% {
+    transform: scaleX(0.75);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .send-star,
+  .send-fill {
+    animation: none;
+  }
+}
+
 @keyframes desk-wiggle {
   0%,
   100% {

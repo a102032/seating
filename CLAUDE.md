@@ -87,7 +87,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - Points, per class (`pointsMode`, read through `lib/points.ts`: `pointsModeOf`, `hasClassGoal`, `goalIsLive`, `questIsOn`, `starsWaitOnDesks`): a class
   goal (the default), a class quest (the goal winning keys, below), student points (each student's own stars on their desk, until Clear All
   Stars), or none (no star on the rail; Get Ready! with no prize). A class goal runs one of two ways (`starsOnDesks`):
-  straight to the goal (no minus) or on the desks first, sent to the goal by All Stars In! under the rail's star. Anything
+  straight to the goal (no minus) or on the desks first, sent to the goal by All Stars In!: a tap on the picture at the meter's start,
+  which asks first (`SendStarsModal.tsx`). Anything
   new that gives points must work in all four.
 - The Class Quest: `lib/quest.ts` (the keys, the five chests, the wheel's odds, the prizes; a key is kept the moment the goal
   fills), `lib/questArt.ts` (the chests, key and wheel drawn in code), `components/QuestMoments.tsx` (the key moment and the
@@ -113,7 +114,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - `src/components/`:
   - `SideRail.tsx`: the side rail, one column of the teacher's own icons (`RailIcons.tsx`, generated from the teacher's Flaticon SVGs;
     the pickers' grids in `PickerIcons.tsx`): Float, Get Ready!, the timer, Attendance, Swap Seats, the three pickers, Flip
-    Cards, Group Activity, the Line, the star (and − and All Stars In! on the desks first), the Saved mark and the side arrows. No words:
+    Cards, Group Activity, the Line, the star (and − on the desks first), the Saved mark and the side arrows. No words:
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
     gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without. Full Screen (`FullScreenButton.tsx`) is in that far corner, after the meter's count, and on the splash. The board's lock (`BoardLock.tsx`, `hooks/useBoardLock.ts`) sits beside it: one tap and a see-through cover takes every touch until the lock is tapped again.

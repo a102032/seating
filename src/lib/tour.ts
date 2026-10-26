@@ -96,6 +96,11 @@ export const TOUR: TourPart[] = [
       },
       { shot: 'board', at: 'meter', text: 'The class goal fills as the class earns stars. When it is full, the treasure chest opens.' },
       { shot: 'board', at: 'chest', text: 'Tap the chest to change the goal.' },
+      {
+        shot: 'board',
+        at: 'start',
+        text: 'With stars on the desks first, stars wait on the desks. Tap the picture at the start of the meter to send them all in.',
+      },
       { shot: 'board', at: 'fullscreen', text: 'Full screen: the app fills the whole screen. Tap it again to leave.' },
       { shot: 'board', at: 'lock', text: 'The lock: tap it before the class comes in, and touches do nothing. Tap it again to open it.' },
       { shot: 'board', at: 'tab', text: 'Your class. Tap the arrow to switch to another class, or make a new one.' },

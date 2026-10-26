@@ -51,6 +51,12 @@ interface PointsMeterProps {
   /** Which side the rail is on, so the put-away clock sits at the meter's end nearer the rail's timer button. */
   side: 'left' | 'right'
   /**
+   * Stars on the desks first: how many are waiting there, or null when stars go straight to the goal.
+   * The picture at the meter's start then sends them in (2026-10-26, the teacher), asking first.
+   */
+  deskStars?: number | null
+  onSendDeskStars?: () => void
+  /**
    * The class is on a quest (lib/quest): a filled goal wins a key, which waits for a tap and flies
    * into the chest at the meter's end; a chest with all its keys rattles there until tapped open.
    */
@@ -119,6 +125,8 @@ export function PointsMeter({
   trailing,
   side,
   quest,
+  deskStars = null,
+  onSendDeskStars,
 }: PointsMeterProps) {
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
@@ -400,6 +408,27 @@ export function PointsMeter({
   const rattling = quest ? chestReady && phase !== 'chest' : !open && goal > 0 && pct / 100 >= RATTLE_FROM
   const shownKeys = quest ? Math.max(0, Math.min(need, quest.state.keys - heldKeys * perGoal)) : 0
 
+  const startPicture = (
+    <motion.img
+      src={
+        jar
+          ? assetUrl('/quest/marbles.svg')
+          : pirate
+            ? assetUrl('/quest/pirate/anchor.svg')
+            : space
+              ? assetUrl('/quest/space/rocket-ship.svg')
+              : quest
+                ? assetUrl('/quest/castle.svg')
+                : treasure('map')
+      }
+      alt=""
+      draggable={false}
+      className="h-10 w-10 shrink-0 select-none"
+      animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
+      transition={{ duration: 0.7 }}
+    />
+  )
+
   return (
     <div
       data-ink="panel"
@@ -421,26 +450,30 @@ export function PointsMeter({
       {/* Each quest starts from its own place (2026-10-26, the teacher): the knight from the castle (his Flaticon
           castle, as on Our Quest's map), the ship from its anchor at the home dock, and the Marble Jar from a handful
           of marbles (his picture), heading for the jar. A plain goal keeps the treasure map. */}
-      {
-        <motion.img
-          src={
-            jar
-              ? assetUrl('/quest/marbles.svg')
-              : pirate
-                ? assetUrl('/quest/pirate/anchor.svg')
-                : space
-                  ? assetUrl('/quest/space/rocket-ship.svg')
-                  : quest
-                    ? assetUrl('/quest/castle.svg')
-                    : treasure('map')
-          }
-          alt=""
-          draggable={false}
-          className="h-10 w-10 shrink-0 select-none"
-          animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
-          transition={{ duration: 0.7 }}
-        />
-      }
+      {deskStars === null ? (
+        startPicture
+      ) : (
+        // Stars on the desks first: the picture the class sets off from sends the waiting stars on their
+        // way (2026-10-26, the teacher: the chest on the rail never belonged there). It had no job before,
+        // and it stays still, so it is an easy target at the board. Its bubble says how many are waiting;
+        // with none it does nothing. The tap asks first (SendStarsModal).
+        <button
+          type="button"
+          aria-label="All Stars In!"
+          title={deskStars === 0 ? 'No stars on the desks yet' : 'Send every star on the desks to the class goal'}
+          disabled={deskStars === 0}
+          onClick={onSendDeskStars}
+          data-meter-start=""
+          className="relative shrink-0 rounded-lg active:scale-95 disabled:active:scale-100"
+        >
+          {startPicture}
+          {deskStars > 0 && (
+            <span className="absolute -right-1.5 -top-1 min-w-5 rounded-full bg-amber-400 px-1 text-center text-xs font-bold tabular-nums text-amber-950 shadow">
+              {deskStars}
+            </span>
+          )}
+        </button>
+      )}
 
       {/*
         Everything that moves here is CSS, so the board's graphics chip runs it and the main

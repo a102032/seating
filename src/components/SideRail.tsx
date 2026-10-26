@@ -4,7 +4,6 @@ import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'rea
 import { useFitToHeight } from '../hooks/useFitToHeight'
 import { timer, useTimer } from '../hooks/useTimer'
 import type { useCloudSync } from '../hooks/useCloudSync'
-import { assetUrl } from '../lib/assets'
 import { SyncMark } from './Account'
 import {
   AllIcon,
@@ -37,9 +36,6 @@ interface SideRailProps {
   getReadyOpen: boolean
   getReadyDisabled: boolean
   onGetReady: () => void
-  /** Stars waiting on the desks, in a class that puts them there first; null where they go straight to the goal. */
-  deskStars: number | null
-  onAllStarsIn: () => void
   swapMode: boolean
   onToggleSwap: () => void
   /** Attendance is on: a desk tap marks a student absent or back, and nothing else answers. */
@@ -137,8 +133,6 @@ export function SideRail(props: SideRailProps) {
     getReadyOpen,
     getReadyDisabled,
     onGetReady,
-    deskStars,
-    onAllStarsIn,
     swapMode,
     onToggleSwap,
     attendanceMode,
@@ -189,7 +183,7 @@ export function SideRail(props: SideRailProps) {
 
   // Fits itself to the screen's height: anything that adds a button starts the fitting again.
   const asideRef = useRef<HTMLElement>(null)
-  const fitKey = [goalLive && canFloat, points, showMinus, deskStars !== null, Boolean(cloud.account), saveError].join()
+  const fitKey = [goalLive && canFloat, points, showMinus, Boolean(cloud.account), saveError].join()
   const fit = useFitToHeight(asideRef, FIT_STEPS.length - 1, fitKey)
 
   const table = setName === 'table'
@@ -416,22 +410,6 @@ export function SideRail(props: SideRailProps) {
             <RailButton name="Award Point" disabled={busy || pointsSelectedCount === 0} onClick={onAwardPoint} points>
               <PointIcon className="rail-icon" />
             </RailButton>
-            {/* All Stars In! finishes what + and - started, only in a class that puts its stars on the
-              desks first: the chest they go into, with how many are waiting. Greyed with none, and only
-              ever a tap - stars left on the desks wait for next time. */}
-            {deskStars !== null && (
-              <RailButton
-                name="All Stars In!"
-                title={deskStars === 0 ? 'No stars on the desks yet' : 'Add every star on the desks to the class goal'}
-                disabled={busy || deskStars === 0}
-                onClick={onAllStarsIn}
-              >
-                <img src={assetUrl('/treasure/chest-closed.svg')} alt="" draggable={false} className="rail-icon" />
-                <span className="absolute right-0.5 top-0.5 min-w-5 rounded-full bg-amber-400 px-1 text-center text-xs font-bold tabular-nums text-amber-950 shadow">
-                  {deskStars}
-                </span>
-              </RailButton>
-            )}
           </Group>
         </>
       )}

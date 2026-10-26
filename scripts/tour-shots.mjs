@@ -147,6 +147,7 @@ const all = {}
     m?.setAttribute('data-tour-mark', 'meter')
     document.querySelector('[data-class-tab]')?.setAttribute('data-tour-mark', 'tab')
     document.querySelector('[data-ink="desk"]')?.setAttribute('data-tour-mark', 'desk')
+    m?.querySelector('img')?.setAttribute('data-tour-mark', 'start')
   })
   all.board = await rects(page, {
     float: 'aside [aria-label="Float"]',
@@ -166,6 +167,7 @@ const all = {}
     lock: '[data-board-lock]',
     side: 'aside button[title^="Move panel"]',
     meter: '[data-tour-mark="meter"]',
+    start: '[data-tour-mark="start"]',
     chest: 'img[src*="chest-closed"]',
     tab: '[data-tour-mark="tab"]',
     gear: 'button[aria-label="Class Settings"]',

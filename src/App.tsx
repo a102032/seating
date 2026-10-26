@@ -25,6 +25,7 @@ import { SeatClassBanner } from './components/SeatClassBanner'
 import { LineHint, ModeHint, TourOffer, useTourOffer } from './components/BoardHint'
 import { LineLeaveModal, LinePanel, LineStartModal, type LineChoice } from './components/Line'
 import { ConfirmModal } from './components/ConfirmModal'
+import { SendStarsModal } from './components/SendStarsModal'
 import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
@@ -303,6 +304,13 @@ export default function App() {
   const pointsMode = activeClass ? pointsModeOf(activeClass) : 'goal'
   /** Stars stay on the desks: a student's own (student points), or waiting for All Stars In! (a class goal's). */
   const desksMode = activeClass ? starsWaitOnDesks(activeClass) : false
+  /**
+   * The stars waiting on the desks for All Stars In!, in a class goal that puts them there first
+   * (student points keep theirs); null where stars go straight to the goal. The picture at the
+   * meter's start sends them in, after asking (SendStarsModal).
+   */
+  const deskStars = activeClass && desksMode && goalLive ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null
+  const [sendStarsAsk, setSendStarsAsk] = useState(false)
 
   useEffect(() => {
     applyTheme(theme)
@@ -1017,6 +1025,7 @@ export default function App() {
    * tap: stars left on the desks wait there for next time.
    */
   function allStarsIn() {
+    setSendStarsAsk(false)
     if (!activeClass) return
     const waiting = activeClass.students.filter((s) => (s.points ?? 0) > 0).map((s) => s.id)
     if (waiting.length === 0) return
@@ -1058,9 +1067,6 @@ export default function App() {
       // the floating window's own is running.
       getReadyDisabled={swapMode || attendanceMode || choosingAvatars || picker.isPicking || floatReadying}
       onGetReady={() => setGetReadyOpen(true)}
-      // All Stars In! only in a class goal whose stars wait on the desks: student points keep theirs.
-      deskStars={desksMode && goalLive ? activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0) : null}
-      onAllStarsIn={allStarsIn}
       swapMode={swapMode}
       onToggleSwap={toggleSwap}
       attendanceMode={attendanceMode}
@@ -1235,6 +1241,8 @@ export default function App() {
               side={panelSide}
               leading={<TimerClock />}
               trailing={cornerButtons}
+              deskStars={deskStars}
+              onSendDeskStars={() => setSendStarsAsk(true)}
               quest={
                 questIsOn(activeClass)
                   ? {
@@ -1593,6 +1601,14 @@ export default function App() {
           chooseClosedAt.current = performance.now()
           setChoosingFor(null)
         }}
+      />
+
+      <SendStarsModal
+        open={sendStarsAsk && (deskStars ?? 0) > 0}
+        cls={activeClass}
+        stars={deskStars ?? 0}
+        onSend={allStarsIn}
+        onClose={() => setSendStarsAsk(false)}
       />
 
       {/* Get Ready! is the whole class, so it goes in no one's participation record. With a class

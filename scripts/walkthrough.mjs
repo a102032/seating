@@ -2142,14 +2142,37 @@ const scenarios = {
     )
     await refresh(page)
     await page.waitForTimeout(800)
-    const button = page.getByRole('button', { name: /All Stars In/ })
-    check('stars on the desks: still there after a reload', /2/.test(await button.innerText()))
+    // All Stars In! is the picture at the meter's start, not a rail button (2026-10-26), and it asks first.
+    const button = page.locator('[data-meter-start]')
+    check(
+      "stars on the desks: still there after a reload, the rail has no chest, the meter's start counts them",
+      /2/.test(await button.innerText()) && (await page.locator('aside [aria-label="All Stars In!"]').count()) === 0,
+    )
+    const box = await button.boundingBox()
     await button.click()
+    // The board's second touch lands in the window as it opens, under the finger: it sends nothing.
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await page.waitForTimeout(300)
+    const asked = page.locator('[data-send-stars]')
+    check(
+      'All Stars In!: it asks first, with the picture, and says how many',
+      (await asked.count()) === 1 && /2 stars on the desks go into the class goal/.test(await asked.innerText()),
+    )
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'Not now' }).click()
+    await page.waitForTimeout(400)
+    c = await activeSaved(page)
+    check('All Stars In!: Not now sends nothing', c.classPoints === 10 && c.students[0].points === 1)
+    await page.screenshot({ path: `${SHOTS}/send-stars-bubble.png` })
+    await button.click()
+    await page.waitForTimeout(900)
+    await page.screenshot({ path: `${SHOTS}/send-stars-ask.png` })
+    await page.locator('[data-send-stars-yes]').click()
     await page.waitForTimeout(1600)
     c = await activeSaved(page)
     check(
-      'All Stars In!: the stars go to the goal and the desks empty',
-      c.classPoints === 12 && c.students.every((s) => !s.points) && (await button.isDisabled()),
+      'All Stars In!: Send them! puts the stars in the goal and the desks empty',
+      c.classPoints === 12 && c.students.every((s) => !s.points) && (await button.isDisabled()) && (await asked.count()) === 0,
       `meter ${c.classPoints}`,
     )
     return page
@@ -3681,9 +3704,9 @@ const scenarios = {
     check(
       // 97: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
       // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24), the Pirate Quest's (2026-10-25)
-      // and the Space Quest's (2026-10-26).
-      'tour: 118 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 118 && bad === 0,
+      // and the Space Quest's (2026-10-26), and the meter's start sending the desks' stars (2026-10-26).
+      'tour: 119 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 119 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 11, parts.join(', '))
@@ -3706,9 +3729,9 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 21 stops to the card before the Class Quest, then skip it, the Marble Jar, the Pirate Quest, the Space Quest and
+    // Through the board's 22 stops to the card before the Class Quest, then skip it, the Marble Jar, the Pirate Quest, the Space Quest and
     // Flip Cards to Group Activity's card.
-    for (let i = 0; i < 21; i++) await page.locator('[data-tour-action="next"]').click()
+    for (let i = 0; i < 22; i++) await page.locator('[data-tour-action="next"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
@@ -4672,7 +4695,7 @@ const scenarios = {
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
-        // Stars on the desks: the fuller board (a minus and All Stars In! on the panel, Float in its top row,
+        // Stars on the desks: the fuller board (a minus on the rail, All Stars In!'s bubble on the meter, Float in its top row,
         // a star chip on desks) is the one that has to fit.
         const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20, starsOnDesks: true })
         cls.students.forEach((st, i) => (st.points = i % 3 === 0 ? 12 : 0))

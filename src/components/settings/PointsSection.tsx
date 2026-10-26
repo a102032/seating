@@ -203,6 +203,8 @@ export function PointsSection({
                 {onDesks && <Tick />}
               </button>
             </div>
+            {/* Where they go from there, said where it is chosen (2026-10-26). */}
+            {onDesks && <span className="cs-hint">Tap the picture at the start of the meter to send them all to the goal.</span>}
           </div>
         </Group>
         {/* The one place the meter can be corrected: a point that landed by mistake had no way back
