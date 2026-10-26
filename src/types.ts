@@ -82,14 +82,14 @@ export interface ClassData {
   /**
    * The days attendance was actually taken (the mode switched on at the board), so a day with
    * nobody away still counts, and a day with only an absence marked ahead doesn't. Saves from
-   * before this have no list: every day in `attendance` was a taken day then, and
-   * lib/attendance's takenDays reads them that way until the next change writes the list.
+   * before this had no list: every day in `attendance` was a taken day then, and lib/upgrade
+   * writes the list out that way as they come in.
    */
   attendanceTaken?: string[]
   /**
    * Who sits at each desk: a student id, or null for an empty desk. The desks are numbered by the
    * class's layout (lib/layouts.ts); in Rows, the numbering the app always had. Padded to
-   * MAX_SEATS on load, so any layout fits - older saves have 30 or 35.
+   * MAX_SEATS as it comes in (lib/upgrade), so any layout fits - older saves have 30 or 35.
    */
   seating: (string | null)[]
   /** How the desks stand in the room. Unset is Rows, the six-by-five grid. */
@@ -106,17 +106,17 @@ export interface ClassData {
   pointsGoal?: number
   /**
    * Whether the class goal is switched on. Kept separate from pointsGoal so turning the
-   * meter off doesn't throw away the number the teacher set. Unset counts as on, so classes
-   * saved before this behave as they did. Since pointsMode it follows it (on only for 'goal'),
-   * so a computer still on an older version shows the same thing.
+   * meter off doesn't throw away the number the teacher set. Since pointsMode it is only read by
+   * lib/upgrade, for a class saved before the choice, and written beside the choice (on only for
+   * a class goal), so a computer still on an older version shows the same thing.
    */
   goalEnabled?: boolean
   /**
    * How the class runs points (2026-10-11, the teacher): 'goal', the class goal the whole class
    * fills together (the default); 'students', each student's own stars on their desk, kept until
-   * the teacher clears them; or 'none', no points at all. Unset is read from the old switch: a
-   * class with its goal on is 'goal', one with it off (whose stars went nowhere the class could
-   * see) is 'none' - see pointsModeOf in hooks/useClasses.
+   * the teacher clears them; or 'none', no points at all. A class saved before the choice is given
+   * one from the old switch as it comes in (lib/upgrade): with its goal on 'goal', with it off
+   * (its stars went nowhere the class could see) 'none'.
    */
   pointsMode?: PointsMode
   /**
@@ -203,8 +203,8 @@ export interface ClassData {
   /**
    * Stars a class had to earn for one class point, and the stars banked toward the next. No longer
    * used (2026-10-11, the teacher: a bigger goal is the same challenge, with one setting fewer):
-   * a class saved with a rate above 1 has its goal and meter multiplied by it on load
-   * (useClasses' withoutStarRate), so it fills at exactly the pace it did.
+   * a class saved with a rate above 1 has its goal and meter multiplied by it as it comes in
+   * (lib/upgrade), so it fills at exactly the pace it did. Only lib/upgrade reads these.
    */
   starsPerClassPoint?: number
   goalRemainder?: number
@@ -238,7 +238,7 @@ export interface ClassData {
   /**
    * The Line (lib/line): who is with the teacher, and who is waiting to be checked, in order.
    * Kept with the class so a refresh keeps everyone's place; read through lineOf, which gives a
-   * new day an empty line.
+   * new day an empty line. `done` is a line saved before steps; lib/upgrade turns it into checks.
    */
   line?: { day: string; now: string | null; waiting: string[]; checks?: Record<string, number>; done?: string[] }
   /** How many steps a task has in the Line, from "How many steps?" (each one checked; all of them is Done). Unset is one. */

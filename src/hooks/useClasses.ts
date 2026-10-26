@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
-import { getTheme, hasNoAvatar, randomPose, stickerId, type DeskPictures } from '../lib/stickers'
+import { getTheme, randomPose, stickerId, type DeskPictures } from '../lib/stickers'
 import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
 import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
@@ -20,6 +20,7 @@ import {
 } from '../lib/marbles'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
+import { upgradeClass } from '../lib/upgrade'
 import { useCloudSync } from './useCloudSync'
 
 export const MAX_CLASSES = 5
@@ -33,16 +34,6 @@ function genId(): string {
 
 function emptySeating(): (string | null)[] {
   return Array.from({ length: MAX_SEATS }, () => null)
-}
-
-/**
- * Saves from before the seventh column hold thirty desks, and from before layouts thirty-five;
- * the rest start empty, so every layout has all its desks.
- */
-function withAllDesks(seating: (string | null)[] | undefined): (string | null)[] {
-  if (!seating) return emptySeating()
-  if (seating.length >= MAX_SEATS) return seating
-  return [...seating, ...Array.from({ length: MAX_SEATS - seating.length }, () => null)]
 }
 
 /** A new class's goal: on, so the treasure chest is there from the first lesson (2026-10-06, the teacher's call). */
@@ -65,39 +56,6 @@ function makeClass(name: string): ClassData {
 }
 
 const firstClass = () => makeClass('Class 1')
-
-/** A class as saved by any version of the app, with everything this version expects. */
-function normalizeClass(c: ClassData): ClassData {
-  return withoutStarRate(withAvatarsSwitch(c.seating?.length >= MAX_SEATS ? c : { ...c, seating: withAllDesks(c.seating) }))
-}
-
-/**
- * "Stars for 1 class point" went (2026-10-11, the teacher: a bigger goal makes it just as much of a
- * challenge). A class that had it above 1 gets its goal and its meter multiplied by it, the banked
- * stars added on, so it fills at exactly the pace it did and the next point lands where it would have.
- */
-function withoutStarRate(c: ClassData): ClassData {
-  if (c.starsPerClassPoint === undefined && c.goalRemainder === undefined) return c
-  const { starsPerClassPoint, goalRemainder, ...rest } = c
-  const rate = Math.max(1, Math.round(starsPerClassPoint ?? 1))
-  if (rate === 1) return rest
-  return {
-    ...rest,
-    pointsGoal: c.pointsGoal ? c.pointsGoal * rate : c.pointsGoal,
-    classPoints: (c.classPoints ?? 0) * rate + (goalRemainder ?? 0),
-  }
-}
-
-/**
- * Before the Avatars switch, a teacher who wanted names only gave the whole class No Avatar. A
- * class whose students all have it (two or more, so it was the whole class rather than one
- * family's choice) becomes a class with its avatars switched off, and its students are free to
- * have a character again when they are switched back on.
- */
-function withAvatarsSwitch(c: ClassData): ClassData {
-  if (c.avatarsOff !== undefined || c.students.length < 2 || !c.students.every(hasNoAvatar)) return c
-  return { ...c, avatarsOff: true, students: c.students.map((s) => ({ ...s, avatarId: undefined })) }
-}
 
 /**
  * Give every listed student `delta` stars, the way the class runs its points.
@@ -174,7 +132,7 @@ function shuffled<T>(items: T[]): T[] {
   return copy
 }
 
-/** The day counts as taken. Writes the taken list out in full, so an old save gets one. */
+/** The day counts as taken. */
 function withDayTaken(c: ClassData, day: string): ClassData {
   if (c.attendanceTaken?.includes(day)) return c
   const taken = takenDays(c)
@@ -196,7 +154,7 @@ function withLine(c: ClassData, line: ClassLine): ClassData {
 
 export function useClasses() {
   const initial = useMemo(() => loadLocalState(), [])
-  const [classes, setClasses] = useState<ClassData[]>(() => initial?.classes.map(normalizeClass) ?? [firstClass()])
+  const [classes, setClasses] = useState<ClassData[]>(() => initial?.classes.map(upgradeClass) ?? [firstClass()])
   const [chosenClassId, setActiveClassId] = useState<string | null>(initial?.activeClassId ?? initial?.classes?.[0]?.id ?? null)
   // A class can go away underneath the board (deleted here, or on another computer), so the
   // open class falls back to the first one.
@@ -215,7 +173,7 @@ export function useClasses() {
     activeClassId,
     setActiveClassId,
     seed: firstClass,
-    normalize: normalizeClass,
+    normalize: upgradeClass,
     maxClasses: MAX_CLASSES,
   })
 
@@ -434,8 +392,7 @@ export function useClasses() {
         const taken = takenDays(c)
         const attendance = { ...c.attendance, [day]: next }
         if (next.length === 0 && !taken.includes(day)) delete attendance[day]
-        // The taken list is written out before the record changes: an old save has none, and
-        // without it a day marked ahead would read as taken.
+        // The taken list is written out with the record, so a day marked ahead never reads as taken.
         return { ...c, attendanceTaken: taken, attendance }
       }),
     [updateClass],

@@ -37,15 +37,12 @@ export function lineOf(cls: ClassData | undefined, day: string): ClassLine {
   }
   const waiting = line.waiting.filter((id) => here.has(id) && id !== line.now)
   const now = line.now && here.has(line.now) ? line.now : null
-  // The first version kept a list of who was Done, before steps: all their steps checked.
-  const kept = line.checks ?? Object.fromEntries((line.done ?? []).map((id) => [id, ALL_DONE]))
+  // A line saved before steps kept a list of who was Done; it has checks once upgraded (lib/upgrade).
+  const kept = line.checks ?? {}
   const checks = Object.fromEntries(Object.entries(kept).filter(([id, n]) => here.has(id) && n > 0))
   // Whoever was with the teacher has left the class: the next one is called.
   return now === null && waiting.length > 0 ? { day, now: waiting[0], waiting: waiting.slice(1), checks } : { day, now, waiting, checks }
 }
-
-/** Past any number of steps, for the Done marks saved before there were steps. */
-const ALL_DONE = 99
 
 /** The saved line in use, if the Line is running one. */
 export function savedLineOf(cls: ClassData | undefined): SavedLine | undefined {

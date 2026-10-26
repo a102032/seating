@@ -59,25 +59,9 @@ export const GROUP_COLORS: { bg: string; fg: string }[] = [
  * The app's gender colours, close to the card backs', so Boys / Girls reads at once. Girls
  * were rose, a red that read as Help from the back of the room; they are pink now.
  */
-const GENDER_COLORS: Record<'boy' | 'girl', { bg: string; fg: string }> = {
+export const GENDER_COLORS: Record<'boy' | 'girl', { bg: string; fg: string }> = {
   boy: { bg: '#0ea5e9', fg: '#ffffff' },
   girl: { bg: '#ec4899', fg: '#ffffff' },
-}
-
-/** Colours groups were saved in before the statuses got their colours to themselves. */
-const RETIRED_COLORS = new Set(['#ef4444', '#22c55e', '#f97316', '#84cc16', '#f59e0b', '#059669', '#64748b', '#b45309', '#f43f5e'])
-
-/**
- * Saved groups in a retired colour are coloured afresh by position, all of them together so
- * two groups can't end up sharing one - "Continue with Last Groups" would otherwise bring
- * back yesterday's red Group 1.
- */
-function recolorRetired(groups: StudentGroup[]): StudentGroup[] {
-  if (!groups.some((g) => RETIRED_COLORS.has(g.color))) return groups
-  return groups.map((g, i) => ({
-    ...g,
-    color: g.name === 'Boys' ? GENDER_COLORS.boy.bg : g.name === 'Girls' ? GENDER_COLORS.girl.bg : GROUP_COLORS[i % GROUP_COLORS.length].bg,
-  }))
 }
 
 /** Text colour for a group's band - dark on the two light colours, white everywhere else. */
@@ -322,7 +306,7 @@ export function groupsFromSaved(
  */
 export function pruneGroups(groups: StudentGroup[], seating: (string | null)[]): StudentGroup[] {
   const seated = new Set(seating.filter(Boolean) as string[])
-  return recolorRetired(groups)
+  return groups
     .map((g) => ({
       ...g,
       studentIds: g.studentIds.filter((id) => seated.has(id)),

@@ -70,6 +70,10 @@ checks the live URL. Confirm it went green before saying something is live. It a
   `useChooseAvatars`, `useFloat` (the floating window), `usePointsSelection` (desks picked by hand, and the rail's star, −, Pick
   All and Pick Whole Row), `useToday`, `usePanelSide` and `Toast`. Something new for one screen goes in that screen's file.
 - `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`. A class seats at most 35 (`MAX_DESKS`).
+- `src/lib/upgrade.ts`: the one place that knows what older versions saved. Every class passes through `upgradeClass` as it
+  comes in (this board's copy, the account, the board's classes taken into an account), so nothing else reads an old shape.
+  When a field of `ClassData` changes shape, add a step there with its test in `lib/test/upgrade.test.ts`, never a fallback
+  where the field is read.
 - `src/lib/layouts.ts`: room layouts (Rows, Pairs, Rows of 3, Tables of 4, Tables of 5 two ways). `planFor(cls)` gives
   the desks a class shows, which row or table each belongs to (Pick Row / Pick Table, Split by Rows / Tables) and the
   fill order. Never work out a desk's place with `index % 6`: go through the plan. Rows keeps the old numbering (desks

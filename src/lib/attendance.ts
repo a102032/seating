@@ -18,12 +18,11 @@ export function absentOn(cls: Pick<ClassData, 'attendance'> | undefined, key: st
 type AttendanceRecord = Pick<ClassData, 'attendance' | 'attendanceTaken'>
 
 /**
- * The days attendance was taken. A save from before the list existed has none, and back then
- * every day in the record was a taken day, so that is how it reads. Anything that changes the
- * record writes the list out first, so a day marked ahead is never mistaken for a taken one.
+ * The days attendance was taken, so a day with only an absence marked ahead is never mistaken for
+ * a taken one. A save from before the list existed is given one as it comes in (lib/upgrade).
  */
 export function takenDays(cls: AttendanceRecord | undefined): string[] {
-  return cls?.attendanceTaken ?? Object.keys(cls?.attendance ?? {}).sort()
+  return cls?.attendanceTaken ?? []
 }
 
 export function attendanceTakenOn(cls: AttendanceRecord | undefined, key: string): boolean {

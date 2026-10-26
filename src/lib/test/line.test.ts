@@ -16,6 +16,7 @@ import {
   stepsOf,
   type ClassLine,
 } from '../line'
+import { upgradeClass } from '../upgrade'
 import { makeClass } from './helpers'
 
 const DAY = '2026-10-15'
@@ -92,8 +93,8 @@ describe('lineOf: the class line today', () => {
     expect(lineOf(cls, DAY)).toEqual({ day: DAY, now: 's1', waiting: ['s2'], checks: { s2: 1 } })
   })
 
-  it('a line saved before steps had a Done list: all their steps checked', () => {
-    const cls = makeClass(2, { line: { day: DAY, now: null, waiting: [], done: ['s0'] } })
+  it('a line saved before steps had a Done list: once upgraded, all their steps checked', () => {
+    const cls = upgradeClass(makeClass(2, { line: { day: DAY, now: null, waiting: [], done: ['s0'] } }))
     expect(checkedOf(lineOf(cls, DAY), 's0', 5)).toBe(5)
   })
 
