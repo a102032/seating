@@ -29,6 +29,10 @@ jobs:
 
       - run: npm ci
 
+      # The quick tests of the parts that only work things out (src/lib/test): a second or two,
+      # and a failure stops the deploy before anything reaches the board.
+      - run: npm test
+
       - run: npm run build
 
       # The Move tab helper (tools/move-tab), served beside the app so the teacher downloads it from

@@ -51,12 +51,13 @@ sign-in and Firestore, project class-yes).
 ```bash
 npm run dev -- --port 5175     # dev server at http://localhost:5175/seating/
 npx tsc -b                     # typecheck
+npm test                       # the quick tests (src/lib/test), about a second; the deploy runs them first
 npx oxlint                     # lint (the existing warnings are known)
 npm run build                  # typecheck + production build
 npx prettier --single-quote --no-semi --print-width 140 --trailing-comma all --write <files>
 ```
 
-Deploy: commit and push to `main`. The GitHub Pages workflow (`.github/workflows/deploy.yml`) builds and then
+Deploy: commit and push to `main`. The GitHub Pages workflow (`.github/workflows/deploy.yml`) runs the quick tests, builds and then
 checks the live URL. Confirm it went green before saying something is live. It also builds the Move tab helper
 (below) into `dist/move-tab/ClassYesMove.exe`.
 
@@ -206,6 +207,14 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - framer-motion traps: it never clears an inline `box-shadow` it has set (use a CSS class instead). On elements with
   `layout`/`layoutId`, drive opacity through `animate`, because a utility class loses.
 - Keep sounds above about 400Hz; a classroom tablet speaker has no bass.
+
+## Quick tests
+
+`src/lib/test/` holds Vitest tests of the parts that only work things out, with no screen: `seatGroups`, `layouts`,
+`participation`, `line` and `csv`. They pin what DECISIONS settled (pairs side by side, six groups are the rows, the
+fewest turns first, a pick's better chance, a homeroom column found in a paste) and run in about a second. A change to
+one of those parts that changes what it settled fails here; a change that was meant to updates the test in the same
+commit. Anything new that only works things out gets its tests beside them.
 
 ## Checking changes in a browser
 
