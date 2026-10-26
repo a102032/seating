@@ -47,8 +47,6 @@ interface GroupActivityProps {
   onSave: () => void
   onExit: () => void
   onSetStatus: (groupId: string, status: GroupStatus) => void
-  /** A soft chime when a group taps Need Help, Ready or Done. */
-  chimes: boolean
   /**
    * Students are at the board. Everything that would destroy work is frozen: moving a name,
    * New Groups, Shuffle and Exit. Status and points stay live, because awarding a
@@ -292,7 +290,6 @@ export function GroupActivity({
   onSave,
   onExit,
   onSetStatus,
-  chimes,
   locked,
   onToggleLock,
   pick,
@@ -443,7 +440,7 @@ export function GroupActivity({
   function setStatus(group: StudentGroup, status: GroupStatus) {
     if ((group.status ?? 'working') === status) return
     onSetStatus(group.id, status)
-    if (!chimes) return
+    // A soft chime for Need Help, Ready or Done, always on since 2026-10-26 (the board's volume is the knob).
     if (status === 'help') playStatusHelp()
     else if (status === 'ready') playStatusReady()
     else if (status === 'done') playStatusDone()

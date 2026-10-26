@@ -224,7 +224,11 @@ export const TOUR: TourPart[] = [
       { shot: 'flip', at: 'pile', text: 'How many cards are still in play.' },
       { shot: 'flip', at: 'shuffle', text: 'Shuffle starts a new round with every card.' },
       { shot: 'flip', at: 'reveal', text: 'Reveal All shows every card. Hide All turns them back over.' },
-      { shot: 'flip', at: 'settings', text: 'Flip card settings: the same switches as in Tools.' },
+      {
+        shot: 'flip',
+        at: 'settings',
+        text: 'Flip card settings: surprise cards, and card colors. They are in Class Settings, Tools, too.',
+      },
       { shot: 'flip', at: 'exit', text: 'Back to the seating chart.' },
     ],
   },

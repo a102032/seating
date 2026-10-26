@@ -2,8 +2,9 @@
 @import 'tw-animate-css';
 
 /* Chalkboard is a dark ground too, so every dark: fix-up (lighter hairlines, brighter amber and
-   emerald) applies to it as well. */
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *, [data-theme='chalk'], [data-theme='chalk'] *));
+   emerald) applies to it as well. Class Settings is light in every theme (.cs-window, below), so
+   nothing inside it takes a dark: fix-up. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *, [data-theme='chalk'], [data-theme='chalk'] *):not(:where(.cs-window, .cs-window *, .cs-menu, .cs-menu *)));
 
 /* Each theme's tokens also apply under [data-theme-preview], so the theme picker can draw a
    small board in every theme's real colours whatever theme the page itself is in. */
@@ -2320,22 +2321,90 @@ button {
  * same kind of thing (the students, the attendance) may scroll. A short screen
  * (the teacher's board gives Chrome 1280x559; laptops go down to 1024x500) gets
  * the same things a little closer together rather than a scroll.
+ *
+ * Laid out the way Apple's and Windows' Settings are (2026-10-26, the teacher's
+ * testers: everything looked the same colour, with faint differences between
+ * items and sections): a soft grey ground, the settings in white boxes, a small
+ * grey heading over a box, and the only bright colour the section list's
+ * squares. It looks the same in every theme, as a computer's Settings doesn't
+ * change with the wallpaper: the themes dress up the board for the children,
+ * and the teacher's settings stay calm. So the window brings its own tokens,
+ * and Comic Book's ink and Chalkboard's chalk stop at its edge.
  * ======================================================================== */
+.cs-window,
+.cs-menu {
+  color-scheme: light;
+  --radius: 0.75rem;
+  --background: #f2f2f7;
+  --foreground: #1c1b29;
+  --card: #ffffff;
+  --card-foreground: #1c1b29;
+  --popover: #ffffff;
+  --popover-foreground: #1c1b29;
+  --primary: #6a4fd6;
+  --primary-foreground: #ffffff;
+  --secondary: #e9e9ef;
+  --secondary-foreground: #1c1b29;
+  --muted: #efeef4;
+  --muted-foreground: #6b6880;
+  --accent: #ece8fb;
+  --accent-foreground: #3b2d86;
+  --destructive: #d23b3b;
+  --destructive-foreground: #ffffff;
+  --border: rgba(28, 27, 41, 0.1);
+  --input: rgba(28, 27, 41, 0.18);
+  --ring: #6a4fd6;
+  color: var(--foreground);
+}
+:root[data-theme] .cs-window[data-slot='dialog-content'] {
+  background-color: var(--background);
+  background-image: none;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+}
+:root[data-theme] .cs-window [data-slot='dialog-title'] {
+  font-family: inherit;
+  letter-spacing: normal;
+  -webkit-text-stroke: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+:root[data-theme] .cs-window [data-slot='button'],
+:root[data-theme] .cs-menu [data-slot='button'] {
+  font-family: inherit;
+  letter-spacing: normal;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+:root[data-theme] .cs-window [data-slot='input'],
+:root[data-theme] .cs-window [data-slot='select-trigger'],
+:root[data-theme] .cs-window [data-slot='switch'],
+:root[data-theme] .cs-window [data-slot='badge'] {
+  box-shadow: none;
+}
+:root[data-theme] .cs-window ::-webkit-scrollbar-thumb {
+  background: rgba(28, 27, 41, 0.25);
+  border-radius: 999px;
+}
+:root[data-theme] .cs-window .layout-desk {
+  stroke: rgba(0, 0, 0, 0.3);
+}
+:root[data-theme] .cs-window .cs-pill.cs-warn {
+  color: #a15c00;
+}
 .cs-head {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px 10px 22px;
   border-bottom: 1px solid var(--border);
+  background: var(--card);
   min-width: 0;
 }
 .cs-head [data-slot='dialog-title'] {
   font-size: 20px;
   font-weight: 700;
   white-space: nowrap;
-}
-:root[data-theme='comic'] .cs-head [data-slot='dialog-title'] {
-  font-size: 1.5rem;
 }
 .cs-class {
   color: var(--muted-foreground);
@@ -2345,14 +2414,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-}
-.cs-saved {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  white-space: nowrap;
+  margin-right: auto;
 }
 .cs-main {
   display: grid;
@@ -2361,30 +2423,24 @@ button {
 }
 .cs-nav {
   background: var(--secondary);
+  border-right: 1px solid var(--border);
   padding: 10px 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-height: 0;
   overflow: hidden;
 }
-.cs-nav-label {
-  padding: 8px 10px 3px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
 .cs-nav-gap {
-  height: 4px;
+  height: clamp(4px, 1.6vh, 12px);
+  flex: none;
 }
 .cs-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 12px;
+  gap: 11px;
+  padding: 7px 9px;
+  border-radius: 11px;
   font-weight: 700;
   font-size: 16px;
   color: var(--secondary-foreground);
@@ -2392,42 +2448,35 @@ button {
   touch-action: manipulation;
 }
 .cs-nav-item:hover {
-  background: color-mix(in srgb, var(--card) 55%, transparent);
+  background: rgba(28, 27, 41, 0.06);
 }
 .cs-nav-item[aria-current='page'] {
-  background: var(--card);
-  color: var(--card-foreground);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
+/* Each section's own coloured square: the one bright colour in the window, so a teacher finds a section without reading. */
 .cs-nav-item .cs-ic {
-  width: 24px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #fff;
   display: grid;
   place-items: center;
   flex: none;
 }
+.cs-nav-item[aria-current='page'] .cs-ic {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
+}
 .cs-nav-item .cs-ic svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
-/* New Class sits at the list's foot, ruled off from the sections: an action, not a place to go. */
-.cs-nav-new {
-  margin-top: auto;
-  border-top: 1px solid var(--border);
-  border-radius: 0 0 12px 12px;
-  padding-top: 9px;
-}
-.cs-nav-new:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.cs-nav-new:disabled:hover {
-  background: none;
-}
-.cs-nav-new small {
-  display: block;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--muted-foreground);
+.cs-saved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 .cs-page {
   padding: 14px 20px 16px;
@@ -2471,8 +2520,117 @@ button {
   align-items: center;
 }
 .cs-group {
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  background: var(--card);
+  border-radius: 12px;
+  flex: none;
+}
+/* A box's heading: small grey capitals above it, as Settings has. */
+.cs-gh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  margin-bottom: -6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+/* What a box is for, under its heading, when it needs saying. */
+.cs-gi {
+  padding: 0 12px;
+  margin-bottom: -4px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+.cs-more {
+  width: 100%;
+  text-align: left;
+  border-top: 0;
+  touch-action: manipulation;
+}
+.cs-more .cs-row-label > b {
+  color: var(--primary);
+}
+.cs-chev {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: #b2b0c0;
+}
+.cs-sub-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.cs-sub-head > b {
+  font-size: 17px;
+}
+.cs-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 38px;
+  padding: 0 8px 0 2px;
+  border-radius: 10px;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 15px;
+  touch-action: manipulation;
+}
+.cs-back svg {
+  width: 20px;
+  height: 20px;
+}
+.cs-back:hover {
+  background: var(--accent);
+}
+.cs-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex: none;
+}
+.cs-navbar > b {
+  font-size: 20px;
+  min-width: 11ch;
+  text-align: center;
+}
+.cs-navbar > button {
+  width: 46px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+}
+.cs-navbar > button svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.6;
+}
+.cs-navbar > button:disabled {
+  opacity: 0.35;
+}
+.cs-inline-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+}
+.cs-records {
+  flex: none;
+}
+.cs-records button {
+  padding: 7px 16px;
+  font-size: 15px;
 }
 .cs-row {
   display: flex;
@@ -2497,22 +2655,6 @@ button {
 .cs-row.cs-split > .cs-fill {
   flex: 1;
   min-width: 0;
-}
-/* Four adventures on one row (2026-10-26): a little tighter, so the row's words keep their room at 1024 wide. */
-.cs-adventures {
-  gap: 3px;
-}
-.cs-adventures .cs-choice {
-  gap: 4px;
-  padding-inline: 6px;
-}
-@media (max-width: 1180px) {
-  .cs-adventure-word {
-    display: none;
-  }
-  .cs-adventures .cs-choice {
-    padding-inline: 9px;
-  }
 }
 .cs-row.cs-wrap {
   flex-wrap: wrap;
@@ -2568,13 +2710,13 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 8px 14px;
   font-weight: 700;
   font-size: 15px;
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.07);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
   white-space: nowrap;
   touch-action: manipulation;
   transition: scale 0.15s;
@@ -2590,6 +2732,7 @@ button {
 .cs-btn.cs-primary {
   background: var(--primary);
   color: var(--primary-foreground);
+  box-shadow: none;
 }
 .cs-btn.cs-next {
   background: var(--card);
@@ -2939,8 +3082,8 @@ button {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  background: var(--card);
+  border-radius: 12px;
 }
 .cs-srow {
   display: flex;
@@ -3099,44 +3242,36 @@ button {
   font-size: 16px;
 }
 
-.cs-tools {
+.cs-tool-row {
+  min-height: 0;
+  padding-block: 8px;
+}
+.cs-tool-ic {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--primary);
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-items: start;
+  place-items: center;
 }
-.cs-tools > div {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.cs-tool-ic svg {
+  width: 24px;
+  height: 24px;
 }
-.cs-tool-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 14px 2px;
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--secondary-foreground);
-}
-.cs-tool-head svg {
-  width: 22px;
-  height: 22px;
-}
-.cs-tool .cs-row {
-  min-height: 46px;
-  padding-block: 6px;
-}
-.cs-tool .cs-row:nth-child(2) {
-  border-top: 0;
+/* Settings and Go There the same size (2026-10-26, the teacher). */
+.cs-tool-btn {
+  width: 7.5rem;
+  flex: none;
 }
 
 .cs-att {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 16px;
+  background: var(--card);
+  border-radius: 12px;
 }
 .cs-att table {
   border-collapse: separate;
@@ -3530,6 +3665,12 @@ button {
   .cs-head {
     padding-block: 8px;
   }
+  .cs-pics {
+    --pic-h: 50px;
+  }
+  .cs-row.cs-stack {
+    padding-block: 7px;
+  }
   .cs-page {
     padding: 12px 18px 12px;
     gap: 10px;
@@ -3548,9 +3689,6 @@ button {
   .cs-nav-item {
     padding-block: 6px;
   }
-  .cs-nav-label {
-    padding-top: 6px;
-  }
   .cs-stepper button {
     width: 36px;
     height: 36px;
@@ -3566,26 +3704,34 @@ button {
     min-height: 44px;
     padding-block: 4px;
   }
-  .cs-tool .cs-row {
-    min-height: 42px;
-    padding-block: 4px;
-  }
 }
 @media (max-height: 540px) {
   .cs-page {
     gap: 8px;
     padding-top: 8px;
   }
+  .cs-gh {
+    font-size: 11.5px;
+    margin-bottom: -4px;
+  }
+  .cs-choice {
+    min-height: 36px;
+    padding-block: 5px;
+  }
+  .cs-row.cs-stack {
+    padding-block: 6px;
+    gap: 4px;
+  }
+  .cs-btn {
+    padding-block: 7px;
+  }
   .cs-row {
-    min-height: 44px;
+    min-height: 40px;
+    padding-block: 4px;
   }
   .cs-nav-item {
     padding-block: 5px;
     font-size: 15px;
-  }
-  .cs-nav-label {
-    padding-top: 4px;
-    font-size: 11px;
   }
   .cs-pic {
     padding: 3px;
@@ -3594,17 +3740,7 @@ button {
     display: none;
   }
   .cs-pics {
-    --pic-h: 48px;
-  }
-  .cs-tools,
-  .cs-tools > div {
-    gap: 8px;
-  }
-  .cs-tool-head {
-    padding-top: 6px;
-  }
-  .cs-tool .cs-row {
-    padding-block: 3px;
+    --pic-h: 38px;
   }
   .cs-row.cs-split {
     padding-block: 6px;

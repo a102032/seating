@@ -507,7 +507,7 @@ export function AddPhotosModal({ request, activeClass, onClose, onSaved }: AddPh
       <DialogContent
         showCloseButton={false}
         aria-describedby={undefined}
-        className="h-[min(calc(100dvh-2rem),52rem)] max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] max-w-none grid-rows-[auto_minmax(0,1fr)]"
+        className="cs-window h-[min(calc(100dvh-2rem),52rem)] max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] max-w-none grid-rows-[auto_minmax(0,1fr)]"
         // A stray tap beside the window must not throw away a pile of named photos.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}

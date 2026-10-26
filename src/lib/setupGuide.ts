@@ -1,6 +1,5 @@
 import type { SettingsSection } from '../components/ClassSettingsModal'
 import type { ClassData } from '../types'
-import { adventureOf } from './marbles'
 import { hasClassGoal, pointsModeOf } from './points'
 
 /**
@@ -41,30 +40,29 @@ const hasStudents = ({ cls }: GuideContext) => cls.students.length > 0
 const goal = ({ cls }: GuideContext) => hasClassGoal(pointsModeOf(cls))
 const plainGoal = ({ cls }: GuideContext) => pointsModeOf(cls) === 'goal'
 const quest = ({ cls }: GuideContext) => pointsModeOf(cls) === 'quest'
-const knight = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'knight'
-const marbles = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'marbles'
-const pirate = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'pirate'
-const space = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'space'
 const avatarsShown = ({ cls }: GuideContext) => !cls.avatarsOff && cls.students.length > 0
 const photosShown = ({ cls }: GuideContext) => cls.photosOn === true && !cls.avatarsOff && cls.students.length > 0
 const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photosOn && cls.students.length > 0
 
+/**
+ * Since 2026-10-26 what is useful but rare is in a section's More options: a step for those lights
+ * the More options row and says what is in it, rather than opening it.
+ */
 export const GUIDE_STEPS: GuideStep[] = [
   { section: 'class', targets: [g('class-name')], text: 'Type the name of your class.', focus: '#class-name' },
-  { section: 'class', targets: [g('class-room')], text: 'Type the number of the classroom it meets in.', focus: '#class-room' },
   { section: 'class', targets: [g('layouts')], text: 'Tap the desk layout that matches your room.' },
   { section: 'class', targets: [g('homerooms')], text: 'Classroom numbers on every desk? Turn this on, or leave it off.' },
   { section: 'class', targets: [g('theme')], text: 'Pick a color theme for this class.' },
   {
     section: 'class',
     targets: [g('delete')],
-    text: 'Delete Class removes this class and everything in it. It asks first.',
+    text: 'Delete This Class removes this class and everything in it. It asks first.',
     only: 'section',
   },
   {
     section: 'class',
     targets: [g('new-class')],
-    text: 'New Class, at the bottom of this list, makes another class and walks you through it.',
+    text: 'Create a New Class makes another class and walks you through it.',
     only: 'section',
   },
 
@@ -104,13 +102,12 @@ export const GUIDE_STEPS: GuideStep[] = [
     },
   },
   { section: 'students', targets: [g('mixup')], text: 'Mix Up Seats gives everyone a new, random seat.' },
-  { section: 'students', targets: [g('unseat')], text: 'Unseat All takes everyone out of their seat, to start the seating plan again.' },
   {
     section: 'students',
-    targets: [g('remove-all')],
-    text: 'Remove All empties the class list, if the wrong list went in. It asks first.',
+    targets: [g('more')],
+    text: ({ signedIn }) =>
+      `More options has ${signedIn ? 'a list from a Google Sheet, ' : ''}Unseat All, to start the seating plan again, and Remove All, if the wrong list went in.`,
     only: 'section',
-    when: hasStudents,
   },
 
   {
@@ -130,120 +127,75 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     section: 'avatars',
-    targets: [g('give-character')],
-    text: ({ cls }) =>
-      cls.photosOn
-        ? 'Students with no photo show a character. Tap one to give it to the class, or Skip.'
-        : 'Tap a character to give it to the whole class. Or Skip to keep them all different.',
-    when: avatarsShown,
+    targets: [g('let-choose')],
+    text: 'Later, tap Start and the children pick their own character at the board. Slide the hand at the top of their window to move it lower.',
+    when: charactersShown,
     maybe: true,
   },
   {
     section: 'avatars',
-    targets: [g('let-choose')],
-    text: 'Later, tap Let Students Choose and the children pick their own at the board. Slide the hand at the top of their window to move it lower.',
-    when: charactersShown,
+    targets: [g('more')],
+    text: ({ cls }) =>
+      cls.photosOn
+        ? 'More options: give every student without a photo a character in one tap, Get Photos, and Remove All photos.'
+        : 'More options: give every student a character in one tap, if you would rather choose than let them.',
+    when: avatarsShown,
     maybe: true,
   },
 
   { section: 'points', targets: [g('points-choice')], text: 'Choose how your class earns stars.' },
   {
     section: 'points',
-    targets: [g('stars-row')],
-    text: 'Do stars go straight to the goal, or wait on the desks first?',
-    when: goal,
-    maybe: true,
-  },
-  {
-    section: 'points',
-    targets: [g('goal-row')],
-    text: 'How many stars fill the chest? Type it, or use − and +.',
-    when: plainGoal,
-    maybe: true,
-  },
-  {
-    section: 'points',
     targets: [g('adventure-row')],
-    text: 'Pick an adventure: the Knight, with keys and five chests; the Marble Jar, with a wheel that fills the class jar; the Pirate Quest, sailing to five islands; or the Space Quest, a rocket fuelled to fly to five planets.',
+    text: 'Pick a theme for the quest: the Knight, with keys and five chests; the Pirate Quest, sailing to five islands; the Space Quest, a rocket flying to five planets; or the Marble Jar, a wheel that fills the class jar.',
     when: quest,
     maybe: true,
   },
   {
     section: 'points',
     targets: [g('goal-row')],
-    text: 'How many stars win a key? About a key a week makes a quest last a semester.',
-    when: knight,
+    text: 'How many stars fill the meter? Type it, or use − and +. A full meter about once a week makes a quest last a semester.',
+    when: quest,
     maybe: true,
   },
   {
     section: 'points',
     targets: [g('goal-row')],
-    text: 'How many stars win a spin of the marble wheel? About a spin a week fills a jar in a semester.',
-    when: marbles,
-    maybe: true,
-  },
-  {
-    section: 'points',
-    targets: [g('goal-row')],
-    text: 'How many stars win a map piece? A quest is 20 pieces, so about one a week takes a semester.',
-    when: pirate,
-    maybe: true,
-  },
-  {
-    section: 'points',
-    targets: [g('goal-row')],
-    text: 'How many stars pour 2 bars of fuel into the rocket? A quest is 18 goals, so about one a week takes a semester.',
-    when: space,
-    maybe: true,
-  },
-  {
-    section: 'points',
-    targets: [g('celebration-row')],
-    text: 'Pick a celebration for when the class fills the chest.',
+    text: 'How many stars fill the meter? Type it, or use − and +.',
     when: plainGoal,
     maybe: true,
   },
   {
     section: 'points',
     targets: [g('prizes-row')],
-    text: 'The prizes on the prize wheel, small, medium and big, and the GIF that dances beside a prize.',
+    text: 'Your real rewards for the prize wheel: small, medium and big. Whole-class activities work best.',
     when: quest,
     maybe: true,
   },
   {
     section: 'points',
-    targets: [g('meter-row')],
-    text: 'If a star was given by mistake, fix the number here, or tap Empty to start the meter again.',
+    targets: [g('celebration-row')],
+    text: ({ cls }) =>
+      pointsModeOf(cls) === 'quest'
+        ? 'Pick a celebration to play on the board when the class wins a prize.'
+        : 'Pick a celebration to play on the board when the class fills the meter.',
+    when: goal,
+    maybe: true,
+  },
+  {
+    section: 'points',
+    targets: [g('quest-row')],
+    text: 'Where the class is on this quest, and how long the last step took.',
+    only: 'section',
+    when: quest,
+  },
+  {
+    section: 'points',
+    targets: [g('more')],
+    text: ({ cls }) =>
+      `More options: stars that go on the desks first, changing the number of stars on the meter${pointsModeOf(cls) === 'quest' ? ', and Start Over' : ''}.`,
     only: 'section',
     when: goal,
-  },
-  {
-    section: 'points',
-    targets: [g('quest-row')],
-    text: 'Where the class is on its quest, and how long the last key took. Start Over goes back to the Wood chest.',
-    only: 'section',
-    when: knight,
-  },
-  {
-    section: 'points',
-    targets: [g('quest-row')],
-    text: 'How full the jar is, and how long the last spin took. Start Over empties the jar.',
-    only: 'section',
-    when: marbles,
-  },
-  {
-    section: 'points',
-    targets: [g('quest-row')],
-    text: 'The island the class is sailing to, its map pieces, and how long the last piece took. Start Over sails back to the first island.',
-    only: 'section',
-    when: pirate,
-  },
-  {
-    section: 'points',
-    targets: [g('quest-row')],
-    text: 'The trip the rocket is fuelling for, its bars of fuel, and how long the last 2 bars took. Start Over flies back to Earth.',
-    only: 'section',
-    when: space,
   },
   {
     section: 'points',
@@ -255,31 +207,25 @@ export const GUIDE_STEPS: GuideStep[] = [
 
   {
     section: 'tools',
-    targets: [g('repeats')],
-    text: 'Off: everyone has a turn before anyone is picked twice. On: anyone can be picked again.',
-  },
-  { section: 'tools', targets: [g('picker-sound')], text: 'Turn the picker’s sound on or off.' },
-  { section: 'tools', targets: [g('new-round')], text: 'Start a New Round lets everyone be picked again.' },
-  {
-    section: 'tools',
-    targets: [g('prize')],
-    text: 'Choose how many stars a full Get ready! star is worth.',
-    when: ({ cls }) => pointsModeOf(cls) !== 'none',
+    targets: [g('tools-list')],
+    text: 'Every button on the side rail, and what it does. Settings opens a tool’s choices; Go There opens the tool.',
   },
   {
     section: 'tools',
-    targets: [g('gifts')],
-    text: 'Hide three surprise cards in the flip cards, worth 2 to 5 extra stars.',
-    when: ({ cls }) => pointsModeOf(cls) !== 'none',
+    targets: [g('get-ready-settings')],
+    text: 'Get Ready!’s Settings: how many stars a full star is worth.',
   },
-  { section: 'tools', targets: [g('backs')], text: 'Blue backs for boys and pink for girls, so you can say “pick a blue card”.' },
-  { section: 'tools', targets: [g('card-sounds')], text: 'Turn the flip cards’ sounds on or off.' },
   {
     section: 'tools',
-    targets: [g('chimes')],
-    text: 'A chime when a group taps Help, Ready or Done, so you hear it with your back to the board.',
+    targets: [g('flip-settings')],
+    text: 'Flip Cards’ Settings: three surprise cards worth extra stars, and card colors by Boy or Girl.',
   },
 
+  {
+    section: 'attendance',
+    targets: ['.cs-records'],
+    text: 'Records has two pages: Attendance, who was away, and Participation, who had a turn.',
+  },
   { section: 'attendance', targets: ['.cs-list'], text: 'Add students first, in Students.', when: (ctx) => !hasStudents(ctx) },
   { section: 'attendance', targets: [g('month-nav')], text: 'Tap the arrows to see another month.', when: hasStudents },
   {
@@ -294,7 +240,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     text: 'Update in Drive keeps a Google Sheet of this class’s attendance up to date.',
     when: (ctx) => hasStudents(ctx) && ctx.signedIn,
   },
-  { section: 'attendance', targets: [g('att-export')], text: 'Export saves the attendance as a file for Excel.', when: hasStudents },
+  { section: 'attendance', targets: [g('att-export')], text: 'Export to CSV saves the attendance as a file for Excel.', when: hasStudents },
 
   { section: 'participation', targets: ['.cs-list'], text: 'Add students first, in Students.', when: (ctx) => !hasStudents(ctx) },
   { section: 'participation', targets: [g('day-nav')], text: 'Tap the arrows to see another day.', when: hasStudents },
@@ -313,19 +259,13 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'participation',
     targets: [g('part-export')],
-    text: 'Export saves the whole record as a file for Excel.',
+    text: 'Export to CSV saves the whole record as a file for Excel.',
     when: hasStudents,
   },
   {
     section: 'participation',
-    targets: [g('clear-day')],
-    text: 'Clear This Day takes the day out of the record, like after a test lesson.',
-    when: hasStudents,
-  },
-  {
-    section: 'participation',
-    targets: [g('start-over')],
-    text: 'Start Over clears the whole record, at the start of a term.',
+    targets: [g('more')],
+    text: 'More options: Clear This Day, like after a test lesson, and Start Over, at the start of a term.',
     when: hasStudents,
   },
 
@@ -340,13 +280,13 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'google',
     targets: [g('chart')],
-    text: 'Save the seating chart as a picture to print, for a substitute or the classroom door, or save it to Drive.',
+    text: 'Save the seating chart as a picture to print, for a substitute or the classroom door.',
   },
   {
     section: 'google',
-    targets: [g('drive')],
-    text: 'Everything the app saves to Drive goes in one folder. Find My Folder opens it.',
-    when: ({ signedIn }) => signedIn,
+    targets: [g('more')],
+    text: 'More options: the seating chart saved to Drive, photos on the printable chart, and your Drive folder.',
+    when: ({ signedIn, cls }) => signedIn || cls.students.some((s) => s.photo),
   },
 
   { section: null, targets: [g('done')], text: 'You’re all set! Want a tour of the app?', only: 'all' },

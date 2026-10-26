@@ -10,7 +10,7 @@ import { AbsentIcon } from '../AbsentIcon'
 import { GoogleG } from '../Account'
 import { ConfirmModal } from '../ConfirmModal'
 import { DriveLink, DriveProblem } from './GoogleSection'
-import { Btn } from './parts'
+import { Btn, MoreRow, SubHead } from './parts'
 
 interface ParticipationSectionProps {
   activeClass: ClassData
@@ -22,6 +22,8 @@ interface ParticipationSectionProps {
   onClearAll: () => void
   /** The signed-in teacher, whose Drive the record can go to. */
   uid?: string
+  /** Records' switch between Attendance and Participation, at the head of the page. */
+  records?: ReactNode
 }
 
 /**
@@ -61,7 +63,7 @@ function dayLabel(key: string): string {
  * students at the end. For the teacher only - it never shows on the board. Clear This Day and Start
  * Over are at the top, where they are seen, rather than under the list.
  */
-export function ParticipationSection({ activeClass, onSetCount, onClearDay, onClearAll, uid }: ParticipationSectionProps) {
+export function ParticipationSection({ activeClass, onSetCount, onClearDay, onClearAll, uid, records }: ParticipationSectionProps) {
   const drive = useDrive(uid)
   const today = dateKey()
   const dates = useMemo(() => participationDates(activeClass), [activeClass])
@@ -76,6 +78,8 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
   const [editing, setEditing] = useState<string | null>(null)
   const [heldOrder, setHeldOrder] = useState<string[] | null>(null)
   const [confirming, setConfirming] = useState<'day' | 'all' | null>(null)
+  // More options: Clear This Day and Start Over, rare and red (2026-10-26).
+  const [more, setMore] = useState(false)
 
   // The whole record, every day, as attendance's Export does (2026-10-12, the teacher: "we need this").
   function downloadCsv() {
@@ -98,6 +102,7 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
     return (
       <>
         <div className="cs-page-head">
+          {records}
           <p>Who had a turn, lesson by lesson.</p>
         </div>
         <div className="cs-list">
@@ -136,142 +141,151 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
 
   return (
     <>
-      <div className="cs-page-head">
-        <div className="cs-right">
-          <span className="flex items-center gap-1" data-guide="day-nav">
-            <button
-              type="button"
-              className="cs-icon-btn"
-              aria-label="The lesson before"
-              disabled={at <= 0}
-              onClick={() => showDay(days[at - 1])}
-            >
+      {more ? (
+        <>
+          <SubHead back="Participation" title="More options" onBack={() => setMore(false)} />
+          <div className="cs-group">
+            <div className="cs-row">
+              <span className="cs-row-label">
+                <b>Clear This Day</b>
+                <small>Takes {dayLabel(day)} out of the record. Anyone picked today gets their turn back.</small>
+              </span>
+              <Btn small data-guide="clear-day" disabled={Object.keys(counts).length === 0} onClick={() => setConfirming('day')}>
+                Clear This Day
+              </Btn>
+            </div>
+            <div className="cs-row">
+              <span className="cs-row-label">
+                <b>Start Over</b>
+                <small>Empties the whole record, at the end of testing or the start of a term.</small>
+              </span>
+              <Btn kind="red" small data-guide="start-over" disabled={dates.length === 0} onClick={() => setConfirming('all')}>
+                Start Over
+              </Btn>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="cs-page-head">
+            {records}
+            <div className="cs-right">
+              {uid && (
+                <Btn
+                  small
+                  data-guide="part-drive"
+                  disabled={dates.length === 0 || drive.busy !== null}
+                  onClick={() => void drive.run('participation', (token) => updateParticipationSheet(token, activeClass))}
+                >
+                  <GoogleG size={18} /> {drive.busy ? 'Updating…' : 'Update in Drive'}
+                </Btn>
+              )}
+              <Btn small data-guide="part-export" disabled={dates.length === 0} onClick={downloadCsv}>
+                <Download /> Export to CSV
+              </Btn>
+              {drive.problem ? <DriveProblem text={drive.problem.text} /> : drive.done ? <DriveLink file={drive.done.file} /> : null}
+            </div>
+          </div>
+          <div className="cs-navbar" data-guide="day-nav">
+            <button type="button" aria-label="The lesson before" disabled={at <= 0} onClick={() => showDay(days[at - 1])}>
               <ChevronLeft />
             </button>
-            <b>{dayLabel(day)}</b>
-            {day === today && <span className="cs-hint">(today)</span>}
+            <b>
+              {dayLabel(day)}
+              {day === today && <span className="cs-hint inline"> (today)</span>}
+            </b>
             <button
               type="button"
-              className="cs-icon-btn"
               aria-label="The lesson after"
               disabled={at < 0 || at >= days.length - 1}
               onClick={() => showDay(days[at + 1])}
             >
               <ChevronRight />
             </button>
-          </span>
-          <Btn kind="quiet" small data-guide="clear-day" disabled={Object.keys(counts).length === 0} onClick={() => setConfirming('day')}>
-            Clear This Day
-          </Btn>
-          <Btn kind="quiet-red" small data-guide="start-over" disabled={dates.length === 0} onClick={() => setConfirming('all')}>
-            Start Over
-          </Btn>
-        </div>
-      </div>
-      <p className="cs-hint" style={{ marginTop: -4 }}>
-        {rows.length === 0
-          ? 'No students in seats yet.'
-          : nobody
-            ? 'Nobody was picked or given a point on this day.'
-            : notYet > 0
-              ? `${notYet} ${notYet === 1 ? 'student' : 'students'} not picked or given a point. They're at the top. Tap a student to fix their numbers.`
-              : 'Everyone here was picked or given a point. Tap a student to fix their numbers.'}
-      </p>
-      <div className="cs-part" data-guide="part-grid">
-        {rows.map(({ student, picked, points, away: isAway }) => {
-          const fixing = editing === student.id
-          return (
-            <div
-              key={student.id}
-              className={clsx(
-                'cs-pc',
-                fixing ? 'cs-fixing' : !isAway && picked + points === 0 && 'cs-none',
-                isAway && !fixing && 'cs-awayc',
-              )}
-            >
-              <div className="cs-pc-top">
-                <span className="cs-hr">{student.homeroom}</span>
-                <span className="min-w-0 flex-1 truncate">{student.name}</span>
-                {fixing ? (
-                  <Btn
-                    small
-                    onClick={() => {
-                      setEditing(null)
-                      setHeldOrder(null)
-                    }}
-                  >
-                    <Check /> Done
-                  </Btn>
-                ) : isAway && picked + points === 0 ? (
-                  <span className="cs-n">
-                    <AbsentIcon className="h-4 w-4" /> Away
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="cs-n rounded-lg px-1 hover:bg-secondary"
-                    title="Tap to fix these numbers"
-                    onClick={() => {
-                      setHeldOrder(heldOrder ?? rows.map((r) => r.student.id))
-                      setEditing(student.id)
-                    }}
-                  >
-                    <span className={picked === 0 ? 'opacity-40' : undefined}>
-                      <Pointer size={14} /> {picked}
-                    </span>
-                    <span className={points === 0 ? 'opacity-40' : undefined}>
-                      <Star size={14} className="fill-amber-400 text-amber-500" /> {points}
-                    </span>
-                  </button>
-                )}
-              </div>
-              {fixing && (
-                <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
-                  <CountStepper
-                    icon={<Pointer size={15} />}
-                    label="Picked"
-                    value={picked}
-                    onChange={(n) => onSetCount(day, student.id, [n, points])}
-                  />
-                  <CountStepper
-                    icon={<Star size={15} className="fill-amber-400 text-amber-500" />}
-                    label="Given a point"
-                    value={points}
-                    onChange={(n) => onSetCount(day, student.id, [picked, n])}
-                  />
+          </div>
+          <p className="cs-hint" style={{ marginTop: -4 }}>
+            {rows.length === 0
+              ? 'No students in seats yet.'
+              : nobody
+                ? 'Nobody was picked or given a point on this day.'
+                : notYet > 0
+                  ? `${notYet} ${notYet === 1 ? 'student' : 'students'} not picked or given a point. They're at the top. Tap a student to fix their numbers.`
+                  : 'Everyone here was picked or given a point. Tap a student to fix their numbers.'}
+          </p>
+          <div className="cs-part" data-guide="part-grid">
+            {rows.map(({ student, picked, points, away: isAway }) => {
+              const fixing = editing === student.id
+              return (
+                <div
+                  key={student.id}
+                  className={clsx(
+                    'cs-pc',
+                    fixing ? 'cs-fixing' : !isAway && picked + points === 0 && 'cs-none',
+                    isAway && !fixing && 'cs-awayc',
+                  )}
+                >
+                  <div className="cs-pc-top">
+                    <span className="cs-hr">{student.homeroom}</span>
+                    <span className="min-w-0 flex-1 truncate">{student.name}</span>
+                    {fixing ? (
+                      <Btn
+                        small
+                        onClick={() => {
+                          setEditing(null)
+                          setHeldOrder(null)
+                        }}
+                      >
+                        <Check /> Done
+                      </Btn>
+                    ) : isAway && picked + points === 0 ? (
+                      <span className="cs-n">
+                        <AbsentIcon className="h-4 w-4" /> Away
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="cs-n rounded-lg px-1 hover:bg-secondary"
+                        title="Tap to fix these numbers"
+                        onClick={() => {
+                          setHeldOrder(heldOrder ?? rows.map((r) => r.student.id))
+                          setEditing(student.id)
+                        }}
+                      >
+                        <span className={picked === 0 ? 'opacity-40' : undefined}>
+                          <Pointer size={14} /> {picked}
+                        </span>
+                        <span className={points === 0 ? 'opacity-40' : undefined}>
+                          <Star size={14} className="fill-amber-400 text-amber-500" /> {points}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                  {fixing && (
+                    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
+                      <CountStepper
+                        icon={<Pointer size={15} />}
+                        label="Picked"
+                        value={picked}
+                        onChange={(n) => onSetCount(day, student.id, [n, points])}
+                      />
+                      <CountStepper
+                        icon={<Star size={15} className="fill-amber-400 text-amber-500" />}
+                        label="Given a point"
+                        value={points}
+                        onChange={(n) => onSetCount(day, student.id, [picked, n])}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      {/* The whole record, every lesson, at the foot: the row above is the day's (2026-10-12, the
-          teacher: "we need this"). One Sheet per class in the teacher's Drive folder, brought up to
-          date in place as attendance's is; the file stays, for anyone not signed in. */}
-      <div className="cs-foot">
-        {drive.problem ? (
-          <DriveProblem text={drive.problem.text} />
-        ) : drive.done ? (
-          <DriveLink file={drive.done.file} />
-        ) : (
-          <span className="cs-hint">The whole record, every lesson:</span>
-        )}
-        <div className="cs-right">
-          {uid && (
-            <Btn
-              small
-              data-guide="part-drive"
-              disabled={dates.length === 0 || drive.busy !== null}
-              onClick={() => void drive.run('participation', (token) => updateParticipationSheet(token, activeClass))}
-            >
-              <GoogleG size={18} /> {drive.busy ? 'Updating…' : 'Update in Drive'}
-            </Btn>
-          )}
-          <Btn small data-guide="part-export" disabled={dates.length === 0} onClick={downloadCsv}>
-            <Download /> Export
-          </Btn>
-        </div>
-      </div>
+              )
+            })}
+          </div>
+          {/* Export and Update in Drive are the whole record, every lesson (2026-10-12, the teacher: "we
+          need this"), at the top beside Records' switch, as attendance's are; one Sheet per class in
+          the teacher's Drive folder, brought up to date in place. Clearing is rare: More options. */}
+          <MoreRow inside="Clear This Day, Start Over" onClick={() => setMore(true)} />
+        </>
+      )}
 
       <ConfirmModal
         open={confirming === 'day'}

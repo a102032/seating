@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus, RotateCcw, X } from 'lucide-react'
+import { ChevronRight, Plus, RotateCcw, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
@@ -18,7 +18,7 @@ import { chestSVG, prizeIconSVG } from '../../lib/questArt'
 import { adventureOf, CAPACITY, jarFill, jarOf, lastSpinWords, type Adventure } from '../../lib/marbles'
 import { marbleSVG } from '../../lib/marbleArt'
 import type { ClassData, PointsMode } from '../../types'
-import { Btn, NumberStepper, Tick } from './parts'
+import { Btn, Group, MoreRow, NumberStepper, SubHead, Tick } from './parts'
 
 interface PointsSectionProps {
   activeClass: ClassData
@@ -61,10 +61,11 @@ function MiniDesk({ star }: { star: boolean }) {
   )
 }
 
+/** From the biggest way to the simplest, left to right (2026-10-26, the teacher). */
 const MODES: { mode: PointsMode; label: string; says: string }[] = [
-  { mode: 'goal', label: 'Class Goal', says: 'All points go to the class goal.' },
-  { mode: 'quest', label: 'Class Quest', says: 'Fill the goal to win a key. Keys open five chests, and each chest has a prize wheel.' },
-  { mode: 'students', label: 'Student Points (No Goal)', says: 'Each student keeps their own stars, on their desk, until you clear them.' },
+  { mode: 'quest', label: 'Class Quest', says: 'Each full meter takes the class one step on its quest, toward a prize.' },
+  { mode: 'goal', label: 'Class Goal', says: 'The class fills the meter together. A full meter is a celebration.' },
+  { mode: 'students', label: 'Student Points', says: 'Each student keeps their own stars, on their desk, until you clear them.' },
   { mode: 'none', label: 'No Points', says: 'No stars. The pickers, the cards, groups and Get Ready! still work.' },
 ]
 
@@ -92,6 +93,8 @@ export function PointsSection({
   onSetAdventure,
 }: PointsSectionProps) {
   const [choosingPrizes, setChoosingPrizes] = useState(false)
+  // More options: the stars' two ways, fixing the meter, and Start Over (2026-10-26).
+  const [more, setMore] = useState(false)
   const mode = pointsModeOf(activeClass)
   const goalOn = goalIsLive(activeClass)
   const onDesks = activeClass.starsOnDesks === true
@@ -138,18 +141,9 @@ export function PointsSection({
     const chosen = activeClass.celebrationGifId ?? ''
     return (
       <>
-        <div className="cs-page-head">
-          <h2 className="m-0 text-xl font-bold">Celebration</h2>
-          <p>
-            {mode === 'quest'
-              ? 'What dances beside the prize when the wheel stops.'
-              : 'What fills the board when the class fills the chest.'}
-          </p>
-          <div className="cs-right">
-            <Btn small onClick={() => onChoosingGif(false)}>
-              <ChevronLeft /> Back
-            </Btn>
-          </div>
+        <SubHead back="Points" title="Celebration" onBack={() => onChoosingGif(false)} />
+        <div className="cs-gi">
+          {mode === 'quest' ? 'What dances beside the prize when the wheel stops.' : 'What fills the board when the class fills the meter.'}
         </div>
         <div className="cs-pics cs-gifs">
           <button
@@ -193,115 +187,31 @@ export function PointsSection({
   const gif = CELEBRATION_GIFS.find((g) => g.id === activeClass.celebrationGifId)
   const deskStars = activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0)
   const goalNow = activeClass.pointsGoal || goal
-  return (
-    <>
-      <div className="cs-page-head">
-        <p>How your class earns stars.</p>
-      </div>
-      <div data-guide="points-choice">
-        <div className="cs-choices">
-          {MODES.map((m) => (
-            <button key={m.mode} type="button" className="cs-choice" aria-pressed={mode === m.mode} onClick={() => onSetPointsMode(m.mode)}>
-              {m.mode === 'goal' ? (
-                <img src={chestClosed} alt="" className="h-6 w-6 shrink-0" />
-              ) : m.mode === 'quest' ? (
-                <span
-                  className="block h-6 w-7 shrink-0 [&>svg]:h-full [&>svg]:w-full"
-                  dangerouslySetInnerHTML={{ __html: chestSVG(2, { keys: 1 }) }}
-                />
-              ) : (
-                <MiniDesk star={m.mode === 'students'} />
-              )}
-              {m.label}
-              {mode === m.mode && <Tick />}
-            </button>
-          ))}
-        </div>
-        <p className="cs-hint" style={{ margin: '6px 2px 0' }}>
-          {mode === 'quest' && adventureOf(activeClass) === 'marbles'
-            ? 'Fill the goal to spin the marble wheel. The marbles fill the class jar, and a full jar has a prize wheel.'
-            : mode === 'quest' && adventureOf(activeClass) === 'pirate'
-              ? 'Fill the goal to win a piece of the next island’s map. A whole map shows where to dig for treasure.'
-              : mode === 'quest' && adventureOf(activeClass) === 'space'
-                ? 'Fill the goal to fuel the rocket. Full fuel cells fly the class to the next planet, and a prize.'
-                : MODES.find((m) => m.mode === mode)?.says}
-        </p>
-      </div>
-
-      {goalOn && (
-        <div className="cs-group">
-          <div className="cs-row" data-guide="stars-row">
-            <div className="cs-row-label">
-              <b>Stars</b>
-              <small>
-                {onDesks ? 'Stars wait on desks until you put them into the goal.' : 'A star flies into the goal the moment you give it.'}
-              </small>
-            </div>
-            <div className="cs-choices" style={{ flex: '0 1 22rem' }}>
+  if (more && goalOn) {
+    return (
+      <>
+        <SubHead back="Points" title="More options" onBack={() => setMore(false)} />
+        <Group head="Stars" guide="stars-row">
+          <div className="cs-row cs-stack">
+            <div className="cs-choices">
               <button type="button" className="cs-choice" aria-pressed={!onDesks} onClick={() => onSetStarsOnDesks(false)}>
-                Straight to the goal
+                Stars go straight to the goal
                 {!onDesks && <Tick />}
               </button>
               <button type="button" className="cs-choice" aria-pressed={onDesks} onClick={() => onSetStarsOnDesks(true)}>
-                On the desks first
+                Stars go on the desks first
                 {onDesks && <Tick />}
               </button>
             </div>
           </div>
-          <div className="cs-row" data-guide="goal-row">
-            <div className="cs-row-label">
-              <b>Goal</b>
-              <small>
-                {mode === 'quest' && adventureOf(activeClass) === 'marbles'
-                  ? 'How many stars win a spin. About a spin a week fills a jar in a semester.'
-                  : mode === 'quest' && adventureOf(activeClass) === 'pirate'
-                    ? 'How many stars win a map piece. A quest is 20 pieces: about one a week takes a semester.'
-                    : mode === 'quest' && adventureOf(activeClass) === 'space'
-                      ? 'How many stars pour in 2 bars of fuel. A quest is 18 goals.'
-                      : mode === 'quest'
-                        ? 'How many stars win a key. About a key a week makes a quest a semester.'
-                        : 'Set the goal for your class: how many stars are needed to fill the chest.'}
-              </small>
-            </div>
-            {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}
-            <NumberStepper value={goal} min={1} max={Math.max(999, activeClass.pointsGoal ?? 0)} label="Goal" onChange={changeGoal} />
-          </div>
-          {mode === 'quest' ? (
-            <div className="cs-row" data-guide="prizes-row">
-              <div className="cs-row-label">
-                <b>Prizes</b>
-                <small>
-                  {adventureOf(activeClass) === 'marbles'
-                    ? 'What a full jar can win, and the GIF beside a prize.'
-                    : 'What the chests hold, and the GIF beside a prize.'}
-                </small>
-              </div>
-              <Btn onClick={() => setChoosingPrizes(true)}>
-                {prizesOf(activeClass).length} prizes <ChevronRight />
-              </Btn>
-              <Btn onClick={() => onChoosingGif(true)} title="Celebration">
-                <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
-                {gif?.label ?? 'No GIF'} <ChevronRight />
-              </Btn>
-            </div>
-          ) : (
-            <div className="cs-row" data-guide="celebration-row">
-              <div className="cs-row-label">
-                <b>Celebration</b>
-                <small>Pick a celebration animation when the class achieves their goal.</small>
-              </div>
-              <Btn onClick={() => onChoosingGif(true)}>
-                <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
-                {gif?.label ?? 'Treasure chest'} <ChevronRight />
-              </Btn>
-            </div>
-          )}
-          {/* The one place the meter can be corrected: a point that landed by mistake had no way
-              back short of starting the meter again. Held to the goal; never opens the chest. */}
+        </Group>
+        {/* The one place the meter can be corrected: a point that landed by mistake had no way back
+            short of starting the meter again. Held to the goal; never opens the chest. */}
+        <div className="cs-group">
           <div className="cs-row" data-guide="meter-row">
             <div className="cs-row-label">
-              <b>{mode === 'quest' ? 'Stars on the meter now' : 'Number of stars currently on the class goal meter'}</b>
-              <small>Fix a point given by mistake.</small>
+              <b>Change the number of stars on the meter</b>
+              <small>Add or take away stars given by mistake.</small>
             </div>
             <NumberStepper
               value={Math.min(goalNow, activeClass.classPoints ?? 0)}
@@ -314,8 +224,93 @@ export function PointsSection({
               <RotateCcw /> Empty
             </Btn>
           </div>
-          {mode === 'quest' && <QuestRow activeClass={activeClass} onAskRestart={onAskRestartQuest} onSetAdventure={onSetAdventure} />}
+          {mode === 'quest' && <RestartRow activeClass={activeClass} onAskRestart={onAskRestartQuest} />}
         </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className="cs-group" data-guide="points-choice">
+        <div className="cs-row cs-stack">
+          <div className="cs-choices">
+            {MODES.map((m) => (
+              <button
+                key={m.mode}
+                type="button"
+                className="cs-choice"
+                aria-pressed={mode === m.mode}
+                onClick={() => onSetPointsMode(m.mode)}
+              >
+                {m.mode === 'goal' ? (
+                  <img src={chestClosed} alt="" className="h-6 w-6 shrink-0" />
+                ) : m.mode === 'quest' ? (
+                  <span
+                    className="block h-6 w-7 shrink-0 [&>svg]:h-full [&>svg]:w-full"
+                    dangerouslySetInnerHTML={{ __html: chestSVG(2, { keys: 1 }) }}
+                  />
+                ) : (
+                  <MiniDesk star={m.mode === 'students'} />
+                )}
+                {m.label}
+                {mode === m.mode && <Tick />}
+              </button>
+            ))}
+          </div>
+          <span className="cs-hint">{MODES.find((m) => m.mode === mode)?.says}</span>
+        </div>
+      </div>
+
+      {goalOn && mode === 'quest' && (
+        <Group head="Class Quest Themes" className="cs-quest-themes">
+          <QuestRow activeClass={activeClass} onSetAdventure={onSetAdventure} />
+        </Group>
+      )}
+
+      {goalOn && (
+        <div className="cs-group">
+          <div className="cs-row" data-guide="goal-row">
+            <div className="cs-row-label">
+              <b>Goal</b>
+              <small>Number of stars needed to fill the meter.</small>
+            </div>
+            {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}
+            <NumberStepper value={goal} min={1} max={Math.max(999, activeClass.pointsGoal ?? 0)} label="Goal" onChange={changeGoal} />
+          </div>
+          {mode === 'quest' && (
+            <div className="cs-row" data-guide="prizes-row">
+              <div className="cs-row-label">
+                <b>Prizes</b>
+                <small>Set real custom rewards the class can win on the prize wheel.</small>
+              </div>
+              <Btn onClick={() => setChoosingPrizes(true)}>
+                {prizesOf(activeClass).length} prizes <ChevronRight />
+              </Btn>
+            </div>
+          )}
+          <div className="cs-row" data-guide="celebration-row">
+            <div className="cs-row-label">
+              <b>Celebration</b>
+              <small>
+                {mode === 'quest'
+                  ? 'Pick a celebration animation to play on the board when the class wins a prize.'
+                  : 'Pick a celebration animation to play on the board when the class fills the meter.'}
+              </small>
+            </div>
+            <Btn onClick={() => onChoosingGif(true)}>
+              <img src={gif ? gifThumbUrl(gif.id) : chestOpen} alt="" className="h-6 w-6 rounded object-cover" />
+              {gif?.label ?? (mode === 'quest' ? 'No GIF' : 'Treasure chest')} <ChevronRight />
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {goalOn && (
+        <MoreRow
+          inside={`Stars on the desks first, change the stars on the meter${mode === 'quest' ? ', Start Over' : ''}`}
+          onClick={() => setMore(true)}
+        />
       )}
 
       {/* Student points stay until the teacher clears them - never on a clock - so the teacher
@@ -337,46 +332,62 @@ export function PointsSection({
   )
 }
 
+/** Start Over, in Points' More options: the quest in use back to its beginning, the meter's stars kept. */
+function RestartRow({ activeClass, onAskRestart }: { activeClass: ClassData; onAskRestart: () => void }) {
+  const adventure = adventureOf(activeClass)
+  const q = questOf(activeClass)
+  const j = jarOf(activeClass)
+  const fresh =
+    adventure === 'marbles' ? j.number === 1 && j.marbles.length === 0 && j.spins === 0 : q.number === 1 && q.chest === 0 && q.keys === 0
+  return (
+    <div className="cs-row" data-guide="restart-quest">
+      <div className="cs-row-label">
+        <b>Start Over</b>
+        <small>Takes this quest back to the beginning. The stars on the meter stay.</small>
+      </div>
+      <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>
+        <RotateCcw /> Start Over
+      </Btn>
+    </div>
+  )
+}
+
 /**
  * The quest's adventure, where the class is on it, how long the last key or spin took (to help set
  * the goal), and Start Over. Four adventures, one row: the Knight's keys and chests, the Marble Jar
  * (2026-10-24), the Pirate Quest's islands and map pieces (2026-10-25), or the Space Quest's planets
  * and fuel (2026-10-26). Each keeps its own place, so trying another loses nothing.
  */
-function QuestRow({
-  activeClass,
-  onAskRestart,
-  onSetAdventure,
-}: {
-  activeClass: ClassData
-  onAskRestart: () => void
-  onSetAdventure: (a: Adventure) => void
-}) {
+function QuestRow({ activeClass, onSetAdventure }: { activeClass: ClassData; onSetAdventure: (a: Adventure) => void }) {
   const adventure = adventureOf(activeClass)
   const q = questOf(activeClass)
   const T = CHESTS[q.chest]
   const need = keysNeeded(q)
   const j = jarOf(activeClass)
-  const fresh =
-    adventure === 'marbles' ? j.number === 1 && j.marbles.length === 0 && j.spins === 0 : q.number === 1 && q.chest === 0 && q.keys === 0
   const full = Math.min(100, Math.round((jarFill(j) / CAPACITY) * 100))
+  const marbles = (
+    <button
+      type="button"
+      className="cs-choice"
+      aria-label="Marble Jar"
+      title="Marble Jar"
+      aria-pressed={adventure === 'marbles'}
+      onClick={() => onSetAdventure('marbles')}
+    >
+      <svg
+        viewBox="-12 -12 24 24"
+        className="h-5 w-5 shrink-0"
+        aria-hidden
+        dangerouslySetInnerHTML={{ __html: marbleSVG('#2b9be0', { r: 10 }) }}
+      />
+      <span className="cs-adventure-word">Marbles</span>
+      {adventure === 'marbles' && <Tick />}
+    </button>
+  )
   return (
-    <div className="cs-row" data-guide="quest-row">
-      <div className="cs-row-label">
-        <b>
-          {adventure === 'marbles'
-            ? `${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`
-            : adventure === 'pirate'
-              ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Island ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} pieces`
-              : adventure === 'space'
-                ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Trip ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} bars`
-                : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
-        </b>
-        <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
-      </div>
-      {/* Each on one line: wrapped, "Marble Jar" made the row taller and Points ran past the window's edge at 1024x500.
-          On a narrow screen the four are their pictures alone, so the row's words keep one line. */}
-      <div className="cs-choices cs-adventures whitespace-nowrap" data-guide="adventure-row" style={{ flex: '0 0 auto' }}>
+    <div className="cs-row cs-stack" data-guide="quest-row">
+      {/* Knight, Pirate and Space, then Marbles on the far right, since it isn't really a quest (2026-10-26, the teacher). */}
+      <div className="cs-choices cs-adventures whitespace-nowrap" data-guide="adventure-row">
         <button
           type="button"
           className="cs-choice"
@@ -388,23 +399,6 @@ function QuestRow({
           <img src={assetUrl('/quest/knight-head.svg')} alt="" className="h-5 w-5 shrink-0" />
           <span className="cs-adventure-word">Knight</span>
           {adventure === 'knight' && <Tick />}
-        </button>
-        <button
-          type="button"
-          className="cs-choice"
-          aria-label="Marble Jar"
-          title="Marble Jar"
-          aria-pressed={adventure === 'marbles'}
-          onClick={() => onSetAdventure('marbles')}
-        >
-          <svg
-            viewBox="-12 -12 24 24"
-            className="h-5 w-5 shrink-0"
-            aria-hidden
-            dangerouslySetInnerHTML={{ __html: marbleSVG('#2b9be0', { r: 10 }) }}
-          />
-          <span className="cs-adventure-word">Marbles</span>
-          {adventure === 'marbles' && <Tick />}
         </button>
         <button
           type="button"
@@ -430,10 +424,21 @@ function QuestRow({
           <span className="cs-adventure-word">Space</span>
           {adventure === 'space' && <Tick />}
         </button>
+        {marbles}
       </div>
-      <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>
-        <RotateCcw /> Start Over
-      </Btn>
+      {/* Where the class is, on one line, so the four themes and the goal's box fit a short screen. */}
+      <div className="cs-row-label cs-inline-label">
+        <b>
+          {adventure === 'marbles'
+            ? `${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`
+            : adventure === 'pirate'
+              ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Island ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} pieces`
+              : adventure === 'space'
+                ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Trip ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} bars`
+                : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
+        </b>
+        <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
+      </div>
     </div>
   )
 }
@@ -460,14 +465,11 @@ function PrizesPage({ prizes, onChange, onBack }: { prizes: QuestPrize[]; onChan
   }
   return (
     <>
-      <div className="cs-page-head">
-        <h2 className="m-0 text-xl font-bold">Prizes</h2>
-        <p>The wheels are made from these. Whole-class activities work best.</p>
-        <div className="cs-right">
-          <Btn small onClick={onBack}>
-            <ChevronLeft /> Back
-          </Btn>
-        </div>
+      <SubHead back="Points" title="Prizes" onBack={onBack} />
+      <div className="cs-gi">
+        At the end of each stage of the quest, or a full marble jar, the prize wheel spins on the board and lands on one of these. Early
+        wheels have mostly small prizes; the last one is all big prizes. The class gets the real reward from you. Whole-class activities
+        work best.
       </div>
       <div className="cs-prizes">
         {SIZES.map((size) => {

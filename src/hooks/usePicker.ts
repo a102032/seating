@@ -20,21 +20,13 @@ const DEFAULT_SETTINGS: PickerSettings = {
   soundEnabled: true,
 }
 
+/**
+ * Both are fixed since 2026-10-26 (the teacher's sort of Class Settings): everyone has a turn
+ * before anyone has a second - "the way it should be, period" - and the pops play, the board's own
+ * volume being the knob. A board that had repeats on, or the sound off, comes back to these.
+ */
 function loadSettings(): PickerSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return DEFAULT_SETTINGS
-    const stored = JSON.parse(raw) as Partial<PickerSettings> & {
-      allowRepeatsStudents?: boolean
-      allowRepeatsRows?: boolean
-    }
-    // Students and rows used to have a toggle each. Carry a saved pair over by taking
-    // either one as "on", so a teacher who had turned repeats on keeps them on.
-    const allowRepeats = stored.allowRepeats ?? Boolean(stored.allowRepeatsStudents || stored.allowRepeatsRows)
-    return { ...DEFAULT_SETTINGS, ...stored, allowRepeats }
-  } catch {
-    return DEFAULT_SETTINGS
-  }
+  return DEFAULT_SETTINGS
 }
 
 function saveSettings(settings: PickerSettings) {

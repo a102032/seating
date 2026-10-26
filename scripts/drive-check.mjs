@@ -324,7 +324,12 @@ const shot = async (name) => {
 /** Class Settings, on one of its sections (the list down its left, since 2026-10-11). */
 const settings = async (section) => {
   await page.locator('button[aria-label="Class Settings"]').click()
-  await page.locator(`[data-section-link="${section.toLowerCase()}"]`).click()
+  // Records holds Attendance and Participation behind a switch at its top (2026-10-26).
+  const page_ = section.toLowerCase()
+  if (page_ === 'participation') {
+    await page.locator('[data-section-link="attendance"]').click()
+    await page.locator('.cs-records button', { hasText: 'Participation' }).click()
+  } else await page.locator(`[data-section-link="${page_}"]`).click()
   await page.waitForTimeout(300)
 }
 const closeSettings = async () => {
@@ -393,6 +398,8 @@ try {
       'signed in: the account, Saved and Switch Teacher',
       /Derek/.test(text) && /Switch Teacher/.test(text) && /Saved|Connecting/.test(text),
     )
+    // Save to Drive and the folder are in Account's More options (2026-10-26).
+    await dialog().locator('[data-guide="more"] button').click()
     await dialog()
       .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
@@ -427,16 +434,16 @@ try {
       .click()
     const menu = await page.locator('[data-radix-popper-content-wrapper]').innerText()
     check(
-      'import: a menu with a pasted list, Google Sheets, Excel or CSV and Make a roster sheet',
-      /Paste a list/.test(menu) &&
-        /From a Google Sheet/.test(menu) &&
-        /From an Excel or CSV file/.test(menu) &&
-        /Make a roster sheet/.test(menu),
+      'import: a menu with a pasted list and Excel or CSV; a Google Sheet is in More options (2026-10-26)',
+      /Paste a list/.test(menu) && /From an Excel or CSV file/.test(menu) && !/From a Google Sheet|roster sheet/i.test(menu),
     )
     await shot('03-import-menu')
-    await page
-      .locator('[data-radix-popper-content-wrapper]')
-      .getByRole('button', { name: /Make a roster sheet/ })
+    await page.keyboard.press('Escape')
+    await dialog().locator('[data-guide="more"] button').click()
+    await dialog().locator('[data-guide="from-sheet"]').click()
+    await page.waitForTimeout(400)
+    await dialog()
+      .getByRole('button', { name: /Make a Roster Sheet/i })
       .click()
     const made = await waitFor(async () => /Made/.test(await dialog().innerText()))
     check('roster: Make a roster sheet makes one, and links to it', Boolean(made))
@@ -612,6 +619,7 @@ try {
   if (want('errors')) {
     await settings('Google')
     drive.fail = error(403, 'accessNotConfigured', 'Google Drive API has not been used in project 323152163178 before or it is disabled.')
+    await dialog().locator('[data-guide="more"] button').click()
     await dialog()
       .getByRole('button', { name: /Save to (Google )?Drive/ })
       .click()
@@ -633,7 +641,7 @@ try {
     const t = await dialog().innerText()
     check(
       "errors: closing Google's window says nothing",
-      !/isn't switched on|needs your OK|didn't answer|Can't reach/.test(t) && /for a substitute/i.test(t),
+      !/isn't switched on|needs your OK|didn't answer|Can't reach/.test(t) && /One picture a day/i.test(t),
     )
     await closeSettings()
   }
@@ -805,6 +813,7 @@ try {
     )
     // Remove All Photos: every one to the bin, each student's character back.
     await page.locator('[data-section-link="avatars"]').click()
+    await dialog().locator('[data-guide="more"] button').click()
     await dialog()
       .getByRole('button', { name: /Remove All/ })
       .click()

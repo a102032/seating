@@ -4,7 +4,6 @@ import {
   CircleCheck,
   ClipboardPaste,
   Dices,
-  FilePlus2,
   FileUp,
   GraduationCap,
   Pencil,
@@ -44,7 +43,7 @@ import { NoAvatarPicture } from '../NoAvatarPicture'
 import { PasteRosterModal } from '../PasteRosterModal'
 import { RosterSheetsModal } from '../RosterSheetsModal'
 import { TactileButton } from '../TactileButton'
-import { Btn, NextButton } from './parts'
+import { Btn, MoreRow, SubHead } from './parts'
 
 interface StudentsSectionProps {
   activeClass: ClassData
@@ -65,7 +64,6 @@ interface StudentsSectionProps {
   onPhotoChosen: (file: File, student: Student) => void
   /** The student's photo taken away (to Drive's bin). */
   onRemovePhoto: (studentId: string) => void
-  onNext: () => void
 }
 
 /**
@@ -106,7 +104,6 @@ export function StudentsSection({
   onMixUpSeats,
   onPhotoChosen,
   onRemovePhoto,
-  onNext,
 }: StudentsSectionProps) {
   const drive = useDrive(cloud.account?.uid)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -127,6 +124,8 @@ export function StudentsSection({
   const [confirming, setConfirming] = useState<'mixup' | 'unseat' | 'remove-all' | Student | null>(null)
   const [pickingAvatarFor, setPickingAvatarFor] = useState<Student | null>(null)
   const [removingPhotoOf, setRemovingPhotoOf] = useState<Student | null>(null)
+  // More options: a Google Sheet, Unseat All and Remove All, useful but rare (2026-10-26).
+  const [more, setMore] = useState(false)
 
   const seatedIds = useMemo(() => new Set(activeClass.seating.filter((s): s is string => s !== null)), [activeClass.seating])
   const count = activeClass.students.length
@@ -241,15 +240,11 @@ export function StudentsSection({
 
   // Each of these starts Drive straight from the tap: the first time in an hour it opens
   // Google's window, which a browser only allows right after one.
-  function openRosterSheets(make: boolean) {
-    setImportOpen(false)
+  function openRosterSheets() {
     setImported(null)
     setSheetsOpen(true)
-    if (make) makeSheet()
-    else {
-      setSheets(null)
-      void drive.run('list', rosterSheets).then((found) => found && setSheets(found))
-    }
+    setSheets(null)
+    void drive.run('list', rosterSheets).then((found) => found && setSheets(found))
   }
 
   function makeSheet() {
@@ -282,189 +277,200 @@ export function StudentsSection({
     setPasteText('')
   }
 
+  const moreInside = [cloud.account && 'From a Google Sheet', 'Unseat All', 'Remove All'].filter(Boolean).join(', ')
+
   return (
     <>
-      <div className="cs-page-head">
-        <p>{count ? `${count} ${count === 1 ? 'student' : 'students'} in this class.` : 'Nobody here yet.'}</p>
-        {/* The wrong list in, and Take them out gone with the window (2026-10-12, the teacher: there
-            was no plain way to empty a class). Beside the count it empties, by Import, where a
-            teacher looks after a wrong import; quiet red like Delete Class, and it asks first. */}
-        {count > 0 && (
-          <Btn kind="quiet-red" small onClick={() => setConfirming('remove-all')} data-guide="remove-all">
-            <Trash2 /> Remove All
-          </Btn>
-        )}
-        {count > MAX_DESKS && (
-          <span className="cs-pill cs-warn">
-            <TriangleAlert size={13} /> {count - MAX_DESKS} more than the {MAX_DESKS} desks
-          </span>
-        )}
-        <div className="cs-right">
-          <Btn
-            small
-            data-guide="add"
-            onClick={() => {
-              setAdding(true)
-              setEditingId(null)
-            }}
-          >
-            <Plus /> Add a Student
-          </Btn>
-          {/* A short menu: a pasted list first (the quickest, with no file to save), then a file -
-              Excel or CSV - and, signed in, Google Sheets. */}
-          <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
-            <Popover.Trigger asChild>
-              <Btn small data-guide="import" aria-expanded={importOpen}>
-                <Upload /> Import Student List <ChevronDown />
-              </Btn>
-            </Popover.Trigger>
-            <Popover.Portal>
-              <Popover.Content align="end" sideOffset={6} className="cs-menu" data-guide="import-menu">
-                <MenuChoice
-                  icon={<ClipboardPaste className="text-primary" />}
-                  title="Paste a list"
-                  note="Copied from Excel or Google Sheets"
-                  onClick={paste}
-                />
-                <MenuChoice icon={<FileUp />} title="From an Excel or CSV file" note="From this computer" onClick={chooseFile} />
-                {cloud.account && (
-                  <>
-                    <MenuChoice
-                      icon={<GoogleG size={20} />}
-                      title="From a Google Sheet"
-                      note="A roster sheet in your Drive"
-                      onClick={() => openRosterSheets(false)}
-                    />
-                    <MenuChoice
-                      icon={<FilePlus2 className="text-emerald-600" />}
-                      title="Make a roster sheet"
-                      note="A ready-made Sheet to fill in, then import"
-                      onClick={() => openRosterSheets(true)}
-                    />
-                  </>
-                )}
-              </Popover.Content>
-            </Popover.Portal>
-          </Popover.Root>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            className="hidden"
-            onChange={(e) => {
-              void handleFiles(e.target.files)
-              // Otherwise choosing the same file again (fixed and saved) does nothing at all.
-              e.target.value = ''
-            }}
-          />
-        </div>
-      </div>
-
-      {note && (
-        <div className={note.problem ? 'cs-note text-amber-700 dark:text-amber-400' : 'cs-note text-emerald-700 dark:text-emerald-400'}>
-          {note.problem ? <TriangleAlert size={16} /> : <CircleCheck size={16} />} {note.text}
-          {/* The wrong list? One tap takes back exactly what it added. It stays until the window
-              closes or the next import - nothing on a timer. */}
-          {note.added && note.added.length > 0 && (
-            <Btn small onClick={takeOut} data-take-out="">
-              <Undo2 /> Take them out
-            </Btn>
+      {more ? (
+        <>
+          <SubHead back="Students" title="More options" onBack={() => setMore(false)} />
+          {note && <Note note={note} onTakeOut={takeOut} />}
+          {cloud.account && (
+            <>
+              <div className="cs-gh">Import</div>
+              <div className="cs-group">
+                <div className="cs-row">
+                  <span className="cs-row-label">
+                    <b>From a Google Sheet</b>
+                    <small>A roster sheet in your Drive. Its window can make a new one to fill in.</small>
+                  </span>
+                  <Btn small data-guide="from-sheet" onClick={openRosterSheets}>
+                    <GoogleG size={18} /> Choose a Sheet
+                  </Btn>
+                </div>
+              </div>
+            </>
           )}
-        </div>
-      )}
-
-      {/* A file can still be dropped on the list; the Import button is the way on a board. */}
-      <div
-        className={clsx('cs-list', dragOver && 'ring-2 ring-primary')}
-        data-guide="roster"
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragOver(true)
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault()
-          setDragOver(false)
-          void handleFiles(e.dataTransfer.files)
-        }}
-      >
-        {adding && (
-          <AddRow
-            onAdd={(student) => {
-              onAddStudents([student])
-              setNote({ text: `Added ${student.name}.` })
-              setAdding(false)
-            }}
-            onCancel={() => setAdding(false)}
-          />
-        )}
-        {count === 0 && !adding ? (
-          // An empty class says how to fill it, where the list will be.
-          <div className="cs-empty" data-guide="students-empty">
-            <div className="cs-big">Copy your student list from Excel and paste it here.</div>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Btn kind="primary" onClick={paste}>
-                <ClipboardPaste /> Paste a List
-              </Btn>
-              <Btn onClick={() => fileInputRef.current?.click()}>
-                <FileUp /> Choose a File
+          <div className="cs-gh">The whole class</div>
+          <div className="cs-group">
+            <div className="cs-row">
+              <span className="cs-row-label">
+                <b>Unseat All</b>
+                <small>Everyone off their desks, to start the seating plan again.</small>
+              </span>
+              <Btn small onClick={() => setConfirming('unseat')} disabled={seatedIds.size === 0} data-guide="unseat">
+                <UserX /> Unseat All
               </Btn>
             </div>
-            <span className="cs-hint">Names and homeroom numbers. Boy or Girl can wait.</span>
+            <div className="cs-row">
+              <span className="cs-row-label">
+                <b>Remove All</b>
+                <small>Empties the class list, for the right list after a wrong one. It asks first.</small>
+              </span>
+              <Btn kind="red" small onClick={() => setConfirming('remove-all')} disabled={count === 0} data-guide="remove-all">
+                <Trash2 /> Remove All
+              </Btn>
+            </div>
           </div>
-        ) : (
-          activeClass.students.map((s) => (
-            <RosterRow
-              key={s.id}
-              student={s}
-              seated={seatedIds.has(s.id)}
-              showPhoto={showPhotos}
-              editing={editingId === s.id}
-              showStars={showStars}
-              onEdit={() => {
-                setEditingId(s.id)
-                setAdding(false)
-              }}
-              onCancelEdit={() => setEditingId(null)}
-              onSave={(patch) => {
-                onUpdateStudent(s.id, patch)
-                setEditingId(null)
-              }}
-              onUnseat={() => {
-                onUnseatStudent(s.id)
-                setEditingId(null)
-              }}
-              onRemove={() => setConfirming(s)}
-              onPickAvatar={() => setPickingAvatarFor(s)}
-            />
-          ))
-        )}
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="cs-page-head">
+            <p>{count ? `${count} ${count === 1 ? 'student' : 'students'} in this class.` : 'Nobody here yet.'}</p>
+            {count > MAX_DESKS && (
+              <span className="cs-pill cs-warn">
+                <TriangleAlert size={13} /> {count - MAX_DESKS} more than the {MAX_DESKS} desks
+              </span>
+            )}
+            <div className="cs-right">
+              <Btn
+                small
+                data-guide="add"
+                onClick={() => {
+                  setAdding(true)
+                  setEditingId(null)
+                }}
+              >
+                <Plus /> Add a Student
+              </Btn>
+              {/* A short menu: a pasted list first (the quickest, with no file to save), then a file,
+              Excel or CSV. A Google Sheet is in More options, and making a roster sheet in its window
+              (2026-10-26: the menu had four choices). */}
+              <Popover.Root open={importOpen} onOpenChange={setImportOpen}>
+                <Popover.Trigger asChild>
+                  <Btn small data-guide="import" aria-expanded={importOpen}>
+                    <Upload /> Import Student List <ChevronDown />
+                  </Btn>
+                </Popover.Trigger>
+                <Popover.Portal>
+                  <Popover.Content align="end" sideOffset={6} className="cs-menu" data-guide="import-menu">
+                    <MenuChoice
+                      icon={<ClipboardPaste className="text-primary" />}
+                      title="Paste a list"
+                      note="Copied from Excel or Google Sheets"
+                      onClick={paste}
+                    />
+                    <MenuChoice icon={<FileUp />} title="From an Excel or CSV file" note="From this computer" onClick={chooseFile} />
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="hidden"
+                onChange={(e) => {
+                  void handleFiles(e.target.files)
+                  // Otherwise choosing the same file again (fixed and saved) does nothing at all.
+                  e.target.value = ''
+                }}
+              />
+            </div>
+          </div>
 
-      <div className="cs-foot">
-        <Btn kind="quiet" small onClick={() => setConfirming('mixup')} disabled={count < 2} data-guide="mixup">
-          <Dices /> Mix Up Seats
-        </Btn>
-        <Btn kind="quiet" small onClick={() => setConfirming('unseat')} disabled={seatedIds.size === 0} data-guide="unseat">
-          <UserX /> Unseat All
-        </Btn>
-        <div className="cs-right">
-          {/* Always here, greyed when everyone has a desk, so it is never hidden. */}
-          <Btn
-            kind="primary"
-            data-guide="seat"
-            disabled={unseated === 0}
-            title={count && !unseated ? 'Everyone has a desk' : undefined}
-            onClick={() => {
-              onSeatClass()
-              setNote({ text: 'Everyone has a desk.' })
+          {note && <Note note={note} onTakeOut={takeOut} />}
+
+          {/* A file can still be dropped on the list; the Import button is the way on a board. */}
+          <div
+            className={clsx('cs-list', dragOver && 'ring-2 ring-primary')}
+            data-guide="roster"
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragOver(false)
+              void handleFiles(e.dataTransfer.files)
             }}
           >
-            <GraduationCap /> {unseated === 0 ? 'Seat Students' : `Seat Students (${unseated})`}
-          </Btn>
-          <NextButton label="Avatars" onClick={onNext} />
-        </div>
-      </div>
+            {adding && (
+              <AddRow
+                onAdd={(student) => {
+                  onAddStudents([student])
+                  setNote({ text: `Added ${student.name}.` })
+                  setAdding(false)
+                }}
+                onCancel={() => setAdding(false)}
+              />
+            )}
+            {count === 0 && !adding ? (
+              // An empty class says how to fill it, where the list will be.
+              <div className="cs-empty" data-guide="students-empty">
+                <div className="cs-big">Copy your student list from Excel and paste it here.</div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Btn kind="primary" onClick={paste}>
+                    <ClipboardPaste /> Paste a List
+                  </Btn>
+                  <Btn onClick={() => fileInputRef.current?.click()}>
+                    <FileUp /> Choose a File
+                  </Btn>
+                </div>
+                <span className="cs-hint">Names and homeroom numbers. Boy or Girl can wait.</span>
+              </div>
+            ) : (
+              activeClass.students.map((s) => (
+                <RosterRow
+                  key={s.id}
+                  student={s}
+                  seated={seatedIds.has(s.id)}
+                  showPhoto={showPhotos}
+                  editing={editingId === s.id}
+                  showStars={showStars}
+                  onEdit={() => {
+                    setEditingId(s.id)
+                    setAdding(false)
+                  }}
+                  onCancelEdit={() => setEditingId(null)}
+                  onSave={(patch) => {
+                    onUpdateStudent(s.id, patch)
+                    setEditingId(null)
+                  }}
+                  onUnseat={() => {
+                    onUnseatStudent(s.id)
+                    setEditingId(null)
+                  }}
+                  onRemove={() => setConfirming(s)}
+                  onPickAvatar={() => setPickingAvatarFor(s)}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="cs-foot">
+            <Btn onClick={() => setConfirming('mixup')} disabled={count < 2} data-guide="mixup">
+              <Dices /> Mix Up Seats
+            </Btn>
+            <div className="cs-right">
+              {/* Always here, greyed when everyone has a desk, so it is never hidden. */}
+              <Btn
+                kind="primary"
+                data-guide="seat"
+                disabled={unseated === 0}
+                title={count && !unseated ? 'Everyone has a desk' : undefined}
+                onClick={() => {
+                  onSeatClass()
+                  setNote({ text: 'Everyone has a desk.' })
+                }}
+              >
+                <GraduationCap /> {unseated === 0 ? 'Seat Students' : `Seat Students (${unseated})`}
+              </Btn>
+            </div>
+          </div>
+          <MoreRow inside={moreInside} onClick={() => setMore(true)} />
+        </>
+      )}
 
       <ReplaceOrAdd
         pending={pending}
@@ -497,6 +503,8 @@ export function StudentsSection({
           onRemoveStudents(activeClass.students.map((s) => s.id))
           setConfirming(null)
           setEditingId(null)
+          // Back to the list, where the right one is pasted or imported.
+          setMore(false)
           setNote({ text: 'The class list is empty. Paste or import the right list.' })
         }}
       />
@@ -582,6 +590,22 @@ export function StudentsSection({
         }}
       />
     </>
+  )
+}
+
+/** What the last import, add or seating did, with Take them out after an import. */
+function Note({ note, onTakeOut }: { note: { text: string; added?: string[]; problem?: boolean }; onTakeOut: () => void }) {
+  return (
+    <div className={note.problem ? 'cs-note text-amber-700' : 'cs-note text-emerald-700'}>
+      {note.problem ? <TriangleAlert size={16} /> : <CircleCheck size={16} />} {note.text}
+      {/* The wrong list? One tap takes back exactly what it added. It stays until the window
+          closes or the next import - nothing on a timer. */}
+      {note.added && note.added.length > 0 && (
+        <Btn small onClick={onTakeOut} data-take-out="">
+          <Undo2 /> Take them out
+        </Btn>
+      )}
+    </div>
   )
 }
 

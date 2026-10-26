@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowRight, Check, Minus, Plus } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Switch } from '@/components/ui/switch'
 
@@ -89,12 +89,62 @@ export function SwitchRow({
   )
 }
 
-/** The button at the foot of a setup section that leads on to the next one. */
-export function NextButton({ label, onClick }: { label: string; onClick: () => void }) {
+/**
+ * A white box of settings on the window's grey (2026-10-26, the Apple and Windows Settings look):
+ * a small grey heading over it, and a line under the heading when what the box is for needs saying.
+ */
+export function Group({
+  head,
+  intro,
+  guide,
+  className,
+  children,
+}: {
+  head?: ReactNode
+  intro?: ReactNode
+  guide?: string
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <Btn kind="next" onClick={onClick}>
-      Next: {label} <ArrowRight />
-    </Btn>
+    <>
+      {head && <div className="cs-gh">{head}</div>}
+      {intro && <div className="cs-gi">{intro}</div>}
+      <div className={clsx('cs-group', className)} data-guide={guide}>
+        {children}
+      </div>
+    </>
+  )
+}
+
+/**
+ * More options, at a section's foot (2026-10-26, the teacher's sort of every setting: what a
+ * teacher needs to set a class up stays in sight, what is useful but rare is tucked in here). It
+ * says what is inside, so nothing is hidden from a teacher looking for it.
+ */
+export function MoreRow({ inside, onClick }: { inside: string; onClick: () => void }) {
+  return (
+    <div className="cs-group" data-guide="more">
+      <button type="button" className="cs-row cs-more" onClick={onClick}>
+        <span className="cs-row-label">
+          <b>More options</b>
+          <small>{inside}</small>
+        </span>
+        <ChevronRight className="cs-chev" />
+      </button>
+    </div>
+  )
+}
+
+/** The top of a page inside a section (More options, the prizes, a tool's settings): back, and its name. */
+export function SubHead({ back, title, onBack }: { back: string; title: string; onBack: () => void }) {
+  return (
+    <div className="cs-sub-head">
+      <button type="button" className="cs-back" onClick={onBack} data-guide="back">
+        <ChevronLeft /> {back}
+      </button>
+      <b>{title}</b>
+    </div>
   )
 }
 

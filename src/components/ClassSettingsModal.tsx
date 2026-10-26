@@ -2,12 +2,10 @@ import type { QuestPrize } from '../lib/quest'
 import { adventureOf, type Adventure } from '../lib/marbles'
 import {
   Check,
-  CircleCheck,
   CircleQuestionMark,
+  CircleUserRound,
   ClipboardCheck,
-  Hand,
   Map as MapIcon,
-  Plus,
   School,
   Signpost,
   Smile,
@@ -26,7 +24,6 @@ import { notePhotoCaution, photoCautionSeen } from '../lib/photos'
 import type { DeskPictures } from '../lib/stickers'
 import type { ClassData, PointsMode, Student } from '../types'
 import { DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { GoogleG } from './Account'
 import { AddPhotosModal, type PhotoRequest } from './AddPhotosModal'
 import { ConfirmModal } from './ConfirmModal'
 import { PickStudentIcon } from './PickerIcons'
@@ -37,48 +34,58 @@ import { GoogleSection } from './settings/GoogleSection'
 import { ParticipationSection } from './settings/ParticipationSection'
 import { PointsSection } from './settings/PointsSection'
 import { StudentsSection } from './settings/StudentsSection'
-import { ToolsSection, type PickerSettingsValue } from './settings/ToolsSection'
+import { ToolsSection, type ToolPlace } from './settings/ToolsSection'
 import type { FlipDeckSettings } from '../hooks/useFlipDeck'
 
 export type SettingsSection = 'class' | 'students' | 'avatars' | 'points' | 'tools' | 'attendance' | 'participation' | 'google'
 
+/** Every page of Class Settings by name, as the guide's bubble says where it is ("Attendance · 2 of 4"). */
+export const SECTIONS: { id: SettingsSection; label: string }[] = [
+  { id: 'class', label: 'Class' },
+  { id: 'students', label: 'Students' },
+  { id: 'avatars', label: 'Avatars' },
+  { id: 'points', label: 'Points' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'attendance', label: 'Attendance' },
+  { id: 'participation', label: 'Participation' },
+  { id: 'google', label: 'Account' },
+]
+
 /**
- * The sections down the left, in the order a class is set up (2026-10-11, the teacher: setting up
- * didn't go in a logical order, and meant jumping between menus): the four Set up sections, then
- * the tools' settings, then what looks back over lessons, then Google. A `group` starts a heading
- * ('' is a gap with no heading).
+ * The list down the left (2026-10-26, the teacher's testers: everything looked the same, with
+ * faint differences between items and sections). Each section has its own coloured square, the
+ * only bright colour in the window, the way Apple's and Windows' Settings mark theirs; gaps rather
+ * than headings set the kinds apart: setting up, the tools, looking back, the account. Records is
+ * Attendance and Participation, one page each behind a switch at its top.
  */
-export const SECTIONS: {
+const NAV: {
   id: SettingsSection
+  pages?: SettingsSection[]
   label: string
+  color: string
   icon: ComponentType<{ className?: string; size?: number }>
-  group?: string
+  gapBefore?: boolean
 }[] = [
-  { id: 'class', label: 'Class', icon: School, group: 'Set up' },
-  { id: 'students', label: 'Students', icon: Users },
-  { id: 'avatars', label: 'Avatars', icon: Smile },
-  { id: 'points', label: 'Points', icon: Star },
-  { id: 'tools', label: 'Tools', icon: PickStudentIcon, group: 'In class' },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck, group: 'Look back' },
-  { id: 'participation', label: 'Participation', icon: Hand },
-  { id: 'google', label: 'Google', icon: GoogleG, group: '' },
+  { id: 'class', label: 'Class', color: '#4f86e8', icon: School },
+  { id: 'students', label: 'Students', color: '#2e9e9e', icon: Users },
+  { id: 'avatars', label: 'Avatars', color: '#e6820b', icon: Smile },
+  { id: 'points', label: 'Points', color: '#d4a10a', icon: Star },
+  { id: 'tools', label: 'Tools', color: '#8a62d6', icon: PickStudentIcon, gapBefore: true },
+  { id: 'attendance', pages: ['attendance', 'participation'], label: 'Records', color: '#2f9e5a', icon: ClipboardCheck, gapBefore: true },
+  { id: 'google', label: 'Account', color: '#55708f', icon: CircleUserRound, gapBefore: true },
 ]
 
 /** The setup sections, which a new class's guide walks through in order and whose feet lead on. */
 export const SETUP_SECTIONS: SettingsSection[] = ['class', 'students', 'avatars', 'points']
 
 export interface ToolsProps {
-  pickers: PickerSettingsValue
-  onUpdatePickers: (patch: Partial<PickerSettingsValue>) => void
-  pickedThisRound: number
-  roundStarted: boolean
-  onStartNewRound: () => void
+  showFloat: boolean
+  setName: 'row' | 'table'
   getReadyPrize: number
   onSetGetReadyPrize: (prize: number) => void
   flip: FlipDeckSettings
   onUpdateFlip: (patch: Partial<FlipDeckSettings>) => void
-  groupChimes: boolean
-  onSetGroupChimes: (on: boolean) => void
+  onGoTo: (place: ToolPlace) => void
 }
 
 interface ClassSettingsModalProps {
@@ -98,7 +105,6 @@ interface ClassSettingsModalProps {
   onTour: () => void
   // Class
   onRename: (name: string) => void
-  onSetRoom: (room: string) => void
   onSetLayout: (layout: RoomLayout) => void
   onSetShowAllHomerooms: (show: boolean) => void
   theme: Theme
@@ -187,7 +193,6 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   if (!shown) return null
 
   const go = (to: SettingsSection) => onSection(to)
-  const next = (from: SettingsSection) => SETUP_SECTIONS[SETUP_SECTIONS.indexOf(from) + 1]
   const label = (id: SettingsSection) => SECTIONS.find((s) => s.id === id)!.label
 
   function setDeskPictures(shows: DeskPictures) {
@@ -211,13 +216,13 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           activeClass={activeClass}
           classes={classes}
           onRename={props.onRename}
-          onSetRoom={props.onSetRoom}
           onSetLayout={props.onSetLayout}
           onSetShowAllHomerooms={props.onSetShowAllHomerooms}
           theme={props.theme}
           onSetTheme={props.onSetTheme}
           onAskDelete={() => setConfirming('delete')}
-          onNext={() => go(next('class'))}
+          onNewClass={props.onNewClass}
+          canAddClass={props.canAddClass}
         />
       )
       break
@@ -239,7 +244,6 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onMixUpSeats={props.onMixUpSeats}
           onPhotoChosen={(file, student) => setPhotoRequest({ files: [file], only: student })}
           onRemovePhoto={(studentId) => props.onRemovePhotos([studentId])}
-          onNext={() => go(next('students'))}
         />
       )
       break
@@ -262,7 +266,6 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           }}
           studentsChooseBlocked={props.studentsChooseBlocked}
           onAssignAvatars={props.onAssignAvatars}
-          onNext={() => go(next('avatars'))}
         />
       )
       break
@@ -291,6 +294,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
     case 'attendance':
       page = (
         <AttendanceSection
+          records={<RecordsSwitch section={section} onSection={go} />}
           key={activeClass.id}
           activeClass={activeClass}
           onToggleAbsent={props.onToggleAbsentInRecord}
@@ -301,6 +305,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
     case 'participation':
       page = (
         <ParticipationSection
+          records={<RecordsSwitch section={section} onSection={go} />}
           key={activeClass.id}
           activeClass={activeClass}
           onSetCount={props.onSetParticipation}
@@ -327,7 +332,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
       <DialogContent
         showCloseButton={false}
         aria-describedby={undefined}
-        className="h-[min(calc(100dvh-2rem),52rem)] max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] max-w-none grid-rows-[auto_minmax(0,1fr)]"
+        className="cs-window h-[min(calc(100dvh-2rem),52rem)] max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] max-w-none grid-rows-[auto_minmax(0,1fr)]"
         onPointerDownOutside={keepOpenForGuide}
         onInteractOutside={keepOpenForGuide}
         onFocusOutside={keepOpenForGuide}
@@ -383,37 +388,15 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
-          <span className="cs-saved text-emerald-700 dark:text-emerald-400">
-            <CircleCheck size={16} />
-            <span className="hidden sm:inline">Changes save by themselves</span>
-          </span>
           <button type="button" data-slot="button" className="cs-btn cs-primary cs-done" data-guide="done" onClick={onClose}>
             <Check /> Done
           </button>
         </header>
         <div className="cs-main">
           <nav className="cs-nav" aria-label="Sections">
-            {SECTIONS.map((s) => (
-              <SectionLink key={s.id} section={s} current={section === s.id} onClick={() => go(s.id)} />
+            {NAV.map((s) => (
+              <SectionLink key={s.id} section={s} current={(s.pages ?? [s.id]).includes(section)} onClick={() => go(s.id)} />
             ))}
-            {/* New Class, at the foot of the list and set apart from the sections, which are all about
-                this class (2026-10-12, the teacher: Class Settings is where a teacher looks for it). */}
-            <button
-              type="button"
-              className="cs-nav-item cs-nav-new"
-              data-guide="new-class"
-              disabled={!props.canAddClass}
-              title={props.canAddClass ? undefined : 'A teacher keeps 5 classes at most'}
-              onClick={props.onNewClass}
-            >
-              <span className="cs-ic">
-                <Plus size={20} />
-              </span>
-              <span>
-                New Class
-                {!props.canAddClass && <small>5 classes at most</small>}
-              </span>
-            </button>
           </nav>
           <div className="cs-page" data-section={section}>
             {page}
@@ -526,12 +509,11 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
   )
 }
 
-function SectionLink({ section, current, onClick }: { section: (typeof SECTIONS)[number]; current: boolean; onClick: () => void }) {
+function SectionLink({ section, current, onClick }: { section: (typeof NAV)[number]; current: boolean; onClick: () => void }) {
   const Icon = section.icon
   return (
     <>
-      {section.group !== undefined &&
-        (section.group ? <div className="cs-nav-label">{section.group}</div> : <div className="cs-nav-gap" />)}
+      {section.gapBefore && <div className="cs-nav-gap" />}
       <button
         type="button"
         className="cs-nav-item"
@@ -539,11 +521,24 @@ function SectionLink({ section, current, onClick }: { section: (typeof SECTIONS)
         aria-current={current ? 'page' : undefined}
         onClick={onClick}
       >
-        <span className="cs-ic">
-          <Icon size={20} />
+        <span className="cs-ic" style={{ background: section.color }}>
+          <Icon size={18} />
         </span>
         {section.label}
       </button>
     </>
+  )
+}
+
+/** Records' two pages, Attendance and Participation, as a switch at its top. */
+function RecordsSwitch({ section, onSection }: { section: SettingsSection; onSection: (to: SettingsSection) => void }) {
+  return (
+    <div className="cs-seg cs-records" role="group" aria-label="Records">
+      {(['attendance', 'participation'] as const).map((page) => (
+        <button key={page} type="button" aria-pressed={section === page} onClick={() => onSection(page)}>
+          {page === 'attendance' ? 'Attendance' : 'Participation'}
+        </button>
+      ))}
+    </div>
   )
 }

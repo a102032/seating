@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { useDrive } from '../../hooks/useDrive'
 import { attendanceDates, attendanceToCsv, dateKey, schoolDaysIn, takenDays } from '../../lib/attendance'
 import { updateAttendanceSheet } from '../../lib/drive'
@@ -8,7 +8,6 @@ import type { ClassData } from '../../types'
 import { AbsentIcon } from '../AbsentIcon'
 import { GoogleG } from '../Account'
 import { DriveLink, DriveProblem } from './GoogleSection'
-import { AttendanceIcon } from '../RailIcons'
 import { Btn } from './parts'
 
 interface AttendanceSectionProps {
@@ -17,6 +16,8 @@ interface AttendanceSectionProps {
   onToggleAbsent: (studentId: string, day: string) => void
   /** The signed-in teacher, whose Drive the record can go to. */
   uid?: string
+  /** Records' switch between Attendance and Participation, at the head of the page. */
+  records?: ReactNode
 }
 
 /** "2026-09" from "2026-09-27". */
@@ -49,7 +50,7 @@ const REPEAT_TAP_MS = 700
  * Every Monday to Friday gets a column, since a missed day or one ahead needs somewhere to tap;
  * days attendance was taken read at full strength. Editing here never counts as taking it.
  */
-export function AttendanceSection({ activeClass, onToggleAbsent, uid }: AttendanceSectionProps) {
+export function AttendanceSection({ activeClass, onToggleAbsent, uid, records }: AttendanceSectionProps) {
   const drive = useDrive(uid)
   const today = dateKey()
   const thisMonth = monthOf(today)
@@ -84,6 +85,7 @@ export function AttendanceSection({ activeClass, onToggleAbsent, uid }: Attendan
     return (
       <>
         <div className="cs-page-head">
+          {records}
           <p>Who was away, day by day.</p>
         </div>
         <div className="cs-list">
@@ -98,23 +100,8 @@ export function AttendanceSection({ activeClass, onToggleAbsent, uid }: Attendan
   return (
     <>
       <div className="cs-page-head">
+        {records}
         <div className="cs-right">
-          <span className="flex items-center gap-1" data-guide="month-nav">
-            <button
-              type="button"
-              className="cs-icon-btn"
-              aria-label="Last month"
-              disabled={month <= firstMonth}
-              onClick={() => setMonth((m) => shiftMonth(m, -1))}
-            >
-              <ChevronLeft />
-            </button>
-            <b className="min-w-[9.5rem] text-center">{monthLabel(month)}</b>
-            {/* Forward has no end: a teacher marking a trip next month needs to get there. */}
-            <button type="button" className="cs-icon-btn" aria-label="Next month" onClick={() => setMonth((m) => shiftMonth(m, 1))}>
-              <ChevronRight />
-            </button>
-          </span>
           {/* One Sheet per class in the teacher's Drive folder, brought up to date in place. The file
               stays, for anyone not signed in. */}
           {uid && (
@@ -128,20 +115,22 @@ export function AttendanceSection({ activeClass, onToggleAbsent, uid }: Attendan
             </Btn>
           )}
           <Btn small data-guide="att-export" disabled={dates.length === 0} onClick={downloadCsv}>
-            <Download /> Export
+            <Download /> Export to CSV
           </Btn>
           {drive.problem ? <DriveProblem text={drive.problem.text} /> : drive.done ? <DriveLink file={drive.done.file} /> : null}
         </div>
       </div>
-      <p className="cs-hint" style={{ marginTop: -4 }}>
-        <span className="cs-one-line">You can edit attendance here. Tap a circle to mark who is away, or to mark them present.</span>
-        <span className="cs-one-line">
-          Attendance is taken on the board by tapping the clipboard button{' '}
-          <span role="img" aria-label="the clipboard button" className="inline-block align-[-4px] text-secondary-foreground">
-            <AttendanceIcon className="size-[18px]" />
-          </span>
-        </span>
-      </p>
+      {/* The month big and plain, its arrows a finger wide (2026-10-26, the teacher: it was easy to miss). */}
+      <div className="cs-navbar" data-guide="month-nav">
+        <button type="button" aria-label="Last month" disabled={month <= firstMonth} onClick={() => setMonth((m) => shiftMonth(m, -1))}>
+          <ChevronLeft />
+        </button>
+        <b>{monthLabel(month)}</b>
+        {/* Forward has no end: a teacher marking a trip next month needs to get there. */}
+        <button type="button" aria-label="Next month" onClick={() => setMonth((m) => shiftMonth(m, 1))}>
+          <ChevronRight />
+        </button>
+      </div>
       <div className="cs-att" data-guide="att-grid">
         <table>
           <thead>

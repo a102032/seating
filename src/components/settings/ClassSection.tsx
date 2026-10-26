@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import type { RoomLayout } from '../../lib/layouts'
@@ -6,46 +6,46 @@ import type { Theme } from '../../lib/theme'
 import type { ClassData } from '../../types'
 import { LayoutPicker } from '../LayoutPicker'
 import { ThemePicker } from '../ThemePicker'
-import { Btn, NextButton, States } from './parts'
+import { Btn, Group, States } from './parts'
 
 interface ClassSectionProps {
   activeClass: ClassData
   classes: ClassData[]
   onRename: (name: string) => void
-  onSetRoom: (room: string) => void
   onSetLayout: (layout: RoomLayout) => void
   onSetShowAllHomerooms: (show: boolean) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
   onAskDelete: () => void
-  onNext: () => void
+  /** Another class, made and opened here with the whole setup walked; greyed at the most a teacher keeps. */
+  onNewClass: () => void
+  canAddClass: boolean
 }
 
 /**
- * The class itself: its name and the classroom it meets in, how the desks stand, and its colours.
- * No line saying what to do: the boxes say it themselves (2026-10-11, the teacher).
+ * The class itself: its name, how the desks stand, and its colours; and the two things done to a
+ * whole class, making another (at the foot) and deleting this one (beside its name). It is where
+ * Class Settings opens (2026-10-26, the teacher). No line saying what to do: the boxes say it.
  */
 export function ClassSection({
   activeClass,
   classes,
   onRename,
-  onSetRoom,
   onSetLayout,
   onSetShowAllHomerooms,
   theme,
   onSetTheme,
   onAskDelete,
-  onNext,
+  onNewClass,
+  canAddClass,
 }: ClassSectionProps) {
   const [name, setName] = useState(activeClass.name)
   const [nameError, setNameError] = useState<string | null>(null)
-  const [room, setRoom] = useState(activeClass.room ?? '')
 
   useEffect(() => {
     setName(activeClass.name)
     setNameError(null)
-    setRoom(activeClass.room ?? '')
-  }, [activeClass.id, activeClass.name, activeClass.room])
+  }, [activeClass.id, activeClass.name])
 
   function commitName() {
     const trimmed = name.trim()
@@ -67,77 +67,60 @@ export function ClassSection({
 
   return (
     <>
-      <div className="cs-group">
-        <div className="cs-row cs-wrap" style={{ gap: '10px 12px' }}>
-          <span className="cs-field" data-guide="class-name" style={{ flex: '1 1 22rem', maxWidth: '30rem' }}>
-            <label htmlFor="class-name" className="whitespace-nowrap font-bold">
-              Class Name
-            </label>
-            <input
-              id="class-name"
-              data-slot="input"
-              className="cs-box flex-1 font-semibold"
-              style={nameError ? { borderColor: 'var(--destructive)' } : undefined}
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                setNameError(null)
-              }}
-              onBlur={commitName}
-              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            />
-          </span>
-          <span className="cs-field" data-guide="class-room">
-            <label htmlFor="class-room" className="whitespace-nowrap font-bold">
-              Classroom Number
-            </label>
-            <input
-              id="class-room"
-              data-slot="input"
-              className="cs-box"
-              style={{ width: '7rem' }}
-              placeholder="e.g. 204"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
-              onBlur={() => room.trim() !== (activeClass.room ?? '') && onSetRoom(room.trim())}
-              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            />
-          </span>
+      <Group head="Class Name">
+        <div className="cs-row cs-wrap" style={{ rowGap: 4 }}>
+          <input
+            id="class-name"
+            data-slot="input"
+            data-guide="class-name"
+            aria-label="Class Name"
+            className="cs-box font-semibold"
+            style={{ flex: '1 1 16rem', maxWidth: '26rem', ...(nameError ? { borderColor: 'var(--destructive)' } : {}) }}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              setNameError(null)
+            }}
+            onBlur={commitName}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          />
+          {/* Quiet, and it asks first, with the class's name typed to be sure. Beside the name it
+              deletes (2026-10-26, the teacher). */}
+          <Btn kind="quiet-red" small className="ml-auto" onClick={onAskDelete} data-guide="delete">
+            <Trash2 /> Delete This Class
+          </Btn>
           {nameError && <p className="cs-full text-sm font-semibold text-destructive">{nameError}</p>}
         </div>
-        {/* Per class: classes can meet in different rooms. The number switch is about the desks, so it
-            sits under them. Off, a number shows only after a name two students share - the app finds
-            them (lib/sameNames). */}
-        <div className="cs-row cs-split cs-wrap">
-          <div className="cs-row-label">
-            <b>Desk Layout</b>
-          </div>
+      </Group>
+      {/* Per class: classes can meet in different rooms. The number switch is about the desks, so
+          it sits under them. Off, a number shows only after a name two students share - the app
+          finds them (lib/sameNames). */}
+      <Group head="Desk Layout">
+        <div className="cs-row cs-stack">
           <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
-          <label className="cs-state-switch cs-full" data-guide="homerooms">
-            <Switch checked={showAll} onCheckedChange={onSetShowAllHomerooms} aria-label="Classroom number on every desk" />
-            <States
-              on={showAll}
-              onText="On: Classroom number appears on every desk"
-              offText="Off: Classroom number only appears on the desks of students who have the same name"
-            />
-          </label>
         </div>
-        <div className="cs-row cs-split" data-guide="theme">
-          <div className="cs-row-label">
-            <b>App Color Theme</b>
-            <small>Pick a color theme for this class</small>
-          </div>
+        <label className="cs-row" data-guide="homerooms">
+          <span className="cs-row-label">
+            <b>Classroom number on every desk</b>
+            <small>
+              <States on={showAll} onText="On: after every name." offText="Off: only where two students share a name." />
+            </small>
+          </span>
+          <Switch checked={showAll} onCheckedChange={onSetShowAllHomerooms} aria-label="Classroom number on every desk" />
+        </label>
+      </Group>
+      <Group head="Color Theme" guide="theme">
+        <div className="cs-row cs-stack">
           <ThemePicker theme={theme} onSetTheme={onSetTheme} />
         </div>
-      </div>
+      </Group>
       <div className="cs-foot">
-        {/* Quiet, and it asks first, with the class's name typed to be sure. */}
-        <Btn kind="quiet-red" small onClick={onAskDelete} data-guide="delete">
-          <Trash2 /> Delete Class
+        {/* New Class, where a teacher looks for it (2026-10-12), in the section about the class
+            (2026-10-26, the teacher). Greyed with its reason at five, rather than gone. */}
+        <Btn data-guide="new-class" disabled={!canAddClass} onClick={onNewClass}>
+          <Plus /> Create a New Class
         </Btn>
-        <div className="cs-right">
-          <NextButton label="Students" onClick={onNext} />
-        </div>
+        {!canAddClass && <span className="cs-hint">5 classes at most</span>}
       </div>
     </>
   )

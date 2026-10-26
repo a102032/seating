@@ -34,6 +34,7 @@ import { goalIsLive, MAX_CLASSES, pointsModeOf, questIsOn, starsWaitOnDesks, use
 import { useClassPhotos } from './hooks/useClassPhotos'
 import { useFlipDeck } from './hooks/useFlipDeck'
 import { canFloat, FLOAT_SIZE, useAppInFront, useFloatingWindow } from './hooks/useFloatingWindow'
+import { timer } from './hooks/useTimer'
 import { useGroupPicker } from './hooks/useGroupPicker'
 import { usePicker } from './hooks/usePicker'
 import {
@@ -91,17 +92,8 @@ import { rememberInClass, resumesInClass } from './lib/resume'
 import { type ClassData, type Student } from './types'
 
 const PANEL_SIDE_KEY = 'seating-chart-panel-side-v1'
-const GROUP_CHIMES_KEY = 'seating-chart-group-chimes-v1'
 
 type PanelSide = 'left' | 'right'
-
-function loadGroupChimes(): boolean {
-  try {
-    return localStorage.getItem(GROUP_CHIMES_KEY) !== '0'
-  } catch {
-    return true
-  }
-}
 
 function loadPanelSide(): PanelSide {
   try {
@@ -130,13 +122,11 @@ export default function App() {
     bankDeskStars,
     setStarsOnDesks,
     recordPick,
-    startNewRound,
     setParticipation,
     clearParticipationDay,
     clearParticipation,
     setGoal,
     setClassTheme,
-    setRoom,
     setPointsMode,
     clearDeskStars,
     openQuestChest,
@@ -238,7 +228,7 @@ export default function App() {
   /** Counts awards so a repeat award on the same desks replays their pop. */
   const [landedTick, setLandedTick] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>('students')
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('class')
   /** The tour of the app, from Help in Class Settings, or offered at the end of a new class's setup. */
   const [tourOpen, setTourOpen] = useState(false)
   const [tourOffered, dismissTourOffer] = useTourOffer()
@@ -259,7 +249,6 @@ export default function App() {
   /** Students are at the board: only the status lights answer to a tap. Cleared by a new deal or a class switch. */
   const [groupsLocked, setGroupsLocked] = useState(false)
   const boardLock = useBoardLock()
-  const [groupChimes, setGroupChimes] = useState(loadGroupChimes)
   /** The Line is up: a desk tap puts its student in line, and the column on the right holds the teacher's buttons. */
   const [lineOpen, setLineOpen] = useState(false)
   /** Whose "get out of line?" window is open. */
@@ -573,11 +562,6 @@ export default function App() {
     }
   }
 
-  function updateGroupChimes(on: boolean) {
-    setGroupChimes(on)
-    remember(GROUP_CHIMES_KEY, on ? '1' : '0')
-  }
-
   function continueGroups() {
     if (!activeClassId) return
     setGroups(activeClassId, groups)
@@ -624,8 +608,8 @@ export default function App() {
     })
   }
 
-  /** Class Settings opens on the class list, the part a teacher comes for most, unless asked for another section. */
-  function openSettings(section: SettingsSection = 'students') {
+  /** Class Settings opens on Class every time (2026-10-26, the teacher), unless a button opens its own section: the meter's chest Points, the flip cards' gear Tools. */
+  function openSettings(section: SettingsSection = 'class') {
     setSettingsSection(section)
     setSettingsOpen(true)
   }
@@ -670,6 +654,28 @@ export default function App() {
     createClass()
     openSettings('class')
     startGuide('all')
+  }
+
+  /**
+   * Tools' Go There (Class Settings): the timer, Group Activity or the Line, whose own choices are
+   * on the tool itself. Class Settings closes and the tool opens as its rail button would; what
+   * would stop the button (the Line during a group activity) leaves the board as it is.
+   */
+  function goToTool(place: 'timer' | 'attendance' | 'group' | 'line') {
+    if (place === 'attendance') {
+      setSettingsSection('attendance')
+      return
+    }
+    setSettingsOpen(false)
+    if (place === 'timer') timer.open()
+    else if (place === 'group' && !groupActivityOpen) {
+      setLineOpen(false)
+      setFlipDeckOpen(false)
+      setGroupModalOpen(true)
+    } else if (place === 'line' && !lineOpen && !groupActivityOpen) {
+      setFlipDeckOpen(false)
+      toggleLine()
+    }
   }
 
   // --- The Line (lib/line) ---------------------------------------------------------------------
@@ -1422,7 +1428,6 @@ export default function App() {
                       onSave={() => setSaveGroupsOpen(true)}
                       onExit={requestExitGroups}
                       onSetStatus={(groupId, status) => setGroupStatus(activeClass.id, groupId, status)}
-                      chimes={groupChimes}
                       locked={groupsLocked}
                       onToggleLock={() => setGroupsLocked((v) => !v)}
                       pick={groupPicker.pick}
@@ -1629,7 +1634,6 @@ export default function App() {
         onGuide={() => startGuide(settingsSection)}
         onTour={openTour}
         onRename={(name) => renameClass(activeClass.id, name)}
-        onSetRoom={(room) => setRoom(activeClass.id, room)}
         onSetLayout={(layout) => setLayout(activeClass.id, layout)}
         onSetShowAllHomerooms={(show) => setShowAllHomerooms(activeClass.id, show)}
         theme={theme}
@@ -1704,20 +1708,13 @@ export default function App() {
         onResetClassGoal={() => resetClassGoal(activeClass.id)}
         onClearDeskStars={() => clearDeskStars(activeClass.id)}
         tools={{
-          pickers: picker.settings,
-          onUpdatePickers: picker.updateSettings,
-          pickedThisRound: pickedThisRound.size,
-          roundStarted: pickedThisRound.size > 0 || picker.rowsPicked > 0,
-          onStartNewRound: () => {
-            startNewRound(activeClass.id)
-            picker.resetRows()
-          },
+          showFloat: goalLive && canFloat,
+          setName: plan.setName,
           getReadyPrize: activeClass.getReadyPrize ?? DEFAULT_GET_READY_PRIZE,
           onSetGetReadyPrize: (prize) => setGetReady(activeClass.id, { getReadyPrize: prize }),
           flip: deck.settings,
           onUpdateFlip: deck.updateSettings,
-          groupChimes,
-          onSetGroupChimes: updateGroupChimes,
+          onGoTo: goToTool,
         }}
         onToggleAbsentInRecord={(studentId, day) => toggleAbsentInRecord(activeClass.id, studentId, day)}
         onSetParticipation={(day, studentId, count) => setParticipation(activeClass.id, day, studentId, count)}

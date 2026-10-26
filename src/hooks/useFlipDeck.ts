@@ -116,7 +116,8 @@ function loadSettings(): FlipDeckSettings {
     return {
       bonusCards: saved.bonusCards ?? DEFAULT_SETTINGS.bonusCards,
       genderColors: saved.genderColors ?? DEFAULT_SETTINGS.genderColors,
-      soundEnabled: saved.soundEnabled ?? DEFAULT_SETTINGS.soundEnabled,
+      // Card sounds are always on since 2026-10-26: the board's volume does that job.
+      soundEnabled: true,
     }
   } catch {
     return DEFAULT_SETTINGS

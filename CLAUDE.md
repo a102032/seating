@@ -117,10 +117,13 @@ checks the live URL. Confirm it went green before saying something is live. It a
     each button's name is its `aria-label` and `title`, which is also how the checks find them.
   - `ClassTitle.tsx`: the class name, switcher (with New Class at the foot of its list) and Class Settings gear (the app's one
     gear), in its own tab beside the rail, an aisle apart from the goal meter, which runs on to the far corner (`lib/topBar.ts`), with the meter or without. Full Screen (`FullScreenButton.tsx`) is in that far corner, after the meter's count, and on the splash. The board's lock (`BoardLock.tsx`, `hooks/useBoardLock.ts`) sits beside it: one tap and a see-through cover takes every touch until the lock is tapped again.
-  - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`SECTIONS`: Class, Students, Avatars,
-    Points; Tools; Attendance, Participation; Google, with New Class ruled off at its foot), each in `components/settings/` and built from `settings/parts.tsx`, laid out
-    by the `cs-` classes in `index.css`. Nothing in a section may be below the window's edge; only a list of the same kind of
-    thing scrolls. Every change saves as it is made, and Done closes it. Help in its title bar: the guide and the tour.
+  - `ClassSettingsModal.tsx`: Class Settings, one window with its sections down the left (`NAV`: Class, Students, Avatars,
+    Points; Tools; Records, which is Attendance and Participation behind a switch; Account), each in `components/settings/` and built from
+    `settings/parts.tsx` (`Group`, a white box with its grey heading; `MoreRow`, a section's More options; `SubHead`, a page's back), laid
+    out by the `cs-` classes in `index.css` the way Apple's and Windows' Settings look, and the same in every theme (`.cs-window`). It
+    opens on Class. Nothing in a section may be below the window's edge; only a list of the same kind of thing scrolls. Every change
+    saves as it is made, and Done closes it. Help in its title bar: the guide and the tour. Tools lists every rail button with what it
+    does, with Settings or Go There.
   - `DeskGrid.tsx` / `Desk.tsx`: the seating chart. `BoardHint.tsx`: the one line above the desks (what a tap does in Swap
     Seats or Attendance, with Done; the tour offered once), in the slot Seat Class and Choose Your Avatar use.
   - `FlipDeck.tsx` / `FlipCard.tsx`: flip cards (their settings are in Class Settings' Tools, which their gear opens).
@@ -192,7 +195,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - Comments explain *why*: the classroom reason, or the trap being avoided. Match the density of the file you're in.
 - When a decision is made or reversed, update `DECISIONS.md` in the same commit.
 - A new feature keeps the menus streamlined and the help up to date, in the same change (the teacher, 2026-10-12): its
-  settings find a place in Class Settings' sections without crowding them (nothing below the window's edge), its steps go
+  settings find a place in Class Settings' sections without crowding them (nothing below the window's edge; in sight only what a
+  teacher needs to set a class up, the rest in the section's More options, and a new rail button gets its row in Tools), its steps go
   in the guide (`lib/setupGuide.ts`, with a `data-guide` mark on what it lights) and its stops in the tour (`lib/tour.ts`,
   the pictures taken again with `scripts/tour-shots.mjs`).
 - A window a child uses at the board is a `Modal` with `studentWindow` (the 2026-10-19 rule): its title strip moves it, so the

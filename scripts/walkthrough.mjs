@@ -173,10 +173,24 @@ const award = (page) => page.locator('aside button[title="Award Point"]').click(
 async function openSection(page, section) {
   await page.locator('button[aria-label="Class Settings"]').click()
   await page.waitForTimeout(400)
-  await page.locator(`[data-section-link="${section}"]`).click()
+  await sectionLink(page, section)
+}
+/** A section in the list down Class Settings' left; Participation is the second page of Records (2026-10-26). */
+async function sectionLink(page, section) {
+  await page.locator(`[data-section-link="${section === 'participation' ? 'attendance' : section}"]`).click()
+  if (section === 'participation') await page.locator('.cs-records button', { hasText: 'Participation' }).click()
   await page.waitForTimeout(200)
 }
 const openPointsTab = (page) => openSection(page, 'points')
+/** A section's More options page, and back from it (2026-10-26). */
+async function moreOptions(page) {
+  await page.locator('[data-guide="more"] button').click()
+  await page.waitForTimeout(200)
+}
+async function backFromPage(page) {
+  await page.locator('[data-guide="back"]').click()
+  await page.waitForTimeout(200)
+}
 
 /**
  * A refresh mid-lesson goes straight back to the class (lib/resume): same tab, same teacher, same
@@ -579,7 +593,7 @@ const scenarios = {
     const body = await page.locator('.cs-page').innerText()
     check(
       'quest: Points has four choices and says the last key took 6 days',
-      ['Class Goal', 'Class Quest', 'Student Points (No Goal)', 'No Points'].every((l) => body.includes(l)) &&
+      ['Class Goal', 'Class Quest', 'Student Points', 'No Points'].every((l) => body.includes(l)) &&
         body.includes('The last key took 6 days.'),
     )
     {
@@ -601,12 +615,14 @@ const scenarios = {
         c.questPrizes.length === 10,
     )
     check('quest: the prize list fits at 1024x500', (await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)) <= 0)
-    await page.getByRole('button', { name: 'Back' }).click()
+    await backFromPage(page)
+    await moreOptions(page)
     await page.getByRole('button', { name: /Start Over/ }).click()
     await page.getByRole('button', { name: 'Yes, Start Over' }).click()
     await page.waitForTimeout(300)
     c = await activeSaved(page)
     check('quest: Start Over goes back to the Wood chest', c.quest.chest === 0 && c.quest.keys === 0)
+    await backFromPage(page)
     await page.getByRole('button', { name: 'Class Goal', exact: true }).click()
     await page.waitForTimeout(300)
     c = await activeSaved(page)
@@ -857,6 +873,7 @@ const scenarios = {
     c = await activeSaved(page)
     check('marbles: back to the Knight, the jar kept for later', c.questAdventure === 'knight' && c.marbleJar.marbles.length === 28)
     await page.getByRole('button', { name: 'Marble Jar', exact: true }).click()
+    await moreOptions(page)
     await page.getByRole('button', { name: /Start Over/ }).click()
     await page.getByRole('button', { name: 'Yes, Start Over' }).click()
     await page.waitForTimeout(300)
@@ -1071,6 +1088,7 @@ const scenarios = {
         c = await activeSaved(page)
         check('pirate: back to the Knight, the voyage kept for later', c.questAdventure === 'knight' && c.pirateQuest.chest === 2)
         await page.getByRole('button', { name: 'Pirate', exact: true }).click()
+        await moreOptions(page)
         await page.getByRole('button', { name: /Start Over/ }).click()
         await page.getByRole('button', { name: 'Yes, Start Over' }).click()
         await page.waitForTimeout(300)
@@ -1324,6 +1342,7 @@ const scenarios = {
         c = await activeSaved(page)
         check('space: back to the Knight, the trip kept for later', c.questAdventure === 'knight' && c.spaceQuest.chest === 2)
         await page.getByRole('button', { name: 'Space', exact: true }).click()
+        await moreOptions(page)
         await page.getByRole('button', { name: /Start Over/ }).click()
         await page.getByRole('button', { name: 'Yes, Start Over' }).click()
         await page.waitForTimeout(300)
@@ -1406,7 +1425,7 @@ const scenarios = {
       await page.getByRole('button', { name: label, exact: true }).click()
       await page.waitForTimeout(400)
     }
-    await choose('Student Points (No Goal)')
+    await choose('Student Points')
     await page.keyboard.press('Escape')
     await page.waitForTimeout(600)
     check(
@@ -1746,7 +1765,8 @@ const scenarios = {
     const page = await open({ state: stateOf(cls) })
     await openPointsTab(page)
     await page.waitForTimeout(500)
-    const plus = page.locator('button[aria-label="More: Stars on the meter"]')
+    await moreOptions(page)
+    const plus = page.locator('[data-guide="meter-row"] button[aria-label^="More: "]')
     const box = await plus.boundingBox()
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
     await page.mouse.down()
@@ -1859,7 +1879,7 @@ const scenarios = {
   async 'a student cannot be saved with no name'() {
     const cls = makeClass('c1', 'Roster', 5)
     const page = await open({ state: stateOf(cls) })
-    await page.locator('button[aria-label="Class Settings"]').click()
+    await openSection(page, 'students')
     await page.waitForTimeout(600)
     await page.locator('[role=dialog] button:has(svg.lucide-pencil)').first().click()
     await page.waitForTimeout(300)
@@ -1876,7 +1896,7 @@ const scenarios = {
     const cls = makeClass('c1', 'CSV', 0)
     // A second class, so the splash offers class cards rather than first-time setup.
     const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)) })
-    await page.locator('button[aria-label="Class Settings"]').click()
+    await openSection(page, 'students')
     await page.waitForTimeout(600)
     const file = `${SHOTS}/roster.csv`
     writeFileSync(file, '﻿Amy,1,girl\r\nTony,2,boy\r\nKevin,3,boy\r\n')
@@ -1900,7 +1920,7 @@ const scenarios = {
   async 'excel and a pasted list'() {
     const cls = makeClass('c1', 'Quick', 0)
     const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size: [1024, 500] })
-    await page.locator('button[aria-label="Class Settings"]').click()
+    await openSection(page, 'students')
     await page.waitForTimeout(600)
     check('empty class: says how to fill it', await page.getByText('Copy your student list from Excel and paste it here.').isVisible())
     // What Excel puts on the clipboard: tabs between the columns, a heading row, \r\n.
@@ -2057,12 +2077,7 @@ const scenarios = {
       picks.length === 6 && picks.every((n) => n === 1) && c.pickRound?.ids.length === 6,
       `picks ${JSON.stringify(picks)}, round ${c.pickRound?.ids.length}`,
     )
-    await openSection(page, 'tools')
-    await page.getByRole('button', { name: 'Start a New Round' }).click()
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
-    c = await activeSaved(page)
-    check('participation: Start a New Round keeps the record', !c.pickRound && Object.keys(c.participation[today]).length === 6)
+    // Start a New Round went (2026-10-26): a finished round starts the next by itself.
     await openSection(page, 'participation')
     await page.waitForTimeout(400)
     const report = await page.locator('.cs-page').innerText()
@@ -2086,6 +2101,7 @@ const scenarios = {
         Object.values(c.participation[today]).filter(([picked]) => picked === 1).length === 5,
       JSON.stringify(c.participation[today]),
     )
+    await moreOptions(page)
     await page.getByRole('button', { name: 'Clear This Day' }).click()
     await page.waitForTimeout(400)
     await page.getByRole('button', { name: 'Yes, Clear It' }).click()
@@ -2106,7 +2122,8 @@ const scenarios = {
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
     await openPointsTab(page)
     await page.waitForTimeout(500)
-    await page.getByRole('button', { name: /On the desks first/ }).click()
+    await moreOptions(page)
+    await page.getByRole('button', { name: /Stars go on the desks first/ }).click()
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
     await desk(page, 'Amy').click()
@@ -2949,7 +2966,7 @@ const scenarios = {
     cls.seating[19] = null
     const page = await open({ state: stateOf(cls) })
     const before = (await activeSaved(page)).seating.slice(0, 30).join()
-    await page.locator('button[aria-label="Class Settings"]').click()
+    await openSection(page, 'students')
     await page.waitForTimeout(600)
     await page.getByRole('button', { name: /Mix Up Seats/ }).click()
     await page.waitForTimeout(400)
@@ -3008,9 +3025,10 @@ const scenarios = {
       "no avatar: Names Only turns the class's avatars off, every pick kept",
       c.avatarsOff === true && c.students[0].avatarId === 'frog/superhero',
     )
+    // With names on the desks there is no character to give, so More options isn't there (2026-10-26).
     check(
-      'no avatar: a character for the class offers no No Avatar',
-      !(await page.locator('[data-guide="give-character"]').innerText()).includes('No Avatar'),
+      'no avatar: no characters to give the class with names on the desks',
+      (await page.locator('[data-guide="give-character"]').count()) === 0 && (await page.locator('[data-guide="more"]').count()) === 0,
     )
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
@@ -3021,7 +3039,7 @@ const scenarios = {
     // more room across, while a name with a number under it is held by the desk's height.
     check('no avatar: a class with no pictures gets bigger names', alone > besidePictures, `${besidePictures}px -> ${alone}px`)
     // A newcomer to a class of names shows by name like everyone else, with nothing to undo later.
-    await page.locator('button[aria-label="Class Settings"]').click()
+    await openSection(page, 'students')
     await page.waitForTimeout(500)
     await page.locator('[data-guide="add"]').click()
     await page.getByPlaceholder('Name').fill('Zoe')
@@ -3417,8 +3435,8 @@ const scenarios = {
     check('participation export: Update in Drive beside it, signed in', await page.locator('[data-guide="part-drive"]').isEnabled())
 
     // Remove All: No changes nothing; Yes empties the list, seats and records.
-    await page.locator('[data-section-link="students"]').click()
-    await page.waitForTimeout(300)
+    await sectionLink(page, 'students')
+    await moreOptions(page)
     await page.locator('[data-guide="remove-all"]').click()
     await page.waitForTimeout(300)
     const asked = await page.getByRole('alertdialog').innerText()
@@ -3445,7 +3463,8 @@ const scenarios = {
       JSON.stringify({ n: c.students.length, att: c.attendance, part: c.participation }),
     )
 
-    // New Class, at the foot of the list: a second class, on Class, its setup walked.
+    // Create a New Class, at the foot of Class (2026-10-26): a second class, on Class, its setup walked.
+    await sectionLink(page, 'class')
     await page.locator('[data-guide="new-class"]').click()
     await page.waitForTimeout(800)
     const s = await saved(page)
@@ -3459,7 +3478,7 @@ const scenarios = {
         (await bubble.locator('p').innerText()) === 'Type the name of your class.',
     )
     // Back from Students' first step goes back into Class, the window with it.
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       await page.locator('[data-guide-next]').click()
       await page.waitForTimeout(400)
     }
@@ -3468,8 +3487,8 @@ const scenarios = {
     await page.waitForTimeout(500)
     check(
       'guide: Back crosses into the section before',
-      students === 'Students · 1 of 6' &&
-        (await where()) === 'Class · 5 of 5' &&
+      students === 'Students · 1 of 5' &&
+        (await where()) === 'Class · 4 of 4' &&
         (await page.locator('.cs-page[data-section="class"]').count()) === 1,
       `${students} -> ${await where()}`,
     )
@@ -3483,7 +3502,10 @@ const scenarios = {
     const five = await open({ state: stateOf(...[1, 2, 3, 4, 5].map((i) => makeClass(`c${i}`, `Class ${i}`, 3))), size: [1024, 500] })
     await openSection(five, 'class')
     const nc = five.locator('[data-guide="new-class"]')
-    check('new class: greyed at five classes', (await nc.isDisabled()) && (await nc.innerText()).includes('5 classes at most'))
+    check(
+      'new class: greyed at five classes',
+      (await nc.isDisabled()) && (await five.locator('.cs-foot').innerText()).includes('5 classes at most'),
+    )
     return five
   },
 
@@ -3513,7 +3535,7 @@ const scenarios = {
     check(
       'guide: New Class walks it, from the class name, with the cursor in the box',
       (await text()) === 'Type the name of your class.' &&
-        (await where()) === 'Class · 1 of 5' &&
+        (await where()) === 'Class · 1 of 4' &&
         (await page.evaluate(() => document.activeElement?.id)) === 'class-name' &&
         (await inWindow()),
     )
@@ -3522,7 +3544,7 @@ const scenarios = {
     // A tap on the faded part goes nowhere: the section list is behind the fade.
     await page.mouse.click(80, 300)
     await page.waitForTimeout(300)
-    check('guide: a tap on the fade does nothing', (await where()) === 'Class · 1 of 5')
+    check('guide: a tap on the fade does nothing', (await where()) === 'Class · 1 of 4')
     // Back (2026-10-12): greyed on the first step, and one step back from the next.
     const firstBackGreyed = await page.locator('[data-guide-back]').isDisabled()
     await next()
@@ -3531,7 +3553,7 @@ const scenarios = {
     await page.waitForTimeout(500)
     check(
       'guide: Back goes to the step before, and is greyed on the first',
-      firstBackGreyed && second === 'Class · 2 of 5' && (await where()) === 'Class · 1 of 5',
+      firstBackGreyed && second === 'Class · 2 of 4' && (await where()) === 'Class · 1 of 4',
       `${firstBackGreyed}, ${second}, ${await where()}`,
     )
     let steps = 0
@@ -3603,7 +3625,7 @@ const scenarios = {
     }
     check(
       'guide: Guide me walks the open section and finishes there',
-      toolSteps.length === 8 &&
+      toolSteps.length === 3 &&
         toolSteps.every((w) => w.startsWith('Tools')) &&
         (await bubble.count()) === 0 &&
         (await page.locator('.cs-page[data-section="tools"]').count()) === 1,
@@ -4757,8 +4779,8 @@ const scenarios = {
         await page.waitForTimeout(600)
         // Every section of Class Settings, all of it inside the window.
         for (const section of ['class', 'students', 'avatars', 'points', 'tools', 'attendance', 'participation', 'google']) {
-          await page.locator(`[data-section-link="${section}"]`).click()
-          await page.waitForTimeout(250)
+          await sectionLink(page, section)
+          await page.waitForTimeout(50)
           await look(`settings ${section}`)
         }
         // Avatars with photos on: the Photos row in place of Let Students Choose, and the caution.
