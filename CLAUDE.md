@@ -63,7 +63,12 @@ checks the live URL. Confirm it went green before saying something is live. It a
 
 ## Where things are
 
-- `src/App.tsx`: top-level state and wiring (points selection, which screen is open, modals).
+- `src/App.tsx`: the wiring - which screen a desk tap goes to, and which stand down while another is up. Each screen keeps its
+  own state in `src/app/`: `useLineScreen` (the Line and its windows), `useGroupActivityScreen` (Group Activity, its cards, picker
+  and windows), `useFlipCards`, `useQuestScreens` (the quests' maps, the dig, the space case, a chest the floating window asked
+  for), `useSettingsWindow` (Class Settings, its guide and the tour), `ClassSettingsWindow` (what each of its buttons does),
+  `useChooseAvatars`, `useFloat` (the floating window), `usePointsSelection` (desks picked by hand, and the rail's star, −, Pick
+  All and Pick Whole Row), `useToday`, `usePanelSide` and `Toast`. Something new for one screen goes in that screen's file.
 - `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`. A class seats at most 35 (`MAX_DESKS`).
 - `src/lib/layouts.ts`: room layouts (Rows, Pairs, Rows of 3, Tables of 4, Tables of 5 two ways). `planFor(cls)` gives
   the desks a class shows, which row or table each belongs to (Pick Row / Pick Table, Split by Rows / Tables) and the
