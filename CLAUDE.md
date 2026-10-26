@@ -234,7 +234,12 @@ Playwright is installed globally (`/opt/node22/lib/node_modules/playwright/index
 `executablePath: '/opt/pw-browsers/chromium'`. Seed a class through `localStorage` in `addInitScript`, click past
 the splash screen (`.splash-board button`), then act and take screenshots. Seed it as a signed-in teacher's board (`seating-chart-account-v1`) and block Firebase's requests, as `open()` in the walkthrough does: signed out, the splash offers only Sign in. A reload in the same tab goes straight back to the class, with no splash (`lib/resume.ts`, the walkthrough's `refresh()`); remove `seating-chart-in-class-v1` from sessionStorage first to see the splash, as opening the app does. `scripts/walkthrough.mjs` does this for a
 whole lesson and class setup (the bugs found in the sweep, edge-size classes, reloads, and "nothing scrolls" in every
-theme at all three sizes); run it after a change to anything shared. Google Fonts is blocked in the sandbox,
+theme at all three sizes, and "back of the room", below); run it after a change to anything shared. Its "back of the room"
+scenario measures what a child at the back can read on each screen the class reads (the desks, the Line, the flip cards, the
+group cards, the timer, Get Ready!) at every size "nothing scrolls" checks, as a 75-inch board seen from 8 m
+(`BOARD_INCHES`, `BACK_METRES`): a capital letter under 5 arcminutes (the eye chart's 20/20 line) fails, under 7.5 is
+printed to look at, and each screen is saved as `back-of-room-*.png`, shrunk to what perfect eyes make out from there. A
+change that makes something the class reads smaller should be checked against it. Google Fonts is blocked in the sandbox,
 so Andika renders as a fallback unless the font files are served locally. Measure "no scroll" as
 `scrollHeight - clientHeight` on the document and on `aside`.
 

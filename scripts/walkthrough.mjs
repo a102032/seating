@@ -4736,6 +4736,178 @@ const scenarios = {
     return page
   },
 
+  /**
+   * The back of the room (the deep clean, 2026-10-26): what a child at the back can read. Each
+   * screen the class reads from their seat - the desks, the flip cards, the group cards, the timer
+   * and Get Ready! - at every size "nothing scrolls" checks, as if that page filled the same board:
+   * a 75-inch board seen from 8 m (BOARD_INCHES and BACK_METRES change them). The words a child
+   * reads there (names, star counts, places in the Line, the time) are measured as the height of
+   * a capital letter at the back, in arcminutes. Under 5' (an eye chart's 20/20 line, the smallest
+   * letter perfect eyes can just make out) nobody at the back can read it: that fails. Under 7.5'
+   * (the 20/30 line) a child whose eyes are a little less sharp may not: that is printed, to look
+   * at. Quiet words meant for the teacher (homeroom numbers, a step's name) are left out: they are
+   * small on purpose. KNOWN lists what was already under 5' when the check was made, waiting on
+   * the teacher (DECISIONS, Known loose ends), so the check fails on anything new.
+   *
+   * Every screen is also saved shrunk to what a child with perfect eyesight can make out from
+   * there - one picture dot to each arcminute - and blown back up to look at: back-of-room-*.png.
+   */
+  async 'back of the room'() {
+    const inches = Number(process.env.BOARD_INCHES || 75)
+    const metres = Number(process.env.BACK_METRES || 8)
+    const floor = 5
+    const comfortable = 7.5
+    /** Under the floor when the check was made (2026-10-26): wide screens, where these stop growing. */
+    const KNOWN = {
+      'names on the flip cards': ['2560x1300'],
+      'names on the group cards (pairs)': ['2560x1300'],
+      'stars on a desk': ['2560x1300'],
+    }
+    const known = []
+    const notes = []
+    // A 16:9 board's width, and how many arcminutes it spans from the back.
+    const boardWidth = ((inches * 0.0254) * 16) / Math.hypot(16, 9)
+    const arcminAcross = ((2 * Math.atan(boardWidth / 2 / metres) * 180) / Math.PI) * 60
+
+    /** The smallest capital-letter height, in pixels, of the words a child reads under these (only names, with `names`). */
+    const smallestLetters = (page, selector, names) =>
+      page.evaluate(([selector, names]) => {
+        const canvas = document.createElement('canvas').getContext('2d')
+        let smallest = Infinity
+        let what = ''
+        for (const root of document.querySelectorAll(selector)) {
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const text = node.textContent.trim()
+            const el = node.parentElement
+            if (!text || !el || el.closest('[data-ink=homeroom], [data-line-step-name], .sr-only')) continue
+            if (names && !names.includes(text)) continue
+            const style = getComputedStyle(el)
+            const box = el.getBoundingClientRect()
+            // Not drawn, or a quiet word for the teacher (homeroom numbers are at half strength).
+            if (box.width === 0 || style.visibility === 'hidden' || Number(style.opacity) < 0.75) continue
+            canvas.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+            const cap = canvas.measureText('H').actualBoundingBoxAscent
+            if (cap < smallest) {
+              smallest = cap
+              what = text
+            }
+          }
+        }
+        return { cap: smallest, what }
+      }, [selector, names])
+
+    /** The page shrunk to a dot an arcminute at the back, and blown back up to look at. */
+    async function childsView(page, name) {
+      const png = (await page.screenshot()).toString('base64')
+      const shrunk = await page.evaluate(
+        async ([png, across]) => {
+          const img = new Image()
+          img.src = `data:image/png;base64,${png}`
+          await img.decode()
+          const small = document.createElement('canvas')
+          small.width = Math.round(across)
+          small.height = Math.round((across * img.height) / img.width)
+          const s = small.getContext('2d')
+          s.imageSmoothingQuality = 'high'
+          s.drawImage(img, 0, 0, small.width, small.height)
+          const big = document.createElement('canvas')
+          big.width = img.width
+          big.height = img.height
+          const b = big.getContext('2d')
+          b.imageSmoothingQuality = 'high'
+          b.drawImage(small, 0, 0, big.width, big.height)
+          return big.toDataURL('image/png').split(',')[1]
+        },
+        [png, arcminAcross],
+      )
+      writeFileSync(`${SHOTS}/back-of-room-${name}.png`, Buffer.from(shrunk, 'base64'))
+    }
+
+    const tooSmall = []
+    const table = {}
+    async function measure(page, size, screen, selector, names) {
+      const { cap, what } = await smallestLetters(page, selector, names)
+      if (!Number.isFinite(cap)) {
+        tooSmall.push(`${screen} at ${size.join('x')}: nothing found to measure`)
+        return
+      }
+      const arcmin = (cap / size[0]) * arcminAcross
+      ;(table[screen] ??= {})[size.join('x')] = arcmin.toFixed(1)
+      const where = `${screen} at ${size.join('x')}: "${what}" ${arcmin.toFixed(1)}'`
+      if (arcmin < floor) (KNOWN[screen]?.includes(size.join('x')) ? known : tooSmall).push(where)
+      else if (arcmin < comfortable) notes.push(where)
+    }
+
+    for (const size of SCROLL_SIZES) {
+      const shoot = size[0] === 1280 && size[1] === 559
+      // The desks, with avatars, a star waiting on a desk and the Line open with places on the desks.
+      const cls = makeClass('c1', 'Back Row', 30, { pointsMode: 'goal', pointsGoal: 50, starsOnDesks: true })
+      cls.students[3].points = 4
+      const page = await open({ state: stateOf(cls), size })
+      await measure(page, size, 'names on the desks', '[data-ink=desk]', NAMES)
+      await measure(page, size, 'stars on a desk', '[data-ink=desk] .count-pop')
+      if (shoot) await childsView(page, 'desks')
+      await panelButton(page, 'Line').click()
+      await page.waitForTimeout(900)
+      // "Start the Line": a class with no lines opens on New Line.
+      await page.locator('#line-name').fill('Back Row')
+      await page.getByRole('button', { name: 'Save and Start' }).click()
+      await page.waitForTimeout(500)
+      for (const name of ['Amy', 'Tony', 'Kevin']) {
+        await desk(page, name).click()
+        await page.waitForTimeout(750)
+      }
+      await measure(page, size, 'names on the desks in the Line', '[data-ink=desk]', NAMES)
+      await measure(page, size, 'places in the Line', '[data-line-mark]')
+      if (shoot) await childsView(page, 'line')
+      await panelButton(page, 'Line').click()
+      await page.waitForTimeout(400)
+      // The flip cards, all turned up.
+      await panelButton(page, 'Flip Cards').click()
+      await page.waitForTimeout(3500)
+      await page.getByRole('button', { name: 'Reveal All' }).click()
+      await page.waitForTimeout(3000)
+      await measure(page, size, 'names on the flip cards', '[data-flip-card]', NAMES)
+      if (shoot) await childsView(page, 'flip-cards')
+      await panelButton(page, 'Flip Cards').click()
+      await page.waitForTimeout(800)
+      // Group cards: pairs, the most cards and so the smallest names.
+      await panelButton(page, 'Group Activity').click()
+      await page.waitForTimeout(500)
+      await makeThem(page, 'Pairs')
+      await page.waitForTimeout(5000)
+      await measure(page, size, 'names on the group cards (pairs)', '[data-ink=group-card]', NAMES)
+      if (shoot) await childsView(page, 'groups')
+      await page.context().close()
+
+      // The timer, big over the board, and Get Ready!'s star.
+      const page2 = await open({ state: stateOf(makeClass('c1', 'Back Row', 30, { pointsMode: 'goal', pointsGoal: 50 })), size })
+      await panelButton(page2, 'Timer').click()
+      await page2.waitForTimeout(600)
+      await measure(page2, size, 'the timer', '[data-timer-card] .timer-time')
+      if (shoot) await childsView(page2, 'timer')
+      await panelButton(page2, 'Timer').click()
+      await page2.waitForTimeout(600)
+      await panelButton(page2, 'Get Ready!').click()
+      await page2.waitForTimeout(900)
+      await page2.locator('[data-drum="30"]').click()
+      await page2.waitForTimeout(1200)
+      await measure(page2, size, 'Get Ready!', '[data-get-ready] p.font-bold')
+      if (shoot) await childsView(page2, 'get-ready')
+      await page2.context().close()
+    }
+    // Each screen's smallest letters at each size, in arcminutes at the back.
+    console.table(table)
+    if (notes.length) console.log(`     Under ${comfortable}', to look at: ${notes.join('; ')}`)
+    if (known.length) console.log(`     Known, waiting on the teacher: ${known.join('; ')}`)
+    check(
+      `back of the room: everything a child reads is at least ${floor}' tall from ${metres} m on a ${inches}-inch board`,
+      tooSmall.length === 0,
+      tooSmall.join('; '),
+    )
+  },
+
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
