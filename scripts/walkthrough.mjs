@@ -582,7 +582,11 @@ const scenarios = {
       ['Class Goal', 'Class Quest', 'Student Points (No Goal)', 'No Points'].every((l) => body.includes(l)) &&
         body.includes('The last key took 6 days.'),
     )
-    check('quest: Points fits at 1024x500', (await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)) <= 0)
+    {
+      const over = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+      await page.screenshot({ path: '/tmp/walkthrough/quest-points-1024.png' })
+      check('quest: Points fits at 1024x500', over <= 0, `${over}px over`)
+    }
     await page.getByRole('button', { name: /^10 prizes/ }).click()
     await page.waitForTimeout(200)
     await page.locator('input[aria-label="A new big prize"]').fill('Library trip')

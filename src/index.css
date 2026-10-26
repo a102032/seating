@@ -2500,11 +2500,19 @@ button {
 }
 /* Four adventures on one row (2026-10-26): a little tighter, so the row's words keep their room at 1024 wide. */
 .cs-adventures {
-  gap: 4px;
+  gap: 3px;
 }
 .cs-adventures .cs-choice {
-  gap: 5px;
-  padding-inline: 8px;
+  gap: 4px;
+  padding-inline: 6px;
+}
+@media (max-width: 1180px) {
+  .cs-adventure-word {
+    display: none;
+  }
+  .cs-adventures .cs-choice {
+    padding-inline: 9px;
+  }
 }
 .cs-row.cs-wrap {
   flex-wrap: wrap;

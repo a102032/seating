@@ -374,14 +374,21 @@ function QuestRow({
         </b>
         <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
       </div>
-      {/* Each on one line: wrapped, "Marble Jar" made the row taller and Points ran past the window's edge at 1024x500. */}
+      {/* Each on one line: wrapped, "Marble Jar" made the row taller and Points ran past the window's edge at 1024x500.
+          On a narrow screen the four are their pictures alone, so the row's words keep one line. */}
       <div className="cs-choices cs-adventures whitespace-nowrap" data-guide="adventure-row" style={{ flex: '0 0 auto' }}>
-        <button type="button" className="cs-choice" aria-pressed={adventure === 'knight'} onClick={() => onSetAdventure('knight')}>
+        <button
+          type="button"
+          className="cs-choice"
+          aria-label="Knight"
+          title="Knight"
+          aria-pressed={adventure === 'knight'}
+          onClick={() => onSetAdventure('knight')}
+        >
           <img src={assetUrl('/quest/knight-head.svg')} alt="" className="h-5 w-5 shrink-0" />
-          Knight
+          <span className="cs-adventure-word">Knight</span>
           {adventure === 'knight' && <Tick />}
         </button>
-        {/* "Marbles" on the button, so the four fit one row at 1024 wide with the row's words beside them. */}
         <button
           type="button"
           className="cs-choice"
@@ -396,17 +403,31 @@ function QuestRow({
             aria-hidden
             dangerouslySetInnerHTML={{ __html: marbleSVG('#2b9be0', { r: 10 }) }}
           />
-          Marbles
+          <span className="cs-adventure-word">Marbles</span>
           {adventure === 'marbles' && <Tick />}
         </button>
-        <button type="button" className="cs-choice" aria-pressed={adventure === 'pirate'} onClick={() => onSetAdventure('pirate')}>
+        <button
+          type="button"
+          className="cs-choice"
+          aria-label="Pirate"
+          title="Pirate"
+          aria-pressed={adventure === 'pirate'}
+          onClick={() => onSetAdventure('pirate')}
+        >
           <img src={assetUrl('/quest/pirate/parrot.svg')} alt="" className="h-5 w-5 shrink-0" />
-          Pirate
+          <span className="cs-adventure-word">Pirate</span>
           {adventure === 'pirate' && <Tick />}
         </button>
-        <button type="button" className="cs-choice" aria-pressed={adventure === 'space'} onClick={() => onSetAdventure('space')}>
+        <button
+          type="button"
+          className="cs-choice"
+          aria-label="Space"
+          title="Space"
+          aria-pressed={adventure === 'space'}
+          onClick={() => onSetAdventure('space')}
+        >
           <img src={assetUrl('/quest/space/rocket-ship.svg')} alt="" className="h-5 w-5 shrink-0" />
-          Space
+          <span className="cs-adventure-word">Space</span>
           {adventure === 'space' && <Tick />}
         </button>
       </div>
