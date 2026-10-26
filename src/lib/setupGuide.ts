@@ -44,6 +44,7 @@ const quest = ({ cls }: GuideContext) => pointsModeOf(cls) === 'quest'
 const knight = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'knight'
 const marbles = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'marbles'
 const pirate = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'pirate'
+const space = (c: GuideContext) => quest(c) && adventureOf(c.cls) === 'space'
 const avatarsShown = ({ cls }: GuideContext) => !cls.avatarsOff && cls.students.length > 0
 const photosShown = ({ cls }: GuideContext) => cls.photosOn === true && !cls.avatarsOff && cls.students.length > 0
 const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photosOn && cls.students.length > 0
@@ -163,7 +164,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'points',
     targets: [g('adventure-row')],
-    text: 'Pick an adventure: the Knight, with keys and five chests; the Marble Jar, with a wheel that fills the class jar; or the Pirate Quest, sailing to five islands.',
+    text: 'Pick an adventure: the Knight, with keys and five chests; the Marble Jar, with a wheel that fills the class jar; the Pirate Quest, sailing to five islands; or the Space Quest, a rocket fuelled to fly to five planets.',
     when: quest,
     maybe: true,
   },
@@ -186,6 +187,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     targets: [g('goal-row')],
     text: 'How many stars win a map piece? A quest is 20 pieces, so about one a week takes a semester.',
     when: pirate,
+    maybe: true,
+  },
+  {
+    section: 'points',
+    targets: [g('goal-row')],
+    text: 'How many stars pour 2 bars of fuel into the rocket? A quest is 18 goals, so about one a week takes a semester.',
+    when: space,
     maybe: true,
   },
   {
@@ -229,6 +237,13 @@ export const GUIDE_STEPS: GuideStep[] = [
     text: 'The island the class is sailing to, its map pieces, and how long the last piece took. Start Over sails back to the first island.',
     only: 'section',
     when: pirate,
+  },
+  {
+    section: 'points',
+    targets: [g('quest-row')],
+    text: 'The trip the rocket is fuelling for, its bars of fuel, and how long the last 2 bars took. Start Over flies back to Earth.',
+    only: 'section',
+    when: space,
   },
   {
     section: 'points',

@@ -222,7 +222,9 @@ export function PointsSection({
             ? 'Fill the goal to spin the marble wheel. The marbles fill the class jar, and a full jar has a prize wheel.'
             : mode === 'quest' && adventureOf(activeClass) === 'pirate'
               ? 'Fill the goal to win a piece of the next island’s map. A whole map shows where to dig for treasure.'
-              : MODES.find((m) => m.mode === mode)?.says}
+              : mode === 'quest' && adventureOf(activeClass) === 'space'
+                ? 'Fill the goal to fuel the rocket. Full fuel cells fly the class to the next planet, and a prize.'
+                : MODES.find((m) => m.mode === mode)?.says}
         </p>
       </div>
 
@@ -254,9 +256,11 @@ export function PointsSection({
                   ? 'How many stars win a spin. About a spin a week fills a jar in a semester.'
                   : mode === 'quest' && adventureOf(activeClass) === 'pirate'
                     ? 'How many stars win a map piece. A quest is 20 pieces: about one a week takes a semester.'
-                    : mode === 'quest'
-                      ? 'How many stars win a key. About a key a week makes a quest a semester.'
-                      : 'Set the goal for your class: how many stars are needed to fill the chest.'}
+                    : mode === 'quest' && adventureOf(activeClass) === 'space'
+                      ? 'How many stars pour in 2 bars of fuel. A quest is 18 goals.'
+                      : mode === 'quest'
+                        ? 'How many stars win a key. About a key a week makes a quest a semester.'
+                        : 'Set the goal for your class: how many stars are needed to fill the chest.'}
               </small>
             </div>
             {/* A class whose goal was multiplied when the stars' rate went may be past 999. */}
@@ -335,9 +339,9 @@ export function PointsSection({
 
 /**
  * The quest's adventure, where the class is on it, how long the last key or spin took (to help set
- * the goal), and Start Over. Three adventures, one row: the Knight's keys and chests, the Marble Jar
- * (2026-10-24), or the Pirate Quest's islands and map pieces (2026-10-25). Each keeps its own place,
- * so trying another loses nothing.
+ * the goal), and Start Over. Four adventures, one row: the Knight's keys and chests, the Marble Jar
+ * (2026-10-24), the Pirate Quest's islands and map pieces (2026-10-25), or the Space Quest's planets
+ * and fuel (2026-10-26). Each keeps its own place, so trying another loses nothing.
  */
 function QuestRow({
   activeClass,
@@ -364,31 +368,46 @@ function QuestRow({
             ? `${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`
             : adventure === 'pirate'
               ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Island ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} pieces`
-              : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
+              : adventure === 'space'
+                ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Trip ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} bars`
+                : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
         </b>
         <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
       </div>
       {/* Each on one line: wrapped, "Marble Jar" made the row taller and Points ran past the window's edge at 1024x500. */}
-      <div className="cs-choices whitespace-nowrap" data-guide="adventure-row" style={{ flex: '0 0 auto' }}>
+      <div className="cs-choices cs-adventures whitespace-nowrap" data-guide="adventure-row" style={{ flex: '0 0 auto' }}>
         <button type="button" className="cs-choice" aria-pressed={adventure === 'knight'} onClick={() => onSetAdventure('knight')}>
-          <img src={assetUrl('/quest/knight-head.svg')} alt="" className="h-6 w-6 shrink-0" />
+          <img src={assetUrl('/quest/knight-head.svg')} alt="" className="h-5 w-5 shrink-0" />
           Knight
           {adventure === 'knight' && <Tick />}
         </button>
-        <button type="button" className="cs-choice" aria-pressed={adventure === 'marbles'} onClick={() => onSetAdventure('marbles')}>
+        {/* "Marbles" on the button, so the four fit one row at 1024 wide with the row's words beside them. */}
+        <button
+          type="button"
+          className="cs-choice"
+          aria-label="Marble Jar"
+          title="Marble Jar"
+          aria-pressed={adventure === 'marbles'}
+          onClick={() => onSetAdventure('marbles')}
+        >
           <svg
             viewBox="-12 -12 24 24"
-            className="h-6 w-6 shrink-0"
+            className="h-5 w-5 shrink-0"
             aria-hidden
             dangerouslySetInnerHTML={{ __html: marbleSVG('#2b9be0', { r: 10 }) }}
           />
-          Marble Jar
+          Marbles
           {adventure === 'marbles' && <Tick />}
         </button>
         <button type="button" className="cs-choice" aria-pressed={adventure === 'pirate'} onClick={() => onSetAdventure('pirate')}>
-          <img src={assetUrl('/quest/pirate/parrot.svg')} alt="" className="h-6 w-6 shrink-0" />
+          <img src={assetUrl('/quest/pirate/parrot.svg')} alt="" className="h-5 w-5 shrink-0" />
           Pirate
           {adventure === 'pirate' && <Tick />}
+        </button>
+        <button type="button" className="cs-choice" aria-pressed={adventure === 'space'} onClick={() => onSetAdventure('space')}>
+          <img src={assetUrl('/quest/space/rocket-ship.svg')} alt="" className="h-5 w-5 shrink-0" />
+          Space
+          {adventure === 'space' && <Tick />}
         </button>
       </div>
       <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>

@@ -11,7 +11,7 @@ import type { QuestPrize } from './quest'
  * here only works things out; components/MarbleMoment draws it.
  */
 
-export type Adventure = 'knight' | 'marbles' | 'pirate'
+export type Adventure = 'knight' | 'marbles' | 'pirate' | 'space'
 
 export const adventureOf = (c: ClassData): Adventure => c.questAdventure ?? 'knight'
 

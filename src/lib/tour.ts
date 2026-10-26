@@ -3,7 +3,7 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Ten parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Eleven parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
@@ -20,6 +20,9 @@ export type TourShot =
   | 'pirate'
   | 'piratepiece'
   | 'piratemap'
+  | 'space'
+  | 'spacefuel'
+  | 'spaceplanet'
   | 'flip'
   | 'chooser'
   | 'who'
@@ -182,6 +185,32 @@ export const TOUR: TourPart[] = [
         text: 'When the puzzle is whole, an X shows where to dig. The shovel digs, and a prize wheel rises out of the chest.',
       },
       { shot: 'piratemap', at: 'close', text: 'Back to the desks.' },
+    ],
+  },
+  {
+    title: 'The Space Quest',
+    intro: 'The Class Quest’s fourth adventure: a rocket flying to five planets. Choose it in Class Settings, Points, under Class Quest.',
+    stops: [
+      {
+        shot: 'space',
+        at: 'meter',
+        text: 'On the Space Quest, a fuel barrel rides the meter. When the goal fills, it pours 2 bars of fuel into the rocket.',
+      },
+      {
+        shot: 'space',
+        at: 'cells',
+        text: 'The fuel cells for the next trip. Each trip is further, so it needs more cells. Tap them to see the rocket.',
+      },
+      { shot: 'spacefuel', at: 'cells', text: 'A student taps to pour the fuel in. When the cells are full, Blast off!' },
+      { shot: 'spaceplanet', at: 'rocket', text: 'The rocket waits on its planet, the astronaut in the window, until the fuel is in.' },
+      { shot: 'spaceplanet', at: 'fuel', text: 'The fuel for the next trip, filling up as the class fills goals.' },
+      {
+        shot: 'spaceplanet',
+        at: 'flag',
+        text: 'On each new planet the astronaut plants the class flag, and a friendly alien beams down a case with the prize wheel in it.',
+      },
+      { shot: 'spaceplanet', at: 'map', text: 'Map zooms out to the whole trip.' },
+      { shot: 'spaceplanet', at: 'close', text: 'Back to the desks.' },
     ],
   },
   {

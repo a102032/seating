@@ -102,6 +102,11 @@ checks the live URL. Confirm it went green before saying something is live. It a
   clouds and the sea chart, as layers the graphics chip moves), `components/PirateMap.tsx` (the chart, the ship, the clouds, the dig,
   sailing on; what this screen last showed in `seating-chart-pirate-seen-v1`), `components/PirateMoments.tsx` (a piece found) and
   `public/quest/pirate/` (the teacher's Flaticon pieces).
+- The Space Quest, the Class Quest's fourth adventure (`questAdventure: 'space'`, its place in `spaceQuest`): the Knight's engine
+  (`lib/quest.ts`, `kind: 'space'`, fuel bars: `TRIP_CELLS`, `BARS_PER_CELL`, `BARS_PER_GOAL`), `lib/spaceArt.ts` (the planets, the
+  skies with their moving pieces as page elements, the rocket, flag, case, fuel cells and the map), `lib/spaceSound.ts` (its sounds),
+  `components/SpaceQuest.tsx` (the planet, Map, blast off, landing, the case, carrying it back; what this screen last showed in
+  `seating-chart-space-seen-v1`), `components/SpaceMoments.tsx` (fuel poured in) and `public/quest/space/` (the teacher's Flaticon pieces).
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
   step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useTimer.ts`: the timer, kept outside React so a
   running clock redraws only itself (its time, size, place, colour and sound are kept in `seating-chart-timer-settings-v1`).

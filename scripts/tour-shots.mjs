@@ -600,6 +600,64 @@ const all = {}
   await page.context().close()
 }
 
+// The Space Quest: the class on the Moon, fuelling for Mars (1 cell), 2 of its 4 bars in, the meter partway.
+{
+  const space = (bars, points) => ({
+    ...STATE,
+    classes: [
+      {
+        ...STATE.classes[0],
+        pointsMode: 'quest',
+        questAdventure: 'space',
+        pointsGoal: 40,
+        classPoints: points,
+        spaceQuest: {
+          number: 1,
+          chest: 1,
+          keys: bars,
+          opened: [{ chest: 0, prize: { name: 'Drawing time', size: 's' }, on: today }],
+          keyDays: [today],
+          startedOn: today,
+          kind: 'space',
+        },
+      },
+    ],
+  })
+  let page = await open(space(2, 26))
+  await page.evaluate(() => {
+    let m = document.querySelector('[data-space-mini]')
+    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
+    m?.setAttribute('data-tour-mark', 'smeter')
+  })
+  all.space = await rects(page, { meter: '[data-tour-mark="smeter"]', cells: '[data-space-mini]' })
+  await shot(page, 'space')
+  // What the screen last showed, so it opens as it is rather than lighting the bars again.
+  await page.evaluate(
+    (id) => localStorage.setItem('seating-chart-space-seen-v1', JSON.stringify({ [id]: { quest: 1, place: 1, bars: 2 } })),
+    STATE.classes[0].id,
+  )
+  await page.click('[data-quest-chest]')
+  await page.waitForTimeout(1500)
+  all.spaceplanet = await rects(page, {
+    rocket: '[data-space-surf] [data-space-rocket]',
+    fuel: '[data-space-fuel]',
+    flag: '[data-space-surf] [data-space-flag]',
+    map: '[data-space-map-button]',
+    close: 'button[aria-label="Close Our Quest"]',
+  })
+  await shot(page, 'spaceplanet')
+  await page.context().close()
+
+  // A goal filled: "More fuel!", the barrel over the cell.
+  page = await open(space(2, 39))
+  await page.locator('[data-ink=desk]').first().click()
+  await page.locator('aside button[title="Award Point"]').click()
+  await page.waitForTimeout(1800)
+  all.spacefuel = await rects(page, { cells: '[data-space-fuel-art]' })
+  await shot(page, 'spacefuel')
+  await page.context().close()
+}
+
 writeFileSync(RECTS, JSON.stringify(all, null, 1) + '\n')
 console.log(JSON.stringify(all))
 await browser.close()

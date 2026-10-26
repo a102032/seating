@@ -1140,6 +1140,259 @@ const scenarios = {
     await page.context().close()
   },
 
+  async 'the space quest'() {
+    const sq = (extra = {}) => ({ number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: '2026-10-01', kind: 'space', ...extra })
+    const space = (extra = {}) =>
+      makeClass('c1', 'Rocket', 12, { pointsMode: 'quest', questAdventure: 'space', goalEnabled: true, pointsGoal: 10, ...extra })
+    // A goal filled: two bars of fuel, kept as they are won, poured in from the barrel.
+    let page = await open({ state: stateOf(space({ classPoints: 9 })), size: [1280, 559] })
+    check(
+      'space: the rocket waits at the start, the barrel rides the fill, the fuel cells at the end',
+      (await page.locator('img[src*="space/rocket-ship"]').count()) === 1 &&
+        (await page.locator('[data-goal-coin="barrel"]').count()) === 1 &&
+        (await page.locator('[data-space-mini] .space-cell').count()) === 1 &&
+        (await page.locator('[data-quest-next-key]').count()) === 0,
+    )
+    await desk(page, 'Amy').click()
+    await award(page)
+    await page.waitForTimeout(1600)
+    let c = await activeSaved(page)
+    check(
+      'space: a filled goal pours in 2 bars of fuel, kept as they are won',
+      c.spaceQuest?.keys === 2 && !c.quest && !c.pirateQuest,
+      JSON.stringify(c.spaceQuest),
+    )
+    check(
+      'space: "More fuel!" with the barrel over the cells',
+      (await page.locator('[data-quest-moment="fuel"]').innerText()).includes('More fuel!') &&
+        (await page.locator('[data-space-fuel-art] [data-space-barrel]').count()) === 1,
+    )
+    await page.screenshot({ path: '/tmp/walkthrough/space-more-fuel.png' })
+    await page.waitForTimeout(400)
+    await page.locator('[data-quest-moment="fuel"]').click()
+    await page.waitForTimeout(2200)
+    check(
+      'space: a tap pours it in, two bars lit',
+      (await page.locator('[data-quest-moment="fuel"]').innerText()).includes('2 of 4 bars!') &&
+        (await page
+          .locator('[data-space-fuel-art] .space-bar[style*="opacity: 1"], [data-space-fuel-art] .space-bar')
+          .evaluateAll((b) => b.filter((e) => getComputedStyle(e).opacity === '1').length)) === 2,
+    )
+    await page.waitForTimeout(400)
+    await page.locator('[data-quest-moment="fuel"]').click()
+    await page.waitForTimeout(2500)
+    check(
+      'space: a tap shows the rocket on Earth, the fuel panel half full',
+      (await page.locator('[data-space-quest] [data-space-surf]').textContent()).includes('We are on Earth') &&
+        (await page.locator('[data-space-fuel-words]').textContent()) === '2 of 4 bars' &&
+        (await page.locator('[data-space-rocket] [data-space-face]').count()) === 1,
+    )
+    await page.screenshot({ path: '/tmp/walkthrough/space-earth.png' })
+    await page.getByRole('button', { name: 'Map' }).click()
+    await page.waitForTimeout(2200)
+    check(
+      'space: Map zooms out to the whole trip',
+      (await page.locator('[data-space-world]').textContent()).includes('1 cell') &&
+        (await page.getByRole('button', { name: 'Back to Earth' }).count()) === 1,
+    )
+    await page.getByRole('button', { name: 'Back to Earth' }).click()
+    await page.waitForTimeout(2200)
+    check('space: and back down to Earth', (await page.getByRole('button', { name: 'Map' }).count()) === 1)
+    await page.getByRole('button', { name: 'Close Our Quest' }).click()
+    await page.waitForTimeout(500)
+    check('space: Our Quest closes', (await page.locator('[data-space-quest]').count()) === 0)
+    page.errors.length && check('space: no errors (fuel)', false, page.errors.join('; '))
+    await page.context().close()
+
+    // Full cells: Blast off!, the flight, the landing, the flag, the case and the prize wheel out of it.
+    page = await open({ state: stateOf(space({ spaceQuest: sq({ keys: 4 }) })), size: [1280, 559] })
+    check('space: full cells rattle on the meter', (await page.locator('[data-space-mini].meter-chest-rattle').count()) === 1)
+    await page.locator('[data-quest-chest]').click({ force: true })
+    await page.waitForTimeout(900)
+    check(
+      'space: "The fuel cells are full!" with Blast off!',
+      (await page.locator('[data-quest-moment="fuel"]').innerText()).includes('The fuel cells are full!'),
+    )
+    await page.locator('[data-quest-moment="fuel"]').getByRole('button', { name: 'Blast off!' }).click()
+    check(
+      'space: the countdown',
+      await page
+        .locator('.space-count')
+        .waitFor({ timeout: 6000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+    )
+    check(
+      'space: the rocket flies to the Moon on the map',
+      await page
+        .locator('[data-space-map-fx] image[href*="rocket-ship"]')
+        .waitFor({ timeout: 15000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+    )
+    await page.locator('[data-space-landing]').waitFor({ timeout: 12000 })
+    check(
+      'space: it lands, and the flag with the mouse goes in',
+      await page
+        .locator('[data-space-surf] [data-space-flag]')
+        .first()
+        .waitFor({ timeout: 12000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+    )
+    await page.waitForTimeout(1500)
+    await page.screenshot({ path: '/tmp/walkthrough/space-landed.png' })
+    await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').waitFor({ timeout: 15000 })
+    check('space: the prize wheel rises out of the case the alien brought', true)
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(8800)
+    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
+    await page.mouse.click(640, 300)
+    await page.waitForTimeout(900)
+    c = await activeSaved(page)
+    check(
+      'space: the prize is won on the Moon, the class there with the next trip ahead',
+      c.spaceQuest.chest === 1 && c.spaceQuest.keys === 0 && c.spaceQuest.opened[0]?.prize.name === prize,
+      JSON.stringify(c.spaceQuest),
+    )
+    await page.waitForTimeout(8000)
+    check(
+      'space: the astronaut takes the case back in, and the Moon waits for fuel for Mars',
+      (await page.locator('[data-space-surf]').textContent()).includes('We are on the Moon') &&
+        (await page.locator('[data-space-fuel]').textContent()).includes('Mars') &&
+        (await page.locator('[data-space-rocket] [data-space-face]').count()) === 1,
+    )
+    await page.screenshot({ path: '/tmp/walkthrough/space-moon.png' })
+    page.errors.length && check('space: no errors (trip)', false, page.errors.join('; '))
+    await page.context().close()
+
+    // The fifth trip's prize: the whole trip, then the next quest.
+    const opened = ['Drawing time', 'Reading time', 'Game time', 'Sit with a friend'].map((name, i) => ({
+      chest: i,
+      prize: { name, size: 's' },
+      on: '2026-10-10',
+    }))
+    page = await open({ state: stateOf(space({ spaceQuest: sq({ chest: 4, keys: 12, opened }) })), size: [1280, 559] })
+    await page.locator('[data-quest-chest]').click({ force: true })
+    await page.waitForTimeout(900)
+    await page.locator('[data-quest-moment="fuel"]').getByRole('button', { name: 'Blast off!' }).click()
+    await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').waitFor({ timeout: 40000 })
+    await page.getByRole('button', { name: 'Spin!' }).click()
+    await page.waitForTimeout(8800)
+    await page.mouse.click(640, 300)
+    await page.getByText('We explored the whole galaxy!').waitFor({ timeout: 15000 })
+    c = await activeSaved(page)
+    check(
+      'space: after the fifth planet, the whole trip and a new quest',
+      c.spaceQuest.number === 2 && c.spaceQuest.previous?.length === 5,
+      JSON.stringify(c.spaceQuest),
+    )
+    await page.screenshot({ path: '/tmp/walkthrough/space-finale.png' })
+    await page.getByRole('button', { name: 'Start Quest 2' }).click()
+    await page.waitForTimeout(1500)
+    check('space: Start Quest 2 starts back on Earth', (await page.locator('[data-space-surf]').textContent()).includes('We are on Earth'))
+    await page.context().close()
+
+    // Points: the fourth adventure, where the class is, and fitting at 1024x500.
+    const pts = space({ spaceQuest: sq({ chest: 2, keys: 3, keyDays: ['2026-10-14', '2026-10-20'] }) })
+    for (const theme of ['vibrant', 'comic', 'chalkboard']) {
+      page = await open({ state: stateOf(pts), size: [1024, 500], theme })
+      await openPointsTab(page)
+      const o = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+      const wide = await page.locator('[data-guide="quest-row"]').evaluate((e) => e.scrollWidth - e.clientWidth)
+      check(`space: Points fits at 1024x500 in ${theme}`, o <= 0 && wide <= 0, `${o}px over, ${wide}px wide`)
+      if (theme === 'vibrant') {
+        await page.screenshot({ path: '/tmp/walkthrough/space-points-1024.png' })
+        const row = await page.locator('[data-guide="quest-row"]').innerText()
+        check(
+          'space: Points says the trip, its bars and how long the last took',
+          row.includes('Trip 3, 3 of 8 bars') && row.includes('The last 2 bars took 6 days.'),
+          row,
+        )
+        await page.getByRole('button', { name: 'Knight', exact: true }).click()
+        await page.waitForTimeout(300)
+        c = await activeSaved(page)
+        check('space: back to the Knight, the trip kept for later', c.questAdventure === 'knight' && c.spaceQuest.chest === 2)
+        await page.getByRole('button', { name: 'Space', exact: true }).click()
+        await page.getByRole('button', { name: /Start Over/ }).click()
+        await page.getByRole('button', { name: 'Yes, Start Over' }).click()
+        await page.waitForTimeout(300)
+        c = await activeSaved(page)
+        check('space: Start Over flies back to Earth', c.spaceQuest.chest === 0 && c.spaceQuest.keys === 0 && c.spaceQuest.kind === 'space')
+      }
+      await page.context().close()
+    }
+
+    // The planet and the fuel moment, whole on every screen, nothing scrolling.
+    const bad = []
+    for (const size of [
+      [1024, 500],
+      [1280, 559],
+      [1366, 620],
+      [1920, 1080],
+    ]) {
+      page = await open({ state: stateOf(space({ spaceQuest: sq({ chest: 3, keys: 3 }) })), size })
+      await page.locator('[data-quest-chest]').click({ force: true })
+      await page.waitForTimeout(2500)
+      const r = await page.evaluate(() => {
+        const b = document.querySelector('[data-space-quest]')?.getBoundingClientRect()
+        const p = document.querySelector('[data-space-fuel]')?.getBoundingClientRect()
+        const t = [...document.querySelectorAll('[data-space-surf] text')].map((e) => e.getBoundingClientRect())
+        return {
+          box: !!b && b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight,
+          panel: !!p && !!b && p.right <= b.right && p.bottom <= b.bottom,
+          labels: t.every((x) => x.bottom <= innerHeight && x.top >= 0 && x.right <= innerWidth),
+          scroll: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+        }
+      })
+      await page.screenshot({ path: `/tmp/walkthrough/space-planet-${size.join('x')}.png` })
+      if (!r.box || !r.panel || !r.labels || r.scroll > 0) bad.push(`${size.join('x')}: ${JSON.stringify(r)}`)
+      await page.context().close()
+      page = await open({ state: stateOf(space({ classPoints: 9, spaceQuest: sq({ chest: 4, keys: 4 }) })), size })
+      await desk(page, 'Amy').click()
+      await award(page)
+      await page.waitForTimeout(1600)
+      const m = await page.evaluate(() => {
+        const b = document.querySelector('[data-space-fuel-art]')?.getBoundingClientRect()
+        return !!b && b.top >= 0 && b.bottom <= innerHeight && b.right <= innerWidth
+      })
+      if (!m) bad.push(`${size.join('x')}: the fuel cells`)
+      await page.context().close()
+    }
+    check('space: the planet and the fuel cells fit every screen, nothing scrolls', bad.length === 0, bad.join('; '))
+
+    // The floating window: the fuel cells, and full ones wait for the board to blast off.
+    page = await open({ state: stateOf(space({ classPoints: 2, spaceQuest: sq({ keys: 4 }) })), size: [1280, 559] })
+    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
+    await win.waitForLoadState()
+    await win.setViewportSize({ width: 340, height: 180 })
+    await page.waitForTimeout(600)
+    check(
+      'float: the fuel cells, and Blast off! when they are full',
+      (await win.locator('[data-float-chest] svg').count()) === 1 && (await win.getByText('Blast off!').count()) === 1,
+    )
+    await win.getByText('Blast off!').click()
+    await page.bringToFront()
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    check(
+      'float: Blast off! opens the rocket in the app and counts down',
+      await page
+        .locator('[data-space-quest] .space-count')
+        .waitFor({ timeout: 6000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+    )
+    await page.context().close()
+  },
+
   async 'points: a class goal, student points, or none'() {
     const cls = makeClass('c1', 'Points', 12, { pointsGoal: 50, classPoints: 10, goalEnabled: true })
     const page = await open({ state: stateOf(cls), size: [1280, 559] })
@@ -3401,12 +3654,13 @@ const scenarios = {
     }
     check(
       // 97: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
-      // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24), and the Pirate Quest's (2026-10-25).
-      'tour: 110 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 110 && bad === 0,
+      // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24), the Pirate Quest's (2026-10-25)
+      // and the Space Quest's (2026-10-26).
+      'tour: 118 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 118 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 10, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 11, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -3426,8 +3680,10 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 21 stops to the card before the Class Quest, then skip it, the Marble Jar, the Pirate Quest and Flip Cards to Group Activity's card.
+    // Through the board's 21 stops to the card before the Class Quest, then skip it, the Marble Jar, the Pirate Quest, the Space Quest and
+    // Flip Cards to Group Activity's card.
     for (let i = 0; i < 21; i++) await page.locator('[data-tour-action="next"]').click()
+    await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
@@ -3451,7 +3707,7 @@ const scenarios = {
     const before = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
     check(
       'tour: Back on the card between parts, to the last stop of the part before',
-      new RegExp(`^${parts[3]} · (\\d+) of \\1$`).test(before),
+      new RegExp(`^${parts[4]} · (\\d+) of \\1$`).test(before),
       before,
     )
     await page.keyboard.press('Escape')

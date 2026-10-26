@@ -4,7 +4,8 @@ import type { Tap, TapVoice } from './getReady'
 
 let sharedContext: AudioContext | null = null
 
-function getContext(): AudioContext {
+/** The app's one audio context, also used by the Space Quest's sounds (lib/spaceSound). */
+export function getContext(): AudioContext {
   if (!sharedContext) {
     sharedContext = new AudioContext()
   }

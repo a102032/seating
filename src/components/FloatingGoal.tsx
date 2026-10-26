@@ -12,6 +12,7 @@ import { findMover, type Mover } from '../lib/moveExtension'
 import { FloatClock } from './BigTimer'
 import { CHESTS } from '../lib/quest'
 import { puzzleSVG } from '../lib/pirateArt'
+import { miniCellsSVG } from '../lib/spaceArt'
 import { chestSVG } from '../lib/questArt'
 import { miniWheelSVG } from '../lib/marbleArt'
 import type { SavedMarble } from '../lib/marbles'
@@ -56,6 +57,8 @@ interface FloatingGoalProps {
     marbles?: { spins: number; full: boolean; jar: SavedMarble[] }
     /** The Pirate Quest: the window shows the island's puzzle, and a whole one waits for the app to dig. */
     pirate?: boolean
+    /** The Space Quest: the window shows the trip's fuel cells, and full ones wait for the app to blast off. */
+    space?: boolean
   }
   /** Get Ready! from here, over the lesson. */
   getReady: {
@@ -286,6 +289,11 @@ export function FloatingGoal({
             className="block h-[1.1em] w-[1.5em] [&>svg]:h-full [&>svg]:w-full"
             dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.chest, quest.keys) }}
           />
+        ) : quest?.space ? (
+          <span
+            className="block h-[1.2em] [&>svg]:h-full [&>svg]:w-auto"
+            dangerouslySetInnerHTML={{ __html: miniCellsSVG(quest.chest, quest.keys) }}
+          />
         ) : quest ? (
           <span
             className="block h-[1.1em] w-[1.25em] [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible"
@@ -302,9 +310,11 @@ export function FloatingGoal({
               : 'Spin the wheel'
             : quest?.pirate
               ? 'Dig for treasure'
-              : quest
-                ? 'Open the chest'
-                : 'Celebrate!'}
+              : quest?.space
+                ? 'Blast off!'
+                : quest
+                  ? 'Open the chest'
+                  : 'Celebrate!'}
       </span>
       {!strip && asked && <span className="text-sm font-bold">Open the app to see it</span>}
     </button>
@@ -498,6 +508,12 @@ export function FloatingGoal({
                 waiting && 'float-chest-rattle',
               )}
               dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.chest, quest.keys) }}
+            />
+          ) : quest?.space ? (
+            <span
+              data-float-chest=""
+              className={clsx('block shrink-0 [&>svg]:h-full [&>svg]:w-auto', clockShown ? 'h-7' : 'h-9', waiting && 'float-chest-rattle')}
+              dangerouslySetInnerHTML={{ __html: miniCellsSVG(quest.chest, quest.keys) }}
             />
           ) : quest ? (
             <span

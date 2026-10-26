@@ -1874,8 +1874,7 @@ button {
     radial-gradient(circle at 16% 78%, rgba(150, 98, 36, 0.12), transparent 14%),
     radial-gradient(circle at 74% 18%, rgba(150, 98, 36, 0.1), transparent 12%),
     repeating-linear-gradient(0deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px),
-    repeating-linear-gradient(90deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px),
-    linear-gradient(135deg, #f9ecc9, #f0d9a4);
+    repeating-linear-gradient(90deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px), linear-gradient(135deg, #f9ecc9, #f0d9a4);
   box-shadow: -6px 0 24px rgba(30, 42, 68, 0.15);
 }
 @keyframes quest-key-bob {
@@ -2498,6 +2497,14 @@ button {
 .cs-row.cs-split > .cs-fill {
   flex: 1;
   min-width: 0;
+}
+/* Four adventures on one row (2026-10-26): a little tighter, so the row's words keep their room at 1024 wide. */
+.cs-adventures {
+  gap: 4px;
+}
+.cs-adventures .cs-choice {
+  gap: 5px;
+  padding-inline: 8px;
 }
 .cs-row.cs-wrap {
   flex-wrap: wrap;
@@ -3721,6 +3728,134 @@ button {
   .pirate-x-pop,
   .pirate-hover,
   .pirate-finale {
+    animation: none;
+  }
+}
+
+/* The Space Quest (SpaceQuest.tsx, SpaceMoments.tsx, lib/spaceArt). Fixed colours, the same in every theme, as the
+   pirates' are. Everything that keeps moving is a transform or opacity, which the graphics chip runs by itself. */
+.space-fb {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.space-twinkle {
+  animation: space-twinkle 3s ease-in-out infinite;
+}
+@keyframes space-twinkle {
+  50% {
+    opacity: 0.15;
+  }
+}
+/* Comets cross the whole sky, each its own way (--dx, --dy), and shooting stars streak now and then. */
+.space-travel {
+  animation: space-travel var(--t) linear infinite;
+  animation-delay: var(--d);
+}
+@keyframes space-travel {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+.space-shoot {
+  animation: space-shoot var(--t) linear infinite;
+  animation-delay: var(--d);
+  opacity: 0;
+}
+@keyframes space-shoot {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  2% {
+    opacity: 1;
+  }
+  9% {
+    opacity: 1;
+    transform: translate(var(--dx), var(--dy));
+  }
+  10%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+.space-spin {
+  animation: space-spin 40s linear infinite;
+}
+@keyframes space-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.space-drift {
+  animation: space-drift 9s ease-in-out infinite;
+}
+@keyframes space-drift {
+  50% {
+    transform: translate(14px, -10px) rotate(8deg);
+  }
+}
+.space-hover {
+  animation: space-hover 2s ease-in-out infinite;
+}
+@keyframes space-hover {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.space-flame {
+  animation: space-flame 0.09s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+}
+@keyframes space-flame {
+  to {
+    transform: scaleY(1.25) scaleX(0.9);
+  }
+}
+.space-zzz {
+  animation: pirate-zzz 2.4s ease-in-out infinite;
+}
+.space-glow-cell {
+  animation: space-glow-cell 1.2s ease-in-out 3;
+}
+@keyframes space-glow-cell {
+  50% {
+    filter: drop-shadow(0 0 10px #c8ff5a);
+  }
+}
+/* The countdown: each number swells in and fades as the next comes. */
+.space-count {
+  animation: space-count 0.9s ease-out forwards;
+}
+@keyframes space-count {
+  from {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .space-twinkle,
+  .space-travel,
+  .space-shoot,
+  .space-spin,
+  .space-drift,
+  .space-hover,
+  .space-flame,
+  .space-zzz,
+  .space-glow-cell,
+  .space-count {
     animation: none;
   }
 }

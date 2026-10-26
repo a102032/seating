@@ -34,9 +34,11 @@ export interface QuestState {
   startedOn: string
   /**
    * The Pirate Quest (2026-10-25): the same quest with islands for chests and map pieces for keys,
-   * each island needing one more piece than the last, 2 to 6. Unset is the Knight's.
+   * each island needing one more piece than the last, 2 to 6. The Space Quest (2026-10-26): the same
+   * with trips for chests and bars of fuel for keys (`chest` is the place the rocket stands on, 0
+   * Earth, and `keys` the bars in its cells). Unset is the Knight's.
    */
-  kind?: 'pirate'
+  kind?: 'pirate' | 'space'
   /** The last quest's islands and prizes, kept when a new one starts, for the whole voyage shown at its end. */
   previous?: { chest: number; prize: QuestPrize; on: string }[]
 }
@@ -91,17 +93,31 @@ export function prizesOf(c: ClassData): QuestPrize[] {
 export function questOf(c: ClassData): QuestState {
   const startedOn = c.createdAt?.slice(0, 10) ?? dateKey()
   if (isPirate(c)) return c.pirateQuest ?? { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn, kind: 'pirate' }
+  if (isSpace(c)) return c.spaceQuest ?? { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn, kind: 'space' }
   return c.quest ?? { number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn }
 }
 
 /** The pieces each island needs on the Pirate Quest: one more than the last, starting at two, since one piece is no puzzle. */
 export const PIRATE_PIECES = [2, 3, 4, 5, 6]
 
-export const keysNeeded = (q: QuestState) => (q.kind === 'pirate' ? PIRATE_PIECES[q.chest] : CHESTS[q.chest].keys)
+/**
+ * The Space Quest's fuel (2026-10-26, the teacher): the rocket can't take off until its fuel cells
+ * are full, and each trip is further, so it needs more of them. A cell holds four bars, so a trip
+ * needs one cell or more rather than one cell with more and more bars; each goal filled pours in
+ * two bars, half a cell, which makes a quest 18 goals, near the Pirate Quest's 20.
+ */
+export const TRIP_CELLS = [1, 1, 2, 2, 3]
+export const BARS_PER_CELL = 4
+export const BARS_PER_GOAL = 2
 
-/** Each adventure keeps its own place, so trying the other loses nothing. */
+export const keysNeeded = (q: QuestState) =>
+  q.kind === 'pirate' ? PIRATE_PIECES[q.chest] : q.kind === 'space' ? TRIP_CELLS[q.chest] * BARS_PER_CELL : CHESTS[q.chest].keys
+
+/** Each adventure keeps its own place, so trying another loses nothing. */
 const isPirate = (c: ClassData) => c.questAdventure === 'pirate'
-const withState = (c: ClassData, q: QuestState): ClassData => (q.kind === 'pirate' ? { ...c, pirateQuest: q } : { ...c, quest: q })
+const isSpace = (c: ClassData) => c.questAdventure === 'space'
+const withState = (c: ClassData, q: QuestState): ClassData =>
+  q.kind === 'pirate' ? { ...c, pirateQuest: q } : q.kind === 'space' ? { ...c, spaceQuest: q } : { ...c, quest: q }
 
 /** The chest has all its keys and waits for the teacher's tap. */
 export const chestIsReady = (q: QuestState) => q.keys >= keysNeeded(q)
@@ -110,7 +126,9 @@ export const chestIsReady = (q: QuestState) => q.keys >= keysNeeded(q)
 export function withKeysWon(c: ClassData, keys: number, day = dateKey()): ClassData {
   if (keys <= 0) return c
   const q = questOf(c)
-  return withState(c, { ...q, keys: q.keys + keys, keyDays: [...q.keyDays, day].slice(-2) })
+  // On the Space Quest a goal pours in two bars of fuel.
+  const won = q.kind === 'space' ? keys * BARS_PER_GOAL : keys
+  return withState(c, { ...q, keys: q.keys + won, keyDays: [...q.keyDays, day].slice(-2) })
 }
 
 /**
@@ -148,6 +166,7 @@ export function withQuestRestarted(c: ClassData, day = dateKey()): ClassData {
     keyDays: [],
     startedOn: day,
     ...(isPirate(c) && { kind: 'pirate' as const }),
+    ...(isSpace(c) && { kind: 'space' as const }),
   })
 }
 
@@ -169,6 +188,12 @@ export function lastKeyTook(q: QuestState): number | null {
 export function lastKeyWords(q: QuestState): string {
   const days = lastKeyTook(q),
     what = q.kind === 'pirate' ? 'piece' : 'key'
+  // On the Space Quest a goal is two bars of fuel.
+  if (q.kind === 'space') {
+    if (days === null) return 'No fuel yet.'
+    if (days === 0) return 'The last 2 bars took less than a day.'
+    return `The last 2 bars took ${days} ${days === 1 ? 'day' : 'days'}.`
+  }
   if (days === null) return `No ${what}s yet.`
   if (days === 0) return `The last ${what} took less than a day.`
   return `The last ${what} took ${days} ${days === 1 ? 'day' : 'days'}.`

@@ -420,6 +420,43 @@ await wait(8500)
 await page.mouse.click(700, 400)
 await measure('pirate: gliding to the next island', () => wait(3000))
 await measure('pirate: the map open, smoke and waves', () => wait(2500))
+// The Space Quest (2026-10-26): fuel poured in, the planet with its sky, blast off, the flight, the landing, the carry back.
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
+await page.evaluate((s) => {
+  const c = {
+    ...s.classes[0],
+    pointsMode: 'quest',
+    questAdventure: 'space',
+    classPoints: 49,
+    spaceQuest: { number: 1, chest: 0, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01', kind: 'space' },
+  }
+  sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
+  localStorage.setItem('seating-chart-space-seen-v1', JSON.stringify({ [c.id]: { quest: 1, place: 0, bars: 2 } }))
+}, state)
+await page.reload()
+await wait(3000)
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
+await desk('Amy').click()
+await wait(300)
+await page.locator('aside button[title="Award Point"]').click()
+await wait(2000)
+await measure('space: the fuel pouring in', async () => {
+  await page.locator('[data-quest-moment="fuel"]').click()
+  await wait(2500)
+})
+await page.locator('[data-quest-moment="fuel"]').getByRole('button', { name: 'Blast off!' }).click()
+await wait(300)
+await measure('space: the planet, the sky moving', () => wait(2000))
+await measure('space: lift-off', () => wait(4000))
+await measure('space: the zoom and the flight', () => wait(5000))
+await measure('space: the landing and the flag', () => wait(7000))
+await measure('space: the UFO and its beam', () => wait(4500))
+await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').waitFor({ timeout: 20000 })
+await page.getByRole('button', { name: 'Spin!' }).click()
+await wait(8500)
+await page.mouse.click(700, 400)
+await measure('space: the case carried back in', () => wait(6000))
+await measure('space: on the Moon, at rest', () => wait(2500))
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')
 for (const r of results)

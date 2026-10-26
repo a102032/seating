@@ -52,6 +52,7 @@ import { prizesOf, questOf } from './lib/quest'
 import { jarIsFull, jarOf, marblesOn } from './lib/marbles'
 import { OurQuest } from './components/OurQuest'
 import { PirateMap } from './components/PirateMap'
+import { SpaceQuest } from './components/SpaceQuest'
 import {
   playCoinTick,
   playGroupsDone,
@@ -296,9 +297,13 @@ export default function App() {
   const [questMapOpen, setQuestMapOpen] = useState(false)
   /** Open the chest was tapped in the floating window: the chest opens once the app is in front. */
   const [chestOpenRequested, setChestOpenRequested] = useState(false)
-  /** On the Pirate Quest: dig for the treasure once the map has played what happened, and the chest once it is dug up. */
+  /**
+   * On the Pirate Quest: dig for the treasure once the map has played what happened, and the chest once it is dug up.
+   * On the Space Quest the same flag blasts off once the fuel is in, and `spaceCase` is the case beamed down on the planet.
+   */
   const [pirateDig, setPirateDig] = useState(false)
   const [pirateDug, setPirateDug] = useState<{ from: DOMRect; picture: string } | null>(null)
+  const [spaceCase, setSpaceCase] = useState<{ from: DOMRect; picture: string } | null>(null)
   /** The guide through Class Settings, while it runs: which sections it walks, and the step it is on (lib/setupGuide). */
   const [guide, setGuide] = useState<{ scope: GuideScope; index: number } | null>(null)
   /** Get Ready! is running in the floating window, so the side panel's stands down. */
@@ -1236,6 +1241,7 @@ export default function App() {
                       onOpened: (prize) => {
                         openQuestChest(activeClass.id, prize)
                         setPirateDug(null)
+                        setSpaceCase(null)
                         setPirateDig(false)
                       },
                       pickSpinner,
@@ -1253,6 +1259,14 @@ export default function App() {
                         dug: pirateDug,
                         onNotNow: () => {
                           setPirateDug(null)
+                          setPirateDig(false)
+                          setQuestMapOpen(false)
+                        },
+                      },
+                      space: {
+                        caseDown: spaceCase,
+                        onNotNow: () => {
+                          setSpaceCase(null)
                           setPirateDig(false)
                           setQuestMapOpen(false)
                         },
@@ -1315,7 +1329,23 @@ export default function App() {
 
               {questMapOpen &&
                 questIsOn(activeClass) &&
-                (questOf(activeClass).kind === 'pirate' ? (
+                (questOf(activeClass).kind === 'space' ? (
+                  <SpaceQuest
+                    key={activeClass.id}
+                    classId={activeClass.id}
+                    quest={questOf(activeClass)}
+                    blast={pirateDig}
+                    onCaseDown={(from, picture) => {
+                      setPirateDig(false)
+                      setSpaceCase({ from, picture })
+                      setChestOpenRequested(true)
+                    }}
+                    onClose={() => {
+                      setQuestMapOpen(false)
+                      setPirateDig(false)
+                    }}
+                  />
+                ) : questOf(activeClass).kind === 'pirate' ? (
                   <PirateMap
                     key={activeClass.id}
                     classId={activeClass.id}
@@ -1750,6 +1780,7 @@ export default function App() {
                     keys: questOf(activeClass).keys,
                     appBehind: !appInFront,
                     pirate: questOf(activeClass).kind === 'pirate',
+                    space: questOf(activeClass).kind === 'space',
                   }
               : undefined
           }
