@@ -406,17 +406,27 @@ export function PointsMeter({
 
       {/* Where the voyage starts. It unrolls again when a new run begins. 40px, a third up from
           30, because the teacher found it hard to see; it still fits the 56px row. */}
-      {/* The Marble Jar has no map: it is a jar, not a voyage (2026-10-24, the teacher). */}
-      {!jar && (
+      {/* Each quest starts from its own place (2026-10-26, the teacher): the knight from the castle (his Flaticon
+          castle, as on Our Quest's map), the ship from its anchor at the home dock, and the Marble Jar from a handful
+          of marbles (his picture), heading for the jar. A plain goal keeps the treasure map. */}
+      {
         <motion.img
-          src={treasure('map')}
+          src={
+            jar
+              ? assetUrl('/quest/marbles.svg')
+              : pirate
+                ? assetUrl('/quest/pirate/anchor.svg')
+                : quest
+                  ? assetUrl('/quest/castle.svg')
+                  : treasure('map')
+          }
           alt=""
           draggable={false}
           className="h-10 w-10 shrink-0 select-none"
           animate={phase === 'closing' ? { rotate: [0, -9, 6, 0], scale: [1, 1.18, 1] } : { rotate: 0, scale: 1 }}
           transition={{ duration: 0.7 }}
         />
-      )}
+      }
 
       {/*
         Everything that moves here is CSS, so the board's graphics chip runs it and the main
@@ -471,12 +481,12 @@ export function PointsMeter({
                 dangerouslySetInnerHTML={{ __html: RIDER_SVG }}
               />
             ) : pirate ? (
-              // On the Pirate Quest the parrot rides the fill, the ship's lookout.
+              // On the Pirate Quest the ship rides the fill, the same ship that sails on the map (2026-10-26, the teacher: not the parrot).
               <img
-                src={assetUrl('/quest/pirate/parrot.svg')}
+                src={assetUrl('/quest/pirate/galleon.svg')}
                 alt=""
                 draggable={false}
-                data-goal-coin="parrot"
+                data-goal-coin="ship"
                 className="absolute h-[34px] w-[34px] max-w-none select-none drop-shadow"
                 style={{ left: -17, top: -20 }}
               />
@@ -531,19 +541,6 @@ export function PointsMeter({
       )}
 
       {/* On a quest, the key the goal wins waits at the end of the track, bobbing as it comes near. */}
-      {/* On the Pirate Quest, the next piece of the island's puzzle waits there. */}
-      {pirate && quest && (
-        <span
-          aria-hidden
-          data-quest-next-key=""
-          className={clsx(
-            'block h-[26px] w-[30px] shrink-0 transition-opacity [&>svg]:h-full [&>svg]:w-full',
-            pct >= RATTLE_FROM * 100 ? 'quest-key-near opacity-100' : 'opacity-60',
-            (phase === 'key' || chestReady) && 'invisible',
-          )}
-          dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.state.chest, 0, { only: Math.min(quest.state.keys, need - 1) }) }}
-        />
-      )}
       {quest && !quest.marbles && !pirate && (
         <span
           aria-hidden
@@ -571,7 +568,8 @@ export function PointsMeter({
           </div>
         </button>
       ) : pirate && quest ? (
-        // The island's puzzle, filling in piece by piece, rattling once it is whole.
+        // Where the ship is sailing: the island's puzzle, filling in piece by piece, bobbing as the goal comes near
+        // and rattling once it is whole. Nothing after it (2026-10-26, the teacher): only the Knight's keys open something.
         <button
           type="button"
           onClick={tapChest}
@@ -583,7 +581,10 @@ export function PointsMeter({
             ref={chestRef}
             data-quest-chest=""
             data-pirate-mini=""
-            className={clsx('block h-[34px] w-[47px] [&>svg]:h-full [&>svg]:w-full', rattling && 'meter-chest-rattle')}
+            className={clsx(
+              'block h-[34px] w-[47px] [&>svg]:h-full [&>svg]:w-full',
+              rattling ? 'meter-chest-rattle' : pct >= RATTLE_FROM * 100 && 'quest-key-near',
+            )}
             dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.state.chest, shownKeys) }}
           />
         </button>

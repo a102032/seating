@@ -653,7 +653,10 @@ const scenarios = {
         (await page.locator('[data-marble-mini]').count()) === 1 &&
         (await page.locator('[data-quest-next-key]').count()) === 0,
     )
-    check("marbles: no map at the meter's start", (await page.locator('img[src*="map"]').count()) === 0)
+    check(
+      'marbles: the meter starts from a handful of marbles, not the map',
+      (await page.locator('img[src*="quest/marbles"]').count()) === 1 && (await page.locator('img[src*="treasure/map"]').count()) === 0,
+    )
     await desk(page, 'Amy').click()
     await award(page)
     await page.waitForTimeout(1600)
@@ -933,8 +936,11 @@ const scenarios = {
     // A goal filled: a map piece, kept the moment it is won, shown hovering over its gap.
     let page = await open({ state: stateOf(pirate({ classPoints: 9 })), size: [1280, 559] })
     check(
-      'pirate: the parrot rides the meter, the island puzzle at its end',
-      (await page.locator('[data-goal-coin="parrot"]').count()) === 1 && (await page.locator('[data-pirate-mini] svg').count()) === 1,
+      'pirate: the ship rides the meter from its anchor to the island puzzle, and nothing after it',
+      (await page.locator('[data-goal-coin="ship"]').count()) === 1 &&
+        (await page.locator('img[src*="pirate/anchor"]').count()) === 1 &&
+        (await page.locator('[data-pirate-mini] svg').count()) === 1 &&
+        (await page.locator('[data-quest-next-key]').count()) === 0,
     )
     await desk(page, 'Amy').click()
     await award(page)

@@ -166,7 +166,7 @@ export const TOUR: TourPart[] = [
       {
         shot: 'pirate',
         at: 'meter',
-        text: 'On the Pirate Quest, the parrot rides the meter. When the goal fills, the class finds a piece of the next island’s map.',
+        text: 'On the Pirate Quest, the ship sails along the meter. When the goal fills, the class finds a piece of the next island’s map.',
       },
       { shot: 'pirate', at: 'puzzle', text: 'The island’s puzzle fills in here, piece by piece. Tap it to see the map.' },
       {

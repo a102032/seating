@@ -56,7 +56,7 @@ export function PirateMap({
 }: {
   classId: string
   quest: QuestState
-  /** How far the meter is towards the next piece, 0 to 1: the ship sails with the parrot. */
+  /** How far the meter is towards the next piece, 0 to 1: the ship on the chart sails with the ship on the meter. */
   share: number
   /** Dig for the treasure once the ship has arrived (Sail and dig!, or the floating window's Dig for treasure). */
   dig: boolean
