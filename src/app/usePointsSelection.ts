@@ -25,8 +25,11 @@ export function usePointsSelection() {
   const [staggerWiggle, setStaggerWiggle] = useState(false)
   /** Counts awards so a repeat award on the same desks replays their pop. */
   const [landedTick, setLandedTick] = useState(0)
+  /** The selection is Pick All's, the whole class at once, which lets go by itself (usePickLetGo). */
+  const [byPickAll, setByPickAll] = useState(false)
 
   function reset() {
+    setByPickAll(false)
     setSelection(new Set())
     setSpentDelta(null)
     setStaggerWiggle(false)
@@ -34,6 +37,7 @@ export function usePointsSelection() {
   }
 
   function toggle(studentId: string) {
+    setByPickAll(false)
     setStaggerWiggle(false)
     if (spentDelta !== null) {
       // The round is over - start a fresh one on the desk that was just tapped.
@@ -52,6 +56,7 @@ export function usePointsSelection() {
 
   /** These students, as a fresh selection. `wiggle` ripples it across the grid (Pick All). */
   function selectOnly(ids: string[], wiggle: boolean) {
+    setByPickAll(wiggle)
     setSpentDelta(null)
     setLandedTick(0)
     setStaggerWiggle(wiggle)
@@ -65,7 +70,7 @@ export function usePointsSelection() {
     setSpentDelta(delta)
   }
 
-  return { selection, spentDelta, staggerWiggle, landedTick, reset, toggle, selectOnly, awarded }
+  return { selection, spentDelta, staggerWiggle, landedTick, byPickAll, reset, toggle, selectOnly, awarded }
 }
 
 type Selection = ReturnType<typeof usePointsSelection>

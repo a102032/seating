@@ -452,6 +452,22 @@ export function useClasses() {
     [updateClass],
   )
 
+  /**
+   * A pick taken back (2026-10-27, Pick a Spinner's "Pick a different student"): the student passed over
+   * gets their turn back, out of today's record and Pick Student's round, since being passed over
+   * (shy, or away and not marked) is no turn.
+   */
+  const takeBackPick = useCallback(
+    (classId: string, studentId: string, day: string) =>
+      updateClass(classId, (c) => {
+        const was = c.participation?.[day]?.[studentId]
+        const participation = was ? withCount(c.participation, day, studentId, [was[0] - 1, was[1]]) : c.participation
+        const pickRound = c.pickRound?.day === day ? { ...c.pickRound, ids: c.pickRound.ids.filter((id) => id !== studentId) } : c.pickRound
+        return { ...c, participation, pickRound }
+      }),
+    [updateClass],
+  )
+
   /** Start a New Round: everyone can be picked again. The record of who was picked stays. */
   const startNewRound = useCallback((classId: string) => updateClass(classId, (c) => ({ ...c, pickRound: undefined })), [updateClass])
 
@@ -807,6 +823,7 @@ export function useClasses() {
     bankDeskStars,
     setStarsOnDesks,
     recordPick,
+    takeBackPick,
     startNewRound,
     setParticipation,
     clearParticipationDay,

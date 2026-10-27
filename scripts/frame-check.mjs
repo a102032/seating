@@ -92,6 +92,8 @@ await page.addInitScript(
   ([s, t]) => {
     // A reload can bring another class in (the Quest's, at the end), set in this tab's sessionStorage.
     localStorage.setItem('seating-chart-state-v1', sessionStorage.getItem('frame-check-state') ?? JSON.stringify(s))
+    // The attendance reminder, closed for every class today: each check opens classes for its own reasons.
+    localStorage.setItem('seating-chart-attendance-reminder-v1', JSON.stringify({ day: new Date().toLocaleDateString('sv'), ids: ['*'] }))
     localStorage.setItem(
       'seating-chart-account-v1',
       JSON.stringify({ uid: 'frame-check-teacher', firstName: 'Test', email: 'test@example.com', dirty: [], deleted: [] }),

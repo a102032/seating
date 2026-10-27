@@ -80,7 +80,7 @@ export default function MarbleMoment({
   jar: MarbleJarState
   /** Emptying after the prize: the marbles that were in the full jar, to pop away. */
   popFrom?: SavedMarble[]
-  pickSpinner: () => string | null
+  pickSpinner: (different?: boolean) => string | null
   spinnerNames: string[]
   /** A spin spun and its marbles settled: keep them, and spend the spin. */
   onSpun: (marbles: SavedMarble[]) => void
@@ -227,9 +227,10 @@ export default function MarbleMoment({
     w.querySelectorAll('[data-reveal]').forEach((f) => f.setAttribute('opacity', '0'))
   }
 
+  /** Pick a Spinner; once a name has landed, "Pick a different student" until the wheel is spun. */
   function pick() {
     if (step !== 'ready' || performance.now() - shownAt.current < GUARD_MS) return
-    const winner = pickSpinner()
+    const winner = pickSpinner(Boolean(spinner?.landed))
     if (!winner) return
     setStep('picking')
     const steps = reduceMotion() ? 4 : 24
@@ -486,9 +487,14 @@ export default function MarbleMoment({
           </div>
         )}
         <div className="flex flex-wrap items-center justify-center gap-[clamp(10px,2vw,28px)]">
-          {wheelShown && (step === 'ready' || step === 'picking') && !spinner?.landed && (
-            <button type="button" className="quest-stage-btn" disabled={step !== 'ready' || spinnerNames.length === 0} onClick={pick}>
-              Pick a Spinner
+          {wheelShown && (step === 'ready' || step === 'picking') && (
+            <button
+              type="button"
+              className="quest-stage-btn"
+              disabled={step !== 'ready' || spinnerNames.length === 0 || (spinner?.landed === true && spinnerNames.length < 2)}
+              onClick={pick}
+            >
+              {spinner?.landed ? 'Pick a different student' : 'Pick a Spinner'}
             </button>
           )}
           {wheelShown && (step === 'ready' || step === 'picking') && (

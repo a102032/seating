@@ -33,7 +33,7 @@ export function useQuestScreens() {
   function meterQuest(
     cls: ClassData,
     store: Pick<Store, 'openQuestChest' | 'spendMarbleSpin' | 'fillMarbleJar'>,
-    pickSpinner: () => string | null,
+    pickSpinner: (different?: boolean) => string | null,
     spinnerNames: string[],
   ): MeterQuest | undefined {
     if (!questIsOn(cls)) return undefined

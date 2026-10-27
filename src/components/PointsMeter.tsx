@@ -66,7 +66,7 @@ interface PointsMeterProps {
     /** A tap on the chest while it still needs keys: Our Quest, on its map. On the Pirate Quest, `dig` digs for the treasure there. */
     onOpenMap: (dig?: boolean) => void
     onOpened: (prize: QuestPrize) => void
-    pickSpinner: () => string | null
+    pickSpinner: (different?: boolean) => string | null
     spinnerNames: string[]
     /** Open the chest in the floating window was tapped: the chest opens once the app is in front. */
     openRequested: boolean

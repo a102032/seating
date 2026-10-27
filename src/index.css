@@ -4060,3 +4060,9 @@ button {
     animation: none;
   }
 }
+
+/* A pick letting go by itself (app/usePickLetGo): the desks ease back over a second rather than snapping. */
+html[data-pick-letting-go] [data-ink='desk'],
+html[data-pick-letting-go] [data-ink='desk-empty'] {
+  transition-duration: 1s;
+}

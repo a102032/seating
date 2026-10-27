@@ -114,6 +114,8 @@ async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}
       if (sessionStorage.getItem('seeded')) return
       sessionStorage.setItem('seeded', '1')
       localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+      // The attendance reminder, closed for every class today: each check opens classes for its own reasons.
+      localStorage.setItem('seating-chart-attendance-reminder-v1', JSON.stringify({ day: new Date().toLocaleDateString('sv'), ids: ['*'] }))
       localStorage.setItem('seating-chart-account-v1', JSON.stringify(teacher))
       localStorage.setItem('seating-chart-theme-v1', t)
       localStorage.setItem('seating-chart-theme-chosen-v1', '1')
@@ -515,6 +517,21 @@ const scenarios = {
       'quest: Pick a Spinner names a student, and it is their turn',
       /, spin!$/.test(spinner) && picksAfter === picksBefore + 1,
       spinner,
+    )
+    // "Pick a different student" (2026-10-27): someone else, and the first gets their turn back.
+    const first = spinner.replace(/, spin!$/, '')
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Pick a different student' }).click()
+    await page.waitForTimeout(3300)
+    const second = (await page.locator('[data-quest-spinner]').innerText()).replace(/, spin!$/, '')
+    c = await activeSaved(page)
+    const picksNow = Object.values(c.participation ?? {})
+      .flatMap((d) => Object.values(d))
+      .reduce((n, [p]) => n + p, 0)
+    check(
+      'quest: Pick a different student names someone else, and the first gets their turn back',
+      second !== first && second.length > 0 && picksNow === picksAfter,
+      `${first} then ${second}, picks ${picksAfter} then ${picksNow}`,
     )
     await page.getByRole('button', { name: 'Spin!' }).click()
     await page.waitForTimeout(6600)
@@ -4915,6 +4932,94 @@ const scenarios = {
       tooSmall.length === 0,
       tooSmall.join('; '),
     )
+  },
+
+  /**
+   * A pick lets go by itself (2026-10-27, the teacher): Pick a Random Student, Pick a Random Row and
+   * Pick All, 10 seconds after they land or after the last star given to them; desks tapped by hand
+   * stay until let go.
+   */
+  async 'a pick lets go by itself'() {
+    const cls = makeClass('c1', 'Let Go', 12, { pointsMode: 'goal', pointsGoal: 50 })
+    const page = await open({ state: stateOf(cls) })
+    const picked = () => page.locator('[data-ink=desk].desk-picked').count()
+    await panelButton(page, 'Pick a Random Student').click()
+    await page.waitForTimeout(3500)
+    check('let go: a picked student is up', (await picked()) === 1)
+    await page.waitForTimeout(3000)
+    await award(page)
+    await page.waitForTimeout(8000)
+    check('let go: a star starts the 10 seconds again (still up 8 s after it)', (await picked()) === 1)
+    await page.waitForTimeout(3500)
+    check('let go: and it lets go 10 seconds after the star', (await picked()) === 0)
+    await panelButton(page, 'Pick a Random Row').click()
+    await page.waitForTimeout(13500)
+    check('let go: a picked row lets go by itself', (await picked()) === 0)
+    await panelButton(page, 'Pick All').click()
+    await page.waitForTimeout(500)
+    check('let go: Pick All picks the class', (await panelButton(page, 'Unpick All').count()) === 1)
+    await page.waitForTimeout(10800)
+    check('let go: Pick All lets go by itself', (await panelButton(page, 'Pick All').count()) === 1)
+    await desk(page, 'Amy').click()
+    await desk(page, 'Tony').click()
+    await page.waitForTimeout(11000)
+    check('let go: desks tapped by hand stay picked', (await panelButton(page, 'Unpick All').count()) === 1)
+    return page
+  },
+
+  /**
+   * The attendance reminder (2026-10-27, the teacher): opening a class whose attendance isn't taken
+   * today asks; Remind me later asks at the next opening, Close not again today; Take Attendance turns
+   * attendance on. The rail's button has an amber dot until it is taken.
+   */
+  async 'attendance reminder'() {
+    const a = makeClass('c1', 'Class A', 8)
+    const b = makeClass('c2', 'Class B', 8)
+    const page = await open({ state: stateOf(a, b), size: [1024, 500], storage: { 'seating-chart-attendance-reminder-v1': '' } })
+    const reminder = page.locator('[data-attendance-reminder]')
+    await page.waitForTimeout(300)
+    check('attendance reminder: asked when the class is opened', (await reminder.count()) === 1)
+    const fits = await page.evaluate(() => {
+      const r = document.querySelector('[role=dialog]')?.getBoundingClientRect()
+      return Boolean(r) && r.top >= 0 && r.bottom <= innerHeight
+    })
+    check('attendance reminder: whole on a 1024x500 screen', fits)
+    check('attendance reminder: an amber dot on the rail', (await page.locator('[data-attendance-due]').count()) === 1)
+    await page.waitForTimeout(800)
+    await reminder.getByRole('button', { name: 'Remind me later', exact: true }).click()
+    await page.waitForTimeout(600)
+    await page.locator('button[title="Switch class"]').click()
+    await page.waitForTimeout(400)
+    await page.locator('[data-ink=menu]').getByRole('button', { name: 'Class B' }).click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'Yes, Switch' }).click()
+    await page.waitForTimeout(800)
+    check('attendance reminder: asked for the next class opened', (await reminder.count()) === 1)
+    await reminder.getByRole('button', { name: 'Close', exact: true }).click()
+    await page.waitForTimeout(600)
+    await page.locator('button[title="Switch class"]').click()
+    await page.waitForTimeout(400)
+    await page.locator('[data-ink=menu]').getByRole('button', { name: 'Class A' }).click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'Yes, Switch' }).click()
+    await page.waitForTimeout(800)
+    check('attendance reminder: Remind me later asks again at the next opening', (await reminder.count()) === 1)
+    await reminder.getByRole('button', { name: 'Take Attendance', exact: true }).click()
+    await page.waitForTimeout(600)
+    check('attendance reminder: Take Attendance turns attendance on', (await page.getByText('Tap a desk to mark a student away.').count()) === 1)
+    await panelButton(page, 'Attendance').click()
+    await page.waitForTimeout(500)
+    check('attendance reminder: no dot once it is taken', (await page.locator('[data-attendance-due]').count()) === 0)
+    await page.locator('button[title="Switch class"]').click()
+    await page.waitForTimeout(400)
+    await page.locator('[data-ink=menu]').getByRole('button', { name: 'Class B' }).click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'Yes, Switch' }).click()
+    await page.waitForTimeout(800)
+    check('attendance reminder: Close means not again today for that class', (await reminder.count()) === 0)
+    await refresh(page)
+    check('attendance reminder: a refresh is not an opening', (await reminder.count()) === 0)
+    return page
   },
 
   async 'nothing scrolls'() {

@@ -133,7 +133,7 @@ export function ChestOpening({
   /** The class's celebration GIF, loaded; null shows the prize alone. */
   gifUrl: string | null
   /** Picks the student who spins (and counts it as their turn). Null when nobody is here. */
-  pickSpinner: () => string | null
+  pickSpinner: (different?: boolean) => string | null
   /** The names a pick flickers through. */
   spinnerNames: string[]
   /** The prize is won: the chest goes on the map and the class walks on. */
@@ -216,9 +216,10 @@ export function ChestOpening({
     }
   }, [chest])
 
+  /** Pick a Spinner; once a name has landed, "Pick a different student" until the wheel is spun. */
   function pick() {
     if (step !== 'wheel') return
-    const winner = pickSpinner()
+    const winner = pickSpinner(Boolean(spinner?.landed))
     if (!winner) return
     setStep('picking')
     const steps = reduceMotion() ? 4 : 24
@@ -351,11 +352,11 @@ export function ChestOpening({
         <div className="relative z-[2] -mt-[4vh] flex items-end justify-center gap-[clamp(12px,3vw,48px)]">
           <button
             type="button"
-            className={`quest-stage-btn mb-[2vh] ${ready && !spinner?.landed ? '' : 'invisible'}`}
-            disabled={!ready || spinnerNames.length === 0}
+            className={`quest-stage-btn mb-[2vh] ${ready ? '' : 'invisible'}`}
+            disabled={!ready || spinnerNames.length === 0 || (spinner?.landed === true && spinnerNames.length < 2)}
             onClick={pick}
           >
-            Pick a Spinner
+            {spinner?.landed ? 'Pick a different student' : 'Pick a Spinner'}
           </button>
           {jarPicture ? (
             <div ref={chestRef} className="w-[min(22vh,30vw)]">

@@ -72,6 +72,8 @@ async function run(scale) {
       if (sessionStorage.getItem('seeded')) return
       sessionStorage.setItem('seeded', '1')
       localStorage.setItem('seating-chart-state-v1', JSON.stringify(s))
+      // The attendance reminder, closed for every class today: each check opens classes for its own reasons.
+      localStorage.setItem('seating-chart-attendance-reminder-v1', JSON.stringify({ day: new Date().toLocaleDateString('sv'), ids: ['*'] }))
       localStorage.setItem('seating-chart-account-v1', JSON.stringify(t))
     },
     [STATE, TEACHER],

@@ -119,6 +119,8 @@ async function computer(name, classes, size = [1280, 800]) {
         if (localStorage.getItem('seeded-for-test')) return
         localStorage.setItem('seeded-for-test', '1')
         localStorage.setItem('seating-chart-state-v1', JSON.stringify(state))
+        // The attendance reminder, closed for every class today: each check opens classes for its own reasons.
+        localStorage.setItem('seating-chart-attendance-reminder-v1', JSON.stringify({ day: new Date().toLocaleDateString('sv'), ids: ['*'] }))
       },
       { classes, activeClassId: classes[0].id },
     )

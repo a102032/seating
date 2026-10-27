@@ -44,6 +44,8 @@ interface SideRailProps {
   choosingAvatars: boolean
   /** Attendance has been taken for this class today, so the button carries a check. */
   attendanceTaken: boolean
+  /** Today's attendance isn't taken yet: an amber dot on the button (2026-10-27). */
+  attendanceDue: boolean
   onToggleAttendance: () => void
   onPickStudent: () => void
   onPickRow: () => void
@@ -138,6 +140,7 @@ export function SideRail(props: SideRailProps) {
     attendanceMode,
     choosingAvatars,
     attendanceTaken,
+    attendanceDue,
     onToggleAttendance,
     onPickStudent,
     onPickRow,
@@ -272,6 +275,9 @@ export function SideRail(props: SideRailProps) {
             <span className="absolute right-0.5 top-0.5 grid size-4 place-items-center rounded-full bg-emerald-500 text-white shadow">
               <Check size={11} strokeWidth={3.5} />
             </span>
+          )}
+          {attendanceDue && !attendanceMode && (
+            <span data-attendance-due="" className="absolute right-1 top-1 size-3 rounded-full bg-amber-400 shadow ring-2 ring-white/80" />
           )}
         </RailButton>
         <RailButton

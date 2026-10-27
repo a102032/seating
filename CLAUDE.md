@@ -13,8 +13,9 @@ that were built and deliberately taken out. It is imported at the bottom of this
   survey, then wait. "go" means build it.
 - They use it by touch at a smartboard, so avoid anything that needs typing, double-tapping, dragging or hovering.
   Smart boards often read one touch as two.
-- **Nothing happens on a timer.** Cards don't flip back by themselves, and picks don't expire. The teacher or a
-  tap decides when something ends.
+- **Nothing happens on a timer.** Cards don't flip back by themselves. The teacher or a tap decides when something
+  ends. **One exception, the teacher's (2026-10-27):** Pick a Random Student, Pick a Random Row and Pick All let go 10
+  seconds after they land or after the last star given to them (`app/usePickLetGo.ts`); desks tapped by hand stay.
 - **The class goal is the only big celebration.** Other good moments get something small (a pop, a short
   sparkle), so the big one keeps its meaning.
 - On-screen words are for young EFL readers: short, plain, and one idea per label.
@@ -67,7 +68,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
   own state in `src/app/`: `useLineScreen` (the Line and its windows), `useGroupActivityScreen` (Group Activity, its cards, picker
   and windows), `useFlipCards`, `useQuestScreens` (the quests' maps, the dig, the space case, a chest the floating window asked
   for), `useSettingsWindow` (Class Settings, its guide and the tour), `ClassSettingsWindow` (what each of its buttons does),
-  `useChooseAvatars`, `useFloat` (the floating window), `usePointsSelection` (desks picked by hand, and the rail's star, −, Pick
+  `useChooseAvatars`, `useFloat` (the floating window), `usePickLetGo` (a pick letting go by itself), `useAttendanceReminder`
+  (asked when a class is opened with attendance not taken), `usePointsSelection` (desks picked by hand, and the rail's star, −, Pick
   All and Pick Whole Row), `useToday`, `usePanelSide` and `Toast`. Something new for one screen goes in that screen's file.
 - `src/types.ts`: data model. `ClassData`, `Student`, `StudentGroup`. A class seats at most 35 (`MAX_DESKS`).
 - `src/components/SafetyScreen.tsx`: `SafetyNet`, round the whole app in `main.tsx`. If anything on screen breaks, the board

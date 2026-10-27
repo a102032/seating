@@ -44,6 +44,8 @@ import { FloatingGoalFor, useFloat } from './app/useFloat'
 import { GroupActivityBoard, GroupActivityWindows, useGroupActivityScreen } from './app/useGroupActivityScreen'
 import { LineWindows, useLineScreen } from './app/useLineScreen'
 import { usePanelSide } from './app/usePanelSide'
+import { usePickLetGo } from './app/usePickLetGo'
+import { AttendanceReminder, useAttendanceReminder } from './app/useAttendanceReminder'
 import { usePointButtons, usePointsSelection } from './app/usePointsSelection'
 import { QuestMap, useQuestScreens } from './app/useQuestScreens'
 import { SettingsGuide, useSettingsWindow } from './app/useSettingsWindow'
@@ -79,6 +81,7 @@ export default function App() {
   const [meterLifted, setMeterLifted] = useState(false)
   const choosing = useChooseAvatars()
   const today = useToday()
+  const reminder = useAttendanceReminder(today)
   const settings = useSettingsWindow(activeClass, cloud.account?.uid)
   const [tourOffered, dismissTourOffer] = useTourOffer()
   const boardLock = useBoardLock()
@@ -170,15 +173,26 @@ export default function App() {
    * Pick a Spinner, as the chest opens: someone here today, the students picked less often lately
    * given the better chance, as every picker does. It is a turn, so it goes in the record.
    */
-  const pickSpinner = useCallback((): string | null => {
-    if (!activeClass || seatedIds.length === 0) return null
-    // Nobody who has already had a turn today, until everyone has (lib/participation).
-    const id = weightedChoice(spinnerChoices(activeClass, seatedIds, today), chanceOf)
-    // Into Pick Student's round as well, so Pick Student passes them by for the rest of the round.
-    store.recordPick(activeClass.id, id, today, [...pickedThisRound, id])
-    return studentsById.get(id)?.name ?? null
+  const lastSpinner = useRef<string | null>(null)
+  const pickSpinner = useCallback(
+    (different?: boolean): string | null => {
+      if (!activeClass || seatedIds.length === 0) return null
+      // "Pick a different student" (2026-10-27): the one passed over gets their turn back, and is
+      // never picked again this time unless they are the only one here.
+      const passed = different ? lastSpinner.current : null
+      if (passed) store.takeBackPick(activeClass.id, passed, today)
+      // Nobody who has already had a turn today, until everyone has (lib/participation).
+      const fresh = spinnerChoices(activeClass, seatedIds, today).filter((id) => id !== passed)
+      const others = seatedIds.filter((id) => id !== passed)
+      const id = weightedChoice(fresh.length > 0 ? fresh : others.length > 0 ? others : seatedIds, chanceOf)
+      lastSpinner.current = id
+      // Into Pick Student's round as well, so Pick Student passes them by for the rest of the round.
+      store.recordPick(activeClass.id, id, today, [...[...pickedThisRound].filter((x) => x !== passed), id])
+      return studentsById.get(id)?.name ?? null
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeClass, seatedIds, chanceOf, today, pickedThisRound])
+    [activeClass, seatedIds, chanceOf, today, pickedThisRound],
+  )
 
   const lineScreen = useLineScreen({ cls: activeClass, today, store, pointsMode, goalLive, desksMode })
   // While the Line is open the desks show names only (2026-10-16, the teacher): the room the
@@ -225,6 +239,10 @@ export default function App() {
     today,
     adjustPoints: store.adjustPoints,
   })
+
+  // Pick a Random Student, Pick a Random Row and Pick All let go 10 seconds after they land, or after
+  // the last star given to them (app/usePickLetGo).
+  usePickLetGo(picker, selection)
 
   // Desks picked by hand are for giving points: switching to no points lets them go, rather than
   // leaving the board dimmed with no Unpick All to undo it.
@@ -281,6 +299,21 @@ export default function App() {
     setSwapMode((v) => !v)
     setSelectedDesk(null)
     selection.reset()
+  }
+
+  /** Opening a class from the splash or the class list asks about attendance if it isn't taken today. */
+  function openClass(id: string) {
+    setActiveClassId(id)
+    reminder.classOpened(classes.find((c) => c.id === id))
+  }
+
+  /** The reminder's Take Attendance: the desks come into view and attendance mode is on. */
+  function takeAttendanceNow() {
+    reminder.later()
+    flip.setOpen(false)
+    lineScreen.setOpen(false)
+    if (swapMode) toggleSwap()
+    if (!attendanceMode) toggleAttendance()
   }
 
   function toggleAttendance() {
@@ -416,6 +449,8 @@ export default function App() {
       attendanceMode={attendanceMode}
       choosingAvatars={choosing.on}
       attendanceTaken={attendanceTakenOn(activeClass, today)}
+      // An amber dot until today's is taken (2026-10-27), for a board left on all day.
+      attendanceDue={!attendanceTakenOn(activeClass, today) && activeClass.students.length > 0}
       onToggleAttendance={toggleAttendance}
       onPickStudent={() => (groups.open ? groups.picker.run('student') : points.startPick(picker.pickStudent))}
       onPickRow={() => (groups.open ? groups.picker.run('group') : points.startPick(picker.pickRow))}
@@ -471,7 +506,7 @@ export default function App() {
     <ClassTitle
       classes={classes}
       activeClassId={activeClassId}
-      onSelectClass={setActiveClassId}
+      onSelectClass={openClass}
       onOpenSettings={() => settings.openAt()}
       onNewClass={classes.length < MAX_CLASSES ? newClass : null}
       disabled={swapMode || attendanceMode || choosing.on}
@@ -500,7 +535,7 @@ export default function App() {
                   classes.find((c) => c.id === id),
                   true,
                 )
-              setActiveClassId(id)
+              openClass(id)
               setSplashOpen(false)
             }}
             onNewClass={() => {
@@ -708,6 +743,13 @@ export default function App() {
         choosing={choosing}
         cls={activeClass}
         onChoose={(studentId, avatarId) => store.updateStudent(activeClass.id, studentId, { avatarId })}
+      />
+
+      <AttendanceReminder
+        cls={reminder.askFor === activeClass.id ? activeClass : null}
+        onTake={takeAttendanceNow}
+        onLater={reminder.later}
+        onClose={reminder.close}
       />
 
       <SendStarsModal
