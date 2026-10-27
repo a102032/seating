@@ -187,6 +187,8 @@ export function NumberStepper({
 
   const step = (by: number) => {
     const next = Math.min(max, Math.max(min, valueRef.current + by))
+    // Held at its limit, a step changes nothing, so it saves nothing either.
+    if (next === valueRef.current) return
     valueRef.current = next
     onChange(next)
   }
