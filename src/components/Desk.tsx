@@ -150,7 +150,7 @@ export function Desk({
             <div
               key={points}
               className="count-pop absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full bg-amber-400 px-[0.45em] py-[0.15em] font-bold leading-none text-amber-950 shadow-sm"
-              style={{ fontSize: 'clamp(0.7rem, 11cqi, 1.5rem)' }}
+              style={{ fontSize: 'clamp(0.7rem, 11cqi, calc(1.5 * var(--grow-rem)))' }}
             >
               {/* Sized in em so the star tracks the number as the desk grows - a fixed
                   pixel size drifts away from it on a smartboard. */}
@@ -173,7 +173,7 @@ export function Desk({
                     'grid min-w-[1.6em] shrink-0 place-items-center rounded-full px-[0.35em] py-[0.1em] font-bold leading-none shadow-md tabular-nums',
                     linePlace.now ? 'bg-emerald-600 text-white' : 'bg-primary text-primary-foreground',
                   )}
-                  style={{ fontSize: 'clamp(0.8rem, 14cqi, 1.75rem)' }}
+                  style={{ fontSize: 'clamp(0.8rem, 14cqi, calc(1.75 * var(--grow-rem)))' }}
                 >
                   {linePlace.place}
                 </div>

@@ -219,6 +219,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
 - framer-motion traps: it never clears an inline `box-shadow` it has set (use a CSS class instead). On elements with
   `layout`/`layoutId`, drive opacity through `animate`, because a utility class loses.
 - Keep sounds above about 400Hz; a classroom tablet speaker has no bass.
+- Anything the class reads from their seats that has a largest size caps it in `var(--grow-rem)` (`index.css`), never
+  plain rem: a plain-rem cap stays the same number of pixels on a 2560-wide board, so it reads smaller from the back.
 
 ## Quick tests
 

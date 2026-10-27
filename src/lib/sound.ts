@@ -764,7 +764,7 @@ export function playMouseBite(volume = 1) {
   const source = ctx.createBufferSource()
   const gain = ctx.createGain()
   source.buffer = biteBuffer
-  gain.gain.value = volume
+  gain.gain.value = volume * MARBLE_VOLUME
   source.connect(gain).connect(ctx.destination)
   source.start()
 }
@@ -865,6 +865,11 @@ const MARBLE_FILES: Record<MarbleClip, string> = {
   bigLow: '/sounds/marbles/big-low.mp3',
 }
 const marbleBuffers: Partial<Record<MarbleClip, AudioBuffer>> = {}
+/**
+ * Every clink at this share of how it was levelled (2026-10-27, the class: the marbles clinking in
+ * the jar were too loud). 0.45 is about 7 dB quieter, the jar's thud and zap left as they were.
+ */
+const MARBLE_VOLUME = 0.45
 let marblesPending = false
 
 /** Decoded once, ahead, as the jar first opens. */
@@ -915,7 +920,7 @@ export function playMarbleClink(size: number, strength: number) {
   primeMarbles()
   const { ctx, master } = cardContext()
   const base = (3400 / Math.sqrt(size)) * (0.92 + Math.random() * 0.16)
-  playTone(ctx, master, { frequency: base, start: 0, duration: 0.09, type: 'sine', peakGain: volume * 0.16 })
+  playTone(ctx, master, { frequency: base, start: 0, duration: 0.09, type: 'sine', peakGain: volume * 0.16 * MARBLE_VOLUME })
 }
 
 /** The Mega landing: the two big clinks together and a short thump, with the jar's shake. */

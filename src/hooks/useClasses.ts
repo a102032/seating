@@ -495,16 +495,12 @@ export function useClasses() {
 
   const setGoal = useCallback(
     (classId: string, goal: number) =>
-      updateClass(classId, (c) => {
-        const pointsGoal = Math.max(0, Math.round(goal))
-        return {
-          ...c,
-          pointsGoal,
-          // A goal lowered below what's on the meter leaves it full, not past full: the meter
-          // read "40 / 30" until the next point. Full waits for one more point to open the chest.
-          classPoints: pointsGoal > 0 ? Math.min(c.classPoints ?? 0, pointsGoal) : c.classPoints,
-        }
-      }),
+      // The stars on the meter are never touched (2026-10-27, the teacher: changing the goal wiped
+      // the class's stars). The goal box saves as it is changed, so holding − or a pause mid-typing
+      // passes through smaller goals, and cutting the stars down to each lost them for good. A goal
+      // below what is on the meter shows it full (pointsOnMeter), and the next point opens the chest,
+      // the rest carrying into the next goal.
+      updateClass(classId, (c) => ({ ...c, pointsGoal: Math.max(0, Math.round(goal)) })),
     [updateClass],
   )
 

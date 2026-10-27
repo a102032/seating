@@ -3,6 +3,7 @@ import {
   participationDates,
   participationRows,
   pickChances,
+  spinnerChoices,
   weightedChoice,
   withCount,
   withoutDay,
@@ -104,5 +105,23 @@ describe('weightedChoice', () => {
   it('no weights at all is an even choice', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99)
     expect(weightedChoice(['a', 'b'], () => 0)).toBe('b')
+  })
+})
+
+describe('spinnerChoices: Pick a Spinner never picks someone who had a turn today', () => {
+  it('leaves out anyone picked today, by any picker or in the round', () => {
+    const c = makeClass(4, { participation: { [MON]: { s0: [1, 0], s1: [0, 2] } }, pickRound: { day: MON, ids: ['s2'] } })
+    // s1 was only given points, so is still owed a turn; s3 is away today, so not here at all.
+    expect(spinnerChoices(c, ['s0', 's1', 's2'], MON)).toEqual(['s1'])
+  })
+
+  it("yesterday's turns and round don't count", () => {
+    const c = makeClass(2, { participation: { [MON]: { s0: [1, 0] } }, pickRound: { day: MON, ids: ['s1'] } })
+    expect(spinnerChoices(c, ['s0', 's1'], TUE)).toEqual(['s0', 's1'])
+  })
+
+  it('once everyone here has had a turn, everyone here again', () => {
+    const c = makeClass(2, { participation: { [MON]: { s0: [1, 0], s1: [2, 0] } } })
+    expect(spinnerChoices(c, ['s0', 's1'], MON)).toEqual(['s0', 's1'])
   })
 })

@@ -317,13 +317,14 @@ export function GroupActivity({
     const el = boardRef.current
     if (!el) return
     const update = () => {
-      // The same clamp(1rem, 2.2vmin, 1.4rem) the group name renders at.
+      // The same clamp(1rem, 2.2vmin, 1.4 grow-rem) the group name renders at (--grow-rem, index.css).
       const vmin = Math.min(window.innerWidth, window.innerHeight)
+      const growRem = Math.max(16, window.innerWidth * 0.0125)
       setBoard({
         width: el.clientWidth,
         height: el.clientHeight,
         fontPx: parseFloat(getComputedStyle(el).fontSize) || 16,
-        headerFontPx: Math.min(22.4, Math.max(16, 0.022 * vmin)),
+        headerFontPx: Math.min(1.4 * growRem, Math.max(16, 0.022 * vmin)),
       })
     }
     update()
@@ -498,7 +499,7 @@ export function GroupActivity({
         : { width: 'max-w-9', score: 'min-w-[2.25rem]', star: 15, sign: 16 }
 
   return (
-    <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, 1.45rem)' }}>
+    <div className="flex h-full w-full min-h-0 flex-col gap-2" style={{ ['--chip-font' as string]: 'clamp(1.05rem, 2.2vmin, calc(1.45 * var(--grow-rem)))' }}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card/70 px-3 py-2 shadow-sm">
         <div className="flex items-center gap-1.5">
           <TactileButton onClick={onNewGroups} disabled={dealing || locked} className="!px-3 !py-2">
@@ -614,7 +615,7 @@ export function GroupActivity({
                         mostly a way for a student to open a dialog by accident. */}
                     <span
                       className="min-w-0 flex-1 truncate font-extrabold leading-tight"
-                      style={{ fontSize: `calc(clamp(1rem, 2.2vmin, 1.4rem) * ${d.nameScale})` }}
+                      style={{ fontSize: `calc(clamp(1rem, 2.2vmin, calc(1.4 * var(--grow-rem))) * ${d.nameScale})` }}
                     >
                       {group.name}
                     </span>

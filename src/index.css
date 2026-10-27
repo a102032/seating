@@ -795,6 +795,13 @@ button {
    the window's whole height. It tightens itself to a short screen through these variables
    (useFitToHeight): the gaps and padding first, then the icons. */
 :root {
+  /*
+   * A rem that grows past a 1280-wide screen (2026-10-27, the "back of the room" check): a board giving
+   * the page 1920 or 2560 across is the same board on the wall, but a size capped in plain rem stays
+   * put, so flip-card and group names, a desk's stars and places in the Line came out smaller from the
+   * back. Caps on what the class reads use this; on 1280 and less it is 1rem, so nothing there moves.
+   */
+  --grow-rem: max(1rem, 1.25vw);
   --rail-w: clamp(58px, 12dvh, 92px);
   /* The desks' gap from the window's other two edges, and from the rail and the bar. */
   --board-gap: clamp(6px, 1.3dvh, 12px);

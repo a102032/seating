@@ -134,7 +134,7 @@ function StudentFace({
           key={points}
           // As big as the desks' chip, for the same reason: the class is meant to see them.
           className="count-pop absolute right-1 top-1 z-10 flex items-center gap-[0.15em] rounded-full bg-amber-400 px-[0.45em] py-[0.15em] font-bold leading-none text-amber-950 shadow-sm"
-          style={{ fontSize: 'clamp(0.7rem, 10cqi, 1.4rem)' }}
+          style={{ fontSize: 'clamp(0.7rem, 10cqi, calc(1.4 * var(--grow-rem)))' }}
         >
           <Star className="h-[0.85em] w-[0.85em] shrink-0 fill-amber-950" strokeWidth={0} />
           {points}
@@ -148,7 +148,7 @@ function StudentFace({
       {pictured ? (
         <span
           className="w-full shrink-0 truncate px-0.5 text-center font-bold leading-tight text-card-foreground"
-          style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
+          style={{ fontSize: 'clamp(0.7rem, 13cqi, calc(1.4 * var(--grow-rem)))' }}
         >
           {student.name}
           {showHomeroom && (
@@ -162,7 +162,7 @@ function StudentFace({
         // (where one shows) under it, as on the desks.
         <span
           className="w-full shrink-0 px-0.5 text-center font-bold leading-tight text-card-foreground"
-          style={{ fontSize: 'clamp(0.85rem, 19cqi, 2.2rem)' }}
+          style={{ fontSize: 'clamp(0.85rem, 19cqi, calc(2.2 * var(--grow-rem)))' }}
         >
           <span className="block truncate">{student.name}</span>
           {showHomeroom && (
@@ -226,7 +226,7 @@ function CardWord({ children }: { children: string }) {
   return (
     <span
       className="w-full shrink-0 truncate text-center font-extrabold leading-tight"
-      style={{ fontSize: 'clamp(0.7rem, 13cqi, 1.4rem)' }}
+      style={{ fontSize: 'clamp(0.7rem, 13cqi, calc(1.4 * var(--grow-rem)))' }}
     >
       {children}
     </span>

@@ -168,6 +168,19 @@ export function pickChances(c: ClassData, today: string): Map<string, number> {
   return chances
 }
 
+/**
+ * Who Pick a Spinner may choose today (2026-10-27, the teacher: it picked a student who had already
+ * been picked that day): the students here today who haven't had a turn today - picked by any picker,
+ * or in Pick Student's round. Once everyone has, everyone here again. `here` is today's present
+ * students, so a student marked away is never chosen.
+ */
+export function spinnerChoices(c: ClassData, here: string[], today: string): string[] {
+  const todays = c.participation?.[today] ?? {}
+  const round = c.pickRound?.day === today ? new Set(c.pickRound.ids) : new Set<string>()
+  const fresh = here.filter((id) => !(todays[id]?.[0] > 0) && !round.has(id))
+  return fresh.length > 0 ? fresh : here
+}
+
 /** One of these, each as likely as its weight says. */
 export function weightedChoice<T>(items: T[], weightOf: (item: T) => number): T {
   const weights = items.map((item) => Math.max(0, weightOf(item)))

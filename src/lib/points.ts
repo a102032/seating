@@ -19,6 +19,16 @@ export function goalIsLive(c: ClassData): boolean {
   return hasClassGoal(pointsModeOf(c)) && (c.pointsGoal ?? 0) > 0
 }
 
+/**
+ * The stars the meter shows: all of them, or full when the goal was set below what the class has
+ * (the stars are kept, and carry into the next goal once it fills).
+ */
+export function pointsOnMeter(c: ClassData): number {
+  const points = c.classPoints ?? 0
+  const goal = c.pointsGoal ?? 0
+  return goal > 0 ? Math.min(points, goal) : points
+}
+
 /** The class is on a quest: a filled goal wins a key rather than opening the chest. */
 export function questIsOn(c: ClassData): boolean {
   return pointsModeOf(c) === 'quest' && goalIsLive(c)

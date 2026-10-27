@@ -1800,6 +1800,16 @@ const scenarios = {
     const shown = (await meterText(page)).trim()
     const [have, goal] = shown.split(' / ').map(Number)
     check('lowering the goal below the meter', have <= goal, `meter reads "${shown}"`)
+    // And back up: the class's stars are all still there (2026-10-27, the teacher: changing the goal
+    // wiped them, and he had to put them back by hand).
+    await openPointsTab(page)
+    await page.waitForTimeout(500)
+    await page.locator('[data-guide="goal-row"] input').fill('50')
+    await page.waitForTimeout(700)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(1200)
+    const back = (await meterText(page)).trim()
+    check('changing the goal keeps the stars: back to 50, still 40', back === '40 / 50', `meter reads "${back}"`)
     return page
   },
 
@@ -4746,8 +4756,8 @@ const scenarios = {
    * letter perfect eyes can just make out) nobody at the back can read it: that fails. Under 7.5'
    * (the 20/30 line) a child whose eyes are a little less sharp may not: that is printed, to look
    * at. Quiet words meant for the teacher (homeroom numbers, a step's name) are left out: they are
-   * small on purpose. KNOWN lists what was already under 5' when the check was made, waiting on
-   * the teacher (DECISIONS, Known loose ends), so the check fails on anything new.
+   * small on purpose. KNOWN lists anything under 5' waiting on the teacher (DECISIONS, Known loose
+   * ends), so the check fails on anything new.
    *
    * Every screen is also saved shrunk to what a child with perfect eyesight can make out from
    * there - one picture dot to each arcminute - and blown back up to look at: back-of-room-*.png.
@@ -4757,12 +4767,11 @@ const scenarios = {
     const metres = Number(process.env.BACK_METRES || 8)
     const floor = 5
     const comfortable = 7.5
-    /** Under the floor when the check was made (2026-10-26): wide screens, where these stop growing. */
-    const KNOWN = {
-      'names on the flip cards': ['2560x1300'],
-      'names on the group cards (pairs)': ['2560x1300'],
-      'stars on a desk': ['2560x1300'],
-    }
+    /**
+     * Anything under the floor that is waiting on the teacher, by screen and size. Empty since the
+     * capped sizes grew with the screen (2026-10-27, --grow-rem in index.css).
+     */
+    const KNOWN = {}
     const known = []
     const notes = []
     // A 16:9 board's width, and how many arcminutes it spans from the back.

@@ -26,7 +26,8 @@ import { useClassPhotos } from './hooks/useClassPhotos'
 import { canFloat, FLOAT_SIZE } from './hooks/useFloatingWindow'
 import { timer } from './hooks/useTimer'
 import { usePicker } from './hooks/usePicker'
-import { pickChances, weightedChoice } from './lib/participation'
+import { pickChances, spinnerChoices, weightedChoice } from './lib/participation'
+import { pointsOnMeter } from './lib/points'
 import { primeAudio } from './lib/sound'
 import { flyStarsToGoal } from './lib/starFlight'
 import { homeroomsToShow } from './lib/sameNames'
@@ -170,12 +171,14 @@ export default function App() {
    * given the better chance, as every picker does. It is a turn, so it goes in the record.
    */
   const pickSpinner = useCallback((): string | null => {
-    if (!activeClassId || seatedIds.length === 0) return null
-    const id = weightedChoice(seatedIds, chanceOf)
-    store.recordPick(activeClassId, id, today)
+    if (!activeClass || seatedIds.length === 0) return null
+    // Nobody who has already had a turn today, until everyone has (lib/participation).
+    const id = weightedChoice(spinnerChoices(activeClass, seatedIds, today), chanceOf)
+    // Into Pick Student's round as well, so Pick Student passes them by for the rest of the round.
+    store.recordPick(activeClass.id, id, today, [...pickedThisRound, id])
     return studentsById.get(id)?.name ?? null
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeClassId, seatedIds, chanceOf, today])
+  }, [activeClass, seatedIds, chanceOf, today, pickedThisRound])
 
   const lineScreen = useLineScreen({ cls: activeClass, today, store, pointsMode, goalLive, desksMode })
   // While the Line is open the desks show names only (2026-10-16, the teacher): the room the
@@ -568,7 +571,7 @@ export default function App() {
           {goalLive ? (
             <PointsMeter
               classId={activeClass.id}
-              classPoints={activeClass.classPoints ?? 0}
+              classPoints={pointsOnMeter(activeClass)}
               goalsReached={activeClass.goalsReached ?? 0}
               goal={activeClass.pointsGoal ?? 0}
               celebrationGifId={activeClass.celebrationGifId}

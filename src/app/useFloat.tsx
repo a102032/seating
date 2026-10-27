@@ -5,7 +5,7 @@ import { useAppInFront, useFloatingWindow } from '../hooks/useFloatingWindow'
 import type { usePicker } from '../hooks/usePicker'
 import { DEFAULT_GET_READY_PRIZE } from '../lib/getReady'
 import { jarIsFull, jarOf, marblesOn } from '../lib/marbles'
-import { questIsOn } from '../lib/points'
+import { pointsOnMeter, questIsOn } from '../lib/points'
 import { questOf } from '../lib/quest'
 import type { ClassData, Student } from '../types'
 
@@ -98,7 +98,7 @@ export function FloatingGoalFor({
     <FloatingGoal
       win={win}
       className={cls.name}
-      classPoints={cls.classPoints ?? 0}
+      classPoints={pointsOnMeter(cls)}
       goal={cls.pointsGoal ?? 0}
       waiting={float.goalWaiting}
       onAdd={() => store.addToClassGoal(cls.id, 1)}
