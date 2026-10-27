@@ -73,18 +73,18 @@ export function AttendanceReminder({
   useLayoutEffect(() => {
     if (open) openedAt.current = performance.now()
   }, [open])
-  // The class's name is kept through the closing fade.
-  const last = useRef<ClassData | null>(null)
-  if (cls) last.current = cls
+  // The class is kept through the closing fade.
+  const [last, setLast] = useState<ClassData | null>(cls)
+  if (cls && cls !== last) setLast(cls)
   const shown = useLingerWhileClosing(open)
-  if (!shown || !last.current) return null
+  if (!shown || !last) return null
   const ready = (e: MouseEvent) => e.timeStamp - openedAt.current >= TAP_GUARD_MS
 
   return (
     // A tap outside is "Remind me later": it asks again next time, so nothing is lost by it.
     <Modal open={open} onClose={() => performance.now() - openedAt.current >= TAP_GUARD_MS && onLater()} title="Take attendance?">
       <div className="flex flex-col gap-4" data-attendance-reminder="">
-        <p className="text-lg">Attendance for {last.current.name} isn&apos;t taken yet today.</p>
+        <p className="text-lg">Attendance for {last.name} isn&apos;t taken yet today.</p>
         <TactileButton type="button" variant="primary" onClick={(e) => ready(e) && onTake()}>
           Take Attendance
         </TactileButton>
