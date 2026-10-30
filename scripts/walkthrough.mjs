@@ -471,7 +471,7 @@ const scenarios = {
     await page.locator('[data-marble-next]').click({ force: true })
     await page.waitForTimeout(1200)
     await page.getByRole('button', { name: 'Pick a Spinner' }).click()
-    await page.waitForTimeout(3300)
+    await page.waitForTimeout(4500)
     const number = await page.locator('[data-quest-spinner] [data-spinner-homeroom]').innerText().catch(() => '')
     const said = await page.locator('[data-quest-spinner]').innerText()
     check('marbles: Pick a Spinner shows the homeroom number of an Amy who shares her name', ['05', '12'].includes(number.trim()), said)
@@ -484,7 +484,7 @@ const scenarios = {
     const before = await picks()
     await page.waitForTimeout(800)
     await page.getByRole('button', { name: 'Pick a different student' }).click()
-    await page.waitForTimeout(3300)
+    await page.waitForTimeout(4500)
     const other = await page.locator('[data-quest-spinner] [data-spinner-homeroom]').innerText().catch(() => '')
     check(
       'marbles: Pick a different student names the other one, and the first gets her turn back',
