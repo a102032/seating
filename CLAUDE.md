@@ -78,7 +78,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   comes in (this board's copy, the account, the board's classes taken into an account), so nothing else reads an old shape.
   When a field of `ClassData` changes shape, add a step there with its test in `lib/test/upgrade.test.ts`, never a fallback
   where the field is read.
-- `src/lib/layouts.ts`: room layouts (Rows, Pairs, Rows of 3, Tables of 4, Tables of 5 two ways). `planFor(cls)` gives
+- `src/lib/layouts.ts`: room layouts (Rows, 7 Rows, Pairs, Rows of 3, Tables of 4, Tables of 5 two ways; 7 Rows numbers its desks as Rows with the seventh column on the left). `planFor(cls)` gives
   the desks a class shows, which row or table each belongs to (Pick Row / Pick Table, Split by Rows / Tables) and the
   fill order. Never work out a desk's place with `index % 6`: go through the plan. Rows keeps the old numbering (desks
   0-29 six wide, 30-34 the seventh column), and `DeskGrid` draws Rows with its original code. A class of thirty or fewer gets the seventh column as side desks (`planFor`, `side`) while someone sits there or Swap Seats is on.

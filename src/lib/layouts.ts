@@ -9,11 +9,12 @@ import type { ClassData } from '../types'
  * Every layout keeps six desks across. The mock-up that chose these showed why: a name is sized
  * by its desk's width, so six across keeps every name at today's size, and the tables pay in
  * height instead (a sixth row, slightly smaller pictures). Tables of 6 and L-shaped groups of 3
- * were drawn and left out.
+ * were drawn and left out. 7 Rows is the one room seven across, for a room that has seven rows:
+ * its names are a seventh narrower, as in a class of 31.
  */
-export type RoomLayout = 'rows' | 'pairs' | 'threes' | 'tables4' | 'tables5-top' | 'tables5-bottom'
+export type RoomLayout = 'rows' | 'rows7' | 'pairs' | 'threes' | 'tables4' | 'tables5-top' | 'tables5-bottom'
 
-export const ROOM_LAYOUTS: RoomLayout[] = ['rows', 'pairs', 'threes', 'tables4', 'tables5-top', 'tables5-bottom']
+export const ROOM_LAYOUTS: RoomLayout[] = ['rows', 'rows7', 'pairs', 'threes', 'tables4', 'tables5-top', 'tables5-bottom']
 
 /** The space after a column or row of desks: the grid's even gap, desks pushed together, or an aisle. */
 export type Gap = 'even' | 'touch' | 'aisle'
@@ -59,6 +60,7 @@ export const MAX_SEATS = 40
 /** Desks a layout has before a big class needs more. */
 const BASE_SEATS: Record<RoomLayout, number> = {
   rows: 30,
+  rows7: 35,
   pairs: 30,
   threes: 30,
   tables4: 36,
@@ -127,6 +129,23 @@ function gridLayout(kind: 'rows' | 'pairs' | 'threes', big: boolean, side: boole
   return plan(kind, seventh ? 7 : 6, 5, columnGaps, repeatGaps(['even'], 4), seats, 'row', side)
 }
 
+/**
+ * 7 Rows: seven equal rows, five deep (2026-10-30, the teacher: his room is six rows and a
+ * seventh on the left, and the app's side column, on the right, made Pick Row light two rows at
+ * once). It numbers its desks as Rows does with the seventh column moved to the left: desks 0-29
+ * are the six rows, one column over, and 30-34 the left-hand row. So switching from Rows moves
+ * nobody, and the students he seated in the side column become the left-hand row, which is where
+ * they sit in his room. Every column is its own row for Pick Row and for groups.
+ */
+function sevenRows(): LayoutPlan {
+  const seats: Seat[] = []
+  for (let i = 0; i < 35; i++) {
+    const column = i < 30 ? (i % 6) + 1 : 0
+    seats.push({ column, row: i < 30 ? Math.floor(i / 6) : i - 30, set: column })
+  }
+  return plan('rows7', 7, 5, repeatGaps(['even'], 6), repeatGaps(['even'], 4), seats, 'row')
+}
+
 /** Nine tables of four, three across and three deep: thirty-six desks, which seats any class. */
 function tablesOfFour(): LayoutPlan {
   const seats: Seat[] = []
@@ -182,8 +201,10 @@ function tablesOfFive(kind: 'tables5-top' | 'tables5-bottom', big: boolean): Lay
   return plan(kind, columns, 6, repeatGaps(['touch', 'aisle'], columns - 1), ['touch', 'touch', 'aisle', 'touch', 'touch'], seats, 'table')
 }
 
-/** Rows, Pairs and Rows of 3 number their desks the same way, so moving between them moves nobody. */
-const GRID_LAYOUTS: RoomLayout[] = ['rows', 'pairs', 'threes']
+/** Rows, 7 Rows, Pairs and Rows of 3 number their desks the same way, so moving between them moves nobody. */
+const GRID_LAYOUTS: RoomLayout[] = ['rows', 'rows7', 'pairs', 'threes']
+/** The layouts whose seventh column can be side desks: 7 Rows has seven rows of its own. */
+const SIDE_DESK_LAYOUTS: RoomLayout[] = ['rows', 'pairs', 'threes']
 
 const plans = new Map<string, LayoutPlan>()
 
@@ -195,9 +216,11 @@ export function layoutPlan(kind: RoomLayout, big: boolean, side = false): Layout
     found =
       kind === 'tables4'
         ? tablesOfFour()
-        : kind === 'tables5-top' || kind === 'tables5-bottom'
-          ? tablesOfFive(kind, big)
-          : gridLayout(kind, big, side)
+        : kind === 'rows7'
+          ? sevenRows()
+          : kind === 'tables5-top' || kind === 'tables5-bottom'
+            ? tablesOfFive(kind, big)
+            : gridLayout(kind, big, side)
     plans.set(key, found)
   }
   return found
@@ -218,7 +241,7 @@ function needsMoreDesks(kind: RoomLayout, cls: Pick<ClassData, 'students' | 'sea
 export function planFor(cls: Pick<ClassData, 'students' | 'seating' | 'layout'> | undefined, opts?: { sideDesks?: boolean }): LayoutPlan {
   if (!cls) return layoutPlan('rows', false)
   const kind = cls.layout ?? 'rows'
-  if (GRID_LAYOUTS.includes(kind) && cls.students.length <= BASE_SEATS[kind]) {
+  if (SIDE_DESK_LAYOUTS.includes(kind) && cls.students.length <= BASE_SEATS[kind]) {
     const sideTaken = cls.seating.slice(BASE_SEATS[kind]).some(Boolean)
     return layoutPlan(kind, false, sideTaken || opts?.sideDesks === true)
   }

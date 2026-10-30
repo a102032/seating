@@ -8,6 +8,7 @@ interface LayoutPickerProps {
 
 const LABELS: Record<RoomLayout, [string, string?]> = {
   rows: ['Rows'],
+  rows7: ['7 Rows'],
   pairs: ['Pairs'],
   threes: ['Rows of 3'],
   tables4: ['Tables of 4'],
@@ -60,7 +61,7 @@ function drawingOf(layout: RoomLayout): Drawing {
 }
 
 const DRAWINGS = Object.fromEntries(ROOM_LAYOUTS.map((id) => [id, drawingOf(id)])) as Record<RoomLayout, Drawing>
-/** One frame for all six, so a desk is the same size in every drawing and only the room changes. */
+/** One frame for all of them, so a desk is the same size in every drawing and only the room changes. */
 const VIEW_W = Math.max(...ROOM_LAYOUTS.map((id) => DRAWINGS[id].width)) + MARGIN * 2
 const VIEW_H = Math.max(...ROOM_LAYOUTS.map((id) => DRAWINGS[id].height)) + MARGIN * 2
 

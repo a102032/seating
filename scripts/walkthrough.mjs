@@ -472,7 +472,10 @@ const scenarios = {
     await page.waitForTimeout(1200)
     await page.getByRole('button', { name: 'Pick a Spinner' }).click()
     await page.waitForTimeout(4500)
-    const number = await page.locator('[data-quest-spinner] [data-spinner-homeroom]').innerText().catch(() => '')
+    const number = await page
+      .locator('[data-quest-spinner] [data-spinner-homeroom]')
+      .innerText()
+      .catch(() => '')
     const said = await page.locator('[data-quest-spinner]').innerText()
     check('marbles: Pick a Spinner shows the homeroom number of an Amy who shares her name', ['05', '12'].includes(number.trim()), said)
     await page.screenshot({ path: '/tmp/walkthrough/marbles-spinner-homeroom.png' })
@@ -485,7 +488,10 @@ const scenarios = {
     await page.waitForTimeout(800)
     await page.getByRole('button', { name: 'Pick a different student' }).click()
     await page.waitForTimeout(4500)
-    const other = await page.locator('[data-quest-spinner] [data-spinner-homeroom]').innerText().catch(() => '')
+    const other = await page
+      .locator('[data-quest-spinner] [data-spinner-homeroom]')
+      .innerText()
+      .catch(() => '')
     check(
       'marbles: Pick a different student names the other one, and the first gets her turn back',
       other.trim() !== number.trim() && ['05', '12'].includes(other.trim()) && (await picks()) === before,
@@ -3217,6 +3223,8 @@ const scenarios = {
       ['tables5-top', '5th on top', 'table', 6],
       ['tables5-bottom', '5th below', 'table', 6],
       ['rows', 'Rows', 'row', 6],
+      // Last: back in Rows, a class it filled from the left keeps the left-hand row at side desks.
+      ['rows7', '7 Rows', 'row', 7],
     ]
     const nameSize = (page) =>
       page.evaluate(() => {
@@ -3245,9 +3253,11 @@ const scenarios = {
           if (o.page || o.pageX || o.panel > 0) bad.push(`${id} board ${JSON.stringify(o)}`)
           const drawn = await page.locator('[data-ink=desk]').count()
           if (drawn !== count) bad.push(`${id}: ${drawn} desks with a student drawn`)
-          // Six across keeps the names at Rows' size; a big class in tables of 5 is the exception (eight across).
+          // Six across keeps the names at Rows' size; a big class in tables of 5 is the exception (eight
+          // across), and 7 Rows, seven across, is a class of 31's size whatever the class.
           const ratio = (await nameSize(page)) / rowsName
-          if (!(id === 'tables5-top' || id === 'tables5-bottom') || count <= 30) {
+          const narrower = count > 30 ? id === 'tables5-top' || id === 'tables5-bottom' : id === 'rows7'
+          if (!narrower) {
             if (ratio < 0.97) bad.push(`${id}: names ${Math.round(ratio * 100)}% of Rows`)
           }
           const pickLabel = setName === 'table' ? 'Pick a Random Table' : 'Pick a Random Row'
@@ -3266,6 +3276,14 @@ const scenarios = {
             const groups = Number(caption.match(/(\d+) groups/)?.[1] ?? 0)
             if (groups < 2 || groups > sets + (count > 30 ? 2 : 0)) bad.push(`${id}: split makes "${caption}"`)
           } else if (await split.count()) bad.push(`${id}: Tables offered in a room of rows`)
+          // Seven rows are seven groups: a button of their own, since the window's counts stop at 6.
+          const byRows = page.getByRole('dialog').getByRole('button', { name: /^Rows/ })
+          if (id === 'rows7') {
+            const caption = (await byRows.textContent()) ?? ''
+            // One a row with someone in it: thirty from Rows moved nobody, so the left-hand row is empty.
+            const rowsSeated = count > 30 ? 7 : 6
+            if (!caption.includes(`${rowsSeated} groups`)) bad.push(`${id}: Rows makes "${caption}"`)
+          } else if (await byRows.count()) bad.push(`${id}: Rows offered`)
           await page.keyboard.press('Escape')
           await page.waitForTimeout(500)
           if (size[0] === 1280) await page.screenshot({ path: `${SHOTS}/layout-${id}-${count}.png` })
@@ -3288,6 +3306,66 @@ const scenarios = {
       await page.waitForTimeout(500)
     }
     check('room layouts: rows, pairs and rows of 3 move nobody', (await activeSaved(page)).seating.slice(0, 35).join() === before)
+    return page
+  },
+
+  /**
+   * 7 Rows (2026-10-30): the teacher's room, six rows and a seventh on the left, which he had
+   * seated in the side column on the right. Choosing 7 Rows moves nobody, the side column's
+   * students are the left-hand row, and Pick a Random Row lights one row at a time.
+   */
+  async 'seven rows'() {
+    const cls = makeClass('c1', 'Seven Rows', 30)
+    // His seventh row: three students moved from the rows into the side column.
+    for (const [from, to] of [
+      [5, 30],
+      [11, 31],
+      [17, 32],
+    ]) {
+      cls.seating[to] = cls.seating[from]
+      cls.seating[from] = null
+    }
+    const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size: [1280, 559] })
+    const before = (await activeSaved(page)).seating.slice(0, 35).join()
+    const sideNames = [5, 11, 17].map((i) => cls.students[i].name)
+    await openSection(page, 'class')
+    await page.locator('[role=dialog] button[aria-pressed]', { hasText: '7 Rows' }).click()
+    await page.waitForTimeout(300)
+    await page.screenshot({ path: `${SHOTS}/seven-rows-settings.png` })
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    check('7 rows: choosing it moves nobody', (await activeSaved(page)).seating.slice(0, 35).join() === before)
+    const xs = await page
+      .locator('[data-ink=desk], [data-ink=desk-empty]')
+      .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)))
+    const columns = [...new Set(xs)].sort((a, b) => a - b)
+    const leftNames = await page
+      .locator('[data-ink=desk]')
+      .evaluateAll((els, left) => els.filter((e) => Math.round(e.getBoundingClientRect().x) === left).map((e) => e.textContent), columns[0])
+    check(
+      '7 rows: seven columns, the side column now the left-hand row',
+      columns.length === 7 && sideNames.every((n) => leftNames.some((t) => t.includes(n))) && leftNames.length === 3,
+      `${columns.length} columns, left: ${leftNames.join(', ')}`,
+    )
+    await page.screenshot({ path: `${SHOTS}/seven-rows.png` })
+    const bad = []
+    let sawLeft = false
+    for (let i = 0; i < 10; i++) {
+      await panelButton(page, 'Pick a Random Row').click()
+      await page.waitForTimeout(3600)
+      // By the desk's slot, not the desk itself, which a pick may grow.
+      const lit = await page
+        .locator('[data-ink=desk].desk-picked')
+        .evaluateAll((els) => els.map((e) => [Math.round(e.parentElement.getBoundingClientRect().x), e.textContent]))
+      const litColumns = new Set(lit.map(([x]) => x))
+      if (litColumns.size !== 1) bad.push(`pick ${i}: ${litColumns.size} columns lit`)
+      if (lit.length && lit.every(([, t]) => sideNames.some((n) => t.includes(n)))) sawLeft = true
+      await page.mouse.click(5, 5)
+      await page.waitForTimeout(400)
+    }
+    check('7 rows: Pick a Random Row lights one row at a time', bad.length === 0, bad.join('; '))
+    // A round gives every row a turn before any has a second, so ten picks reach all seven.
+    check('7 rows: the left-hand row is picked on its own', sawLeft)
     return page
   },
 
@@ -4160,36 +4238,39 @@ const scenarios = {
     const known = []
     const notes = []
     // A 16:9 board's width, and how many arcminutes it spans from the back.
-    const boardWidth = ((inches * 0.0254) * 16) / Math.hypot(16, 9)
+    const boardWidth = (inches * 0.0254 * 16) / Math.hypot(16, 9)
     const arcminAcross = ((2 * Math.atan(boardWidth / 2 / metres) * 180) / Math.PI) * 60
 
     /** The smallest capital-letter height, in pixels, of the words a child reads under these (only names, with `names`). */
     const smallestLetters = (page, selector, names) =>
-      page.evaluate(([selector, names]) => {
-        const canvas = document.createElement('canvas').getContext('2d')
-        let smallest = Infinity
-        let what = ''
-        for (const root of document.querySelectorAll(selector)) {
-          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-            const text = node.textContent.trim()
-            const el = node.parentElement
-            if (!text || !el || el.closest('[data-ink=homeroom], [data-line-step-name], .sr-only')) continue
-            if (names && !names.includes(text)) continue
-            const style = getComputedStyle(el)
-            const box = el.getBoundingClientRect()
-            // Not drawn, or a quiet word for the teacher (homeroom numbers are at half strength).
-            if (box.width === 0 || style.visibility === 'hidden' || Number(style.opacity) < 0.75) continue
-            canvas.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
-            const cap = canvas.measureText('H').actualBoundingBoxAscent
-            if (cap < smallest) {
-              smallest = cap
-              what = text
+      page.evaluate(
+        ([selector, names]) => {
+          const canvas = document.createElement('canvas').getContext('2d')
+          let smallest = Infinity
+          let what = ''
+          for (const root of document.querySelectorAll(selector)) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              const text = node.textContent.trim()
+              const el = node.parentElement
+              if (!text || !el || el.closest('[data-ink=homeroom], [data-line-step-name], .sr-only')) continue
+              if (names && !names.includes(text)) continue
+              const style = getComputedStyle(el)
+              const box = el.getBoundingClientRect()
+              // Not drawn, or a quiet word for the teacher (homeroom numbers are at half strength).
+              if (box.width === 0 || style.visibility === 'hidden' || Number(style.opacity) < 0.75) continue
+              canvas.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+              const cap = canvas.measureText('H').actualBoundingBoxAscent
+              if (cap < smallest) {
+                smallest = cap
+                what = text
+              }
             }
           }
-        }
-        return { cap: smallest, what }
-      }, [selector, names])
+          return { cap: smallest, what }
+        },
+        [selector, names],
+      )
 
     /** The page shrunk to a dot an arcminute at the back, and blown back up to look at. */
     async function childsView(page, name) {
@@ -4341,7 +4422,10 @@ const scenarios = {
     check('attendance reminder: Remind me later asks again at the next opening', (await reminder.count()) === 1)
     await reminder.getByRole('button', { name: 'Take Attendance', exact: true }).click()
     await page.waitForTimeout(600)
-    check('attendance reminder: Take Attendance turns attendance on', (await page.getByText('Tap a desk to mark a student away.').count()) === 1)
+    check(
+      'attendance reminder: Take Attendance turns attendance on',
+      (await page.getByText('Tap a desk to mark a student away.').count()) === 1,
+    )
     await panelButton(page, 'Attendance').click()
     await page.waitForTimeout(500)
     check('attendance reminder: no dot once it is taken', (await page.locator('[data-attendance-due]').count()) === 0)
