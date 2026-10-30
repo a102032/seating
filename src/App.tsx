@@ -20,6 +20,7 @@ import { SideRail } from './components/SideRail'
 import { SplashScreen } from './components/SplashScreen'
 import { BigTimer, TimerClock, TimerDim } from './components/BigTimer'
 import { AccountQuestionModal, SwitchTeacherModal } from './components/Account'
+import type { SpinnerPick } from './components/SpinnerName'
 import { DEFAULT_GET_READY_PRIZE } from './lib/getReady'
 import { goalIsLive, MAX_CLASSES, pointsModeOf, starsWaitOnDesks, useClasses } from './hooks/useClasses'
 import { useClassPhotos } from './hooks/useClassPhotos'
@@ -44,7 +45,6 @@ import { FloatingGoalFor, useFloat } from './app/useFloat'
 import { GroupActivityBoard, GroupActivityWindows, useGroupActivityScreen } from './app/useGroupActivityScreen'
 import { LineWindows, useLineScreen } from './app/useLineScreen'
 import { usePanelSide } from './app/usePanelSide'
-import { usePickLetGo } from './app/usePickLetGo'
 import { AttendanceReminder, useAttendanceReminder } from './app/useAttendanceReminder'
 import { usePointButtons, usePointsSelection } from './app/usePointsSelection'
 import { QuestMap, useQuestScreens } from './app/useQuestScreens'
@@ -173,9 +173,14 @@ export default function App() {
    * Pick a Spinner, as the chest opens: someone here today, the students picked less often lately
    * given the better chance, as every picker does. It is a turn, so it goes in the record.
    */
+  // As the floating window shows a pick: the homeroom number after a name two students share.
+  const spinnerPick = (id: string): SpinnerPick | null => {
+    const s = studentsById.get(id)
+    return s?.name ? { name: s.name, homeroom: homeroomTagged.has(id) ? s.homeroom.trim() : '' } : null
+  }
   const lastSpinner = useRef<string | null>(null)
   const pickSpinner = useCallback(
-    (different?: boolean): string | null => {
+    (different?: boolean): SpinnerPick | null => {
       if (!activeClass || seatedIds.length === 0) return null
       // "Pick a different student" (2026-10-27): the one passed over gets their turn back, and is
       // never picked again this time unless they are the only one here.
@@ -188,10 +193,10 @@ export default function App() {
       lastSpinner.current = id
       // Into Pick Student's round as well, so Pick Student passes them by for the rest of the round.
       store.recordPick(activeClass.id, id, today, [...[...pickedThisRound].filter((x) => x !== passed), id])
-      return studentsById.get(id)?.name ?? null
+      return spinnerPick(id)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeClass, seatedIds, chanceOf, today, pickedThisRound],
+    [activeClass, seatedIds, chanceOf, today, pickedThisRound, homeroomTagged],
   )
 
   const lineScreen = useLineScreen({ cls: activeClass, today, store, pointsMode, goalLive, desksMode })
@@ -239,10 +244,6 @@ export default function App() {
     today,
     adjustPoints: store.adjustPoints,
   })
-
-  // Pick a Random Student, Pick a Random Row and Pick All let go 10 seconds after they land, or after
-  // the last star given to them (app/usePickLetGo).
-  usePickLetGo(picker, selection)
 
   // Desks picked by hand are for giving points: switching to no points lets them go, rather than
   // leaving the board dimmed with no Unpick All to undo it.
@@ -623,7 +624,7 @@ export default function App() {
                 activeClass,
                 store,
                 pickSpinner,
-                seatedIds.map((id) => studentsById.get(id)?.name ?? '').filter(Boolean),
+                seatedIds.map(spinnerPick).filter((p): p is SpinnerPick => p !== null),
               )}
             />
           ) : (

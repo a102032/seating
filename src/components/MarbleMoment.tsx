@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { SpinnerName, type SpinnerPick } from './SpinnerName'
 import { burst, firework } from '../lib/burst'
 import { drawJarBack, drawJarFront, jarPicture, marbleSVG, marbleWheelSVG } from '../lib/marbleArt'
 import { MarbleLayer } from '../lib/marbleLayer'
@@ -80,8 +81,8 @@ export default function MarbleMoment({
   jar: MarbleJarState
   /** Emptying after the prize: the marbles that were in the full jar, to pop away. */
   popFrom?: SavedMarble[]
-  pickSpinner: (different?: boolean) => string | null
-  spinnerNames: string[]
+  pickSpinner: (different?: boolean) => SpinnerPick | null
+  spinnerNames: SpinnerPick[]
   /** A spin spun and its marbles settled: keep them, and spend the spin. */
   onSpun: (marbles: SavedMarble[]) => void
   /** The jar is full, and the teacher taps for the prize wheel; the jar's picture goes with it. */
@@ -110,7 +111,7 @@ export default function MarbleMoment({
     mode === 'spin' ? 'Spin for marbles!' : mode === 'empty' ? 'A new jar!' : jarIsFull(jar) ? 'Our jar is full!' : 'Our jar',
   )
   const [titleKey, setTitleKey] = useState(0)
-  const [spinner, setSpinner] = useState<{ name: string; landed: boolean } | null>(null)
+  const [spinner, setSpinner] = useState<{ who: SpinnerPick; landed: boolean } | null>(null)
   const shownAt = useRef(performance.now())
   const angle = useRef(0)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -240,11 +241,11 @@ export default function MarbleMoment({
       const lastOne = s === steps - 1
       later(() => {
         if (lastOne) {
-          setSpinner({ name: winner, landed: true })
+          setSpinner({ who: winner, landed: true })
           playPickerLand()
           later(() => setStep('ready'), 300)
         } else {
-          setSpinner({ name: spinnerNames[Math.floor(Math.random() * spinnerNames.length)] ?? winner, landed: false })
+          setSpinner({ who: spinnerNames[Math.floor(Math.random() * spinnerNames.length)] ?? winner, landed: false })
           playPickerTick()
         }
       }, at)
@@ -454,7 +455,7 @@ export default function MarbleMoment({
             className={`whitespace-nowrap rounded-full border-[3px] px-[0.9em] py-[0.1em] font-bold text-white ${spinner.landed ? 'border-amber-400 bg-amber-400/20' : 'border-transparent bg-white/10'}`}
             style={{ fontSize: 'clamp(1.1rem, 4vmin, 2.2rem)' }}
           >
-            {spinner.landed ? `${spinner.name}, spin!` : spinner.name}
+            <SpinnerName who={spinner.who} spin={spinner.landed} />
           </div>
         )}
         <div

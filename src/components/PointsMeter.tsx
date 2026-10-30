@@ -21,6 +21,7 @@ const MarbleMoment = lazy(loadMarbleMoment)
 import { landingIsLoud, landingIsSilent, starsLandingIn } from '../lib/starFlight'
 import { GoalCelebration } from './GoalCelebration'
 import { barClass } from '../lib/topBar'
+import type { SpinnerPick } from './SpinnerName'
 
 interface PointsMeterProps {
   classId: string
@@ -66,8 +67,8 @@ interface PointsMeterProps {
     /** A tap on the chest while it still needs keys: Our Quest, on its map. On the Pirate Quest, `dig` digs for the treasure there. */
     onOpenMap: (dig?: boolean) => void
     onOpened: (prize: QuestPrize) => void
-    pickSpinner: (different?: boolean) => string | null
-    spinnerNames: string[]
+    pickSpinner: (different?: boolean) => SpinnerPick | null
+    spinnerNames: SpinnerPick[]
     /** Open the chest in the floating window was tapped: the chest opens once the app is in front. */
     openRequested: boolean
     onOpenRequestDone: () => void

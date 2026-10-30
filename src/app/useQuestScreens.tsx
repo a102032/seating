@@ -8,6 +8,7 @@ import { jarOf, marblesOn } from '../lib/marbles'
 import { questIsOn } from '../lib/points'
 import { prizesOf, questOf } from '../lib/quest'
 import type { ClassData } from '../types'
+import type { SpinnerPick } from '../components/SpinnerName'
 
 type Store = ReturnType<typeof useClasses>
 type MeterQuest = NonNullable<ComponentProps<typeof PointsMeter>['quest']>
@@ -33,8 +34,8 @@ export function useQuestScreens() {
   function meterQuest(
     cls: ClassData,
     store: Pick<Store, 'openQuestChest' | 'spendMarbleSpin' | 'fillMarbleJar'>,
-    pickSpinner: (different?: boolean) => string | null,
-    spinnerNames: string[],
+    pickSpinner: (different?: boolean) => SpinnerPick | null,
+    spinnerNames: SpinnerPick[],
   ): MeterQuest | undefined {
     if (!questIsOn(cls)) return undefined
     return {

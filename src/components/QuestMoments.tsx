@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { SpinnerName, type SpinnerPick } from './SpinnerName'
 import { buildWheel, CHESTS, MEGA, type QuestPrize, type Slice } from '../lib/quest'
 import { chestSVG, keySVG, pointerSVG, prizeIconSVG, sliceFaceSVG, wheelSVG } from '../lib/questArt'
 import { playChestBurst, playChestKnocks, playGoalCelebration, playKeyJingle, playPickerLand, playPickerTick } from '../lib/sound'
@@ -133,9 +134,9 @@ export function ChestOpening({
   /** The class's celebration GIF, loaded; null shows the prize alone. */
   gifUrl: string | null
   /** Picks the student who spins (and counts it as their turn). Null when nobody is here. */
-  pickSpinner: (different?: boolean) => string | null
+  pickSpinner: (different?: boolean) => SpinnerPick | null
   /** The names a pick flickers through. */
-  spinnerNames: string[]
+  spinnerNames: SpinnerPick[]
   /** The prize is won: the chest goes on the map and the class walks on. */
   onDone: (prize: QuestPrize) => void
   /** Put back before the wheel has spun: the chest waits, full, for later. */
@@ -148,7 +149,7 @@ export function ChestOpening({
   const [wheelHtml] = useState(() => ({ __html: wheelSVG(chest, slices) }))
   const [pointerHtml] = useState(() => ({ __html: pointerSVG() }))
   const [open, setOpen] = useState(false)
-  const [spinner, setSpinner] = useState<{ name: string; landed: boolean } | null>(null)
+  const [spinner, setSpinner] = useState<{ who: SpinnerPick; landed: boolean } | null>(null)
   const [won, setWon] = useState<Slice | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
   const wheelWrapRef = useRef<HTMLDivElement>(null)
@@ -229,11 +230,11 @@ export function ChestOpening({
       const last = s === steps - 1
       later(() => {
         if (last) {
-          setSpinner({ name: winner, landed: true })
+          setSpinner({ who: winner, landed: true })
           playPickerLand()
           later(() => setStep('wheel'), 300)
         } else {
-          setSpinner({ name: spinnerNames[Math.floor(Math.random() * spinnerNames.length)] ?? winner, landed: false })
+          setSpinner({ who: spinnerNames[Math.floor(Math.random() * spinnerNames.length)] ?? winner, landed: false })
           playPickerTick()
         }
       }, at)
@@ -315,7 +316,7 @@ export function ChestOpening({
           className={`absolute left-1/2 top-[max(1.5vh,8px)] z-[3] -translate-x-1/2 whitespace-nowrap rounded-full border-[3px] px-[0.9em] py-[0.1em] font-bold text-white ${spinner.landed ? 'border-amber-400 bg-amber-400/20' : 'border-transparent bg-white/10'}`}
           style={{ fontSize: 'clamp(1.2rem, 5vmin, 2.8rem)' }}
         >
-          {spinner.landed ? `${spinner.name}, spin!` : spinner.name}
+          <SpinnerName who={spinner.who} spin={spinner.landed} />
         </div>
       )}
 

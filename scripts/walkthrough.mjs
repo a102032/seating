@@ -710,6 +710,36 @@ const scenarios = {
     await page.context().close()
   },
 
+  /**
+   * Pick a Spinner shows the homeroom number after a name two students share (2026-10-30, the
+   * teacher: two Amys in the Marble Jar's moment couldn't be told apart), as the desks do.
+   */
+  async 'the marble jar: a shared name keeps its number'() {
+    const cls = makeClass('c1', 'Marbles', 2, {
+      pointsMode: 'quest',
+      questAdventure: 'marbles',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 0,
+      marbleJar: { number: 1, marbles: [], spins: 1, filled: [], spinDays: [], startedOn: '2026-09-01' },
+    })
+    cls.students[0].name = 'Amy'
+    cls.students[1].name = 'Amy'
+    cls.students[0].homeroom = '05'
+    cls.students[1].homeroom = '12'
+    const page = await open({ state: stateOf(cls), size: [1280, 559] })
+    // It bobs while a spin waits, so it never holds still for an ordinary click.
+    await page.locator('[data-marble-next]').click({ force: true })
+    await page.waitForTimeout(1200)
+    await page.getByRole('button', { name: 'Pick a Spinner' }).click()
+    await page.waitForTimeout(3300)
+    const number = await page.locator('[data-quest-spinner] [data-spinner-homeroom]').innerText().catch(() => '')
+    const said = await page.locator('[data-quest-spinner]').innerText()
+    check('marbles: Pick a Spinner shows the homeroom number of an Amy who shares her name', ['05', '12'].includes(number.trim()), said)
+    await page.screenshot({ path: '/tmp/walkthrough/marbles-spinner-homeroom.png' })
+    return page
+  },
+
   async 'the marble jar'() {
     // A jar laid out in rows, as if it had settled: 8 rows of 7 plain marbles and a Mega is past the line.
     const rows = (n) => {
@@ -4932,39 +4962,6 @@ const scenarios = {
       tooSmall.length === 0,
       tooSmall.join('; '),
     )
-  },
-
-  /**
-   * A pick lets go by itself (2026-10-27, the teacher): Pick a Random Student, Pick a Random Row and
-   * Pick All, 10 seconds after they land or after the last star given to them; desks tapped by hand
-   * stay until let go.
-   */
-  async 'a pick lets go by itself'() {
-    const cls = makeClass('c1', 'Let Go', 12, { pointsMode: 'goal', pointsGoal: 50 })
-    const page = await open({ state: stateOf(cls) })
-    const picked = () => page.locator('[data-ink=desk].desk-picked').count()
-    await panelButton(page, 'Pick a Random Student').click()
-    await page.waitForTimeout(3500)
-    check('let go: a picked student is up', (await picked()) === 1)
-    await page.waitForTimeout(3000)
-    await award(page)
-    await page.waitForTimeout(8000)
-    check('let go: a star starts the 10 seconds again (still up 8 s after it)', (await picked()) === 1)
-    await page.waitForTimeout(3500)
-    check('let go: and it lets go 10 seconds after the star', (await picked()) === 0)
-    await panelButton(page, 'Pick a Random Row').click()
-    await page.waitForTimeout(13500)
-    check('let go: a picked row lets go by itself', (await picked()) === 0)
-    await panelButton(page, 'Pick All').click()
-    await page.waitForTimeout(500)
-    check('let go: Pick All picks the class', (await panelButton(page, 'Unpick All').count()) === 1)
-    await page.waitForTimeout(10800)
-    check('let go: Pick All lets go by itself', (await panelButton(page, 'Pick All').count()) === 1)
-    await desk(page, 'Amy').click()
-    await desk(page, 'Tony').click()
-    await page.waitForTimeout(11000)
-    check('let go: desks tapped by hand stay picked', (await panelButton(page, 'Unpick All').count()) === 1)
-    return page
   },
 
   /**
