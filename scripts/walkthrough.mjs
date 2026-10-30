@@ -3145,14 +3145,14 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 95: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
+      // 96: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
       // the board's lock (2026-10-19), the Marble Jar's part (2026-10-24, with the prize wheel since the quests
       // were retired, 2026-10-30), and the meter's start sending the desks' stars (2026-10-26).
-      'tour: 95 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 95 && bad === 0,
+      'tour: 96 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 96 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 8, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
