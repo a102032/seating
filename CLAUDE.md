@@ -19,6 +19,9 @@ that were built and deliberately taken out. It is imported at the bottom of this
   sparkle), so the big one keeps its meaning.
 - On-screen words are for young EFL readers: short, plain, and one idea per label.
 - Plain-language replies. Say what was verified and how. Send a screenshot after visual changes.
+- **Check in proportion to the change, and report once** (2026-10-30, the teacher: the checks were eating his credits
+  and taking hours). No messages while checks run: one at the end, what was checked, what passed, and that it's live.
+  See "How much to check", below.
 - **Before the app goes to other teachers** there is a checklist in DECISIONS' to-do list (its last step, "ready for
   teachers more widely"), the Move extension on the Chrome Web Store first. The teacher asked not to be allowed to forget
   it: whenever he talks about sharing the app, giving it to colleagues or going public, bring the list up before anything else.
@@ -219,6 +222,19 @@ checks the live URL. Confirm it went green before saying something is live. It a
 fewest turns first, a pick's better chance, a homeroom column found in a paste) and run in about a second. A change to
 one of those parts that changes what it settled fails here; a change that was meant to updates the test in the same
 commit. Anything new that only works things out gets its tests beside them.
+
+## How much to check
+
+Every change: `npx tsc -b`, `npm test` (about a second) and the walkthrough scenarios for what changed (`node
+scripts/walkthrough.mjs <name>`, a few minutes), with a screenshot of anything visual at 1024x500. The rest only when
+the change reaches what they cover:
+
+- **The full "nothing scrolls" sweep** (every theme at every size, 20-30 minutes): a change to something on every
+  screen (the rail, the top bar, the desks, shared CSS, a theme), or once before a batch of changes goes live. A new
+  part of one window needs a look at 1024x500 instead.
+- **The whole walkthrough**: before a batch goes live, or after a change to something many screens share.
+- **`tour-shots.mjs`**: when a screen in the tour changes. **`frame-check.mjs`**: when something moves on the board.
+- **`sync-check`, `drive-check`, the Move extension's and helper's checks**: only when sync, Drive or those change.
 
 ## Checking changes in a browser
 

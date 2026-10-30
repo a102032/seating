@@ -71,7 +71,17 @@ function check(name, ok, detail = '') {
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${name}${detail ? ` - ${detail}` : ''}`)
 }
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const launch = () => chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+let browser = await launch()
+/**
+ * A new browser, so a long run never piles hundreds of pages onto one: one browser kept for a
+ * whole run sometimes fell over partway ("Target page, context or browser has been closed"),
+ * and the run had to be repeated. Called before each scenario and between the sweeps' screens.
+ */
+async function freshBrowser() {
+  await browser.close().catch(() => {})
+  browser = await launch()
+}
 /** The page most recently opened, photographed if a scenario's script falls over. */
 let lastPage = null
 
@@ -88,6 +98,7 @@ const TEACHER = { uid: 'walkthrough-teacher', firstName: 'Test', email: 'test@ex
  * (theme, flip deck settings); `before` runs in the page before the app does.
  */
 async function open({ state, theme = 'vibrant', size = [1280, 800], storage = {}, before, fontDelayMs = 0, splash = true }) {
+  if (!browser.isConnected()) browser = await launch()
   const context = await browser.newContext({ viewport: { width: size[0], height: size[1] } })
   const page = await context.newPage()
   lastPage = page
@@ -4444,6 +4455,7 @@ const scenarios = {
   async 'nothing scrolls'() {
     for (const theme of process.env.THEME ? [process.env.THEME] : THEMES) {
       for (const size of SCROLL_SIZES) {
+        await freshBrowser()
         // Stars on the desks: the fuller board (a minus on the rail, All Stars In!'s bubble on the meter, Float in its top row,
         // a star chip on desks) is the one that has to fit.
         const cls = makeClass('c1', 'Grade 4 English', 30, { pointsGoal: 50, classPoints: 20, starsOnDesks: true })
@@ -4578,6 +4590,7 @@ const scenarios = {
 
 for (const [name, run] of Object.entries(scenarios)) {
   if (only && !name.includes(only)) continue
+  await freshBrowser()
   try {
     const page = await run()
     if (page) {
