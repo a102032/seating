@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
 import { getTheme, randomPose, stickerId, type DeskPictures } from '../lib/stickers'
@@ -170,6 +170,33 @@ export function useClasses() {
   const updateClass = useCallback((id: string, updater: (cls: ClassData) => ClassData) => {
     setClasses((prev) => prev.map((c) => (c.id === id ? { ...updater(c), updatedAt: new Date().toISOString() } : c)))
   }, [])
+
+  /**
+   * One Undo for the last tap (2026-10-30, the teacher): a star, an away mark or a Done. The class
+   * is kept as it was just before, and Undo puts it back, so whatever the tap changed (the meter,
+   * the participation record, the Line) goes back with it. It lasts until the next change of any
+   * kind to that class, here or from another computer - the class is then no longer the one the
+   * tap left - and never on a clock.
+   */
+  const [undoStep, setUndoStep] = useState<{ classId: string; what: string; before: ClassData; after: ClassData } | null>(null)
+  const classesRef = useRef(classes)
+  useEffect(() => {
+    classesRef.current = classes
+  }, [classes])
+  const updateUndoable = useCallback((id: string, what: string, updater: (cls: ClassData) => ClassData) => {
+    const before = classesRef.current.find((c) => c.id === id)
+    if (!before) return
+    const after = { ...updater(before), updatedAt: new Date().toISOString() }
+    setClasses((prev) => prev.map((c) => (c.id !== id ? c : c === before ? after : { ...updater(c), updatedAt: after.updatedAt })))
+    setUndoStep({ classId: id, what, before, after })
+  }, [])
+  const undoable = undoStep !== null && classes.find((c) => c.id === undoStep.classId) === undoStep.after ? undoStep : null
+  const undo = useCallback(() => {
+    if (!undoable) return
+    const { classId, before, after } = undoable
+    setClasses((prev) => prev.map((c) => (c.id === classId && c === after ? { ...before, updatedAt: new Date().toISOString() } : c)))
+    setUndoStep(null)
+  }, [undoable])
 
   const activeClass = classes.find((c) => c.id === activeClassId)
 
@@ -361,17 +388,21 @@ export function useClasses() {
    */
   const toggleAbsent = useCallback(
     (classId: string, studentId: string, day: string) =>
-      updateClass(classId, (c) => {
+      updateUndoable(classId, 'away', (c) => {
         const absent = c.attendance?.[day] ?? []
         const next = absent.includes(studentId) ? absent.filter((id) => id !== studentId) : [...absent, studentId]
         return { ...withDayTaken(c, day), attendance: { ...c.attendance, [day]: next } }
       }),
-    [updateClass],
+    [updateUndoable],
   )
 
   /** Attendance mode was switched off: the day counts as taken, even with nobody away. */
   const markAttendanceTaken = useCallback(
-    (classId: string, day: string) => updateClass(classId, (c) => withDayTaken(c, day)),
+    (classId: string, day: string) => {
+      // Already taken (an away mark takes the day): nothing changes, so Undo keeps the last mark.
+      if (takenDays(classesRef.current.find((c) => c.id === classId)).includes(day)) return
+      updateClass(classId, (c) => withDayTaken(c, day))
+    },
     [updateClass],
   )
 
@@ -409,11 +440,11 @@ export function useClasses() {
    */
   const adjustPoints = useCallback(
     (classId: string, studentIds: string[], delta: number, day?: string) =>
-      updateClass(classId, (c) => {
+      updateUndoable(classId, delta < 0 ? 'minus' : studentIds.length > 1 ? 'stars' : 'star', (c) => {
         const awarded = awardStars(c, studentIds, delta)
         return day && delta > 0 ? withPoints(awarded, studentIds, day) : awarded
       }),
-    [updateClass],
+    [updateUndoable],
   )
 
   /** All Stars In!: every desk's stars fly to the goal, and the desks start the next lesson empty. */
@@ -596,10 +627,14 @@ export function useClasses() {
   )
 
   /** The Line (lib/line): today's line, changed one step - a child joining, Done, Skip, out of line. */
+  /** `undoWhat` names a teacher's tap Undo can take back (Done); a child joining the line isn't one. */
   const changeLine = useCallback(
-    (classId: string, day: string, change: (line: ClassLine) => ClassLine) =>
-      updateClass(classId, (c) => withLine(c, change(lineOf(c, day)))),
-    [updateClass],
+    (classId: string, day: string, change: (line: ClassLine) => ClassLine, undoWhat?: string) => {
+      const updater = (c: ClassData) => withLine(c, change(lineOf(c, day)))
+      if (undoWhat) updateUndoable(classId, undoWhat, updater)
+      else updateClass(classId, updater)
+    },
+    [updateClass, updateUndoable],
   )
 
   const setLineSilent = useCallback(
@@ -677,8 +712,8 @@ export function useClasses() {
    * point would.
    */
   const addToClassGoal = useCallback(
-    (classId: string, amount: number) => updateClass(classId, (c) => addClassPoints(c, amount)),
-    [updateClass],
+    (classId: string, amount: number) => updateUndoable(classId, amount > 1 ? 'stars' : 'star', (c) => addClassPoints(c, amount)),
+    [updateUndoable],
   )
 
   /** Clears the shared meter without touching any stars waiting on the desks. */
@@ -853,6 +888,8 @@ export function useClasses() {
     moveStudentToGroup,
     setGroupStatus,
     finishGroupActivity,
+    undoable,
+    undo,
     cloud,
     saveError,
   }

@@ -10,6 +10,7 @@ import { shouldGuide } from './lib/setupGuide'
 import { PointsMeter } from './components/PointsMeter'
 import { FullScreenButton } from './components/FullScreenButton'
 import { BoardLockButton, BoardLockShield } from './components/BoardLock'
+import { UndoButton } from './components/UndoButton'
 import { useBoardLock } from './hooks/useBoardLock'
 import { clockPieceClass, ROW_GAP, tabClass } from './lib/topBar'
 import { SeatClassBanner } from './components/SeatClassBanner'
@@ -416,9 +417,11 @@ export default function App() {
 
   // Full Screen sits in the top bar's far corner, after the goal's count (2026-10-14, the teacher:
   // the rail's foot was the wrong spot), or alone in that corner with no goal. The board's lock
-  // sits beside it (2026-10-19): the far top corner is out of a small child's reach.
+  // sits beside it (2026-10-19): the far top corner is out of a small child's reach. So does Undo
+  // (2026-10-30), for the same reason.
   const cornerButtons = (
     <>
+      <UndoButton what={store.undoable?.classId === activeClass.id ? store.undoable.what : null} onUndo={store.undo} toast={toast.show} />
       <BoardLockButton
         locked={boardLock.locked}
         onToggle={boardLock.toggle}

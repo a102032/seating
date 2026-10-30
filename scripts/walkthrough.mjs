@@ -3165,8 +3165,8 @@ const scenarios = {
       // 96: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
       // the board's lock (2026-10-19), the Marble Jar's part (2026-10-24, with the prize wheel since the quests
       // were retired, 2026-10-30), and the meter's start sending the desks' stars (2026-10-26).
-      'tour: 96 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 96 && bad === 0,
+      'tour: 97 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 97 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
     check('tour: a card before each part after the first', parts.length === 8, parts.join(', '))
@@ -3189,8 +3189,8 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 22 stops to the card before the Marble Jar, then skip it and Flip Cards to Group Activity's card.
-    for (let i = 0; i < 22; i++) await page.locator('[data-tour-action="next"]').click()
+    // Through the board's 23 stops to the card before the Marble Jar, then skip it and Flip Cards to Group Activity's card.
+    for (let i = 0; i < 23; i++) await page.locator('[data-tour-action="next"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
@@ -3444,6 +3444,65 @@ const scenarios = {
     await page.waitForTimeout(400)
     await page.screenshot({ path: `${SHOTS}/three-rows.png` })
     return page
+  },
+
+  /**
+   * One Undo for the last tap (2026-10-30): in the top bar's far corner, beside the lock. A star
+   * and an away mark taken back; greyed with nothing to undo, and once anything else changes the
+   * class; and the corner and the rail still fitting the smallest screens.
+   */
+  async undo() {
+    const bad = []
+    for (const size of [
+      [1024, 500],
+      [1280, 559],
+    ]) {
+      const cls = makeClass('c1', 'Undo Class', 24, { pointsGoal: 50, classPoints: 3, goalEnabled: true })
+      const page = await open({ state: stateOf(cls, makeClass('c2', 'Other', 2)), size })
+      const undoBtn = page.locator('button[aria-label="Undo"]')
+      const where = size.join('x')
+      if (!(await undoBtn.isDisabled())) bad.push(`${where}: Undo live with nothing to undo`)
+      await desk(page, 'Amy').click()
+      await award(page)
+      await page.waitForTimeout(1500)
+      const given = (await activeSaved(page)).classPoints
+      if (given !== 4) bad.push(`${where}: the star gave ${given}`)
+      if (await undoBtn.isDisabled()) bad.push(`${where}: Undo greyed after a star`)
+      await undoBtn.click()
+      await page.waitForTimeout(600)
+      const back = (await activeSaved(page)).classPoints
+      if (back !== 3) bad.push(`${where}: Undo left ${back}`)
+      if (!(await undoBtn.isDisabled())) bad.push(`${where}: Undo still live after undoing`)
+      if ((await page.getByText('Star taken back.').count()) !== 1) bad.push(`${where}: no "Star taken back."`)
+      // An away mark, taken back after leaving attendance.
+      await panelButton(page, 'Attendance').click()
+      await page.waitForTimeout(300)
+      await desk(page, 'Tony').click()
+      await page.waitForTimeout(300)
+      await page.locator('[data-board-hint] button', { hasText: 'Done' }).click()
+      await page.waitForTimeout(400)
+      const tony = cls.students.find((st) => st.name === 'Tony').id
+      const awayNow = async () => Object.values((await activeSaved(page)).attendance ?? {}).some((ids) => ids.includes(tony))
+      if (!(await awayNow())) bad.push(`${where}: Tony not marked away`)
+      await undoBtn.click()
+      await page.waitForTimeout(400)
+      if (await awayNow()) bad.push(`${where}: the away mark wasn't taken back`)
+      // The next change of any kind ends it: a star, then a random pick.
+      await page.mouse.click(5, 300)
+      await desk(page, 'Amy').click()
+      await award(page)
+      await page.waitForTimeout(1200)
+      await page.mouse.click(5, 300)
+      await panelButton(page, 'Pick a Random Student').click()
+      await page.waitForTimeout(3600)
+      if (!(await undoBtn.isDisabled())) bad.push(`${where}: Undo still live after a pick`)
+      const o = await overflow(page)
+      if (o.page || o.pageX || o.panel > 0) bad.push(`${where}: ${JSON.stringify(o)}`)
+      if (size[0] === 1024) await page.screenshot({ path: `${SHOTS}/undo.png` })
+      if (page.errors.length) bad.push(...page.errors)
+      await page.context().close()
+    }
+    check('undo: a star and an away mark taken back, greyed after anything else', bad.length === 0, bad.join('; '))
   },
 
   /** The rule: nothing scrolls, in any theme, at any screen from 1024x500 up. */

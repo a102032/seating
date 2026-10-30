@@ -131,7 +131,7 @@ export function useLineScreen({ cls, today, store, pointsMode, goalLive, desksMo
       else playLineJoin()
       if (line.waiting.length > 0) playLineCall(allDone ? 0.75 : 0.3)
     }
-    store.changeLine(classId, today, (l) => doneInLine(l, steps))
+    store.changeLine(classId, today, (l) => doneInLine(l, steps), 'done')
     // Once the desk has drawn its Done picture.
     if (allDone) requestAnimationFrame(() => requestAnimationFrame(() => sparkleDesk(finished)))
   }

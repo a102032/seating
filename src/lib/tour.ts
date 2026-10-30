@@ -94,6 +94,7 @@ export const TOUR: TourPart[] = [
         text: 'With stars on the desks first, stars wait on the desks. Tap the picture at the start of the meter to send them all in.',
       },
       { shot: 'board', at: 'fullscreen', text: 'Full screen: the app fills the whole screen. Tap it again to leave.' },
+      { shot: 'board', at: 'undo', text: 'Undo takes back your last tap: a star, an away mark or a Done. It is up here, away from little hands.' },
       { shot: 'board', at: 'lock', text: 'The lock: tap it before the class comes in, and touches do nothing. Tap it again to open it.' },
       { shot: 'board', at: 'tab', text: 'Your class. Tap the arrow to switch to another class, or make a new one.' },
       { shot: 'board', at: 'gear', text: 'Class Settings: everything about this class. Help, and this tour, are in there.' },

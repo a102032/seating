@@ -167,6 +167,7 @@ const all = {}
     saved: 'aside [data-sync]',
     fullscreen: 'button[title="Full Screen"]',
     lock: '[data-board-lock]',
+    undo: 'button[aria-label="Undo"]',
     side: 'aside button[title^="Move panel"]',
     meter: '[data-tour-mark="meter"]',
     start: '[data-tour-mark="start"]',
