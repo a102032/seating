@@ -3228,14 +3228,15 @@ const scenarios = {
    */
   async 'room layouts'() {
     const LAYOUTS = [
-      ['pairs', 'Pairs', 'row', 6],
-      ['threes', 'Rows of 3', 'row', 6],
-      ['tables4', 'Tables of 4', 'table', 9],
-      ['tables5-top', '5th on top', 'table', 6],
-      ['tables5-bottom', '5th below', 'table', 6],
-      ['rows', 'Rows', 'row', 6],
-      // Last: back in Rows, a class it filled from the left keeps the left-hand row at side desks.
-      ['rows7', '7 Rows', 'row', 7],
+      // The buttons tapped: a room's picture, then its choice beside the pictures (2026-10-30).
+      ['pairs', ['Pairs'], 'row', 6],
+      ['threes', ['Rows of 3'], 'row', 6],
+      ['tables4', ['Tables of 4'], 'table', 9],
+      ['tables5-top', ['Tables of 5', 'On top'], 'table', 6],
+      ['tables5-bottom', ['Tables of 5', 'Below'], 'table', 6],
+      ['rows', ['Rows', '6 rows'], 'row', 6],
+      // Last: back in six rows, a class seven filled from the left keeps the left-hand row at side desks.
+      ['rows7', ['Rows', '7 rows'], 'row', 7],
     ]
     const nameSize = (page) =>
       page.evaluate(() => {
@@ -3252,13 +3253,17 @@ const scenarios = {
           await openSection(page, 'class')
           const o1 = await overflow(page)
           if (o1.page || o1.dialog || o1.section > 0) bad.push(`${id} settings ${JSON.stringify(o1)}`)
-          await page.locator('[role=dialog] button[aria-pressed]', { hasText: label }).first().click()
-          await page.waitForTimeout(300)
+          for (const name of label) {
+            await page.getByRole('dialog').getByRole('button', { name, exact: true }).click()
+            await page.waitForTimeout(300)
+          }
           await page.keyboard.press('Escape')
           await page.waitForTimeout(600)
           const c = await activeSaved(page)
           const seated = c.seating.filter(Boolean)
-          if (c.layout !== id && !(id === 'rows' && (c.layout ?? 'rows') === 'rows')) bad.push(`${id}: saved layout is ${c.layout}`)
+          const wanted = id === 'rows7' ? 'rows' : id
+          if ((c.layout ?? 'rows') !== wanted || (c.rowCount ?? 6) !== (id === 'rows7' ? 7 : 6))
+            bad.push(`${id}: saved ${c.layout} ${c.rowCount}`)
           if (seated.length !== count || new Set(seated).size !== count) bad.push(`${id}: ${seated.length} seated`)
           const o = await overflow(page)
           if (o.page || o.pageX || o.panel > 0) bad.push(`${id} board ${JSON.stringify(o)}`)
@@ -3311,7 +3316,7 @@ const scenarios = {
     const before = (await activeSaved(page)).seating.slice(0, 35).join()
     for (const label of ['Pairs', 'Rows of 3', 'Rows']) {
       await openSection(page, 'class')
-      await page.locator('[role=dialog] button[aria-pressed]', { hasText: label }).first().click()
+      await page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click()
       await page.waitForTimeout(300)
       await page.keyboard.press('Escape')
       await page.waitForTimeout(500)
@@ -3340,7 +3345,7 @@ const scenarios = {
     const before = (await activeSaved(page)).seating.slice(0, 35).join()
     const sideNames = [5, 11, 17].map((i) => cls.students[i].name)
     await openSection(page, 'class')
-    await page.locator('[role=dialog] button[aria-pressed]', { hasText: '7 Rows' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '7 rows', exact: true }).click()
     await page.waitForTimeout(300)
     await page.screenshot({ path: `${SHOTS}/seven-rows-settings.png` })
     await page.keyboard.press('Escape')
@@ -3377,6 +3382,67 @@ const scenarios = {
     check('7 rows: Pick a Random Row lights one row at a time', bad.length === 0, bad.join('; '))
     // A round gives every row a turn before any has a second, so ten picks reach all seven.
     check('7 rows: the left-hand row is picked on its own', sawLeft)
+    return page
+  },
+
+  /**
+   * How many rows (2026-10-30): a class of 15 as three rows of five. The choices are only those
+   * that fit, the Class section still fits the smallest screen, the class closes up back row
+   * first, the names are no smaller than in six rows, Pick a Random Row lights one row, and Group
+   * Activity has Rows, one group a row.
+   */
+  async 'how many rows'() {
+    const page = await open({ state: stateOf(makeClass('c1', 'Small Class', 15), makeClass('c2', 'Other', 2)), size: [1024, 500] })
+    const nameSize = () =>
+      page.evaluate(() => {
+        const span = document.querySelector('[data-ink=desk] span[style*="--desk-name"]')
+        return span ? parseFloat(getComputedStyle(span).fontSize) : 0
+      })
+    const sixRows = await nameSize()
+    await openSection(page, 'class')
+    const offered = await page.locator('[data-guide="row-count"] button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')))
+    check('how many rows: only what fits a class of 15', offered.join() === '3 rows,4 rows,5 rows,6 rows,7 rows', offered.join())
+    const o = await overflow(page)
+    check('how many rows: the Class section fits at 1024x500', !o.page && !o.dialog && !(o.section > 0), JSON.stringify(o))
+    await page.getByRole('dialog').getByRole('button', { name: '3 rows', exact: true }).click()
+    await page.waitForTimeout(300)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    const c = await activeSaved(page)
+    const xs = await page
+      .locator('[data-ink=desk], [data-ink=desk-empty]')
+      .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().x)))
+    check(
+      'how many rows: three rows of five, everyone seated once',
+      c.rowCount === 3 && new Set(xs).size === 3 && xs.length === 15 && new Set(c.seating.filter(Boolean)).size === 15,
+      `${c.rowCount}, ${new Set(xs).size} columns, ${xs.length} desks`,
+    )
+    const threeRows = await nameSize()
+    check('how many rows: names no smaller than in six rows', threeRows >= sixRows - 0.5, `${sixRows} -> ${threeRows}`)
+    const pickBad = []
+    for (let i = 0; i < 3; i++) {
+      await panelButton(page, 'Pick a Random Row').click()
+      await page.waitForTimeout(3600)
+      const lit = await page
+        .locator('[data-ink=desk].desk-picked')
+        .evaluateAll((els) => els.map((e) => Math.round(e.parentElement.getBoundingClientRect().x)))
+      if (new Set(lit).size !== 1 || lit.length !== 5) pickBad.push(`${lit.length} lit in ${new Set(lit).size} columns`)
+      await page.mouse.click(5, 5)
+      await page.waitForTimeout(400)
+    }
+    check('how many rows: Pick a Random Row lights one whole row', pickBad.length === 0, pickBad.join('; '))
+    await panelButton(page, 'Group Activity').click()
+    await page.waitForTimeout(500)
+    const caption =
+      (await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /^Rows/ })
+        .textContent()
+        .catch(() => '')) ?? ''
+    check('how many rows: Group Activity has Rows, one group a row', /3 groups/.test(caption), caption)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(400)
+    await page.screenshot({ path: `${SHOTS}/three-rows.png` })
     return page
   },
 

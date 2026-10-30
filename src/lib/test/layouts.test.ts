@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layoutPlan, MAX_SEATS, planFor, reseatForLayout, ROOM_LAYOUTS, type RoomLayout } from '../layouts'
+import { layoutPlan, MAX_SEATS, planFor, reseatForLayout, ROOM_LAYOUTS, ROW_COUNTS, rowChoices, type RoomLayout } from '../layouts'
 import { makeClass } from './helpers'
 
 const seatedIds = (seating: (string | null)[]) => seating.filter((id): id is string => Boolean(id))
@@ -22,7 +22,7 @@ describe('every layout', () => {
   }
 
   it('keeps six desks across, and the tables pay in height', () => {
-    for (const kind of ROOM_LAYOUTS) if (kind !== 'rows7') expect(layoutPlan(kind, false).columns).toBe(6)
+    for (const kind of ROOM_LAYOUTS) expect(layoutPlan(kind, false).columns).toBe(6)
     expect(layoutPlan('rows', false).rows).toBe(5)
     expect(layoutPlan('tables4', false).rows).toBe(6)
   })
@@ -46,40 +46,71 @@ describe('Rows', () => {
   })
 })
 
-describe('7 Rows', () => {
-  it('is seven rows, each its own row for Pick Row', () => {
-    const plan = layoutPlan('rows7', false)
-    expect(plan.columns).toBe(7)
-    expect(plan.rows).toBe(5)
-    expect(plan.seats.length).toBe(35)
-    expect(plan.setCount).toBe(7)
-    expect(plan.setName).toBe('row')
-    for (const seat of plan.seats) expect(seat.set).toBe(seat.column)
+describe('how many rows', () => {
+  it('six is the room the app began with; unset is six', () => {
+    expect(planFor(makeClass(30)).across).toBe(6)
+    expect(planFor(makeClass(30, { rowCount: 6 }))).toBe(planFor(makeClass(30)))
   })
 
-  it('numbers desks as Rows does, with the seventh column on the left', () => {
-    const plan = layoutPlan('rows7', false)
+  it('every number of rows: each column its own row, back row first, everyone seated once', () => {
+    for (const n of ROW_COUNTS) {
+      for (const count of [1, 12, 15, 24, 30, 35]) {
+        if (!rowChoices(count, 6).includes(n)) continue
+        // Six rows of a class over thirty is the old room's seventh column (above).
+        if (n === 6 && count > 30) continue
+        const cls = makeClass(count, { rowCount: n })
+        const plan = planFor({ ...cls, seating: [] })
+        expect(plan.columns).toBe(n)
+        expect(plan.setCount).toBe(n)
+        for (const seat of plan.seats) expect(seat.set).toBe(seat.column)
+        expect(plan.seats.length).toBeGreaterThanOrEqual(count)
+        expect(plan.seats.length).toBeLessThanOrEqual(MAX_SEATS)
+        const next = reseatForLayout(cls, 'rows', n)
+        expect(seatedIds(next).sort()).toEqual(cls.students.map((s) => s.id).sort())
+      }
+    }
+  })
+
+  it('two to five rows are as deep as the class needs, at most six', () => {
+    const plan = planFor({ ...makeClass(15, { rowCount: 3 }), seating: [] })
+    expect([plan.columns, plan.rows]).toEqual([3, 5])
+    expect(planFor({ ...makeClass(14, { rowCount: 4 }), seating: [] }).rows).toBe(4)
+    expect(rowChoices(30, 6)).toEqual([5, 6, 7])
+    expect(rowChoices(15, 6)).toEqual([3, 4, 5, 6, 7])
+    expect(rowChoices(35, 6)).toEqual([6, 7])
+    // The one in use is offered even once the class has outgrown it.
+    expect(rowChoices(30, 4)).toEqual([4, 5, 6, 7])
+  })
+
+  it('a class that grows gets deeper rows, and nobody moves', () => {
+    const cls = makeClass(12, { rowCount: 4 })
+    cls.seating = reseatForLayout(makeClass(12), 'rows', 4)
+    const before = planFor(cls)
+    const grown = { ...cls, students: [...cls.students, ...makeClass(14).students.slice(12)] }
+    const after = planFor(grown)
+    expect(after.rows).toBe(before.rows + 1)
+    for (let i = 0; i < before.seats.length; i++) expect(after.seats[i]).toEqual(before.seats[i])
+  })
+
+  it('seven numbers its desks as six does, with the seventh column on the left', () => {
+    const plan = planFor(makeClass(30, { rowCount: 7 }))
+    expect([plan.columns, plan.rows, plan.seats.length]).toEqual([7, 5, 35])
     for (let i = 0; i < 30; i++) expect(plan.seats[i]).toMatchObject({ column: (i % 6) + 1, row: Math.floor(i / 6) })
     for (let i = 30; i < 35; i++) expect(plan.seats[i]).toMatchObject({ column: 0, row: i - 30 })
   })
 
-  it('switching from Rows moves nobody: the side column becomes the left-hand row', () => {
+  it('six to seven moves nobody: the side column becomes the left-hand row, and back', () => {
     const cls = makeClass(30)
     cls.seating[31] = cls.seating[5]
     cls.seating[5] = null
-    const next = reseatForLayout(cls, 'rows7')
+    const next = reseatForLayout(cls, 'rows', 7)
     expect(next).toEqual(cls.seating.slice(0, MAX_SEATS))
-    const plan = planFor({ ...cls, layout: 'rows7', seating: next })
-    expect(plan.seats[31]).toMatchObject({ column: 0, set: 0 })
-    // and back to Rows, the same students are at the side desks again
-    expect(planFor({ ...cls, seating: reseatForLayout({ ...cls, layout: 'rows7', seating: next }, 'rows') }).side).toBe(true)
+    expect(planFor({ ...cls, rowCount: 7, seating: next }).seats[31]).toMatchObject({ column: 0, set: 0 })
+    expect(planFor({ ...cls, seating: reseatForLayout({ ...cls, rowCount: 7, seating: next }, 'rows', 6) }).side).toBe(true)
   })
 
-  it('has no side desks and seats a whole class of 35', () => {
-    const small = planFor(makeClass(20, { layout: 'rows7' }), { sideDesks: true })
-    expect(small.side).toBe(false)
-    expect(small.columns).toBe(7)
-    expect(planFor(makeClass(35, { layout: 'rows7' })).seats.length).toBe(35)
+  it('seven rows have no side desks', () => {
+    expect(planFor(makeClass(20, { rowCount: 7 }), { sideDesks: true }).side).toBe(false)
   })
 })
 

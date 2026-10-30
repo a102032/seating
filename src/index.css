@@ -2983,7 +2983,65 @@ button {
   font-size: 11.5px;
 }
 .cs-rooms {
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+/* A room's one choice, beside the pictures (LayoutPicker): Rows' number of rows, Tables of 5's
+   fifth desk. Five pictures leave the row's right side free, so the choice takes no height and the
+   Class section still ends inside the window, from 1024x500 up. */
+.cs-rooms-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.cs-rooms-wrap > .cs-rooms {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cs-room-choice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--card-foreground);
+}
+.cs-room-choice > span {
+  width: 4.6em;
+}
+.cs-room-choice > div {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 4px;
+}
+.cs-room-choice > div.cs-one-column {
+  grid-template-columns: auto;
+}
+.cs-room-choice button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 3px;
+  border-radius: 9px;
+  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  touch-action: manipulation;
+}
+.cs-room-choice button[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+.cs-room-choice b {
+  font-size: 14px;
+}
+.cs-room-art {
+  display: block;
+  height: clamp(22px, 4.2vh, 36px);
+  width: clamp(34px, 6.5vh, 56px);
+  border-radius: 5px;
+  overflow: hidden;
 }
 .cs-themes {
   grid-template-columns: repeat(5, minmax(0, 1fr));

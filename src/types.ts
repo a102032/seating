@@ -94,6 +94,8 @@ export interface ClassData {
   seating: (string | null)[]
   /** How the desks stand in the room. Unset is Rows, the six-by-five grid. */
   layout?: RoomLayout
+  /** In Rows, how many rows across (2 to 7, lib/layouts). Unset is six. */
+  rowCount?: number
   updatedAt: string
   /**
    * When the class was made, which is the order classes are listed in once they come from a

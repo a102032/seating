@@ -12,7 +12,7 @@ interface ClassSectionProps {
   activeClass: ClassData
   classes: ClassData[]
   onRename: (name: string) => void
-  onSetLayout: (layout: RoomLayout) => void
+  onSetLayout: (layout: RoomLayout, rows?: number) => void
   onSetShowAllHomerooms: (show: boolean) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void
@@ -97,7 +97,7 @@ export function ClassSection({
           finds them (lib/sameNames). */}
       <Group head="Desk Layout">
         <div className="cs-row cs-stack">
-          <LayoutPicker layout={activeClass.layout ?? 'rows'} onSetLayout={onSetLayout} />
+          <LayoutPicker cls={activeClass} onSetLayout={onSetLayout} />
         </div>
         <label className="cs-row" data-guide="homerooms">
           <span className="cs-row-label">

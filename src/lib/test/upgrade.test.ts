@@ -9,7 +9,13 @@ import { makeClass } from './helpers'
 
 /** A class in today's shape: what a new class looks like once it has been used a little. */
 const current = (): ClassData =>
-  makeClass(3, { pointsMode: 'goal', goalEnabled: true, pointsGoal: 50, attendance: { '2026-10-05': ['s1'] }, attendanceTaken: ['2026-10-05'] })
+  makeClass(3, {
+    pointsMode: 'goal',
+    goalEnabled: true,
+    pointsGoal: 50,
+    attendance: { '2026-10-05': ['s1'] },
+    attendanceTaken: ['2026-10-05'],
+  })
 
 describe('a class already in today’s shape', () => {
   it('comes back as the same object, so it is not counted as a change and sent', () => {
@@ -126,5 +132,15 @@ describe('the Line before steps', () => {
   it('checks win over a stray Done list', () => {
     const up = upgradeClass(makeClass(3, { line: { day: 'd', now: null, waiting: [], checks: { s1: 1 }, done: ['s0'] } }))
     expect(up.line).toEqual({ day: 'd', now: null, waiting: [], checks: { s1: 1 } })
+  })
+})
+
+describe('rows', () => {
+  it('7 Rows, a layout for a few hours, is Rows with seven, nobody moved', () => {
+    const cls = makeClass(30, { layout: 'rows7' as never })
+    const up = upgradeClass(cls)
+    expect(up.layout).toBe('rows')
+    expect(up.rowCount).toBe(7)
+    expect(up.seating).toEqual(upgradeClass(makeClass(30)).seating)
   })
 })

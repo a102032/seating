@@ -96,8 +96,11 @@ export function GroupActivityModal({
     { scheme: { kind: 'size', size: 2 }, label: 'Pairs', unavailable: 'Too few' },
     { scheme: { kind: 'gender' }, label: 'Boys / Girls', unavailable: 'Needs both' },
     ...(setName === 'table' ? [{ scheme: { kind: 'rows' } as GroupScheme, label: 'Tables', unavailable: 'Needs 2+ tables' }] : []),
-    // Six groups are a six-row room's rows; seven rows need a button of their own to be seven groups.
-    ...(plan.kind === 'rows7' ? [{ scheme: { kind: 'rows' } as GroupScheme, label: 'Rows', unavailable: 'Needs 2+ rows' }] : []),
+    // Six groups are a six-row room's rows; any other number of rows gets a button of its own,
+    // one group a row, since "4 groups" cuts a room into patches rather than its rows.
+    ...(plan.kind === 'rows' && plan.across !== 6
+      ? [{ scheme: { kind: 'rows' } as GroupScheme, label: 'Rows', unavailable: 'Needs 2+ rows' }]
+      : []),
   ]
 
   return (

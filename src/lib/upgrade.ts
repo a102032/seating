@@ -110,6 +110,15 @@ function withLineChecks(c: ClassData): ClassData {
   return { ...c, line: { ...rest, checks: rest.checks ?? Object.fromEntries((done ?? []).map((id) => [id, ALL_DONE])) } }
 }
 
+/**
+ * 7 Rows was a layout of its own for a few hours (2026-10-30) before Rows learned how many rows it
+ * has: it is Rows with seven, numbered the same, so nobody moves.
+ */
+function withRowCount(c: ClassData): ClassData {
+  if ((c.layout as string) !== 'rows7') return c
+  return { ...c, layout: 'rows', rowCount: 7 }
+}
+
 const STEPS: ((c: ClassData) => ClassData)[] = [
   withAllDesks,
   withTakenDays,
@@ -118,4 +127,5 @@ const STEPS: ((c: ClassData) => ClassData)[] = [
   withPointsMode,
   withGroupColors,
   withLineChecks,
+  withRowCount,
 ]

@@ -68,7 +68,7 @@ export function ClassSettingsWindow({
       onGuide={() => w.startGuide(w.section)}
       onTour={w.openTour}
       onRename={(name) => store.renameClass(cls.id, name)}
-      onSetLayout={(layout) => store.setLayout(cls.id, layout)}
+      onSetLayout={(layout, rows) => store.setLayout(cls.id, layout, rows)}
       onSetShowAllHomerooms={(show) => store.setShowAllHomerooms(cls.id, show)}
       theme={theme}
       onSetTheme={(next) => store.setClassTheme(cls.id, next)}

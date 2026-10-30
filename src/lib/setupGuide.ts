@@ -50,7 +50,7 @@ const charactersShown = ({ cls }: GuideContext) => !cls.avatarsOff && !cls.photo
  */
 export const GUIDE_STEPS: GuideStep[] = [
   { section: 'class', targets: [g('class-name')], text: 'Type the name of your class.', focus: '#class-name' },
-  { section: 'class', targets: [g('layouts')], text: 'Tap the desk layout that matches your room.' },
+  { section: 'class', targets: [g('layouts')], text: 'Tap the desk layout that matches your room. With Rows, tap how many rows too.' },
   { section: 'class', targets: [g('homerooms')], text: 'Classroom numbers on every desk? Turn this on, or leave it off.' },
   { section: 'class', targets: [g('theme')], text: 'Pick a color theme for this class.' },
   {

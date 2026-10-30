@@ -3,19 +3,12 @@ import { dateKey, takenDays } from '../lib/attendance'
 import { lastSaveFailed, loadLocalState, saveLocalState, subscribeSaveFailures } from '../lib/localStore'
 import { getTheme, randomPose, stickerId, type DeskPictures } from '../lib/stickers'
 import { MAX_SAVED_GROUPS, moveStudent, type GroupScheme } from '../lib/groups'
-import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/layouts'
+import { MAX_SEATS, planFor, reseatForLayout, rowCountOf, type RoomLayout } from '../lib/layouts'
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { LINE_NAME_MAX, lineOf, MAX_SAVED_LINES, STEP_NAME_MAX, type ClassLine } from '../lib/line'
 import { goalIsLive, hasClassGoal, pointsModeOf, questIsOn, starsWaitOnDesks } from '../lib/points'
 import type { QuestPrize } from '../lib/quest'
-import {
-  withJarFilled,
-  withJarRestarted,
-  withMarblesSettled,
-  withSpinsWon,
-  withSpinUsed,
-  type SavedMarble,
-} from '../lib/marbles'
+import { withJarFilled, withJarRestarted, withMarblesSettled, withSpinsWon, withSpinUsed, type SavedMarble } from '../lib/marbles'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
 import { upgradeClass } from '../lib/upgrade'
@@ -346,12 +339,18 @@ export function useClasses() {
   )
 
   /**
-   * The room's layout. Between the grid layouts nobody moves; into or out of tables the class
-   * keeps its order and closes up (lib/layouts, reseatForLayout).
+   * The room's layout, and in Rows how many rows (the class's own when left out). Between six or
+   * seven rows, Pairs and Rows of 3 nobody moves; otherwise the class keeps its order, back row
+   * first, and closes up (lib/layouts, reseatForLayout).
    */
   const setLayout = useCallback(
-    (classId: string, layout: RoomLayout) =>
-      updateClass(classId, (c) => ((c.layout ?? 'rows') === layout ? c : { ...c, layout, seating: reseatForLayout(c, layout) })),
+    (classId: string, layout: RoomLayout, rows?: number) =>
+      updateClass(classId, (c) => {
+        const toRows = layout === 'rows' ? (rows ?? rowCountOf(c)) : rowCountOf(c)
+        if ((c.layout ?? 'rows') === layout && rowCountOf(c) === toRows) return c
+        const seating = reseatForLayout(c, layout, layout === 'rows' ? toRows : 6)
+        return { ...c, layout, rowCount: toRows === 6 ? undefined : toRows, seating }
+      }),
     [updateClass],
   )
 

@@ -104,7 +104,8 @@ interface ClassSettingsModalProps {
   onTour: () => void
   // Class
   onRename: (name: string) => void
-  onSetLayout: (layout: RoomLayout) => void
+  /** Rows also takes how many rows; leaving it out keeps the class's own. */
+  onSetLayout: (layout: RoomLayout, rows?: number) => void
   onSetShowAllHomerooms: (show: boolean) => void
   theme: Theme
   onSetTheme: (theme: Theme) => void

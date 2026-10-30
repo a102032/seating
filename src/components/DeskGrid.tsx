@@ -89,7 +89,11 @@ export function DeskGrid({
   // A class with no avatars at all lets the names grow into the room the pictures had. A class
   // with some still keeps one size for every name, centred or not.
   const nameOnlyClass = seatedStudents.length > 0 && seatedStudents.every(hasNoPicture)
-  const nameSize = useMemo(
+  // Two to five rows of a small class are wide desks no taller than six rows' (2026-10-30): a name
+  // sized by the desk's width alone grew huge and squeezed the picture to a dot. So it is sized as
+  // if the desk had six rows' shape, growing only as far as the desks are taller.
+  const wideDesks = plan.kind === 'rows' && plan.across < 6 ? Math.min(1, (5 * plan.columns) / (6 * plan.rows)) : 1
+  const fittedNameSize = useMemo(
     () =>
       fitClassNameSize(
         labels
@@ -103,6 +107,7 @@ export function DeskGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [labels, fontsLoaded, nameOnlyClass],
   )
+  const nameSize = fittedNameSize * wideDesks
   // A centred name with a homeroom number under it needs room below it as well as above: the
   // name is held to two fifths of the desk's height (the number only as tall as its digits), or
   // a bit under half when no centred name has a number. One cap for the class, so the names stay
@@ -142,7 +147,7 @@ export function DeskGrid({
 
   // Rows is drawn exactly as the board always was, so a class that never picks a layout sees
   // no change at all. Side desks stand past an aisle, so they take the other layouts' drawing.
-  if (plan.kind === 'rows' && !plan.side) {
+  if (plan.kind === 'rows' && plan.across === 6 && !plan.side) {
     return (
       <div
         className="grid h-full w-full gap-2 p-2.5 sm:gap-3 sm:p-3"
