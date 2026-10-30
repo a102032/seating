@@ -1,5 +1,4 @@
 import type { QuestPrize } from '../lib/quest'
-import { adventureOf, type Adventure } from '../lib/marbles'
 import {
   Check,
   CircleQuestionMark,
@@ -145,7 +144,6 @@ interface ClassSettingsModalProps {
   onClearDeskStars: () => void
   onSetQuestPrizes: (prizes: QuestPrize[]) => void
   onRestartQuest: () => void
-  onSetAdventure: (adventure: Adventure) => void
   // Tools
   tools: ToolsProps
   // Attendance and participation
@@ -284,7 +282,6 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           onChoosingGif={setChoosingGif}
           onSetQuestPrizes={props.onSetQuestPrizes}
           onAskRestartQuest={() => setConfirming('restart-quest')}
-          onSetAdventure={props.onSetAdventure}
         />
       )
       break
@@ -462,16 +459,8 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
         />
         <ConfirmModal
           open={confirming === 'restart-quest'}
-          title={adventureOf(activeClass) === 'marbles' ? 'Start a new jar?' : 'Start the quest over?'}
-          message={
-            adventureOf(activeClass) === 'marbles'
-              ? `"${activeClass.name}" starts again with an empty jar and no spins waiting. The stars on the meter stay.`
-              : adventureOf(activeClass) === 'pirate'
-                ? `"${activeClass.name}" sails back to the first island with no map pieces, and the islands visited come off the map. The stars on the meter stay.`
-                : adventureOf(activeClass) === 'space'
-                  ? `"${activeClass.name}" flies back to Earth with no fuel, and the planets visited come off the map. The stars on the meter stay.`
-                  : `"${activeClass.name}" goes back to the Wood chest with no keys, and the chests opened come off the map. The stars on the meter stay.`
-          }
+          title="Start a new jar?"
+          message={`"${activeClass.name}" starts again with an empty jar and no spins waiting. The stars on the meter stay.`}
           confirmLabel="Yes, Start Over"
           cancelLabel="No"
           onCancel={() => setConfirming(null)}
@@ -495,7 +484,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
         <ConfirmModal
           open={confirming === 'goal' || confirming === 'quest' || confirming === 'none'}
           title="Clear the students' stars?"
-          message={`Switching to ${confirming === 'goal' ? 'a class goal' : confirming === 'quest' ? 'a class quest' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
+          message={`Switching to ${confirming === 'goal' ? 'a class goal' : confirming === 'quest' ? 'the Marble Jar' : 'no points'} clears the stars on every desk in "${activeClass.name}". This can't be undone.`}
           confirmLabel="Yes, Switch"
           cancelLabel="No"
           onCancel={() => setConfirming(null)}

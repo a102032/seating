@@ -1922,34 +1922,8 @@ button {
   }
 }
 
-/* The Quest (QuestMoments.tsx, OurQuest.tsx). Fixed colours on purpose, the same in every theme,
+/* The prize wheel (QuestMoments.tsx) and the Marble Jar's buttons. Fixed colours on purpose, the same in every theme,
    as the flip cards' backs and the groups' colours are: gold is gold. */
-.our-quest {
-  color: #3b2410;
-  /* An old treasure map: parchment, a faint ink grid, darker burnt edges. */
-  background:
-    radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(122, 72, 22, 0.26) 100%),
-    radial-gradient(circle at 16% 78%, rgba(150, 98, 36, 0.12), transparent 14%),
-    radial-gradient(circle at 74% 18%, rgba(150, 98, 36, 0.1), transparent 12%),
-    repeating-linear-gradient(0deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px),
-    repeating-linear-gradient(90deg, rgba(122, 80, 30, 0.07) 0 1px, transparent 1px 56px), linear-gradient(135deg, #f9ecc9, #f0d9a4);
-  box-shadow: -6px 0 24px rgba(30, 42, 68, 0.15);
-}
-@keyframes quest-key-bob {
-  0%,
-  100% {
-    translate: 0 0;
-    rotate: 0deg;
-  }
-  50% {
-    translate: 0 -10px;
-    rotate: -5deg;
-  }
-}
-.quest-key-bob {
-  animation: quest-key-bob 1.4s ease-in-out infinite;
-}
-/* The key waiting at the end of the meter's track, bobbing as the goal comes near. */
 @keyframes quest-key-near {
   0%,
   100% {
@@ -2000,7 +1974,6 @@ button {
   border-color: #e9b800;
 }
 @media (prefers-reduced-motion: reduce) {
-  .quest-key-bob,
   .quest-key-near {
     animation: none;
   }
@@ -3048,12 +3021,12 @@ button {
   object-fit: cover;
 }
 
-/* The Quest's prizes (Points): three columns, small, medium and big; only each column's list scrolls. */
+/* The Marble Jar's prizes (Points): two columns, prizes and big prizes; only each column's list scrolls. */
 .cs-prizes {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .cs-prize-col {
@@ -3852,211 +3825,4 @@ button {
   height: 100%;
   max-width: none;
   user-select: none;
-}
-
-/* The Pirate Quest (PirateMap.tsx, PirateMoments.tsx, lib/pirateArt). Fixed colours, the same in every
-   theme, as the Knight's are. Everything that keeps moving is CSS, which the graphics chip runs. */
-.pirate-ship {
-  animation: pirate-sway 2.6s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 50% 90%;
-}
-@keyframes pirate-sway {
-  50% {
-    transform: rotate(-3deg) translateY(2px);
-  }
-}
-.pirate-smoke {
-  opacity: 0;
-  animation: pirate-smoke 3.6s ease-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-@keyframes pirate-smoke {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.6);
-  }
-  25% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(14px, -46px) scale(1.7);
-  }
-}
-.pirate-zzz {
-  animation: pirate-zzz 2.4s ease-in-out infinite;
-}
-@keyframes pirate-zzz {
-  0% {
-    opacity: 0;
-    transform: translate(0, 6px);
-  }
-  40% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(8px, -14px);
-  }
-}
-.pirate-x-pop {
-  animation: pirate-x-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
-  transform-box: fill-box;
-  transform-origin: center;
-}
-@keyframes pirate-x-pop {
-  from {
-    transform: scale(0);
-  }
-}
-.pirate-hover {
-  animation: pirate-hover 1.4s ease-in-out infinite;
-}
-@keyframes pirate-hover {
-  50% {
-    transform: translateY(-6px);
-  }
-}
-.pirate-finale {
-  animation: pirate-x-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .pirate-ship,
-  .pirate-smoke,
-  .pirate-zzz,
-  .pirate-x-pop,
-  .pirate-hover,
-  .pirate-finale {
-    animation: none;
-  }
-}
-
-/* The Space Quest (SpaceQuest.tsx, SpaceMoments.tsx, lib/spaceArt). Fixed colours, the same in every theme, as the
-   pirates' are. Everything that keeps moving is a transform or opacity, which the graphics chip runs by itself. */
-.space-fb {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.space-twinkle {
-  animation: space-twinkle 3s ease-in-out infinite;
-}
-@keyframes space-twinkle {
-  50% {
-    opacity: 0.15;
-  }
-}
-/* Comets cross the whole sky, each its own way (--dx, --dy), and shooting stars streak now and then. */
-.space-travel {
-  animation: space-travel var(--t) linear infinite;
-  animation-delay: var(--d);
-}
-@keyframes space-travel {
-  from {
-    transform: translate(0, 0);
-  }
-  to {
-    transform: translate(var(--dx), var(--dy));
-  }
-}
-.space-shoot {
-  animation: space-shoot var(--t) linear infinite;
-  animation-delay: var(--d);
-  opacity: 0;
-}
-@keyframes space-shoot {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0);
-  }
-  2% {
-    opacity: 1;
-  }
-  9% {
-    opacity: 1;
-    transform: translate(var(--dx), var(--dy));
-  }
-  10%,
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy));
-  }
-}
-.space-spin {
-  animation: space-spin 40s linear infinite;
-}
-@keyframes space-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.space-drift {
-  animation: space-drift 9s ease-in-out infinite;
-}
-@keyframes space-drift {
-  50% {
-    transform: translate(14px, -10px) rotate(8deg);
-  }
-}
-.space-hover {
-  animation: space-hover 2s ease-in-out infinite;
-}
-@keyframes space-hover {
-  50% {
-    transform: translateY(-6px);
-  }
-}
-.space-flame {
-  animation: space-flame 0.09s ease-in-out infinite alternate;
-  transform-box: fill-box;
-  transform-origin: 50% 0;
-}
-@keyframes space-flame {
-  to {
-    transform: scaleY(1.25) scaleX(0.9);
-  }
-}
-.space-zzz {
-  animation: pirate-zzz 2.4s ease-in-out infinite;
-}
-.space-glow-cell {
-  animation: space-glow-cell 1.2s ease-in-out 3;
-}
-@keyframes space-glow-cell {
-  50% {
-    filter: drop-shadow(0 0 10px #c8ff5a);
-  }
-}
-/* The countdown: each number swells in and fades as the next comes. */
-.space-count {
-  animation: space-count 0.9s ease-out forwards;
-}
-@keyframes space-count {
-  from {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-  25% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  to {
-    transform: scale(0.85);
-    opacity: 0.85;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .space-twinkle,
-  .space-travel,
-  .space-shoot,
-  .space-spin,
-  .space-drift,
-  .space-hover,
-  .space-flame,
-  .space-zzz,
-  .space-glow-cell,
-  .space-count {
-    animation: none;
-  }
 }

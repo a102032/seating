@@ -421,64 +421,6 @@ const all = {}
   await page.context().close()
 }
 
-// The Class Quest: the same class on a quest, partway through (the Wood chest opened, a key in the
-// Bronze chest), then with the Bronze chest's keys all in, opened, its wheel spun and its prize up.
-{
-  const onQuest = (keys) => ({
-    ...STATE,
-    classes: [
-      {
-        ...STATE.classes[0],
-        pointsMode: 'quest',
-        pointsGoal: 40,
-        classPoints: 26,
-        quest: {
-          number: 1,
-          chest: 1,
-          keys,
-          opened: [{ chest: 0, prize: { name: 'Drawing time', size: 's' }, on: today }],
-          keyDays: [today],
-          startedOn: today,
-        },
-      },
-    ],
-  })
-  let page = await open(onQuest(1))
-  await page.evaluate(() => {
-    let m = document.querySelector('[data-quest-chest]')
-    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
-    m?.setAttribute('data-tour-mark', 'qmeter')
-  })
-  all.quest = await rects(page, { meter: '[data-tour-mark="qmeter"]', nextKey: '[data-quest-next-key]', chest: '[data-quest-chest]' })
-  await shot(page, 'quest')
-  await page.click('[data-quest-chest]')
-  await page.waitForTimeout(900)
-  all.questmap = await rects(page, {
-    map: '[data-our-quest]',
-    opened: '[data-our-quest] [data-station="0"]',
-    now: '[data-our-quest] [data-station="1"]',
-    mega: '[data-our-quest] [data-station="4"]',
-    close: 'button[aria-label="Close Our Quest"]',
-  })
-  await shot(page, 'questmap')
-  await page.context().close()
-
-  page = await open(onQuest(2))
-  await page.click('[data-quest-chest]')
-  await page.waitForTimeout(3400)
-  await mark(page, [
-    ['qpick', '^Pick a Spinner$'],
-    ['qspin', '^Spin!$'],
-  ])
-  all.wheel = await rects(page, { wheel: '[data-quest-wheel]', pick: '[data-tour-mark="qpick"]', spin: '[data-tour-mark="qspin"]' })
-  await shot(page, 'wheel')
-  await page.click('[data-tour-mark="qspin"]')
-  await page.waitForTimeout(9000)
-  all.prize = await rects(page, { card: '.celebration-card' })
-  await shot(page, 'prize')
-  await page.context().close()
-}
-
 // The Marble Jar: the same class on it, its jar filled by three real spins (so the marbles lie where
 // they fell), the meter partway to the next spin, then the wheel up for a spin.
 {
@@ -488,7 +430,6 @@ const all = {}
       {
         ...STATE.classes[0],
         pointsMode: 'quest',
-        questAdventure: 'marbles',
         pointsGoal: 40,
         classPoints: 26,
         marbleJar: { number: 1, marbles: [], spins: 4, filled: [], spinDays: [today], startedOn: today },
@@ -538,127 +479,37 @@ const all = {}
   await page.context().close()
 }
 
-// The Pirate Quest: the same class sailing to island 2 (3 pieces), one piece found, the meter partway.
+// The Marble Jar full: the jar tapped, Prize wheel!, the wheel out of the jar, spun, and its prize up.
 {
-  const pirate = (pieces) => ({
+  // A jar laid out as if it had settled, past its line: 8 rows of 7 plain marbles and a Mega.
+  const rows = []
+  for (let r = 0; r < 8; r++) for (let k = 0; k < 7; k++) rows.push([0, r * 7 + k, 4 + k * 2, 24.6 - r * 2, 0, 1])
+  const page = await open({
     ...STATE,
     classes: [
       {
         ...STATE.classes[0],
         pointsMode: 'quest',
-        questAdventure: 'pirate',
         pointsGoal: 40,
-        classPoints: pieces === 3 ? 0 : 26,
-        pirateQuest: {
-          number: 1,
-          chest: 1,
-          keys: pieces,
-          opened: [{ chest: 0, prize: { name: 'Drawing time', size: 's' }, on: today }],
-          keyDays: [today],
-          startedOn: today,
-          kind: 'pirate',
-        },
+        classPoints: 26,
+        marbleJar: { number: 1, marbles: [...rows, [2, 0, 10, 8, 0, 2.7]], spins: 0, filled: [], spinDays: [today], startedOn: today },
       },
     ],
   })
-  // What the map last showed, so it opens as it is rather than playing the voyage so far.
-  const seen = async (page, pieces) => {
-    await page.evaluate(
-      ([id, pieces]) =>
-        localStorage.setItem(
-          'seating-chart-pirate-seen-v1',
-          JSON.stringify({ [id]: { quest: 1, island: 1, ship: pieces === 3 ? 1 : (pieces + 26 / 40) / 3, cleared: pieces } }),
-        ),
-      [STATE.classes[0].id, pieces],
-    )
-  }
-  let page = await open(pirate(1))
-  await page.evaluate(() => {
-    let m = document.querySelector('[data-pirate-mini]')
-    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
-    m?.setAttribute('data-tour-mark', 'pmeter')
-  })
-  all.pirate = await rects(page, { meter: '[data-tour-mark="pmeter"]', puzzle: '[data-pirate-mini]' })
-  await shot(page, 'pirate')
-  await seen(page, 1)
-  await page.click('[data-quest-chest]')
-  await page.waitForTimeout(1200)
-  all.piratemap = await rects(page, {
-    ship: '[data-pirate-ship]',
-    clouds: '[data-pirate-world] [data-island="1"]',
-    island: '[data-pirate-world] [data-island="1"]',
-    close: 'button[aria-label="Close Our Quest"]',
-  })
-  await shot(page, 'piratemap')
-  await page.context().close()
-
-  // A piece found: a star to fill the goal, and the piece hovering over its gap.
-  const one = pirate(1)
-  one.classes[0].classPoints = 39
-  page = await open(one)
-  await page.locator('[data-ink=desk]').first().click()
-  await page.locator('aside button[title="Award Point"]').click()
-  await page.waitForTimeout(1800)
-  all.piratepiece = await rects(page, { puzzle: '[data-pirate-puzzle]' })
-  await shot(page, 'piratepiece')
-  await page.context().close()
-}
-
-// The Space Quest: the class on the Moon, fuelling for Mars (1 cell), 2 of its 4 bars in, the meter partway.
-{
-  const space = (bars, points) => ({
-    ...STATE,
-    classes: [
-      {
-        ...STATE.classes[0],
-        pointsMode: 'quest',
-        questAdventure: 'space',
-        pointsGoal: 40,
-        classPoints: points,
-        spaceQuest: {
-          number: 1,
-          chest: 1,
-          keys: bars,
-          opened: [{ chest: 0, prize: { name: 'Drawing time', size: 's' }, on: today }],
-          keyDays: [today],
-          startedOn: today,
-          kind: 'space',
-        },
-      },
-    ],
-  })
-  let page = await open(space(2, 26))
-  await page.evaluate(() => {
-    let m = document.querySelector('[data-space-mini]')
-    while (m && m.getBoundingClientRect().width < 600) m = m.parentElement
-    m?.setAttribute('data-tour-mark', 'smeter')
-  })
-  all.space = await rects(page, { meter: '[data-tour-mark="smeter"]', cells: '[data-space-mini]' })
-  await shot(page, 'space')
-  // What the screen last showed, so it opens as it is rather than lighting the bars again.
-  await page.evaluate(
-    (id) => localStorage.setItem('seating-chart-space-seen-v1', JSON.stringify({ [id]: { quest: 1, place: 1, bars: 2 } })),
-    STATE.classes[0].id,
-  )
-  await page.click('[data-quest-chest]')
-  await page.waitForTimeout(1500)
-  all.spaceplanet = await rects(page, {
-    rocket: '[data-space-surf] [data-space-rocket]',
-    fuel: '[data-space-fuel]',
-    flag: '[data-space-surf] [data-space-flag]',
-    map: '[data-space-map-button]',
-    close: 'button[aria-label="Close Our Quest"]',
-  })
-  await shot(page, 'spaceplanet')
-  await page.context().close()
-
-  // A goal filled: "More fuel!", the barrel over the cell.
-  page = await open(space(2, 39))
-  await page.locator('[data-ink=desk]').first().click()
-  await page.locator('aside button[title="Award Point"]').click()
-  await page.waitForTimeout(1800)
-  all.spacefuel = await rects(page, { cells: '[data-space-fuel-art]' })
-  await shot(page, 'spacefuel')
+  await page.locator('[data-marble-mini]').click()
+  await page.waitForTimeout(800)
+  await page.getByRole('button', { name: 'Prize wheel!' }).click()
+  await page.waitForTimeout(3400)
+  await mark(page, [
+    ['qpick', '^Pick a Spinner$'],
+    ['qspin', '^Spin!$'],
+  ])
+  all.wheel = await rects(page, { wheel: '[data-quest-wheel]', pick: '[data-tour-mark="qpick"]', spin: '[data-tour-mark="qspin"]' })
+  await shot(page, 'wheel')
+  await page.click('[data-tour-mark="qspin"]')
+  await page.waitForTimeout(9000)
+  all.prize = await rects(page, { card: '.celebration-card' })
+  await shot(page, 'prize')
   await page.context().close()
 }
 

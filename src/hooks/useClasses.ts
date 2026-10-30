@@ -7,15 +7,13 @@ import { MAX_SEATS, planFor, reseatForLayout, type RoomLayout } from '../lib/lay
 import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoints } from '../lib/participation'
 import { LINE_NAME_MAX, lineOf, MAX_SAVED_LINES, STEP_NAME_MAX, type ClassLine } from '../lib/line'
 import { goalIsLive, hasClassGoal, pointsModeOf, questIsOn, starsWaitOnDesks } from '../lib/points'
-import { withChestOpened, withKeysWon, withQuestRestarted, type QuestPrize } from '../lib/quest'
+import type { QuestPrize } from '../lib/quest'
 import {
-  adventureOf,
   withJarFilled,
   withJarRestarted,
   withMarblesSettled,
   withSpinsWon,
   withSpinUsed,
-  type Adventure,
   type SavedMarble,
 } from '../lib/marbles'
 import type { Theme } from '../lib/theme'
@@ -108,10 +106,9 @@ function addClassPoints(c: ClassData, amount: number): ClassData {
     goalReachedOn = dateKey()
   }
   const next = { ...c, classPoints, goalsReached, goalReachedOn }
-  // On a quest each goal filled is a key, kept the moment it is won (the key moment only shows it).
-  // On the Marble Jar, a spin of the marble wheel instead.
+  // On the Marble Jar each goal filled is a spin of the marble wheel, kept the moment it is won.
   if (!filled || !questIsOn(c)) return next
-  return adventureOf(c) === 'marbles' ? withSpinsWon(next, filled) : withKeysWon(next, filled)
+  return withSpinsWon(next, filled)
 }
 
 /**
@@ -548,25 +545,11 @@ export function useClasses() {
     [updateClass],
   )
 
-  /** The Quest: a chest with all its keys opened, and the prize the wheel landed on won. */
-  const openQuestChest = useCallback(
-    (classId: string, prize: QuestPrize) => updateClass(classId, (c) => withChestOpened(c, { name: prize.name, size: prize.size })),
-    [updateClass],
-  )
-
   const setQuestPrizes = useCallback(
     (classId: string, prizes: QuestPrize[]) => updateClass(classId, (c) => ({ ...c, questPrizes: prizes })),
     [updateClass],
   )
 
-  /** The quest from the Wood chest again, for a teacher who tried it out first. */
-  const restartQuest = useCallback((classId: string) => updateClass(classId, (c) => withQuestRestarted(c)), [updateClass])
-
-  /** The Class Quest's adventure: the Knight's chests or the Marble Jar. Each keeps its own place for when it comes back. */
-  const setQuestAdventure = useCallback(
-    (classId: string, adventure: Adventure) => updateClass(classId, (c) => ({ ...c, questAdventure: adventure })),
-    [updateClass],
-  )
   /** The Marble Jar: a spin spun and its marbles settled, kept where they came to rest. */
   const spendMarbleSpin = useCallback(
     (classId: string, marbles: SavedMarble[]) => updateClass(classId, (c) => withSpinUsed(c, marbles)),
@@ -833,10 +816,7 @@ export function useClasses() {
     setRoom,
     setPointsMode,
     clearDeskStars,
-    openQuestChest,
     setQuestPrizes,
-    restartQuest,
-    setQuestAdventure,
     spendMarbleSpin,
     settleMarbles,
     fillMarbleJar,

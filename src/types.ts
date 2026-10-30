@@ -2,8 +2,8 @@ import type { RoomLayout } from './lib/layouts'
 import type { ParticipationRecord } from './lib/participation'
 import type { GroupScheme } from './lib/groups'
 import type { Theme } from './lib/theme'
-import type { Adventure, MarbleJarState } from './lib/marbles'
-import type { QuestPrize, QuestState } from './lib/quest'
+import type { MarbleJarState } from './lib/marbles'
+import type { QuestPrize } from './lib/quest'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
 
@@ -185,19 +185,12 @@ export interface ClassData {
    */
   celebrationGifId?: string
   /**
-   * The Quest (pointsMode 'quest', lib/quest): which chest the class is on, its keys, and the
-   * chests opened so far. Read through questOf, which gives a class that hasn't started one the
-   * Wood chest with no keys.
+   * The prizes for the Marble Jar's prize wheel, each medium or big (small ones were the retired
+   * quests' early chests). Unset is lib/quest's starting list. Saves from before 2026-10-30 may also
+   * hold the retired Knight, Pirate and Space quests' places (quest, pirateQuest, spaceQuest,
+   * questAdventure): nothing reads them, and they are left as they are.
    */
-  quest?: QuestState
-  /** The teacher's prizes for the Quest's wheels, each small, medium or big. Unset is lib/quest's starting list. */
   questPrizes?: QuestPrize[]
-  /** The Class Quest's adventure: the Knight's keys and chests (unset), the Marble Jar (lib/marbles), the Pirate Quest or the Space Quest. */
-  questAdventure?: Adventure
-  /** The Pirate Quest's islands and map pieces, kept apart from the Knight's so each keeps its place. Read through questOf. */
-  pirateQuest?: QuestState
-  /** The Space Quest's trips and fuel, kept apart from the others so each keeps its place. Read through questOf. */
-  spaceQuest?: QuestState
   /** The Marble Jar: the marbles where they settled, spins waiting, and the jars filled. Read through jarOf. */
   marbleJar?: MarbleJarState
   /**

@@ -109,13 +109,6 @@ let uid = 0
 const LID = 'M12 54 V38 Q12 20 30 20 H90 Q108 20 108 38 V54 Z'
 const f1 = (n: number) => n.toFixed(1)
 
-/** A gold key on its side, bow on the left. `dim` is a key not won yet: the same shape, grey. */
-export function keySVG(dim = false): string {
-  const fill = dim ? '#d6d3d1' : '#fbbf24'
-  const edge = dim ? '#a8a29e' : '#b45309'
-  return `<svg viewBox="0 0 48 24" aria-hidden="true"><rect x="33" y="12" width="4.5" height="7" rx="1" fill="${fill}" stroke="${edge}" stroke-width="1.6"/><rect x="39.5" y="12" width="4.5" height="9" rx="1" fill="${fill}" stroke="${edge}" stroke-width="1.6"/><rect x="17" y="9.3" width="28" height="5.4" rx="2" fill="${fill}" stroke="${edge}" stroke-width="1.6"/><circle cx="11" cy="12" r="7.6" fill="none" stroke="${edge}" stroke-width="6.2"/><circle cx="11" cy="12" r="7.6" fill="none" stroke="${fill}" stroke-width="3.4"/>${dim ? '' : '<circle cx="8.4" cy="8.6" r="1.3" fill="#fff7cf"/>'}</svg>`
-}
-
 /** What fills an open chest: a heap of coins that grows with the rank, then gems, pearls, a goblet, a crown. */
 const PEAK = [41, 35, 29, 22, 13]
 function treasure(t: number, id: string) {

@@ -10,14 +10,10 @@ import { assetUrl } from '../lib/assets'
 import { HOMEROOM_TAG_SCALE } from '../lib/fitText'
 import { findMover, type Mover } from '../lib/moveExtension'
 import { FloatClock } from './BigTimer'
-import { CHESTS } from '../lib/quest'
-import { puzzleSVG } from '../lib/pirateArt'
-import { miniCellsSVG } from '../lib/spaceArt'
-import { chestSVG } from '../lib/questArt'
 import { miniWheelSVG } from '../lib/marbleArt'
 import type { SavedMarble } from '../lib/marbles'
 import { MiniJar } from './MiniJar'
-import { playKeyClick, playPickerLand } from '../lib/sound'
+import { playPickerLand } from '../lib/sound'
 import { FloatGetReady } from './FloatGetReady'
 import { GRIP_ROOM, MoveGrip } from './MoveGrip'
 
@@ -42,23 +38,13 @@ interface FloatingGoalProps {
   onPick: () => void
   onClearPick: () => void
   /**
-   * The class is on a quest: the window's chest is the chest the class is on, with its locks. A key
-   * won from here drops into it with the click, no tap to wait for; a chest with all its keys is
-   * `waiting`, and the button opens it in the app (2026-10-12, the teacher).
+   * The class has the Marble Jar: the window shows the class's jar. A spin won here needs the board
+   * for its wheel, so it waits, as a full jar does: the button says Spin the wheel (or Open the jar)
+   * and brings the app forward.
    */
   quest?: {
-    chest: number
-    keys: number
     appBehind: boolean
-    /**
-     * The Marble Jar: the window shows the class's jar. A spin won here needs the board for its
-     * wheel, so it waits, as a full chest does: the button says Spin the wheel and brings the app forward.
-     */
-    marbles?: { spins: number; full: boolean; jar: SavedMarble[] }
-    /** The Pirate Quest: the window shows the island's puzzle, and a whole one waits for the app to dig. */
-    pirate?: boolean
-    /** The Space Quest: the window shows the trip's fuel cells, and full ones wait for the app to blast off. */
-    space?: boolean
+    marbles: { spins: number; full: boolean; jar: SavedMarble[] }
   }
   /** Get Ready! from here, over the lesson. */
   getReady: {
@@ -141,17 +127,14 @@ export function FloatingGoal({
   getReady,
   quest,
 }: FloatingGoalProps) {
-  // A key won while the app is behind the lesson clicks into this window's chest. In front of the
-  // class the app's own key moment does it, so the click isn't heard twice.
-  const keysNow = quest ? (quest.marbles ? quest.marbles.spins : quest.chest * 10 + quest.keys) : 0
-  const lastKeys = useRef(keysNow)
+  // A spin won while the app is behind the lesson lands here with the picker's chime. In front of
+  // the class the app's own wheel comes up, so it isn't heard twice.
+  const spinsNow = quest ? quest.marbles.spins : 0
+  const lastSpins = useRef(spinsNow)
   useEffect(() => {
-    if (quest && keysNow > lastKeys.current && quest.appBehind) {
-      if (quest.marbles) playPickerLand()
-      else playKeyClick()
-    }
-    lastKeys.current = keysNow
-  }, [keysNow, quest])
+    if (quest && spinsNow > lastSpins.current && quest.appBehind) playPickerLand()
+    lastSpins.current = spinsNow
+  }, [spinsNow, quest])
   const lastTap = useRef(0)
   // Celebrate was tapped, but the app is still behind the lesson.
   const [asked, setAsked] = useState(false)
@@ -275,7 +258,7 @@ export function FloatingGoal({
       style={{ touchAction: 'manipulation' }}
     >
       <span className="flex items-center gap-2" style={{ fontSize: strip ? '1.05rem' : 'clamp(1.1rem, 18vh, 2.4rem)' }}>
-        {quest?.marbles ? (
+        {quest ? (
           quest.marbles.full ? (
             <MiniJar marbles={quest.marbles.jar} full className="block h-[1.3em] w-[1em]" />
           ) : (
@@ -284,37 +267,16 @@ export function FloatingGoal({
               dangerouslySetInnerHTML={{ __html: miniWheelSVG() }}
             />
           )
-        ) : quest?.pirate ? (
-          <span
-            className="block h-[1.1em] w-[1.5em] [&>svg]:h-full [&>svg]:w-full"
-            dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.chest, quest.keys) }}
-          />
-        ) : quest?.space ? (
-          <span
-            className="block h-[1.2em] [&>svg]:h-full [&>svg]:w-auto"
-            dangerouslySetInnerHTML={{ __html: miniCellsSVG(quest.chest, quest.keys) }}
-          />
-        ) : quest ? (
-          <span
-            className="block h-[1.1em] w-[1.25em] [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible"
-            dangerouslySetInnerHTML={{ __html: chestSVG(quest.chest, { keys: CHESTS[quest.chest].keys }) }}
-          />
         ) : (
           <PartyPopper className="size-[1em]" />
         )}{' '}
         {strip && asked
           ? 'Open the app'
-          : quest?.marbles
+          : quest
             ? quest.marbles.full
               ? 'Open the jar'
               : 'Spin the wheel'
-            : quest?.pirate
-              ? 'Dig for treasure'
-              : quest?.space
-                ? 'Blast off!'
-                : quest
-                  ? 'Open the chest'
-                  : 'Celebrate!'}
+            : 'Celebrate!'}
       </span>
       {!strip && asked && <span className="text-sm font-bold">Open the app to see it</span>}
     </button>
@@ -491,7 +453,7 @@ export function FloatingGoal({
               />
             </div>
           </div>
-          {quest?.marbles ? (
+          {quest ? (
             <span data-float-chest="" className={clsx('block shrink-0', waiting && 'float-chest-rattle')}>
               <MiniJar
                 marbles={quest.marbles.jar}
@@ -499,32 +461,6 @@ export function FloatingGoal({
                 className={clockShown ? 'block h-7 w-5' : 'block h-9 w-[26px]'}
               />
             </span>
-          ) : quest?.pirate ? (
-            <span
-              data-float-chest=""
-              className={clsx(
-                'block shrink-0 [&>svg]:h-full [&>svg]:w-full',
-                clockShown ? 'h-7 w-9' : 'h-8 w-11',
-                waiting && 'float-chest-rattle',
-              )}
-              dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.chest, quest.keys) }}
-            />
-          ) : quest?.space ? (
-            <span
-              data-float-chest=""
-              className={clsx('block shrink-0 [&>svg]:h-full [&>svg]:w-auto', clockShown ? 'h-7' : 'h-9', waiting && 'float-chest-rattle')}
-              dangerouslySetInnerHTML={{ __html: miniCellsSVG(quest.chest, quest.keys) }}
-            />
-          ) : quest ? (
-            <span
-              data-float-chest=""
-              className={clsx(
-                'block shrink-0 [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible',
-                clockShown ? 'h-7 w-8' : 'h-8 w-9',
-                waiting && 'float-chest-rattle',
-              )}
-              dangerouslySetInnerHTML={{ __html: chestSVG(quest.chest, { keys: Math.min(quest.keys, CHESTS[quest.chest].keys) }) }}
-            />
           ) : (
             <img
               src={treasure('chest-closed')}

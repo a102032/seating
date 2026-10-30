@@ -451,273 +451,12 @@ const scenarios = {
   },
 
   /**
-   * The three ways of running points (2026-10-11): a class goal, each student's own stars on their
-   * desk, or none. Student points: + and − on the desks, Get Ready! gives everyone the stars, group
-   * points go to each member, Clear All Stars empties them, and leaving asks first. No points: no
-   * star, no scores on the group cards, and Get Ready! is a challenge with no prize.
-   */
-  /**
-   * The Class Quest (DECISIONS, "Treasure Quest"): a filled goal wins a key that waits for a tap and
-   * flies into the chest; a chest with all its keys opens on a tap, a wheel rises with the agreed
-   * odds, Pick a Spinner names someone here and counts it as their turn, Spin lands on one slice and
-   * the prize fills the screen until tapped; the class walks on to the next chest, and after the Mega
-   * chest a new quest starts. Our Quest on its map never scrolls, and the floating window shows the
-   * chest and says Open the chest when it has all its keys.
-   */
-  async 'the class quest'() {
-    const quest = (chest, keys, extra = {}) => ({ number: 1, chest, keys, opened: [], keyDays: [], startedOn: '2026-09-01', ...extra })
-    const cls = makeClass('c1', 'Quest', 12, { pointsMode: 'quest', goalEnabled: true, pointsGoal: 10, classPoints: 9 })
-    let page = await open({ state: stateOf(cls), size: [1280, 559], before: () => sessionStorage.setItem('picks', '0') })
-    check(
-      'quest: the knight rides the meter where the coin would',
-      (await page.locator('[data-goal-coin="knight"]').count()) === 1 && (await page.locator('[data-goal-coin=""]').count()) === 0,
-    )
-    await desk(page, 'Amy').click()
-    await award(page)
-    await page.waitForTimeout(1300)
-    let c = await activeSaved(page)
-    check(
-      'quest: a filled goal wins a key, kept as it is won',
-      c.quest?.keys === 1 && c.goalsReached === 1 && (await page.locator('[data-quest-moment="key"]').count()) === 1,
-      JSON.stringify(c.quest),
-    )
-    check('quest: "You got a key!"', (await page.locator('[data-quest-moment="key"]').innerText()).includes('You got a key!'))
-    // The key ignores taps for 0.7 s after it shows (the board's second touch).
-    await page.waitForTimeout(900)
-    await page.mouse.click(640, 300)
-    await page.waitForTimeout(2200)
-    check(
-      'quest: a tap sends the key into the chest, and the chest is ready',
-      (await page.locator('[data-quest-moment]').count()) === 0 &&
-        (await page.locator('[data-quest-chest]').locator('..').getAttribute('title')) === 'Open the chest',
-    )
-    // The chest opening: the wheel, Pick a Spinner, Spin, the prize.
-    await page.locator('[data-quest-chest]').click()
-    await page.waitForTimeout(3300)
-    const fills = await page
-      .locator('[data-quest-wheel] [data-slice] > path:first-child')
-      .evaluateAll((ps) => ps.map((p) => p.getAttribute('fill')))
-    const count = (k) => fills.filter((f) => f.includes(k)).length
-    check(
-      'quest: the Wood wheel is 6 plain, 2 silver, no gold',
-      count('silver') === 2 && count('gold') === 0 && fills.length === 8,
-      fills.join(' '),
-    )
-    const picksBefore = Object.values((await activeSaved(page)).participation ?? {})
-      .flatMap((d) => Object.values(d))
-      .reduce((n, [p]) => n + p, 0)
-    await page.getByRole('button', { name: 'Pick a Spinner' }).click()
-    await page.waitForTimeout(3300)
-    const spinner = await page.locator('[data-quest-spinner]').innerText()
-    c = await activeSaved(page)
-    const picksAfter = Object.values(c.participation ?? {})
-      .flatMap((d) => Object.values(d))
-      .reduce((n, [p]) => n + p, 0)
-    check(
-      'quest: Pick a Spinner names a student, and it is their turn',
-      /, spin!$/.test(spinner) && picksAfter === picksBefore + 1,
-      spinner,
-    )
-    // "Pick a different student" (2026-10-27): someone else, and the first gets their turn back.
-    const first = spinner.replace(/, spin!$/, '')
-    await page.waitForTimeout(800)
-    await page.getByRole('button', { name: 'Pick a different student' }).click()
-    await page.waitForTimeout(3300)
-    const second = (await page.locator('[data-quest-spinner]').innerText()).replace(/, spin!$/, '')
-    c = await activeSaved(page)
-    const picksNow = Object.values(c.participation ?? {})
-      .flatMap((d) => Object.values(d))
-      .reduce((n, [p]) => n + p, 0)
-    check(
-      'quest: Pick a different student names someone else, and the first gets their turn back',
-      second !== first && second.length > 0 && picksNow === picksAfter,
-      `${first} then ${second}, picks ${picksAfter} then ${picksNow}`,
-    )
-    await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(6600)
-    check('quest: the wheel lands on one slice, the rest fade', (await page.locator('.quest-slice-dim').count()) === 7)
-    await page.waitForTimeout(1200)
-    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
-    check('quest: the prize fills the screen', !!prize, prize)
-    await page.mouse.click(640, 300)
-    await page.waitForTimeout(900)
-    c = await activeSaved(page)
-    check(
-      'quest: the chest goes on the map and the class walks on to Bronze',
-      c.quest.chest === 1 &&
-        c.quest.keys === 0 &&
-        c.quest.opened[0]?.prize.name === prize &&
-        (await page.locator('[data-quest-moment]').count()) === 0,
-      JSON.stringify(c.quest),
-    )
-    // Our Quest: a tap on the chest while it needs keys.
-    await page.locator('[data-quest-chest]').click()
-    await page.waitForTimeout(800)
-    check('quest: the chest opens Our Quest when it needs keys', await page.locator('[data-our-quest]').isVisible())
-    check(
-      'quest: the map shows the prize under the Wood chest',
-      (await page.locator('[data-our-quest] [data-station="0"]').innerText()).includes(prize),
-    )
-    const mapOver = []
-    for (const size of SCROLL_SIZES) {
-      await page.setViewportSize({ width: size[0], height: size[1] })
-      await page.waitForTimeout(250)
-      const o = await overflow(page)
-      const out = await page.evaluate(() => {
-        const m = document.querySelector('[data-our-quest]').getBoundingClientRect()
-        return [...document.querySelectorAll('[data-our-quest] [data-station]')].some((e) => {
-          const r = e.getBoundingClientRect()
-          return r.top < m.top - 1 || r.bottom > m.bottom + 1 || r.left < m.left - 1 || r.right > m.right + 1
-        })
-      })
-      if (out || Object.values(o).some((v) => v > 0)) mapOver.push(`${size.join('x')} ${JSON.stringify(o)} ${out}`)
-    }
-    check('quest: Our Quest fits every screen, nothing scrolls', mapOver.length === 0, mapOver.join('; '))
-    await page.setViewportSize({ width: 1280, height: 559 })
-    await page.locator('button[aria-label="Close Our Quest"]').click()
-    await page.waitForTimeout(300)
-    check('quest: Our Quest closes on its X', (await page.locator('[data-our-quest]').count()) === 0)
-    await page.context().close()
-
-    // The Silver wheel's first gold slice, and the Mega chest starting a new quest.
-    const silver = makeClass('c1', 'Quest', 12, {
-      pointsMode: 'quest',
-      goalEnabled: true,
-      pointsGoal: 10,
-      classPoints: 0,
-      quest: quest(2, 3),
-    })
-    page = await open({ state: stateOf(silver), size: [1024, 500] })
-    await page.locator('[data-quest-chest]').click()
-    await page.waitForTimeout(3300)
-    const sf = await page
-      .locator('[data-quest-wheel] [data-slice] > path:first-child')
-      .evaluateAll((ps) => ps.map((p) => p.getAttribute('fill')))
-    check(
-      'quest: the Silver wheel is 2 plain, 5 silver, 1 gold',
-      sf.filter((f) => f.includes('silver')).length === 5 && sf.filter((f) => f.includes('gold')).length === 1,
-    )
-    const fit = await page.evaluate(() => {
-      const r = document.querySelector('[data-quest-wheel]').getBoundingClientRect()
-      const b = [...document.querySelectorAll('.quest-stage-btn')].map((e) => e.getBoundingClientRect())
-      return r.top >= 0 && b.every((x) => x.bottom <= innerHeight && x.right <= innerWidth)
-    })
-    check('quest: the chest opening fits 1024x500', fit)
-    await page.locator('button[aria-label="Not now"]').click()
-    await page.waitForTimeout(400)
-    c = await activeSaved(page)
-    check(
-      'quest: Not now puts it back, the chest still full',
-      (await page.locator('[data-quest-moment]').count()) === 0 && c.quest.keys === 3 && c.quest.chest === 2,
-    )
-    await page.context().close()
-
-    const mega = makeClass('c1', 'Quest', 12, {
-      pointsMode: 'quest',
-      goalEnabled: true,
-      pointsGoal: 10,
-      classPoints: 0,
-      quest: quest(4, 6),
-    })
-    page = await open({ state: stateOf(mega), size: [1280, 559] })
-    await page.locator('[data-quest-chest]').click()
-    await page.waitForTimeout(3300)
-    const mf = await page
-      .locator('[data-quest-wheel] [data-slice] > path:first-child')
-      .evaluateAll((ps) => ps.map((p) => p.getAttribute('fill')))
-    check('quest: the Mega wheel is all gold', mf.length === 8 && mf.every((f) => f.includes('gold')), mf.join(' '))
-    await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(8000)
-    await page.mouse.click(640, 300)
-    await page.waitForTimeout(900)
-    c = await activeSaved(page)
-    check(
-      'quest: after the Mega chest a new quest starts, with the spare key',
-      c.quest.number === 2 && c.quest.chest === 0 && c.quest.keys === 1 && c.quest.opened.length === 0,
-      JSON.stringify(c.quest),
-    )
-    await page.locator('[data-quest-chest]').click()
-    await page.waitForTimeout(3300)
-    await page.locator('button[aria-label="Not now"]').click()
-    await page.context().close()
-
-    // Points: four choices, the prize list, and how long the last key took.
-    const pts = makeClass('c1', 'Quest', 12, {
-      pointsMode: 'quest',
-      goalEnabled: true,
-      pointsGoal: 10,
-      quest: quest(1, 1, { keyDays: ['2026-10-14', '2026-10-20'] }),
-    })
-    page = await open({ state: stateOf(pts), size: [1024, 500] })
-    await openPointsTab(page)
-    await page.waitForTimeout(300)
-    const body = await page.locator('.cs-page').innerText()
-    check(
-      'quest: Points has four choices and says the last key took 6 days',
-      ['Class Goal', 'Class Quest', 'Student Points', 'No Points'].every((l) => body.includes(l)) &&
-        body.includes('The last key took 6 days.'),
-    )
-    {
-      const over = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
-      await page.screenshot({ path: '/tmp/walkthrough/quest-points-1024.png' })
-      check('quest: Points fits at 1024x500', over <= 0, `${over}px over`)
-    }
-    await page.getByRole('button', { name: /^10 prizes/ }).click()
-    await page.waitForTimeout(200)
-    await page.locator('input[aria-label="A new big prize"]').fill('Library trip')
-    await page.locator('button[aria-label="Add a big prize"]').click()
-    await page.locator('button[aria-label="Remove Candy treat"]').click()
-    await page.waitForTimeout(300)
-    c = await activeSaved(page)
-    check(
-      'quest: a prize is added and one taken out',
-      c.questPrizes.some((p) => p.name === 'Library trip' && p.size === 'b') &&
-        !c.questPrizes.some((p) => p.name === 'Candy treat') &&
-        c.questPrizes.length === 10,
-    )
-    check('quest: the prize list fits at 1024x500', (await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)) <= 0)
-    await backFromPage(page)
-    await moreOptions(page)
-    await page.getByRole('button', { name: /Start Over/ }).click()
-    await page.getByRole('button', { name: 'Yes, Start Over' }).click()
-    await page.waitForTimeout(300)
-    c = await activeSaved(page)
-    check('quest: Start Over goes back to the Wood chest', c.quest.chest === 0 && c.quest.keys === 0)
-    await backFromPage(page)
-    await page.getByRole('button', { name: 'Class Goal', exact: true }).click()
-    await page.waitForTimeout(300)
-    c = await activeSaved(page)
-    check('quest: back to a plain class goal, the quest kept for later', c.pointsMode === 'goal' && c.goalEnabled === true && !!c.quest)
-    await page.context().close()
-
-    // The floating window: the chest the class is on, and Open the chest.
-    const fl = makeClass('c1', 'Quest', 12, { pointsMode: 'quest', goalEnabled: true, pointsGoal: 10, classPoints: 2, quest: quest(1, 2) })
-    page = await open({ state: stateOf(fl), size: [1280, 559] })
-    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
-    await win.waitForLoadState()
-    await win.setViewportSize({ width: 340, height: 180 })
-    await page.waitForTimeout(600)
-    check(
-      'float: the quest chest, and Open the chest when it has its keys',
-      (await win.locator('[data-float-chest]').count()) === 1 && (await win.getByText('Open the chest').count()) === 1,
-    )
-    await win.getByText('Open the chest').click()
-    await page.bringToFront()
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-    await page.waitForTimeout(1500)
-    check('float: Open the chest opens it in the app', (await page.locator('[data-quest-moment="chest"]').count()) === 1)
-    check('quest: no errors', page.errors.length === 0, page.errors.join('; '))
-    await page.context().close()
-  },
-
-  /**
    * Pick a Spinner shows the homeroom number after a name two students share (2026-10-30, the
    * teacher: two Amys in the Marble Jar's moment couldn't be told apart), as the desks do.
    */
   async 'the marble jar: a shared name keeps its number'() {
     const cls = makeClass('c1', 'Marbles', 2, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 0,
@@ -737,6 +476,82 @@ const scenarios = {
     const said = await page.locator('[data-quest-spinner]').innerText()
     check('marbles: Pick a Spinner shows the homeroom number of an Amy who shares her name', ['05', '12'].includes(number.trim()), said)
     await page.screenshot({ path: '/tmp/walkthrough/marbles-spinner-homeroom.png' })
+    // "Pick a different student" (2026-10-27): the other Amy, and the first gets her turn back.
+    const picks = async () =>
+      Object.values((await activeSaved(page)).participation ?? {})
+        .flatMap((d) => Object.values(d))
+        .reduce((n, [p]) => n + p, 0)
+    const before = await picks()
+    await page.waitForTimeout(800)
+    await page.getByRole('button', { name: 'Pick a different student' }).click()
+    await page.waitForTimeout(3300)
+    const other = await page.locator('[data-quest-spinner] [data-spinner-homeroom]').innerText().catch(() => '')
+    check(
+      'marbles: Pick a different student names the other one, and the first gets her turn back',
+      other.trim() !== number.trim() && ['05', '12'].includes(other.trim()) && (await picks()) === before,
+      `${number} then ${other}`,
+    )
+    return page
+  },
+
+  /**
+   * The splash is there from the first frame (2026-10-30, the teacher): it faded in over the board,
+   * so last time's seating chart showed for a moment, and on a shared board that is another teacher's class.
+   */
+  async 'the splash covers the board from its first frame'() {
+    const page = await open({
+      state: stateOf(makeClass('c1', 'Grade 4', 12)),
+      splash: false,
+      before: () => {
+        window.__wall = []
+        const look = () => {
+          const wall = document.querySelector('.splash-board')?.closest('.fixed')
+          if (wall) window.__wall.push(Number(getComputedStyle(wall).opacity))
+          if (window.__wall.length < 30) requestAnimationFrame(look)
+        }
+        requestAnimationFrame(look)
+      },
+    })
+    await page.waitForTimeout(1500)
+    const seen = await page.evaluate(() => window.__wall)
+    check(
+      'splash: its wall is fully there from the first frame it shows',
+      seen.length > 0 && seen.every((o) => o === 1),
+      `opacity ${seen.slice(0, 6).join(', ')}`,
+    )
+    return page
+  },
+
+  /**
+   * The Knight, Pirate and Space quests were retired (2026-10-30, the teacher and the beta testers):
+   * a class saved on one opens on the Marble Jar, and nothing of the quests shows.
+   */
+  async 'the quests are retired'() {
+    const old = makeClass('c1', 'Knights', 8, {
+      pointsMode: 'quest',
+      questAdventure: 'pirate',
+      goalEnabled: true,
+      pointsGoal: 10,
+      classPoints: 3,
+      pirateQuest: { number: 1, chest: 1, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01', kind: 'pirate' },
+    })
+    const page = await open({ state: stateOf(old), size: [1280, 559] })
+    check(
+      'retired quests: a class on the Pirate Quest opens on the Marble Jar',
+      (await page.locator('[data-goal-coin="marble"]').count()) === 1 &&
+        (await page.locator('[data-marble-mini]').count()) === 1 &&
+        (await page.locator('[data-pirate-mini], [data-space-mini], [data-quest-next-key]').count()) === 0,
+    )
+    await desk(page, 'Amy').click()
+    for (let i = 0; i < 7; i++) await award(page)
+    await page.waitForTimeout(1600)
+    const c = await activeSaved(page)
+    check(
+      'retired quests: a filled goal wins a spin of the marble wheel',
+      c.marbleJar?.spins === 1 && (await page.locator('[data-marble-moment="spin"]').count()) === 1,
+      JSON.stringify(c.marbleJar),
+    )
+    check('retired quests: no errors', page.errors.length === 0, page.errors.join('; '))
     return page
   },
 
@@ -750,7 +565,6 @@ const scenarios = {
     const jar = (extra = {}) => ({ number: 1, marbles: [], spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01', ...extra })
     const cls = makeClass('c1', 'Marbles', 12, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 9,
@@ -829,7 +643,6 @@ const scenarios = {
     // Two spins waiting: after the first, Later is a way out, and the second spin is kept.
     const two = makeClass('c1', 'Marbles', 12, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 0,
@@ -843,9 +656,9 @@ const scenarios = {
     await page.waitForTimeout(800)
     // A Mega (then a Power) on a later spin: they once stayed asleep at the top of the jar, since the jar was still from the spin before.
     for (const [kind, code, spot, words] of [
-      ['Mega', 2, 136.5 / 158, 'MEGA MARBLE!'],
-      ['Power', 1, 57.5 / 158, 'POWER MARBLE!'],
-      ['3-marble', 0, 36.25 / 158, '3 MARBLES!'],
+      ['Mega', 2, 292.5 / 360, 'MEGA MARBLE!'],
+      ['Power', 1, 112.5 / 360, 'POWER MARBLE!'],
+      ['5-marble', 0, 22.5 / 360, '5 MARBLES!'],
     ]) {
       await page.evaluate((x) => {
         window.__realRandom = Math.random
@@ -884,7 +697,6 @@ const scenarios = {
     // A full jar: the prize wheel rises out of it, then it empties, marbles popping away.
     const full = makeClass('c1', 'Marbles', 12, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 0,
@@ -933,10 +745,9 @@ const scenarios = {
     check('marbles: no errors', page.errors.length === 0, page.errors.join('; '))
     await page.context().close()
 
-    // Points: the adventure, how full the jar is, and Start Over; fitting at 1024x500.
+    // Points: the four ways, how full the jar is, and Start Over; fitting at 1024x500.
     const pts = makeClass('c1', 'Marbles', 12, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       marbleJar: jar({ marbles: rows(4), spinDays: ['2026-10-14', '2026-10-20'] }),
@@ -959,23 +770,24 @@ const scenarios = {
       check(`marbles: Points fits at 1024x500 in ${theme}`, o <= 0, `${o}px over`)
       await themed.context().close()
     }
-    await page.getByRole('button', { name: 'Knight', exact: true }).click()
-    await page.waitForTimeout(300)
-    c = await activeSaved(page)
-    check('marbles: back to the Knight, the jar kept for later', c.questAdventure === 'knight' && c.marbleJar.marbles.length === 28)
-    await page.getByRole('button', { name: 'Marble Jar', exact: true }).click()
+    const ways = await page.locator('[data-guide="points-choice"] .cs-choice').allInnerTexts()
+    check(
+      'marbles: Points offers Marble Jar, Class Goal, Student Points and No Points, and no quests',
+      ways.map((w) => w.trim()).join(',') === 'Marble Jar,Class Goal,Student Points,No Points' &&
+        (await page.getByRole('button', { name: /Knight|Pirate|Space/ }).count()) === 0,
+      ways.join(','),
+    )
     await moreOptions(page)
     await page.getByRole('button', { name: /Start Over/ }).click()
     await page.getByRole('button', { name: 'Yes, Start Over' }).click()
     await page.waitForTimeout(300)
     c = await activeSaved(page)
-    check('marbles: Start Over empties the jar', c.questAdventure === 'marbles' && c.marbleJar.marbles.length === 0)
+    check('marbles: Start Over empties the jar', c.marbleJar.marbles.length === 0)
     await page.context().close()
 
     // The wheel and the jar, whole on every screen from the smallest up, and nothing scrolls.
     const sized = makeClass('c1', 'Marbles', 12, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       marbleJar: jar({ marbles: rows(3), spins: 2 }),
@@ -1015,7 +827,6 @@ const scenarios = {
     // The floating window: the class's jar, and a spin won over the lesson waits for the board.
     const fl = makeClass('c1', 'Marbles', 12, {
       pointsMode: 'quest',
-      questAdventure: 'marbles',
       goalEnabled: true,
       pointsGoal: 10,
       classPoints: 2,
@@ -1035,475 +846,6 @@ const scenarios = {
     await page.evaluate(() => window.dispatchEvent(new Event('focus')))
     await page.waitForTimeout(1500)
     check('float: Spin the wheel opens it in the app', (await page.locator('[data-marble-moment="spin"]').count()) === 1)
-    await page.context().close()
-  },
-
-  async 'the pirate quest'() {
-    const pq = (extra = {}) => ({
-      number: 1,
-      chest: 0,
-      keys: 0,
-      opened: [],
-      keyDays: [],
-      startedOn: '2026-10-01',
-      kind: 'pirate',
-      ...extra,
-    })
-    const pirate = (extra = {}) =>
-      makeClass('c1', 'Pirates', 12, { pointsMode: 'quest', questAdventure: 'pirate', goalEnabled: true, pointsGoal: 10, ...extra })
-    // A goal filled: a map piece, kept the moment it is won, shown hovering over its gap.
-    let page = await open({ state: stateOf(pirate({ classPoints: 9 })), size: [1280, 559] })
-    check(
-      'pirate: the ship rides the meter from its anchor to the island puzzle, and nothing after it',
-      (await page.locator('[data-goal-coin="ship"]').count()) === 1 &&
-        (await page.locator('img[src*="pirate/anchor"]').count()) === 1 &&
-        (await page.locator('[data-pirate-mini] svg').count()) === 1 &&
-        (await page.locator('[data-quest-next-key]').count()) === 0,
-    )
-    await desk(page, 'Amy').click()
-    await award(page)
-    await page.waitForTimeout(1600)
-    let c = await activeSaved(page)
-    check('pirate: a filled goal wins a map piece, kept as it is won', c.pirateQuest?.keys === 1 && !c.quest, JSON.stringify(c.pirateQuest))
-    check(
-      'pirate: "You found a map piece!" with the piece over its gap',
-      (await page.locator('[data-quest-moment="piece"]').innerText()).includes('You found a map piece!') &&
-        (await page.locator('[data-pirate-puzzle] [data-lift]').count()) === 1,
-    )
-    await page.waitForTimeout(400)
-    await page.locator('[data-quest-moment="piece"]').click()
-    await page.waitForTimeout(1300)
-    check('pirate: a tap puts it in', (await page.locator('[data-quest-moment="piece"]').innerText()).includes('1 of 2 pieces!'))
-    await page.locator('[data-quest-moment="piece"]').click()
-    await page.waitForTimeout(600)
-    check('pirate: a tap sails on, to the map', (await page.locator('[data-pirate-map] [data-pirate-chart]').count()) === 1)
-    check('pirate: the island ahead is under clouds', (await page.locator('[data-pirate-map] [data-island="0"]').count()) === 2)
-    await page.waitForTimeout(5000)
-    const ship = await page.locator('[data-pirate-ship]').evaluate((e) => e.style.transform)
-    check(
-      "pirate: the ship has sailed, and the found piece's clouds are gone",
-      (await page.locator('[data-pirate-map] [data-island="0"]').count()) === 1 && !/translate\(0/.test(ship),
-      ship,
-    )
-    await page.getByRole('button', { name: 'Close Our Quest' }).click()
-    await page.waitForTimeout(500)
-    check('pirate: the map closes', (await page.locator('[data-pirate-map]').count()) === 0)
-    page.errors.length && check('pirate: no errors (piece)', false, page.errors.join('; '))
-    await page.context().close()
-
-    // A whole puzzle: the X, Sail and dig!, the shovel, and the prize wheel out of the dug-up chest.
-    page = await open({ state: stateOf(pirate({ pirateQuest: pq({ keys: 2 }) })), size: [1280, 559] })
-    check('pirate: a whole puzzle rattles on the meter', (await page.locator('[data-pirate-mini].meter-chest-rattle').count()) === 1)
-    await page.locator('[data-quest-chest]').click({ force: true })
-    await page.waitForTimeout(900)
-    check(
-      'pirate: "The map is whole!" with the X',
-      (await page.locator('[data-quest-moment="piece"]').innerText()).includes('The map is whole!') &&
-        (await page.locator('[data-pirate-puzzle] .pirate-x').count()) === 1,
-    )
-    await page.getByRole('button', { name: 'Sail and dig!' }).click()
-    await page.waitForTimeout(3500)
-    check('pirate: the X on the island, the ship arrived', (await page.locator('[data-pirate-world] .pirate-x').count()) === 1)
-    await page.waitForTimeout(1400)
-    check('pirate: the shovel digs', (await page.locator('[data-pirate-fx] image[href*="shovel"]').count()) === 1)
-    await page.waitForTimeout(5000)
-    check(
-      'pirate: the prize wheel rises out of the dug-up chest',
-      (await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').count()) === 1,
-    )
-    await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(8800)
-    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
-    await page.mouse.click(640, 300)
-    await page.waitForTimeout(900)
-    c = await activeSaved(page)
-    check(
-      'pirate: the prize goes on the island, and the class sails on to island 2',
-      c.pirateQuest.chest === 1 && c.pirateQuest.keys === 0 && c.pirateQuest.opened[0]?.prize.name === prize,
-      JSON.stringify(c.pirateQuest),
-    )
-    await page.waitForTimeout(3500)
-    check(
-      'pirate: the view glides on, the prize on the island behind',
-      (await page.locator('[data-pirate-world]').textContent()).includes(prize) &&
-        (await page.locator('[data-pirate-world]').textContent()).includes('0 of 3 pieces'),
-    )
-    page.errors.length && check('pirate: no errors (dig)', false, page.errors.join('; '))
-    await page.context().close()
-
-    // The fifth island's prize: the whole voyage, then the next quest.
-    const opened = ['Drawing time', 'Reading time', 'Game time', 'Sit with a friend'].map((name, i) => ({
-      chest: i,
-      prize: { name, size: 's' },
-      on: '2026-10-10',
-    }))
-    page = await open({ state: stateOf(pirate({ pirateQuest: pq({ chest: 4, keys: 6, opened }) })), size: [1280, 559] })
-    await page.locator('[data-quest-chest]').click({ force: true })
-    await page.waitForTimeout(900)
-    await page.getByRole('button', { name: 'Sail and dig!' }).click()
-    await page.waitForTimeout(10000)
-    await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(8800)
-    await page.mouse.click(640, 300)
-    await page.waitForTimeout(3600)
-    c = await activeSaved(page)
-    check(
-      'pirate: after the fifth island, the whole voyage and a new quest',
-      c.pirateQuest.number === 2 &&
-        c.pirateQuest.previous?.length === 5 &&
-        (await page.getByText('We sailed the whole sea!').count()) === 1,
-      JSON.stringify(c.pirateQuest),
-    )
-    await page.getByRole('button', { name: 'Start Quest 2' }).click()
-    await page.waitForTimeout(1200)
-    check('pirate: Start Quest 2 sets sail from home', (await page.locator('[data-pirate-world]').textContent()).includes('0 of 2 pieces'))
-    await page.context().close()
-
-    // Points: the third adventure, where the class is, and fitting at 1024x500.
-    const pts = pirate({ pirateQuest: pq({ chest: 2, keys: 1, keyDays: ['2026-10-14', '2026-10-20'] }) })
-    for (const theme of ['vibrant', 'comic', 'chalkboard']) {
-      page = await open({ state: stateOf(pts), size: [1024, 500], theme })
-      await openPointsTab(page)
-      const o = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
-      check(`pirate: Points fits at 1024x500 in ${theme}`, o <= 0, `${o}px over`)
-      if (theme === 'vibrant') {
-        await page.screenshot({ path: '/tmp/walkthrough/pirate-points-1024.png' })
-        const row = await page.locator('[data-guide="quest-row"]').innerText()
-        check(
-          'pirate: Points says the island, its pieces and how long the last took',
-          row.includes('Island 3, 1 of 4 pieces') && row.includes('The last piece took 6 days.'),
-          row,
-        )
-        await page.getByRole('button', { name: 'Knight', exact: true }).click()
-        await page.waitForTimeout(300)
-        c = await activeSaved(page)
-        check('pirate: back to the Knight, the voyage kept for later', c.questAdventure === 'knight' && c.pirateQuest.chest === 2)
-        await page.getByRole('button', { name: 'Pirate', exact: true }).click()
-        await moreOptions(page)
-        await page.getByRole('button', { name: /Start Over/ }).click()
-        await page.getByRole('button', { name: 'Yes, Start Over' }).click()
-        await page.waitForTimeout(300)
-        c = await activeSaved(page)
-        check(
-          'pirate: Start Over sails back to the first island',
-          c.pirateQuest.chest === 0 && c.pirateQuest.keys === 0 && c.pirateQuest.kind === 'pirate',
-        )
-      }
-      await page.context().close()
-    }
-
-    // The map and the piece moment, whole on every screen, nothing scrolling.
-    const bad = []
-    for (const size of [
-      [1024, 500],
-      [1280, 559],
-      [1366, 620],
-      [1920, 1080],
-    ]) {
-      page = await open({ state: stateOf(pirate({ pirateQuest: pq({ chest: 4, keys: 3 }) })), size })
-      await page.locator('[data-quest-chest]').click({ force: true })
-      await page.waitForTimeout(800)
-      const r = await page.evaluate(() => {
-        const b = document.querySelector('[data-pirate-map]')?.getBoundingClientRect()
-        const t = [...document.querySelectorAll('[data-pirate-world] text')]
-          .map((e) => e.getBoundingClientRect())
-          .filter((x) => x.right > 0 && x.left < innerWidth)
-        return {
-          map: !!b && b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight,
-          labels: t.every((x) => x.bottom <= innerHeight && x.top >= 0),
-          scroll: document.documentElement.scrollHeight - document.documentElement.clientHeight,
-        }
-      })
-      await page.screenshot({ path: `/tmp/walkthrough/pirate-map-${size.join('x')}.png` })
-      if (!r.map || !r.labels || r.scroll > 0) bad.push(`${size.join('x')}: ${JSON.stringify(r)}`)
-      await page.context().close()
-      page = await open({ state: stateOf(pirate({ classPoints: 9, pirateQuest: pq({ chest: 4, keys: 2 }) })), size })
-      await desk(page, 'Amy').click()
-      await award(page)
-      await page.waitForTimeout(1600)
-      const m = await page.evaluate(() => {
-        const b = document.querySelector('[data-pirate-puzzle]')?.getBoundingClientRect()
-        return !!b && b.top >= 0 && b.bottom <= innerHeight && b.right <= innerWidth
-      })
-      if (!m) bad.push(`${size.join('x')}: the puzzle`)
-      await page.context().close()
-    }
-    check('pirate: the map and the puzzle fit every screen, nothing scrolls', bad.length === 0, bad.join('; '))
-
-    // The floating window: the island's puzzle, and a whole one waits for the board to dig.
-    page = await open({ state: stateOf(pirate({ classPoints: 2, pirateQuest: pq({ keys: 2 }) })), size: [1280, 559] })
-    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
-    await win.waitForLoadState()
-    await win.setViewportSize({ width: 340, height: 180 })
-    await page.waitForTimeout(600)
-    check(
-      'float: the island puzzle, and Dig for treasure with the map whole',
-      (await win.locator('[data-float-chest] svg').count()) === 1 && (await win.getByText('Dig for treasure').count()) === 1,
-    )
-    await win.getByText('Dig for treasure').click()
-    await page.bringToFront()
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-    await page.waitForTimeout(800)
-    const mapOpen = (await page.locator('[data-pirate-map]').count()) === 1
-    await page.waitForTimeout(5200)
-    check(
-      'float: Dig for treasure opens the map in the app and digs',
-      mapOpen && (await page.locator('[data-pirate-fx] image').count()) >= 1,
-    )
-    await page.context().close()
-  },
-
-  async 'the space quest'() {
-    const sq = (extra = {}) => ({ number: 1, chest: 0, keys: 0, opened: [], keyDays: [], startedOn: '2026-10-01', kind: 'space', ...extra })
-    const space = (extra = {}) =>
-      makeClass('c1', 'Rocket', 12, { pointsMode: 'quest', questAdventure: 'space', goalEnabled: true, pointsGoal: 10, ...extra })
-    // A goal filled: two bars of fuel, kept as they are won, poured in from the barrel.
-    let page = await open({ state: stateOf(space({ classPoints: 9 })), size: [1280, 559] })
-    check(
-      'space: the rocket waits at the start, the barrel rides the fill, the fuel cells at the end',
-      (await page.locator('img[src*="space/rocket-ship"]').count()) === 1 &&
-        (await page.locator('[data-goal-coin="barrel"]').count()) === 1 &&
-        (await page.locator('[data-space-mini] .space-cell').count()) === 1 &&
-        (await page.locator('[data-quest-next-key]').count()) === 0,
-    )
-    await desk(page, 'Amy').click()
-    await award(page)
-    await page.waitForTimeout(1600)
-    let c = await activeSaved(page)
-    check(
-      'space: a filled goal pours in 2 bars of fuel, kept as they are won',
-      c.spaceQuest?.keys === 2 && !c.quest && !c.pirateQuest,
-      JSON.stringify(c.spaceQuest),
-    )
-    check(
-      'space: "More fuel!" with the barrel over the cells',
-      (await page.locator('[data-quest-moment="fuel"]').innerText()).includes('More fuel!') &&
-        (await page.locator('[data-space-fuel-art] [data-space-barrel]').count()) === 1,
-    )
-    await page.screenshot({ path: '/tmp/walkthrough/space-more-fuel.png' })
-    await page.waitForTimeout(400)
-    await page.locator('[data-quest-moment="fuel"]').click()
-    await page.waitForTimeout(2200)
-    check(
-      'space: a tap pours it in, two bars lit',
-      (await page.locator('[data-quest-moment="fuel"]').innerText()).includes('2 of 4 bars!') &&
-        (await page
-          .locator('[data-space-fuel-art] .space-bar[style*="opacity: 1"], [data-space-fuel-art] .space-bar')
-          .evaluateAll((b) => b.filter((e) => getComputedStyle(e).opacity === '1').length)) === 2,
-    )
-    await page.waitForTimeout(400)
-    await page.locator('[data-quest-moment="fuel"]').click()
-    await page.waitForTimeout(2500)
-    check(
-      'space: a tap shows the rocket on Earth, the fuel panel half full',
-      (await page.locator('[data-space-quest] [data-space-surf]').textContent()).includes('We are on Earth') &&
-        (await page.locator('[data-space-fuel-words]').textContent()) === '2 of 4 bars' &&
-        (await page.locator('[data-space-rocket] [data-space-face]').count()) === 1,
-    )
-    await page.screenshot({ path: '/tmp/walkthrough/space-earth.png' })
-    await page.getByRole('button', { name: 'Map' }).click()
-    await page.waitForTimeout(2200)
-    check(
-      'space: Map zooms out to the whole trip',
-      (await page.locator('[data-space-world]').textContent()).includes('1 cell') &&
-        (await page.getByRole('button', { name: 'Back to Earth' }).count()) === 1,
-    )
-    await page.getByRole('button', { name: 'Back to Earth' }).click()
-    await page.waitForTimeout(2200)
-    check('space: and back down to Earth', (await page.getByRole('button', { name: 'Map' }).count()) === 1)
-    await page.getByRole('button', { name: 'Close Our Quest' }).click()
-    await page.waitForTimeout(500)
-    check('space: Our Quest closes', (await page.locator('[data-space-quest]').count()) === 0)
-    page.errors.length && check('space: no errors (fuel)', false, page.errors.join('; '))
-    await page.context().close()
-
-    // Full cells: Blast off!, the flight, the landing, the flag, the case and the prize wheel out of it.
-    page = await open({ state: stateOf(space({ spaceQuest: sq({ keys: 4 }) })), size: [1280, 559] })
-    check('space: full cells rattle on the meter', (await page.locator('[data-space-mini].meter-chest-rattle').count()) === 1)
-    await page.locator('[data-quest-chest]').click({ force: true })
-    await page.waitForTimeout(900)
-    check(
-      'space: "The fuel cells are full!" with Blast off!',
-      (await page.locator('[data-quest-moment="fuel"]').innerText()).includes('The fuel cells are full!'),
-    )
-    await page.locator('[data-quest-moment="fuel"]').getByRole('button', { name: 'Blast off!' }).click()
-    check(
-      'space: the countdown',
-      await page
-        .locator('.space-count')
-        .waitFor({ timeout: 6000 })
-        .then(
-          () => true,
-          () => false,
-        ),
-    )
-    check(
-      'space: the rocket flies to the Moon on the map',
-      await page
-        .locator('[data-space-map-fx] image[href*="rocket-ship"]')
-        .waitFor({ timeout: 15000 })
-        .then(
-          () => true,
-          () => false,
-        ),
-    )
-    await page.locator('[data-space-landing]').waitFor({ timeout: 12000 })
-    check(
-      'space: it lands, and the flag with the mouse goes in',
-      await page
-        .locator('[data-space-surf] [data-space-flag]')
-        .first()
-        .waitFor({ timeout: 12000 })
-        .then(
-          () => true,
-          () => false,
-        ),
-    )
-    await page.waitForTimeout(1500)
-    await page.screenshot({ path: '/tmp/walkthrough/space-landed.png' })
-    await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').waitFor({ timeout: 15000 })
-    check('space: the prize wheel rises out of the case the alien brought', true)
-    await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(8800)
-    const prize = await page.locator('[data-quest-prize]').getAttribute('data-quest-prize')
-    await page.mouse.click(640, 300)
-    await page.waitForTimeout(900)
-    c = await activeSaved(page)
-    check(
-      'space: the prize is won on the Moon, the class there with the next trip ahead',
-      c.spaceQuest.chest === 1 && c.spaceQuest.keys === 0 && c.spaceQuest.opened[0]?.prize.name === prize,
-      JSON.stringify(c.spaceQuest),
-    )
-    await page.waitForTimeout(8000)
-    check(
-      'space: the astronaut takes the case back in, and the Moon waits for fuel for Mars',
-      (await page.locator('[data-space-surf]').textContent()).includes('We are on the Moon') &&
-        (await page.locator('[data-space-fuel]').textContent()).includes('Mars') &&
-        (await page.locator('[data-space-rocket] [data-space-face]').count()) === 1,
-    )
-    await page.screenshot({ path: '/tmp/walkthrough/space-moon.png' })
-    page.errors.length && check('space: no errors (trip)', false, page.errors.join('; '))
-    await page.context().close()
-
-    // The fifth trip's prize: the whole trip, then the next quest.
-    const opened = ['Drawing time', 'Reading time', 'Game time', 'Sit with a friend'].map((name, i) => ({
-      chest: i,
-      prize: { name, size: 's' },
-      on: '2026-10-10',
-    }))
-    page = await open({ state: stateOf(space({ spaceQuest: sq({ chest: 4, keys: 12, opened }) })), size: [1280, 559] })
-    await page.locator('[data-quest-chest]').click({ force: true })
-    await page.waitForTimeout(900)
-    await page.locator('[data-quest-moment="fuel"]').getByRole('button', { name: 'Blast off!' }).click()
-    await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').waitFor({ timeout: 40000 })
-    await page.getByRole('button', { name: 'Spin!' }).click()
-    await page.waitForTimeout(8800)
-    await page.mouse.click(640, 300)
-    await page.getByText('We explored the whole galaxy!').waitFor({ timeout: 15000 })
-    c = await activeSaved(page)
-    check(
-      'space: after the fifth planet, the whole trip and a new quest',
-      c.spaceQuest.number === 2 && c.spaceQuest.previous?.length === 5,
-      JSON.stringify(c.spaceQuest),
-    )
-    await page.screenshot({ path: '/tmp/walkthrough/space-finale.png' })
-    await page.getByRole('button', { name: 'Start Quest 2' }).click()
-    await page.waitForTimeout(1500)
-    check('space: Start Quest 2 starts back on Earth', (await page.locator('[data-space-surf]').textContent()).includes('We are on Earth'))
-    await page.context().close()
-
-    // Points: the fourth adventure, where the class is, and fitting at 1024x500.
-    const pts = space({ spaceQuest: sq({ chest: 2, keys: 3, keyDays: ['2026-10-14', '2026-10-20'] }) })
-    for (const theme of ['vibrant', 'comic', 'chalkboard']) {
-      page = await open({ state: stateOf(pts), size: [1024, 500], theme })
-      await openPointsTab(page)
-      const o = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
-      const wide = await page.locator('[data-guide="quest-row"]').evaluate((e) => e.scrollWidth - e.clientWidth)
-      check(`space: Points fits at 1024x500 in ${theme}`, o <= 0 && wide <= 0, `${o}px over, ${wide}px wide`)
-      if (theme === 'vibrant') {
-        await page.screenshot({ path: '/tmp/walkthrough/space-points-1024.png' })
-        const row = await page.locator('[data-guide="quest-row"]').innerText()
-        check(
-          'space: Points says the trip, its bars and how long the last took',
-          row.includes('Trip 3, 3 of 8 bars') && row.includes('The last 2 bars took 6 days.'),
-          row,
-        )
-        await page.getByRole('button', { name: 'Knight', exact: true }).click()
-        await page.waitForTimeout(300)
-        c = await activeSaved(page)
-        check('space: back to the Knight, the trip kept for later', c.questAdventure === 'knight' && c.spaceQuest.chest === 2)
-        await page.getByRole('button', { name: 'Space', exact: true }).click()
-        await moreOptions(page)
-        await page.getByRole('button', { name: /Start Over/ }).click()
-        await page.getByRole('button', { name: 'Yes, Start Over' }).click()
-        await page.waitForTimeout(300)
-        c = await activeSaved(page)
-        check('space: Start Over flies back to Earth', c.spaceQuest.chest === 0 && c.spaceQuest.keys === 0 && c.spaceQuest.kind === 'space')
-      }
-      await page.context().close()
-    }
-
-    // The planet and the fuel moment, whole on every screen, nothing scrolling.
-    const bad = []
-    for (const size of [
-      [1024, 500],
-      [1280, 559],
-      [1366, 620],
-      [1920, 1080],
-    ]) {
-      page = await open({ state: stateOf(space({ spaceQuest: sq({ chest: 3, keys: 3 }) })), size })
-      await page.locator('[data-quest-chest]').click({ force: true })
-      await page.waitForTimeout(2500)
-      const r = await page.evaluate(() => {
-        const b = document.querySelector('[data-space-quest]')?.getBoundingClientRect()
-        const p = document.querySelector('[data-space-fuel]')?.getBoundingClientRect()
-        const t = [...document.querySelectorAll('[data-space-surf] text')].map((e) => e.getBoundingClientRect())
-        return {
-          box: !!b && b.left >= 0 && b.top >= 0 && b.right <= innerWidth && b.bottom <= innerHeight,
-          panel: !!p && !!b && p.right <= b.right && p.bottom <= b.bottom,
-          labels: t.every((x) => x.bottom <= innerHeight && x.top >= 0 && x.right <= innerWidth),
-          scroll: document.documentElement.scrollHeight - document.documentElement.clientHeight,
-        }
-      })
-      await page.screenshot({ path: `/tmp/walkthrough/space-planet-${size.join('x')}.png` })
-      if (!r.box || !r.panel || !r.labels || r.scroll > 0) bad.push(`${size.join('x')}: ${JSON.stringify(r)}`)
-      await page.context().close()
-      page = await open({ state: stateOf(space({ classPoints: 9, spaceQuest: sq({ chest: 4, keys: 4 }) })), size })
-      await desk(page, 'Amy').click()
-      await award(page)
-      await page.waitForTimeout(1600)
-      const m = await page.evaluate(() => {
-        const b = document.querySelector('[data-space-fuel-art]')?.getBoundingClientRect()
-        return !!b && b.top >= 0 && b.bottom <= innerHeight && b.right <= innerWidth
-      })
-      if (!m) bad.push(`${size.join('x')}: the fuel cells`)
-      await page.context().close()
-    }
-    check('space: the planet and the fuel cells fit every screen, nothing scrolls', bad.length === 0, bad.join('; '))
-
-    // The floating window: the fuel cells, and full ones wait for the board to blast off.
-    page = await open({ state: stateOf(space({ classPoints: 2, spaceQuest: sq({ keys: 4 }) })), size: [1280, 559] })
-    const [win] = await Promise.all([page.context().waitForEvent('page'), panelButton(page, 'Float').click()])
-    await win.waitForLoadState()
-    await win.setViewportSize({ width: 340, height: 180 })
-    await page.waitForTimeout(600)
-    check(
-      'float: the fuel cells, and Blast off! when they are full',
-      (await win.locator('[data-float-chest] svg').count()) === 1 && (await win.getByText('Blast off!').count()) === 1,
-    )
-    await win.getByText('Blast off!').click()
-    await page.bringToFront()
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-    check(
-      'float: Blast off! opens the rocket in the app and counts down',
-      await page
-        .locator('[data-space-quest] .space-count')
-        .waitFor({ timeout: 6000 })
-        .then(
-          () => true,
-          () => false,
-        ),
-    )
     await page.context().close()
   },
 
@@ -3803,14 +3145,14 @@ const scenarios = {
       await page.locator('[data-tour-action="next"]').click()
     }
     check(
-      // 97: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
-      // the board's lock (2026-10-19), and the Class Quest's part and the Marble Jar's (2026-10-24), the Pirate Quest's (2026-10-25)
-      // and the Space Quest's (2026-10-26), and the meter's start sending the desks' stars (2026-10-26).
-      'tour: 119 stops, each lit, the bubble on the screen and off the lit thing',
-      stops === 119 && bad === 0,
+      // 95: Full Screen's stop (2026-10-14), the Line's button on the board and a part of its own (2026-10-15),
+      // the board's lock (2026-10-19), the Marble Jar's part (2026-10-24, with the prize wheel since the quests
+      // were retired, 2026-10-30), and the meter's start sending the desks' stars (2026-10-26).
+      'tour: 95 stops, each lit, the bubble on the screen and off the lit thing',
+      stops === 95 && bad === 0,
       `${stops} stops, ${bad} bad`,
     )
-    check('tour: a card before each part after the first', parts.length === 11, parts.join(', '))
+    check('tour: a card before each part after the first', parts.length === 7, parts.join(', '))
     // Back from the last card goes to the last stop of the last part, and Next comes back to it.
     const place = () => page.locator('[data-tour-bubble] span').first().innerText()
     await page.locator('[data-tour-action="back"]').click()
@@ -3830,12 +3172,8 @@ const scenarios = {
     await page.locator('[data-guide="help"]').click()
     await page.locator('[data-help="tour"]').click()
     await page.locator('[data-tour-action="begin"]').click()
-    // Through the board's 22 stops to the card before the Class Quest, then skip it, the Marble Jar, the Pirate Quest, the Space Quest and
-    // Flip Cards to Group Activity's card.
+    // Through the board's 22 stops to the card before the Marble Jar, then skip it and Flip Cards to Group Activity's card.
     for (let i = 0; i < 22; i++) await page.locator('[data-tour-action="next"]').click()
-    await page.locator('[data-tour-action="skip"]').click()
-    await page.locator('[data-tour-action="skip"]').click()
-    await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="skip"]').click()
     await page.locator('[data-tour-action="stop-here"]').click()
@@ -3857,7 +3195,7 @@ const scenarios = {
     const before = (await page.locator('[data-tour-bubble]').count()) ? await place() : ''
     check(
       'tour: Back on the card between parts, to the last stop of the part before',
-      new RegExp(`^${parts[4]} · (\\d+) of \\1$`).test(before),
+      new RegExp(`^${parts[1]} · (\\d+) of \\1$`).test(before),
       before,
     )
     await page.keyboard.press('Escape')

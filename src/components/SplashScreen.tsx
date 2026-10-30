@@ -479,8 +479,9 @@ export function SplashScreen({
         // The wall. A little cooler than the board so the frame has something to sit against.
         background: 'radial-gradient(ellipse at 50% 30%, #2f7461 0%, #1c4a3d 70%, #143a30 100%)',
       }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      // The wall is there from the first frame (2026-10-30, the teacher): fading it in let last time's
+      // seating chart show through for a moment, and on a shared board that is another teacher's class.
+      initial={false}
       exit={{ opacity: 0, scale: 1.03 }}
       transition={{ duration: 0.4 }}
     >

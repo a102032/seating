@@ -146,15 +146,8 @@ export const GUIDE_STEPS: GuideStep[] = [
   { section: 'points', targets: [g('points-choice')], text: 'Choose how your class earns stars.' },
   {
     section: 'points',
-    targets: [g('adventure-row')],
-    text: 'Pick a theme for the quest: the Knight, with keys and five chests; the Pirate Quest, sailing to five islands; the Space Quest, a rocket flying to five planets; or the Marble Jar, a wheel that fills the class jar.',
-    when: quest,
-    maybe: true,
-  },
-  {
-    section: 'points',
     targets: [g('goal-row')],
-    text: 'How many stars fill the meter? Type it, or use − and +. A full meter about once a week makes a quest last a semester.',
+    text: 'How many stars fill the meter? Type it, or use − and +. Each full meter is a spin for marbles. About a spin a week fills two jars a semester.',
     when: quest,
     maybe: true,
   },
@@ -168,7 +161,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'points',
     targets: [g('prizes-row')],
-    text: 'Your real rewards for the prize wheel: small, medium and big. Whole-class activities work best.',
+    text: 'Your real rewards for the prize wheel when the jar is full: prizes and big prizes. Whole-class activities work best.',
     when: quest,
     maybe: true,
   },
@@ -185,7 +178,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     section: 'points',
     targets: [g('quest-row')],
-    text: 'Where the class is on this quest, and how long the last step took.',
+    text: 'How full the class jar is, and how long the last spin took.',
     only: 'section',
     when: quest,
   },

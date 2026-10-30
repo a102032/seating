@@ -47,7 +47,7 @@ import { LineWindows, useLineScreen } from './app/useLineScreen'
 import { usePanelSide } from './app/usePanelSide'
 import { AttendanceReminder, useAttendanceReminder } from './app/useAttendanceReminder'
 import { usePointButtons, usePointsSelection } from './app/usePointsSelection'
-import { QuestMap, useQuestScreens } from './app/useQuestScreens'
+import { useQuestScreens } from './app/useQuestScreens'
 import { SettingsGuide, useSettingsWindow } from './app/useSettingsWindow'
 import { Toast, useToast } from './app/Toast'
 import { useToday } from './app/useToday'
@@ -673,8 +673,6 @@ export default function App() {
                 lineMarks={lineScreen.marks}
                 onTapDesk={handleTapDesk}
               />
-
-              <QuestMap screens={quests} cls={activeClass} />
 
               <FlipCardsBoard
                 flip={flip}

@@ -314,45 +314,7 @@ await page.locator('[data-timer-card]').getByRole('button', { name: 'Writing' })
 await page.locator('[data-timer-card] button.timer-done').click()
 await wait(800)
 await measure('timer running, the writer', () => wait(6000))
-// The Class Quest (2026-10-24): the same class on a quest, a star from the goal. A reload goes
-// straight back to the class (lib/resume).
-await page.evaluate((s) => {
-  const c = {
-    ...s.classes[0],
-    pointsMode: 'quest',
-    classPoints: 49,
-    quest: { number: 1, chest: 2, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01' },
-  }
-  sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
-}, state)
-await page.reload()
-await wait(3000)
-await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
-await desk('Amy').click()
-await wait(300)
-await measure('quest: the key comes in', async () => {
-  await page.locator('aside button[title="Award Point"]').click()
-  await wait(2000)
-})
-await measure('quest: the key flies in', async () => {
-  await page.mouse.click(700, 400)
-  await wait(2500)
-})
-await measure('quest: the chest opening', async () => {
-  await page.locator('[data-quest-chest]').click()
-  await wait(3500)
-})
-await measure('quest: the wheel spinning', async () => {
-  await page.getByRole('button', { name: 'Spin!' }).click()
-  await wait(6500)
-})
-await measure('quest: the prize', () => wait(3000))
-await page.mouse.click(700, 400)
-await wait(1200)
-await measure('quest: Our Quest sliding in', async () => {
-  await page.locator('[data-quest-chest]').click()
-  await wait(1500)
-})
+// The Marble Jar (2026-10-24; since 2026-10-30 the one quest left). A reload goes straight back to the class (lib/resume).
 // The Marble Jar (2026-10-24): the same class on it, its jar a third full, a star from a spin.
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
 await page.evaluate((s) => {
@@ -361,7 +323,6 @@ await page.evaluate((s) => {
   const c = {
     ...s.classes[0],
     pointsMode: 'quest',
-    questAdventure: 'marbles',
     classPoints: 49,
     marbleJar: { number: 1, marbles, spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01' },
   }
@@ -376,10 +337,10 @@ await measure('marbles: the wheel comes up', async () => {
   await page.locator('aside button[title="Award Point"]').click()
   await wait(2000)
 })
-// It lands on the Mega, the biggest of the landings (fireworks over the wheel, 2026-10-24).
+// It lands on the Mega, the biggest of the landings (fireworks over the wheel, 2026-10-24): the seventh of eight equal wedges.
 await page.evaluate(() => {
   window.__realRandom = Math.random
-  Math.random = () => 136.5 / 158
+  Math.random = () => 292.5 / 360
 })
 await measure('marbles: the wheel spinning', async () => {
   await page.getByRole('button', { name: 'Spin!' }).click()
@@ -388,80 +349,34 @@ await measure('marbles: the wheel spinning', async () => {
 })
 await measure('marbles: the Mega celebration', () => wait(2200))
 await measure('marbles: the pour', () => wait(5000))
-// The Pirate Quest (2026-10-25): a piece found, the map sailing and clearing clouds, the dig, the glide on.
+// The full jar's prize wheel: the jar opened, the wheel out of it, spun, and the prize.
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
 await page.evaluate((s) => {
+  const marbles = []
+  for (let r = 0; r < 8; r++) for (let k = 0; k < 7; k++) marbles.push([0, r * 7 + k, 4 + k * 2, 24.6 - r * 2, 0, 1])
+  marbles.push([2, 0, 10, 8, 0, 2.7])
   const c = {
     ...s.classes[0],
     pointsMode: 'quest',
-    questAdventure: 'pirate',
-    classPoints: 49,
-    pirateQuest: { number: 1, chest: 0, keys: 1, opened: [], keyDays: [], startedOn: '2026-09-01', kind: 'pirate' },
+    classPoints: 10,
+    marbleJar: { number: 1, marbles, spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01' },
   }
   sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
-  localStorage.removeItem('seating-chart-pirate-seen-v1')
 }, state)
 await page.reload()
 await wait(3000)
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
-await desk('Amy').click()
-await wait(300)
-await measure('pirate: a map piece found', async () => {
-  await page.locator('aside button[title="Award Point"]').click()
-  await wait(2500)
+await page.locator('[data-marble-mini]').click()
+await wait(1000)
+await measure('prize wheel: out of the jar', async () => {
+  await page.getByRole('button', { name: 'Prize wheel!' }).click()
+  await wait(3500)
 })
-await measure('pirate: the piece clicks in', async () => {
-  await page.locator('[data-quest-moment="piece"]').click()
-  await wait(1500)
+await measure('prize wheel: spinning', async () => {
+  await page.getByRole('button', { name: 'Spin!' }).click()
+  await wait(6500)
 })
-await measure('pirate: the map, ship and clouds', async () => {
-  await page.getByRole('button', { name: 'Sail and dig!' }).click()
-  await wait(5000)
-})
-await measure('pirate: the dig', () => wait(4500))
-await wait(2500)
-await page.getByRole('button', { name: 'Spin!' }).click()
-await wait(8500)
-await page.mouse.click(700, 400)
-await measure('pirate: gliding to the next island', () => wait(3000))
-await measure('pirate: the map open, smoke and waves', () => wait(2500))
-// The Space Quest (2026-10-26): fuel poured in, the planet with its sky, blast off, the flight, the landing, the carry back.
-await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
-await page.evaluate((s) => {
-  const c = {
-    ...s.classes[0],
-    pointsMode: 'quest',
-    questAdventure: 'space',
-    classPoints: 49,
-    spaceQuest: { number: 1, chest: 0, keys: 2, opened: [], keyDays: [], startedOn: '2026-09-01', kind: 'space' },
-  }
-  sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
-  localStorage.setItem('seating-chart-space-seen-v1', JSON.stringify({ [c.id]: { quest: 1, place: 0, bars: 2 } }))
-}, state)
-await page.reload()
-await wait(3000)
-await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(rate) })
-await desk('Amy').click()
-await wait(300)
-await page.locator('aside button[title="Award Point"]').click()
-await wait(2000)
-await measure('space: the fuel pouring in', async () => {
-  await page.locator('[data-quest-moment="fuel"]').click()
-  await wait(2500)
-})
-await page.locator('[data-quest-moment="fuel"]').getByRole('button', { name: 'Blast off!' }).click()
-await wait(300)
-await measure('space: the planet, the sky moving', () => wait(2000))
-await measure('space: lift-off', () => wait(4000))
-await measure('space: the zoom and the flight', () => wait(5000))
-await measure('space: the landing and the flag', () => wait(7000))
-await measure('space: the UFO and its beam', () => wait(4500))
-await page.locator('[data-quest-moment="chest"] [data-quest-wheel]').waitFor({ timeout: 20000 })
-await page.getByRole('button', { name: 'Spin!' }).click()
-await wait(8500)
-await page.mouse.click(700, 400)
-await measure('space: the case carried back in', () => wait(6000))
-await measure('space: on the Moon, at rest', () => wait(2500))
+await measure('prize wheel: the prize', () => wait(3000))
 console.log(`\n${label} | theme ${theme} | processor ${rate}x slower`)
 console.log('scenario'.padEnd(32), 'fps  dropped  worst(ms)  main-thread busy  script  style+layout(ms)')
 for (const r of results)

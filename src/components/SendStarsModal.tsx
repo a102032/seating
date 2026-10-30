@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, type MouseEvent } from 'react'
 import { assetUrl } from '../lib/assets'
-import { adventureOf } from '../lib/marbles'
 import { questIsOn } from '../lib/points'
 import type { ClassData } from '../types'
 import { Modal } from './Modal'
@@ -10,14 +9,9 @@ import { useLingerWhileClosing } from '../hooks/useLingerWhileClosing'
 /** The window opens under the finger that tapped the meter, and the board reads one touch as two. */
 const TAP_GUARD_MS = 700
 
-/** The picture the class's meter starts from: the map, or the quest's own home (PointsMeter). */
+/** The picture the class's meter starts from: the map, or the Marble Jar's handful of marbles (PointsMeter). */
 function startPictureOf(cls: ClassData): string {
-  if (!questIsOn(cls)) return assetUrl('/treasure/map.svg')
-  const adventure = adventureOf(cls)
-  if (adventure === 'marbles') return assetUrl('/quest/marbles.svg')
-  if (adventure === 'pirate') return assetUrl('/quest/pirate/anchor.svg')
-  if (adventure === 'space') return assetUrl('/quest/space/rocket-ship.svg')
-  return assetUrl('/quest/castle.svg')
+  return assetUrl(questIsOn(cls) ? '/quest/marbles.svg' : '/treasure/map.svg')
 }
 
 const STAR = 'M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z'

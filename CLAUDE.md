@@ -65,8 +65,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
 
 - `src/App.tsx`: the wiring - which screen a desk tap goes to, and which stand down while another is up. Each screen keeps its
   own state in `src/app/`: `useLineScreen` (the Line and its windows), `useGroupActivityScreen` (Group Activity, its cards, picker
-  and windows), `useFlipCards`, `useQuestScreens` (the quests' maps, the dig, the space case, a chest the floating window asked
-  for), `useSettingsWindow` (Class Settings, its guide and the tour), `ClassSettingsWindow` (what each of its buttons does),
+  and windows), `useFlipCards`, `useQuestScreens` (the Marble Jar's part of the meter, and a spin or full jar the floating
+  window asked to open), `useSettingsWindow` (Class Settings, its guide and the tour), `ClassSettingsWindow` (what each of its buttons does),
   `useChooseAvatars`, `useFloat` (the floating window), `useAttendanceReminder`
   (asked when a class is opened with attendance not taken), `usePointsSelection` (desks picked by hand, and the rail's star, −, Pick
   All and Pick Whole Row), `useToday`, `usePanelSide` and `Toast`. Something new for one screen goes in that screen's file.
@@ -99,29 +99,18 @@ checks the live URL. Confirm it went green before saying something is live. It a
   board), `participationRows` (the record as a spreadsheet, for Export and Update in Drive), and `pickChances`, the better chance the pickers give students picked less often. `components/settings/ParticipationSection.tsx`
   is the report in Class Settings. Anything new that picks a student or gives one a point should go in the record.
 - Points, per class (`pointsMode`, read through `lib/points.ts`: `pointsModeOf`, `hasClassGoal`, `goalIsLive`, `questIsOn`, `starsWaitOnDesks`): a class
-  goal (the default), a class quest (the goal winning keys, below), student points (each student's own stars on their desk, until Clear All
+  goal (the default), the Marble Jar (`pointsMode: 'quest'`, the goal winning spins, below), student points (each student's own stars on their desk, until Clear All
   Stars), or none (no star on the rail; Get Ready! with no prize). A class goal runs one of two ways (`starsOnDesks`):
   straight to the goal (no minus) or on the desks first, sent to the goal by All Stars In!: a tap on the picture at the meter's start,
   which asks first (`SendStarsModal.tsx`). Anything
   new that gives points must work in all four.
-- The Class Quest: `lib/quest.ts` (the keys, the five chests, the wheel's odds, the prizes; a key is kept the moment the goal
-  fills), `lib/questArt.ts` (the chests, key and wheel drawn in code), `components/QuestMoments.tsx` (the key moment and the
-  chest opening with its wheel and prize), `components/OurQuest.tsx` (the map) and `public/quest/` (the teacher's Flow pieces,
-  made by `design/quest/prepare-art.py`).
-- The Marble Jar, the Class Quest's second adventure (`questAdventure`): `lib/marbles.ts` (the jar, the wheel's odds, a spin kept the
-  moment the goal fills, the jar full by how much the marbles fill), `lib/marblePhysics.ts` (Planck: the marbles falling and settling,
-  kept where they came to rest), `lib/marbleArt.ts` and `lib/marbleLayer.ts` (each marble two small pictures the graphics chip moves),
-  `components/MarbleMoment.tsx` (the wheel and the jar, a lazy chunk with the physics) and `components/MiniJar.tsx`.
-- The Pirate Quest, the Class Quest's third adventure (`questAdventure: 'pirate'`, its place in `pirateQuest`): the Knight's engine
-  (`lib/quest.ts`, `kind: 'pirate'`, islands needing `PIRATE_PIECES`), `lib/pirateArt.ts` (the islands, the jigsaw puzzles, the
-  clouds and the sea chart, as layers the graphics chip moves), `components/PirateMap.tsx` (the chart, the ship, the clouds, the dig,
-  sailing on; what this screen last showed in `seating-chart-pirate-seen-v1`), `components/PirateMoments.tsx` (a piece found) and
-  `public/quest/pirate/` (the teacher's Flaticon pieces).
-- The Space Quest, the Class Quest's fourth adventure (`questAdventure: 'space'`, its place in `spaceQuest`): the Knight's engine
-  (`lib/quest.ts`, `kind: 'space'`, fuel bars: `TRIP_CELLS`, `BARS_PER_CELL`, `BARS_PER_GOAL`), `lib/spaceArt.ts` (the planets, the
-  skies with their moving pieces as page elements, the rocket, flag, case, fuel cells and the map), `lib/spaceSound.ts` (its sounds),
-  `components/SpaceQuest.tsx` (the planet, Map, blast off, landing, the case, carrying it back; what this screen last showed in
-  `seating-chart-space-seen-v1`), `components/SpaceMoments.tsx` (fuel poured in) and `public/quest/space/` (the teacher's Flaticon pieces).
+- The Marble Jar (`pointsMode: 'quest'`; the Knight, Pirate and Space quests that shared it were retired on 2026-10-30, and old saves'
+  `quest`, `pirateQuest`, `spaceQuest` and `questAdventure` are left unread): `lib/marbles.ts` (the jar, the wheel's eight wedges, a spin
+  kept the moment the goal fills, the jar full by how much the marbles fill), `lib/marblePhysics.ts` (Planck: the marbles falling and
+  settling, kept where they came to rest), `lib/marbleArt.ts` and `lib/marbleLayer.ts` (each marble two small pictures the graphics chip
+  moves), `components/MarbleMoment.tsx` (the wheel and the jar, a lazy chunk with the physics) and `components/MiniJar.tsx`. A full jar
+  opens the prize wheel: `lib/quest.ts` (the prizes and the wheel's slices), `lib/questArt.ts` (the wheel drawn in code) and
+  `components/QuestMoments.tsx` (`ChestOpening`: the jar bursting, Pick a Spinner, the spin and the prize).
 - `src/hooks/useFlipDeck.ts`: the flip card deck: dealing, the active card, the discard pile, the Mystery Gifts (each
   step of one, `tapGift`), and `planDeck` (how many gifts and columns). `useTimer.ts`: the timer, kept outside React so a
   running clock redraws only itself (its time, size, place, colour and sound are kept in `seating-chart-timer-settings-v1`).

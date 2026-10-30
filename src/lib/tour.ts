@@ -3,7 +3,7 @@ import RECTS from './tourRects.json'
 /**
  * The tour of the app (2026-10-11, the teacher: in Class Settings, not always on screen; a tour of
  * every screen that pauses between screens to say what comes next and asks whether to go on).
- * Eleven parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
+ * Eight parts, one per screen. Each stop lights one thing in a picture of that screen, taken in the
  * real app at the teacher's board size (1280x559) by scripts/tour-shots.mjs, which also records
  * where each thing is (tourRects.json). It only shows: nothing is picked, no stars are given, no
  * sound plays, and the board underneath is left as it was. Take the pictures again whenever one
@@ -11,18 +11,10 @@ import RECTS from './tourRects.json'
  */
 export type TourShot =
   | 'board'
-  | 'quest'
-  | 'questmap'
   | 'wheel'
   | 'prize'
   | 'marbles'
   | 'marblespin'
-  | 'pirate'
-  | 'piratepiece'
-  | 'piratemap'
-  | 'space'
-  | 'spacefuel'
-  | 'spaceplanet'
   | 'flip'
   | 'chooser'
   | 'who'
@@ -110,38 +102,8 @@ export const TOUR: TourPart[] = [
     ],
   },
   {
-    title: 'The Class Quest',
-    intro: 'A class goal that wins keys. The keys open five chests, each with a prize wheel. Choose it in Class Settings, Points.',
-    stops: [
-      {
-        shot: 'quest',
-        at: 'meter',
-        text: 'On a Class Quest, the knight is the class. Each star moves it on, and when it reaches the key, the class wins it.',
-      },
-      {
-        shot: 'quest',
-        at: 'nextKey',
-        text: 'The key waits here. When the goal fills, it comes to the middle of the board. A student taps it, and it flies into the chest.',
-      },
-      { shot: 'quest', at: 'chest', text: 'Each lock turns gold as its key goes in. Tap the chest to see the whole quest.' },
-      { shot: 'questmap', at: 'map', text: 'Our Quest: five chests, needing 1 to 5 keys. About a key a week makes a quest a semester.' },
-      { shot: 'questmap', at: 'opened', text: 'A chest the class opened, and the prize that was inside.' },
-      { shot: 'questmap', at: 'now', text: 'The chest the class is on, and its keys.' },
-      { shot: 'questmap', at: 'mega', text: 'The Mega chest, at the end. Its wheel is all gold.' },
-      { shot: 'questmap', at: 'close', text: 'Back to the desks.' },
-      { shot: 'wheel', at: 'wheel', text: 'A chest with all its keys rattles. Tap it to open it, and a prize wheel rises out.' },
-      { shot: 'wheel', at: 'pick', text: 'Pick a Spinner chooses a student to spin.' },
-      { shot: 'wheel', at: 'spin', text: 'Spin! Silver slices are medium prizes, gold ones big.' },
-      {
-        shot: 'prize',
-        at: 'card',
-        text: 'The prize, with your celebration GIF beside it. Tap to close. Your prizes are in Class Settings, Points.',
-      },
-    ],
-  },
-  {
     title: 'The Marble Jar',
-    intro: 'The Class Quest’s other adventure: a class marble jar. Choose it in Class Settings, Points, under Class Quest.',
+    intro: 'A class marble jar: every full meter wins a spin for marbles. Choose it in Class Settings, Points.',
     stops: [
       { shot: 'marbles', at: 'meter', text: 'On the Marble Jar, a marble rides the meter. When the goal fills, the class wins a spin.' },
       { shot: 'marbles', at: 'wheel', text: 'The marble wheel waits here. A spin not used yet shows its number, and a tap spins it.' },
@@ -153,69 +115,22 @@ export const TOUR: TourPart[] = [
       {
         shot: 'marblespin',
         at: 'wheel',
-        text: 'The marble wheel: 2, 3 or 4 marbles, and gold for a Power Marble or a rare Mega Marble. Only the wedge it lands on turns over.',
+        text: 'The marble wheel: every spin wins. 5 marbles, silver for a Power Marble, or gold for the Mega Marble. Only the wedge it lands on turns over.',
       },
       {
         shot: 'marblespin',
         at: 'spin',
         text: 'Pick a Spinner chooses a student. Spin! The wheel cheers what it lands on, and the marbles jump into the jar.',
       },
+      { shot: 'marblespin', at: 'jar', text: 'Fill the jar to the line, and a prize wheel rises out of it.' },
+      { shot: 'wheel', at: 'wheel', text: 'The prize wheel, out of the full jar. Silver slices are prizes, gold ones big prizes.' },
+      { shot: 'wheel', at: 'pick', text: 'Pick a Spinner chooses a student to spin.' },
+      { shot: 'wheel', at: 'spin', text: 'Spin! Only the slice it lands on turns over.' },
       {
-        shot: 'marblespin',
-        at: 'jar',
-        text: 'Fill the jar to the line, and a prize wheel rises out of it. Your prizes are in Class Settings, Points.',
+        shot: 'prize',
+        at: 'card',
+        text: 'The prize, with your celebration GIF beside it. Tap to close, and a new jar starts. Your prizes are in Class Settings, Points.',
       },
-    ],
-  },
-  {
-    title: 'The Pirate Quest',
-    intro: 'The Class Quest’s third adventure: a ship sailing to five islands. Choose it in Class Settings, Points, under Class Quest.',
-    stops: [
-      {
-        shot: 'pirate',
-        at: 'meter',
-        text: 'On the Pirate Quest, the ship sails along the meter. When the goal fills, the class finds a piece of the next island’s map.',
-      },
-      { shot: 'pirate', at: 'puzzle', text: 'The island’s puzzle fills in here, piece by piece. Tap it to see the map.' },
-      {
-        shot: 'piratepiece',
-        at: 'puzzle',
-        text: 'A piece found hovers over its gap. A student taps it in. Island 1 needs 2 pieces, island 5 needs 6.',
-      },
-      { shot: 'piratemap', at: 'ship', text: 'The ship sails a little way with every star.' },
-      { shot: 'piratemap', at: 'clouds', text: 'The island ahead is under clouds. Each piece found clears its part of the island.' },
-      {
-        shot: 'piratemap',
-        at: 'island',
-        text: 'When the puzzle is whole, an X shows where to dig. The shovel digs, and a prize wheel rises out of the chest.',
-      },
-      { shot: 'piratemap', at: 'close', text: 'Back to the desks.' },
-    ],
-  },
-  {
-    title: 'The Space Quest',
-    intro: 'The Class Quest’s fourth adventure: a rocket flying to five planets. Choose it in Class Settings, Points, under Class Quest.',
-    stops: [
-      {
-        shot: 'space',
-        at: 'meter',
-        text: 'On the Space Quest, a fuel barrel rides the meter. When the goal fills, it pours 2 bars of fuel into the rocket.',
-      },
-      {
-        shot: 'space',
-        at: 'cells',
-        text: 'The fuel cells for the next trip. Each trip is further, so it needs more cells. Tap them to see the rocket.',
-      },
-      { shot: 'spacefuel', at: 'cells', text: 'A student taps to pour the fuel in. When the cells are full, Blast off!' },
-      { shot: 'spaceplanet', at: 'rocket', text: 'The rocket waits on its planet, the astronaut in the window, until the fuel is in.' },
-      { shot: 'spaceplanet', at: 'fuel', text: 'The fuel for the next trip, filling up as the class fills goals.' },
-      {
-        shot: 'spaceplanet',
-        at: 'flag',
-        text: 'On each new planet the astronaut plants the class flag, and a friendly alien beams down a case with the prize wheel in it.',
-      },
-      { shot: 'spaceplanet', at: 'map', text: 'Map zooms out to the whole trip.' },
-      { shot: 'spaceplanet', at: 'close', text: 'Back to the desks.' },
     ],
   },
   {

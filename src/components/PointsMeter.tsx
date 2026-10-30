@@ -3,14 +3,9 @@ import { motion } from 'framer-motion'
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { assetUrl } from '../lib/assets'
 import { gifUrl as giphyUrl } from '../lib/celebrationGifs'
-import { playCoinTick, playGoalCelebration, playKeyClick, primeGoalFanfare } from '../lib/sound'
-import { BARS_PER_GOAL, chestIsReady, keysNeeded, type QuestPrize, type QuestState } from '../lib/quest'
-import { puzzleSVG } from '../lib/pirateArt'
-import { PieceMoment } from './PirateMoments'
-import { FuelMoment } from './SpaceMoments'
-import { miniCellsSVG } from '../lib/spaceArt'
-import { chestSVG, keySVG } from '../lib/questArt'
-import { ChestOpening, KeyMoment } from './QuestMoments'
+import { playCoinTick, playGoalCelebration, primeGoalFanfare } from '../lib/sound'
+import type { QuestPrize } from '../lib/quest'
+import { ChestOpening } from './QuestMoments'
 import { miniWheelSVG, RIDER_SVG } from '../lib/marbleArt'
 import { MiniJar } from './MiniJar'
 import { JAR_PRIZE_WHEEL, jarIsFull, type MarbleJarState, type SavedMarble } from '../lib/marbles'
@@ -58,39 +53,22 @@ interface PointsMeterProps {
   deskStars?: number | null
   onSendDeskStars?: () => void
   /**
-   * The class is on a quest (lib/quest): a filled goal wins a key, which waits for a tap and flies
-   * into the chest at the meter's end; a chest with all its keys rattles there until tapped open.
+   * The class has the Marble Jar (lib/marbles): a filled goal wins a spin of the marble wheel, the
+   * marbles pour into the jar at the meter's end, and a jar filled to its line opens the prize wheel.
+   * The Knight's, Pirate and Space quests were retired on 2026-10-30 (DECISIONS).
    */
   quest?: {
-    state: QuestState
     prizes: QuestPrize[]
-    /** A tap on the chest while it still needs keys: Our Quest, on its map. On the Pirate Quest, `dig` digs for the treasure there. */
-    onOpenMap: (dig?: boolean) => void
-    onOpened: (prize: QuestPrize) => void
     pickSpinner: (different?: boolean) => SpinnerPick | null
     spinnerNames: SpinnerPick[]
-    /** Open the chest in the floating window was tapped: the chest opens once the app is in front. */
+    /** Spin the wheel or Open the jar in the floating window was tapped: it opens once the app is in front. */
     openRequested: boolean
     onOpenRequestDone: () => void
-    /**
-     * The Marble Jar (lib/marbles): a filled goal wins a spin of the marble wheel, the marbles pour
-     * into the jar at the meter's end, and a jar filled to its line opens the prize wheel.
-     */
-    marbles?: {
+    marbles: {
       jar: MarbleJarState
       onSpun: (marbles: SavedMarble[]) => void
       onJarFilled: (prize: QuestPrize) => void
     }
-    /**
-     * The Pirate Quest: the treasure dug up on the map, flying from there to be the prize wheel's
-     * chest. Not now puts it back in the sand.
-     */
-    pirate?: { dug: { from: DOMRect; picture: string } | null; onNotNow: () => void }
-    /**
-     * The Space Quest: the case the alien beamed down on the planet, flying from there to be the
-     * prize wheel's chest. Not now leaves the rocket on the planet it set out from, fuelled.
-     */
-    space?: { caseDown: { from: DOMRect; picture: string } | null; onNotNow: () => void }
   }
 }
 
@@ -132,18 +110,13 @@ export function PointsMeter({
   const prevRef = useRef<{ classId: string; value: number; reached: number } | null>(null)
   const chestRef = useRef<HTMLDivElement>(null)
   // 'waiting' is a filled goal whose chest hasn't opened yet, because the app wasn't in front.
-  // On a quest, 'key' is the key moment and 'chest' the chest opening.
-  // On the Marble Jar, 'spin' is the marble wheel, 'look' the jar opened from the meter, and 'empty' the full jar popping away after its prize.
-  // On the Pirate Quest, 'key' is a map piece found and 'whole' the whole puzzle shown from the meter; on the Space Quest, fuel poured in and the full cells.
-  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing' | 'key' | 'chest' | 'spin' | 'look' | 'empty' | 'whole'>(
-    'idle',
-  )
+  // On the Marble Jar, 'spin' is the marble wheel, 'look' the jar opened from the meter, 'chest' the
+  // prize wheel out of a full jar, and 'empty' the full jar popping away after its prize.
+  const [phase, setPhase] = useState<'idle' | 'waiting' | 'opening' | 'closing' | 'chest' | 'spin' | 'look' | 'empty'>('idle')
   /** The full jar's marbles, kept a moment longer than the class's jar, to pop away after the prize. */
   const [popFrom, setPopFrom] = useState<SavedMarble[] | null>(null)
   /** The full jar's picture, flown out to be the prize wheel's chest. */
   const [jarPicture, setJarPicture] = useState<string | null>(null)
-  /** Keys won but not yet shown going in: the key moment flies them in. */
-  const [heldKeys, setHeldKeys] = useState(0)
   const questRef = useRef(quest)
   const holdRef = useRef(holdCelebration)
   const waitingChangeRef = useRef(onWaitingChange)
@@ -181,7 +154,6 @@ export function PointsMeter({
       stopFanfare.current = null
       setDisplayPoints(classPoints)
       setPhase('idle')
-      setHeldKeys(0)
       return
     }
 
@@ -203,7 +175,7 @@ export function PointsMeter({
     // The chest is already open, or waiting to be: the bar stays full until it shuts, and
     // what landed meanwhile is picked up then. A second party on top of the first would play
     // two fanfares at once.
-    if (['opening', 'waiting', 'key', 'chest', 'spin', 'look', 'empty', 'whole'].includes(phaseRef.current)) {
+    if (['opening', 'waiting', 'chest', 'spin', 'look', 'empty'].includes(phaseRef.current)) {
       if ((classPoints > prev.value || goalsReached > prev.reached) && !landingIsSilent()) playCoinTick()
       return
     }
@@ -211,22 +183,15 @@ export function PointsMeter({
     // The goal was filled: celebrate. This used to key off the total dropping, which is
     // also what a reset or a correction looks like - so Reset Class Goal threw the party.
     if (goalsReached > prev.reached && questRef.current) {
-      // On a quest a filled goal is a key, already kept (lib/quest). In front of the class it comes
-      // to the middle of the board and waits for a tap; won from the floating window over a lesson,
-      // it has dropped into the window's chest with its click there, so the app just shows it in.
+      // On the Marble Jar a filled goal is a spin, already kept (lib/marbles), and the wheel comes up
+      // to spend it. Won from the floating window over a lesson, it waits there for the app.
       if (holdRef.current) {
         setDisplayPoints(classPoints)
         if (!landingIsSilent()) playCoinTick()
         return
       }
       setDisplayPoints(goal)
-      // On the Marble Jar the spin is kept too (lib/marbles), and the wheel comes up to spend it.
-      if (questRef.current.marbles) {
-        setPhase('spin')
-        return
-      }
-      setHeldKeys(goalsReached - prev.reached)
-      setPhase('key')
+      setPhase('spin')
       return
     }
     if (goalsReached > prev.reached) {
@@ -270,17 +235,12 @@ export function PointsMeter({
     }
   }, [phase, holdCelebration])
 
-  // A chest with all its keys, on a quest, waits for the app as a filled goal does: the floating
-  // window says Open the chest, and opens it here once the app is in front.
-  const need = quest ? keysNeeded(quest.state) : 0
-  const pirate = quest?.state.kind === 'pirate' ? quest.pirate : undefined
-  const space = quest?.state.kind === 'space' ? quest.space : undefined
-  /** What a goal adds: a key or a piece, or on the Space Quest two bars of fuel. */
-  const perGoal = space ? BARS_PER_GOAL : 1
-  const jar = quest?.marbles?.jar
+  // A full jar waits for the app as a filled goal does: the floating window says Open the jar, and
+  // opens it here once the app is in front.
+  const jar = quest?.marbles.jar
   const jarFull = !!jar && jarIsFull(jar)
   const spinsWaiting = jar?.spins ?? 0
-  const chestReady = !!quest && (jar ? jarFull : chestIsReady(quest.state)) && phase !== 'key'
+  const chestReady = jarFull
   // A spin won over the lesson, like a ready chest, waits for the app: the floating window says so.
   const marbleWaiting = !!jar && spinsWaiting > 0 && !['spin', 'look', 'empty', 'chest'].includes(phase)
   useEffect(() => {
@@ -291,17 +251,9 @@ export function PointsMeter({
     if (!openRequested || holdCelebration) return
     questRef.current?.onOpenRequestDone()
     if (phase !== 'idle') return
-    if (jar) {
-      if (jarFull) setPhase('look')
-      else if (spinsWaiting > 0) setPhase('spin')
-    } else if (chestReady) {
-      // On the Pirate Quest the treasure is dug up on the map first, and flies from there.
-      if (pirate && !pirate.dug) questRef.current?.onOpenMap(true)
-      // On the Space Quest the rocket flies to the next planet first, and the case comes down there.
-      else if (space && !space.caseDown) questRef.current?.onOpenMap(true)
-      else setPhase('chest')
-    }
-  }, [openRequested, holdCelebration, chestReady, phase, jar, jarFull, spinsWaiting, pirate, space])
+    if (jarFull) setPhase('look')
+    else if (spinsWaiting > 0) setPhase('spin')
+  }, [openRequested, holdCelebration, phase, jarFull, spinsWaiting])
   // The marble jar's chunk is fetched as soon as the class has it, so the wheel never waits on the internet.
   const hasMarbles = !!jar
   useEffect(() => {
@@ -321,35 +273,11 @@ export function PointsMeter({
     }, CLOSE_UP_MS)
   }
 
-  /** The key went in: one lock turns gold, then the meter empties for the next goal, as after a celebration. */
-  function keyLanded(click = true) {
-    if (click) playKeyClick()
-    setHeldKeys(0)
-    chestRef.current?.animate(
-      [
-        { transform: 'rotate(0)' },
-        { transform: 'rotate(-12deg) scale(1.15)' },
-        { transform: 'rotate(10deg) scale(1.15)' },
-        { transform: 'rotate(0)' },
-      ],
-      { duration: 420 },
-    )
-    setPhase('closing')
-    setDisplayPoints(0)
-    setTimeout(() => {
-      setPhase('idle')
-      setDisplayPoints(latestPoints.current)
-    }, CLOSE_UP_MS)
-  }
-
   function tapChest() {
     if (!quest) return onOpenGoalSettings()
     if (phase !== 'idle') return
-    // The jar opens big, as the Knight's chest opens Our Quest and the puzzle the map: to look, or for its prize once full (2026-10-26, the teacher).
-    if (jar) return setPhase('look')
-    if (pirate || space) return chestReady ? setPhase('whole') : quest.onOpenMap()
-    if (chestReady) setPhase('chest')
-    else quest.onOpenMap()
+    // The jar opens big: to look, or for its prize once full (2026-10-26, the teacher).
+    setPhase('look')
   }
   useEffect(() => () => waitingChangeRef.current(false), [])
 
@@ -406,21 +334,12 @@ export function PointsMeter({
 
   const pct = goal > 0 ? Math.min(100, (displayPoints / goal) * 100) : 0
   const open = phase === 'opening'
-  const rattling = quest ? chestReady && phase !== 'chest' : !open && goal > 0 && pct / 100 >= RATTLE_FROM
-  const shownKeys = quest ? Math.max(0, Math.min(need, quest.state.keys - heldKeys * perGoal)) : 0
+  const rattling = !quest && !open && goal > 0 && pct / 100 >= RATTLE_FROM
 
   const startPicture = (
     <motion.img
       src={
-        jar
-          ? assetUrl('/quest/marbles.svg')
-          : pirate
-            ? assetUrl('/quest/pirate/anchor.svg')
-            : space
-              ? assetUrl('/quest/space/rocket-ship.svg')
-              : quest
-                ? assetUrl('/quest/castle.svg')
-                : treasure('map')
+jar ? assetUrl('/quest/marbles.svg') : treasure('map')
       }
       alt=""
       draggable={false}
@@ -448,9 +367,7 @@ export function PointsMeter({
 
       {/* Where the voyage starts. It unrolls again when a new run begins. 40px, a third up from
           30, because the teacher found it hard to see; it still fits the 56px row. */}
-      {/* Each quest starts from its own place (2026-10-26, the teacher): the knight from the castle (his Flaticon
-          castle, as on Our Quest's map), the ship from its anchor at the home dock, and the Marble Jar from a handful
-          of marbles (his picture), heading for the jar. A plain goal keeps the treasure map. */}
+      {/* The Marble Jar starts from a handful of marbles (2026-10-26, the teacher's picture), heading for the jar. A plain goal keeps the treasure map. */}
       {deskStars === null ? (
         startPicture
       ) : (
@@ -515,47 +432,13 @@ export function PointsMeter({
             `img { max-width: 100% }` resolves against this anchor's zero-width content box and
             would otherwise squash the coin to nothing.
           */}
-            {/*
-              On a quest the class is the knight (2026-10-24, the teacher's cute knight, Flaticon): it rides the
-              fill where the coin would, every star lands in it with a little hop, and a full bar brings it to the
-              key, so the class sees the knight move on every star without the map opening.
-            */}
-            {quest?.marbles ? (
+            {quest ? (
               // On the Marble Jar a marble rides the fill instead, swelling as each star lands in it.
               <span
                 data-goal-coin="marble"
                 className="absolute block h-[28px] w-[28px] drop-shadow [&>svg]:h-full [&>svg]:w-full"
                 style={{ left: -14, top: -14 }}
                 dangerouslySetInnerHTML={{ __html: RIDER_SVG }}
-              />
-            ) : pirate ? (
-              // On the Pirate Quest the ship rides the fill, the same ship that sails on the map (2026-10-26, the teacher: not the parrot).
-              <img
-                src={assetUrl('/quest/pirate/galleon.svg')}
-                alt=""
-                draggable={false}
-                data-goal-coin="ship"
-                className="absolute h-[34px] w-[34px] max-w-none select-none drop-shadow"
-                style={{ left: -17, top: -20 }}
-              />
-            ) : space ? (
-              // On the Space Quest the rocket waits at the start, and the fuel barrel rides the fill towards its cells.
-              <img
-                src={assetUrl('/quest/space/barrel.svg')}
-                alt=""
-                draggable={false}
-                data-goal-coin="barrel"
-                className="absolute h-[30px] w-[30px] max-w-none select-none drop-shadow"
-                style={{ left: -15, top: -17 }}
-              />
-            ) : quest ? (
-              <img
-                src={assetUrl('/quest/knight-head.svg')}
-                alt=""
-                draggable={false}
-                data-goal-coin="knight"
-                className="absolute h-[34px] w-[34px] max-w-none select-none drop-shadow"
-                style={{ left: -17, top: -19 }}
               />
             ) : (
               <img
@@ -576,7 +459,7 @@ export function PointsMeter({
       </div>
 
       {/* On the Marble Jar, the wheel the goal wins waits there instead; with a spin still to spend, a tap spins it. */}
-      {quest?.marbles && (
+      {quest && (
         <button
           type="button"
           data-marble-next=""
@@ -598,22 +481,8 @@ export function PointsMeter({
         </button>
       )}
 
-      {/* On a quest, the key the goal wins waits at the end of the track, bobbing as it comes near. */}
-      {quest && !quest.marbles && !pirate && !space && (
-        <span
-          aria-hidden
-          data-quest-next-key=""
-          className={clsx(
-            'block h-[18px] w-9 shrink-0 transition-opacity [&>svg]:h-full [&>svg]:w-full',
-            pct >= RATTLE_FROM * 100 ? 'quest-key-near opacity-100' : 'opacity-50',
-            phase === 'key' && 'invisible',
-          )}
-          dangerouslySetInnerHTML={{ __html: keySVG() }}
-        />
-      )}
-
       {/* Where it's going. Straining near the end, then open. On the Marble Jar, the class's jar, full and rattling once it reaches its line. */}
-      {quest?.marbles && jar ? (
+      {jar ? (
         <button
           type="button"
           onClick={tapChest}
@@ -623,72 +492,6 @@ export function PointsMeter({
         >
           <div ref={chestRef} data-quest-chest="" data-marble-mini="" className={clsx(jarFull && phase !== 'look' && 'meter-chest-rattle')}>
             <MiniJar marbles={popFrom ?? jar.marbles} full={jarFull} />
-          </div>
-        </button>
-      ) : pirate && quest ? (
-        // Where the ship is sailing: the island's puzzle, filling in piece by piece, bobbing as the goal comes near
-        // and rattling once it is whole. Nothing after it (2026-10-26, the teacher): only the Knight's keys open something.
-        <button
-          type="button"
-          onClick={tapChest}
-          title={chestReady ? 'Find the treasure!' : 'Our Quest'}
-          aria-label={chestReady ? 'Find the treasure!' : 'Our Quest'}
-          className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
-        >
-          <div
-            ref={chestRef}
-            data-quest-chest=""
-            data-pirate-mini=""
-            className={clsx(
-              'block h-[34px] w-[47px] [&>svg]:h-full [&>svg]:w-full',
-              rattling ? 'meter-chest-rattle' : pct >= RATTLE_FROM * 100 && 'quest-key-near',
-            )}
-            dangerouslySetInnerHTML={{ __html: puzzleSVG(quest.state.chest, shownKeys) }}
-          />
-        </button>
-      ) : space && quest ? (
-        // Where the barrel is going: the trip's fuel cells, a bar lighting for each half goal, rattling once full.
-        <button
-          type="button"
-          onClick={tapChest}
-          title={chestReady ? 'Blast off!' : 'Our Quest'}
-          aria-label={chestReady ? 'Blast off!' : 'Our Quest'}
-          className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
-        >
-          <div
-            ref={chestRef}
-            data-quest-chest=""
-            data-space-mini=""
-            className={clsx(
-              'block h-[38px] [&>svg]:h-full [&>svg]:w-auto',
-              rattling ? 'meter-chest-rattle' : pct >= RATTLE_FROM * 100 && 'quest-key-near',
-            )}
-            dangerouslySetInnerHTML={{ __html: miniCellsSVG(quest.state.chest, shownKeys) }}
-          />
-        </button>
-      ) : quest ? (
-        <button
-          type="button"
-          onClick={tapChest}
-          title={chestReady ? 'Open the chest' : 'Our Quest'}
-          aria-label={chestReady ? 'Open the chest' : 'Our Quest'}
-          className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
-        >
-          <div ref={chestRef} data-quest-chest="" className={clsx('flex flex-col items-center', rattling && 'meter-chest-rattle')}>
-            <span
-              className="block h-[31px] w-9 [&>svg]:h-full [&>svg]:w-full [&>svg]:overflow-visible"
-              dangerouslySetInnerHTML={{ __html: chestSVG(quest.state.chest, { keys: shownKeys }) }}
-            />
-            {/* A little key for each lock, gold as it goes in. */}
-            <span className="flex h-[7px] gap-px" aria-hidden>
-              {Array.from({ length: need }, (_, i) => (
-                <span
-                  key={i}
-                  className="block h-[7px] w-[13px] [&>svg]:h-full [&>svg]:w-full"
-                  dangerouslySetInnerHTML={{ __html: keySVG(i >= shownKeys) }}
-                />
-              ))}
-            </span>
           </div>
         </button>
       ) : (
@@ -718,30 +521,7 @@ export function PointsMeter({
 
       {/* Only the gif that is currently chosen counts as ready. The last decoded one used to
           be kept, so the chest could open on the gif the teacher had just switched away from. */}
-      {phase === 'key' && !pirate && !space && <KeyMoment keys={heldKeys} onLanded={keyLanded} />}
-      {(phase === 'key' || phase === 'whole') && space && quest && (
-        <FuelMoment
-          trip={quest.state.chest}
-          from={phase === 'whole' ? need : Math.max(0, Math.min(need, quest.state.keys - heldKeys * perGoal))}
-          to={Math.min(need, quest.state.keys)}
-          whole={phase === 'whole'}
-          onClose={() => (phase === 'whole' ? setPhase('idle') : keyLanded(false))}
-          onSee={() => quest.onOpenMap()}
-          onBlast={() => quest.onOpenMap(true)}
-        />
-      )}
-      {(phase === 'key' || phase === 'whole') && pirate && quest && (
-        <PieceMoment
-          island={quest.state.chest}
-          from={phase === 'whole' ? need : Math.min(need, quest.state.keys - heldKeys)}
-          to={Math.min(need, quest.state.keys)}
-          whole={phase === 'whole'}
-          onClose={() => (phase === 'whole' ? setPhase('idle') : keyLanded(false))}
-          onSail={() => quest.onOpenMap()}
-          onDig={() => quest.onOpenMap(true)}
-        />
-      )}
-      {(phase === 'spin' || phase === 'look' || phase === 'empty') && quest?.marbles && jar && (
+      {(phase === 'spin' || phase === 'look' || phase === 'empty') && quest && jar && (
         <Suspense fallback={null}>
           <MarbleMoment
             mode={phase === 'empty' ? 'empty' : phase === 'spin' && !jarFull ? 'spin' : 'look'}
@@ -749,7 +529,7 @@ export function PointsMeter({
             popFrom={phase === 'empty' ? (popFrom ?? undefined) : undefined}
             pickSpinner={quest.pickSpinner}
             spinnerNames={quest.spinnerNames}
-            onSpun={(m) => quest.marbles?.onSpun(m)}
+            onSpun={(m) => quest.marbles.onSpun(m)}
             onOpenPrize={(picture) => {
               setJarPicture(picture)
               setPhase('chest')
@@ -761,31 +541,21 @@ export function PointsMeter({
           />
         </Suspense>
       )}
-      {phase === 'chest' && quest && (
+      {phase === 'chest' && quest && jar && (
         <ChestOpening
-          chest={quest.marbles ? JAR_PRIZE_WHEEL : quest.state.chest}
-          jarPicture={quest.marbles ? (jarPicture ?? '') : (pirate?.dug?.picture ?? space?.caseDown?.picture)}
-          fromRect={pirate?.dug?.from ?? space?.caseDown?.from}
+          chest={JAR_PRIZE_WHEEL}
+          jarPicture={jarPicture ?? ''}
           prizes={quest.prizes}
           gifUrl={readyGif && readyGif.id === celebrationGifId ? readyGif.url : null}
           pickSpinner={quest.pickSpinner}
           spinnerNames={quest.spinnerNames}
           onDone={(prize) => {
-            if (quest.marbles && jar) {
-              // The prize won: a new jar, and the full one's marbles pop away in front of the class.
-              setPopFrom(jar.marbles)
-              quest.marbles.onJarFilled(prize)
-              setPhase('empty')
-              return
-            }
-            setPhase('idle')
-            quest.onOpened(prize)
+            // The prize won: a new jar, and the full one's marbles pop away in front of the class.
+            setPopFrom(jar.marbles)
+            quest.marbles.onJarFilled(prize)
+            setPhase('empty')
           }}
-          onNotNow={() => {
-            setPhase('idle')
-            pirate?.onNotNow()
-            space?.onNotNow()
-          }}
+          onNotNow={() => setPhase('idle')}
         />
       )}
 

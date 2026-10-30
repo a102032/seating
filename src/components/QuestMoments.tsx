@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SpinnerName, type SpinnerPick } from './SpinnerName'
 import { buildWheel, CHESTS, MEGA, type QuestPrize, type Slice } from '../lib/quest'
-import { chestSVG, keySVG, pointerSVG, prizeIconSVG, sliceFaceSVG, wheelSVG } from '../lib/questArt'
-import { playChestBurst, playChestKnocks, playGoalCelebration, playKeyJingle, playPickerLand, playPickerTick } from '../lib/sound'
+import { chestSVG, pointerSVG, prizeIconSVG, sliceFaceSVG, wheelSVG } from '../lib/questArt'
+import { playChestBurst, playChestKnocks, playGoalCelebration, playPickerLand, playPickerTick } from '../lib/sound'
 import { burst } from '../lib/burst'
 import { GoalCelebration } from './GoalCelebration'
 
 /**
- * The Quest's two moments (DECISIONS, "Treasure Quest"). Everything that moves is element.animate
+ * The prize wheel's moment (DECISIONS, "Treasure Quest"; since 2026-10-30 only the Marble Jar's full
+ * jar opens it, the Knight's key moment having gone with the quests). Everything that moves is element.animate
  * or CSS, which the board's graphics chip runs ("Smooth on the board"), and every step waits for a
  * tap: nothing here ends on a clock.
  */
@@ -18,82 +19,9 @@ import { GoalCelebration } from './GoalCelebration'
 const GUARD_MS = 700
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-/** The meter's chest, where a key flies and where the chest flies from. */
+/** The meter's jar, where the jar flies from. */
 function questChestRect(): DOMRect | null {
   return document.querySelector('[data-quest-chest]')?.getBoundingClientRect() ?? null
-}
-
-/**
- * A goal filled on a quest: a big key comes to the middle of the board over a light dim, "You got
- * a key!" with a short jingle, and it waits for a tap a student can make ("Who wants to put the key
- * in?"). Then it flies into the chest at the meter's end, and onLanded clicks one lock gold.
- */
-export function KeyMoment({ keys, onLanded }: { keys: number; onLanded: () => void }) {
-  const keyRef = useRef<HTMLDivElement>(null)
-  const shownAt = useRef(Infinity)
-  const [flying, setFlying] = useState(false)
-  const landed = useRef(onLanded)
-  useEffect(() => {
-    landed.current = onLanded
-  })
-
-  useEffect(() => {
-    shownAt.current = performance.now()
-    playKeyJingle()
-    const el = keyRef.current
-    if (el && !reduceMotion()) {
-      el.animate(
-        [
-          { transform: 'scale(.2) rotate(-40deg)', opacity: 0 },
-          { transform: 'scale(1.12) rotate(6deg)', opacity: 1, offset: 0.7 },
-          { transform: 'scale(1) rotate(0deg)', opacity: 1 },
-        ],
-        { duration: 650, easing: 'cubic-bezier(.3,1.25,.5,1)' },
-      )
-    }
-  }, [])
-
-  function tap() {
-    if (flying || performance.now() - shownAt.current < GUARD_MS) return
-    setFlying(true)
-    const el = keyRef.current
-    const to = questChestRect()
-    if (!el || !to) return landed.current()
-    const from = el.getBoundingClientRect()
-    const dx = to.left + to.width / 2 - (from.left + from.width / 2)
-    const dy = to.top + to.height / 2 - (from.top + from.height / 2)
-    const k = Math.max(0.08, (to.width * 0.5) / from.width)
-    el.classList.remove('quest-key-bob')
-    el.animate(
-      [
-        { transform: 'translate(0,0) scale(1) rotate(0deg)' },
-        { transform: `translate(${dx * 0.4}px, ${dy * 0.4 + 60}px) scale(1.15) rotate(-20deg)`, offset: 0.4 },
-        { transform: `translate(${dx}px, ${dy}px) scale(${k}) rotate(0deg)` },
-      ],
-      { duration: reduceMotion() ? 250 : 900, easing: 'cubic-bezier(.45,0,.35,1)', fill: 'forwards' },
-    ).onfinish = () => landed.current()
-  }
-
-  return createPortal(
-    <div data-quest-moment="key" className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-[3vh]" onPointerDown={tap}>
-      <div className={`absolute inset-0 bg-black/35 transition-opacity duration-500 ${flying ? 'opacity-0' : 'opacity-100'}`} />
-      <div ref={keyRef} className="quest-key-bob relative w-[min(46vmin,30rem)] drop-shadow-[0_10px_18px_rgba(180,83,9,0.45)]">
-        <div className="aspect-[2/1] [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: keySVG() }} />
-        {keys > 1 && (
-          <span className="absolute -right-[4%] -top-[14%] grid h-[28%] aspect-square place-items-center rounded-full bg-white text-[min(7vmin,3.5rem)] font-bold text-amber-700 shadow-lg">
-            {keys}
-          </span>
-        )}
-      </div>
-      <div
-        className={`relative rounded-full bg-white px-[1.2em] py-[0.35em] text-center font-bold text-amber-900 shadow-xl transition-opacity duration-300 ${flying ? 'opacity-0' : 'opacity-100'}`}
-        style={{ fontSize: 'clamp(1.6rem, 7vmin, 4.2rem)' }}
-      >
-        {keys > 1 ? `You got ${keys} keys!` : 'You got a key!'}
-      </div>
-    </div>,
-    document.body,
-  )
 }
 
 type Step = 'arriving' | 'wheel' | 'picking' | 'spinning' | 'landed' | 'prize'

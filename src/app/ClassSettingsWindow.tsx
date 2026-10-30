@@ -4,7 +4,6 @@ import type { useClasses } from '../hooks/useClasses'
 import { MAX_CLASSES } from '../hooks/useClasses'
 import type { useClassPhotos } from '../hooks/useClassPhotos'
 import { binPhotos } from '../lib/drive'
-import { marblesOn } from '../lib/marbles'
 import { playShuffle } from '../lib/sound'
 import type { Theme } from '../lib/theme'
 import type { ClassData } from '../types'
@@ -122,8 +121,7 @@ export function ClassSettingsWindow({
       onSetGoal={(goal) => store.setGoal(cls.id, goal)}
       onSetCelebrationGif={(gifId) => store.setCelebrationGif(cls.id, gifId)}
       onSetQuestPrizes={(prizes) => store.setQuestPrizes(cls.id, prizes)}
-      onRestartQuest={() => (marblesOn(cls) ? store.restartMarbleJar(cls.id) : store.restartQuest(cls.id))}
-      onSetAdventure={(adventure) => store.setQuestAdventure(cls.id, adventure)}
+      onRestartQuest={() => store.restartMarbleJar(cls.id)}
       onSetClassPoints={(points) => store.setClassPoints(cls.id, points)}
       onResetClassGoal={() => store.resetClassGoal(cls.id)}
       onClearDeskStars={() => store.clearDeskStars(cls.id)}

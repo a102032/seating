@@ -801,27 +801,6 @@ function playKnock(ctx: AudioContext, master: GainNode, start: number, duration:
   source.stop(t0 + duration + 0.02)
 }
 
-/**
- * "You got a key!": a short jingle, four bright notes up with a ring on top. A medium moment, as
- * agreed (2026-10-12): bigger than a point's coin, far short of the chest's fanfare.
- */
-export function playKeyJingle() {
-  const { ctx, master } = cardContext()
-  ;[1046.5, 1318.5, 1567.98, 2093].forEach((frequency, i) => {
-    playTone(ctx, master, { frequency, start: i * 0.09, duration: i === 3 ? 0.8 : 0.2, type: 'triangle', peakGain: 0.2 })
-  })
-  playTone(ctx, master, { frequency: 3136, start: 0.3, duration: 0.6, type: 'sine', peakGain: 0.07 })
-}
-
-/** The key going into its lock: a click, then two notes as the lock turns gold. */
-export function playKeyClick() {
-  const { ctx, master } = cardContext()
-  playKnock(ctx, master, 0, 0.035, 3800, 5, 0.45)
-  playTone(ctx, master, { frequency: 1318.5, start: 0.06, duration: 0.25, type: 'triangle', peakGain: 0.15 })
-  playTone(ctx, master, { frequency: 1760, start: 0.13, duration: 0.45, type: 'triangle', peakGain: 0.15 })
-  playTone(ctx, master, { frequency: 3520, start: 0.13, duration: 0.3, type: 'sine', peakGain: 0.03 })
-}
-
 /** The full chest straining at its locks in the middle of the board: wooden knocks, quicker and quicker. */
 export function playChestKnocks() {
   const { ctx, master } = cardContext()

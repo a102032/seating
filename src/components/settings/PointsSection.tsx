@@ -3,20 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { assetUrl } from '../../lib/assets'
 import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
-import {
-  CHESTS,
-  keysNeeded,
-  lastKeyWords,
-  PRIZE_NAME_MAX,
-  prizesOf,
-  questOf,
-  SIZE_NAMES,
-  type PrizeSize,
-  type QuestPrize,
-} from '../../lib/quest'
-import { chestSVG, prizeIconSVG } from '../../lib/questArt'
-import { adventureOf, CAPACITY, jarFill, jarOf, lastSpinWords, type Adventure } from '../../lib/marbles'
-import { marbleSVG } from '../../lib/marbleArt'
+import { PRIZE_NAME_MAX, prizesOf, type PrizeSize, type QuestPrize } from '../../lib/quest'
+import { prizeIconSVG } from '../../lib/questArt'
+import { CAPACITY, jarFill, jarOf, lastSpinWords } from '../../lib/marbles'
 import type { ClassData, PointsMode } from '../../types'
 import { Btn, Group, MoreRow, NumberStepper, SubHead, Tick } from './parts'
 
@@ -33,12 +22,10 @@ interface PointsSectionProps {
   /** The celebration's pictures are up, in place of the section (with Back). */
   choosingGif: boolean
   onChoosingGif: (choosing: boolean) => void
-  /** The Quest's prize list, each prize small, medium or big. */
+  /** The Marble Jar's prize list, each prize medium or big (the jar's wheel has no small slices). */
   onSetQuestPrizes: (prizes: QuestPrize[]) => void
-  /** Start the quest over from the Wood chest, or the Marble Jar from an empty jar (asks first). */
+  /** Start the Marble Jar again from an empty jar (asks first). */
   onAskRestartQuest: () => void
-  /** The Class Quest's adventure: the Knight's chests or the Marble Jar. */
-  onSetAdventure: (adventure: Adventure) => void
 }
 
 const chestClosed = assetUrl('/treasure/chest-closed.svg')
@@ -61,9 +48,13 @@ function MiniDesk({ star }: { star: boolean }) {
   )
 }
 
-/** From the biggest way to the simplest, left to right (2026-10-26, the teacher). */
+/**
+ * From the biggest way to the simplest, left to right (2026-10-26, the teacher). The Marble Jar is
+ * the Class Quest's place since the Knight, Pirate and Space quests were retired (2026-10-30): its
+ * value stays 'quest' in the class's data.
+ */
 const MODES: { mode: PointsMode; label: string; says: string }[] = [
-  { mode: 'quest', label: 'Class Quest', says: 'Each full meter takes the class one step on its quest, toward a prize.' },
+  { mode: 'quest', label: 'Marble Jar', says: 'Each full meter wins a spin for marbles. A full jar wins a prize.' },
   { mode: 'goal', label: 'Class Goal', says: 'The class fills the meter together. A full meter is a celebration.' },
   { mode: 'students', label: 'Student Points', says: 'Each student keeps their own stars, on their desk, until you clear them.' },
   { mode: 'none', label: 'No Points', says: 'No stars. The pickers, the cards, groups and Get Ready! still work.' },
@@ -90,7 +81,6 @@ export function PointsSection({
   onChoosingGif,
   onSetQuestPrizes,
   onAskRestartQuest,
-  onSetAdventure,
 }: PointsSectionProps) {
   const [choosingPrizes, setChoosingPrizes] = useState(false)
   // More options: the stars' two ways, fixing the meter, and Start Over (2026-10-26).
@@ -248,10 +238,7 @@ export function PointsSection({
                 {m.mode === 'goal' ? (
                   <img src={chestClosed} alt="" className="h-6 w-6 shrink-0" />
                 ) : m.mode === 'quest' ? (
-                  <span
-                    className="block h-6 w-7 shrink-0 [&>svg]:h-full [&>svg]:w-full"
-                    dangerouslySetInnerHTML={{ __html: chestSVG(2, { keys: 1 }) }}
-                  />
+                  <img src={assetUrl('/quest/marbles.svg')} alt="" className="h-6 w-6 shrink-0" />
                 ) : (
                   <MiniDesk star={m.mode === 'students'} />
                 )}
@@ -265,8 +252,8 @@ export function PointsSection({
       </div>
 
       {goalOn && mode === 'quest' && (
-        <Group head="Class Quest Themes" className="cs-quest-themes">
-          <QuestRow activeClass={activeClass} onSetAdventure={onSetAdventure} />
+        <Group head="Our Jar">
+          <JarRow activeClass={activeClass} />
         </Group>
       )}
 
@@ -334,18 +321,15 @@ export function PointsSection({
   )
 }
 
-/** Start Over, in Points' More options: the quest in use back to its beginning, the meter's stars kept. */
+/** Start Over, in Points' More options: an empty jar again, the meter's stars kept. */
 function RestartRow({ activeClass, onAskRestart }: { activeClass: ClassData; onAskRestart: () => void }) {
-  const adventure = adventureOf(activeClass)
-  const q = questOf(activeClass)
   const j = jarOf(activeClass)
-  const fresh =
-    adventure === 'marbles' ? j.number === 1 && j.marbles.length === 0 && j.spins === 0 : q.number === 1 && q.chest === 0 && q.keys === 0
+  const fresh = j.number === 1 && j.marbles.length === 0 && j.spins === 0
   return (
     <div className="cs-row" data-guide="restart-quest">
       <div className="cs-row-label">
         <b>Start Over</b>
-        <small>Takes this quest back to the beginning. The stars on the meter stay.</small>
+        <small>Starts again with an empty jar. The stars on the meter stay.</small>
       </div>
       <Btn kind="quiet-red" small disabled={fresh} onClick={onAskRestart}>
         <RotateCcw /> Start Over
@@ -354,102 +338,27 @@ function RestartRow({ activeClass, onAskRestart }: { activeClass: ClassData; onA
   )
 }
 
-/**
- * The quest's adventure, where the class is on it, how long the last key or spin took (to help set
- * the goal), and Start Over. Four adventures, one row: the Knight's keys and chests, the Marble Jar
- * (2026-10-24), the Pirate Quest's islands and map pieces (2026-10-25), or the Space Quest's planets
- * and fuel (2026-10-26). Each keeps its own place, so trying another loses nothing.
- */
-function QuestRow({ activeClass, onSetAdventure }: { activeClass: ClassData; onSetAdventure: (a: Adventure) => void }) {
-  const adventure = adventureOf(activeClass)
-  const q = questOf(activeClass)
-  const T = CHESTS[q.chest]
-  const need = keysNeeded(q)
+/** How full the class's jar is, and how long the last spin took, to help set the goal. */
+function JarRow({ activeClass }: { activeClass: ClassData }) {
   const j = jarOf(activeClass)
   const full = Math.min(100, Math.round((jarFill(j) / CAPACITY) * 100))
-  const marbles = (
-    <button
-      type="button"
-      className="cs-choice"
-      aria-label="Marble Jar"
-      title="Marble Jar"
-      aria-pressed={adventure === 'marbles'}
-      onClick={() => onSetAdventure('marbles')}
-    >
-      <svg
-        viewBox="-12 -12 24 24"
-        className="h-5 w-5 shrink-0"
-        aria-hidden
-        dangerouslySetInnerHTML={{ __html: marbleSVG('#2b9be0', { r: 10 }) }}
-      />
-      <span className="cs-adventure-word">Marbles</span>
-      {adventure === 'marbles' && <Tick />}
-    </button>
-  )
   return (
-    <div className="cs-row cs-stack" data-guide="quest-row">
-      {/* Knight, Pirate and Space, then Marbles on the far right, since it isn't really a quest (2026-10-26, the teacher). */}
-      <div className="cs-choices cs-adventures whitespace-nowrap" data-guide="adventure-row">
-        <button
-          type="button"
-          className="cs-choice"
-          aria-label="Knight"
-          title="Knight"
-          aria-pressed={adventure === 'knight'}
-          onClick={() => onSetAdventure('knight')}
-        >
-          <img src={assetUrl('/quest/knight-head.svg')} alt="" className="h-5 w-5 shrink-0" />
-          <span className="cs-adventure-word">Knight</span>
-          {adventure === 'knight' && <Tick />}
-        </button>
-        <button
-          type="button"
-          className="cs-choice"
-          aria-label="Pirate"
-          title="Pirate"
-          aria-pressed={adventure === 'pirate'}
-          onClick={() => onSetAdventure('pirate')}
-        >
-          <img src={assetUrl('/quest/pirate/parrot.svg')} alt="" className="h-5 w-5 shrink-0" />
-          <span className="cs-adventure-word">Pirate</span>
-          {adventure === 'pirate' && <Tick />}
-        </button>
-        <button
-          type="button"
-          className="cs-choice"
-          aria-label="Space"
-          title="Space"
-          aria-pressed={adventure === 'space'}
-          onClick={() => onSetAdventure('space')}
-        >
-          <img src={assetUrl('/quest/space/rocket-ship.svg')} alt="" className="h-5 w-5 shrink-0" />
-          <span className="cs-adventure-word">Space</span>
-          {adventure === 'space' && <Tick />}
-        </button>
-        {marbles}
-      </div>
-      {/* Where the class is, on one line, so the four themes and the goal's box fit a short screen. */}
-      <div className="cs-row-label cs-inline-label">
-        <b>
-          {adventure === 'marbles'
-            ? `${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`
-            : adventure === 'pirate'
-              ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Island ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} pieces`
-              : adventure === 'space'
-                ? `${q.number > 1 ? `Quest ${q.number}: ` : ''}Trip ${q.chest + 1}, ${Math.min(q.keys, need)} of ${need} bars`
-                : `${q.number > 1 ? `Quest ${q.number}: ` : ''}${T.name} chest, ${Math.min(q.keys, T.keys)} of ${T.keys} ${T.keys === 1 ? 'key' : 'keys'}`}
-        </b>
-        <small>{adventure === 'marbles' ? lastSpinWords(j) : lastKeyWords(q)}</small>
+    <div className="cs-row" data-guide="quest-row">
+      <div className="cs-row-label">
+        <b>{`${j.number > 1 ? `Jar ${j.number}: ` : 'The jar: '}${full}% full`}</b>
+        <small>{lastSpinWords(j)}</small>
       </div>
     </div>
   )
 }
 
-const SIZES: PrizeSize[] = ['s', 'm', 'b']
+const SIZES: PrizeSize[] = ['m', 'b']
+/** The jar's prize wheel is six silver slices and two gold ones (lib/marbles, JAR_PRIZE_WHEEL), so no small prizes. */
+const SIZE_LABEL: Record<PrizeSize, string> = { s: 'Small', m: 'Prizes', b: 'Big prizes' }
 const SIZE_SAYS: Record<PrizeSize, string> = {
-  s: 'Plain slices. Most of the Wood and Bronze wheels.',
-  m: 'Silver slices, on every wheel but the Mega.',
-  b: 'Gold slices, from the Silver chest. The Mega chest is all gold.',
+  s: '',
+  m: 'Silver slices. Six on the wheel.',
+  b: 'Gold slices. Two on the wheel.',
 }
 
 /**
@@ -469,16 +378,15 @@ function PrizesPage({ prizes, onChange, onBack }: { prizes: QuestPrize[]; onChan
     <>
       <SubHead back="Points" title="Prizes" onBack={onBack} />
       <div className="cs-gi">
-        At the end of each stage of the quest, or a full marble jar, the prize wheel spins on the board and lands on one of these. Early
-        wheels have mostly small prizes; the last one is all big prizes. The class gets the real reward from you. Whole-class activities
-        work best.
+        When the marble jar is full, the prize wheel spins on the board and lands on one of these. The class gets the real reward from
+        you. Whole-class activities work best.
       </div>
       <div className="cs-prizes">
         {SIZES.map((size) => {
           const list = prizes.map((p, i) => ({ p, i })).filter(({ p }) => p.size === size)
           return (
             <div key={size} className="cs-prize-col" data-size={size}>
-              <b>{SIZE_NAMES[size]}</b>
+              <b>{SIZE_LABEL[size]}</b>
               <small>{SIZE_SAYS[size]}</small>
               <ul className="cs-prize-list">
                 {list.map(({ p, i }) => (
@@ -507,10 +415,10 @@ function PrizesPage({ prizes, onChange, onBack }: { prizes: QuestPrize[]; onChan
                   value={drafts[size]}
                   maxLength={PRIZE_NAME_MAX}
                   placeholder="A new prize"
-                  aria-label={`A new ${SIZE_NAMES[size].toLowerCase()} prize`}
+                  aria-label={`A new ${SIZE_LABEL[size].toLowerCase()} prize`}
                   onChange={(e) => setDrafts((d) => ({ ...d, [size]: e.target.value }))}
                 />
-                <Btn small type="submit" disabled={!drafts[size].trim()} aria-label={`Add a ${SIZE_NAMES[size].toLowerCase()} prize`}>
+                <Btn small type="submit" disabled={!drafts[size].trim()} aria-label={`Add a ${SIZE_LABEL[size].toLowerCase()} prize`}>
                   <Plus />
                 </Btn>
               </form>

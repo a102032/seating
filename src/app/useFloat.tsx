@@ -4,9 +4,8 @@ import type { useClasses } from '../hooks/useClasses'
 import { useAppInFront, useFloatingWindow } from '../hooks/useFloatingWindow'
 import type { usePicker } from '../hooks/usePicker'
 import { DEFAULT_GET_READY_PRIZE } from '../lib/getReady'
-import { jarIsFull, jarOf, marblesOn } from '../lib/marbles'
+import { jarIsFull, jarOf } from '../lib/marbles'
 import { pointsOnMeter, questIsOn } from '../lib/points'
-import { questOf } from '../lib/quest'
 import type { ClassData, Student } from '../types'
 
 type Picker = ReturnType<typeof usePicker>
@@ -105,26 +104,13 @@ export function FloatingGoalFor({
       // The browser may or may not bring the app forward for this. Either way the chest
       // opens only once the app is in front, so the fanfare never plays behind the lesson.
       onCelebrate={() => {
-        // On a quest the chest opens once the app is in front; a plain goal's celebration already does.
+        // The Marble Jar's wheel or full jar opens once the app is in front; a plain goal's celebration already does.
         if (questIsOn(cls)) onOpenChest()
         window.focus()
       }}
       quest={
         questIsOn(cls)
-          ? marblesOn(cls)
-            ? {
-                chest: 0,
-                keys: 0,
-                appBehind: !float.appInFront,
-                marbles: { spins: jarOf(cls).spins, full: jarIsFull(jarOf(cls)), jar: jarOf(cls).marbles },
-              }
-            : {
-                chest: questOf(cls).chest,
-                keys: questOf(cls).keys,
-                appBehind: !float.appInFront,
-                pirate: questOf(cls).kind === 'pirate',
-                space: questOf(cls).kind === 'space',
-              }
+          ? { appBehind: !float.appInFront, marbles: { spins: jarOf(cls).spins, full: jarIsFull(jarOf(cls)), jar: jarOf(cls).marbles } }
           : undefined
       }
       pick={

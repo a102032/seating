@@ -1,22 +1,14 @@
 import type { ClassData } from '../types'
 import { dateKey } from './attendance'
-import { questIsOn } from './points'
 import type { QuestPrize } from './quest'
 
 /**
- * The Marble Jar (DECISIONS, "The Marble Jar"): the Class Quest's second adventure, the teacher's
- * own marble jar on the board. Each goal filled wins a spin of the marble wheel; the marbles it
- * wins pour into the class jar, falling and piling up as real marbles do (lib/marblePhysics); a
- * jar filled to its line opens the prize wheel, as a chest does on the Knight's quest. Everything
- * here only works things out; components/MarbleMoment draws it.
+ * The Marble Jar (DECISIONS, "The Marble Jar"): the teacher's own marble jar on the board, a class's
+ * pointsMode 'quest' (the Knight's, Pirate and Space quests that shared it were retired 2026-10-30).
+ * Each goal filled wins a spin of the marble wheel; the marbles it wins pour into the class jar,
+ * falling and piling up as real marbles do (lib/marblePhysics); a jar filled to its line opens the
+ * prize wheel. Everything here only works things out; components/MarbleMoment draws it.
  */
-
-export type Adventure = 'knight' | 'marbles' | 'pirate' | 'space'
-
-export const adventureOf = (c: ClassData): Adventure => c.questAdventure ?? 'knight'
-
-/** The class is on a quest, and its adventure is the Marble Jar. */
-export const marblesOn = (c: ClassData): boolean => questIsOn(c) && adventureOf(c) === 'marbles'
 
 export type MarbleKind = 'plain' | 'power' | 'mega'
 const KINDS: MarbleKind[] = ['plain', 'power', 'mega']
@@ -73,7 +65,12 @@ export const JAR = {
   CORNER: 2.2,
 }
 
-export const RADIUS: Record<MarbleKind, number> = { plain: 1, power: 1.4, mega: 2.2 }
+/**
+ * The Mega a touch bigger since every spin became a win (2026-10-30, the teacher): 2.7 fills about 7
+ * plain marbles' room, more than a Power Marble with the five it zaps on average (about 6.8), so the
+ * Mega stays the biggest win in what it adds to the jar. It still drops easily through the neck (4.6 each side).
+ */
+export const RADIUS: Record<MarbleKind, number> = { plain: 1, power: 1.4, mega: 2.7 }
 
 /** The inside of the glass: the left half from the mouth down to the middle of the floor, then the same mirrored back up. */
 export const JAR_PATH: [number, number][] = (() => {
@@ -129,7 +126,7 @@ function glassBelow(y0: number): number {
  */
 export const CAPACITY = Math.round((glassBelow(JAR.FILL_Y) * 0.8) / Math.PI)
 
-/** How much a marble fills: a plain one 1, a Power Marble about 2, a Mega about 5. */
+/** How much a marble fills: a plain one 1, a Power Marble about 2, a Mega about 7. */
 const room = (m: SavedMarble) => m[5] * m[5]
 
 export const jarFill = (s: MarbleJarState) => s.marbles.reduce((n, m) => n + room(m), 0)
@@ -137,18 +134,11 @@ export const jarIsFull = (s: MarbleJarState) => jarFill(s) >= CAPACITY - 0.01
 
 // --- The marble wheel -----------------------------------------------------------------------------
 
-export type WedgeId = '2' | '3' | '4' | 'power' | 'mega'
-
-/**
- * The teacher's chances (2026-10-24): 2 marbles 50, 3 marbles 45, 4 marbles 35, the Power Marble
- * 20 and the Mega 8, out of 158 - about 32%, 28%, 22%, 13% (about once a jar) and 5% (about one
- * jar in two). Three Megas in one jar, which the first chances gave, is now about one jar in 60.
- */
-export const WEIGHTS: Record<WedgeId, number> = { '2': 50, '3': 45, '4': 35, power: 20, mega: 8 }
+export type WedgeId = '5' | 'power' | 'mega'
 
 export interface Wedge {
   id: WedgeId
-  /** Plain for 2 and 3, silver for 4, gold for the Power and Mega Marbles, as on the prize wheel. */
+  /** Plain for 5 marbles, silver for the Power Marble, gold for the Mega, as on the prize wheel. */
   tier: 'plain' | 'silver' | 'gold'
   fill?: string
   /** Degrees round the wheel, clockwise from the top. */
@@ -157,30 +147,24 @@ export interface Wedge {
 }
 
 /**
- * Each wedge is as wide as its chance, so the wheel is honest: the Mega is a thin gold sliver the
- * class can see is hard to hit. The numbers are split across two wedges; the gold ones are never side by side.
+ * Every spin a win (2026-10-28, the teacher: the stars are earned by effort, and a 2 or 3 felt like a
+ * loss to the child who spun it): eight equal wedges, six of 5 marbles, one Power Marble and one Mega,
+ * so each wedge is still as wide as its chance and the Mega is about 1 spin in 8, about once a jar.
+ * A spin adds about 5.5 to the jar, so a jar is about 10 or 11 spins: two prize wheels a semester,
+ * which the teacher wants. The Power and the Mega sit opposite each other.
  */
-export const WEDGES: Wedge[] = (() => {
-  const total = Object.values(WEIGHTS).reduce((a, b) => a + b, 0)
-  const deg = (id: WedgeId, share = 1) => (WEIGHTS[id] / total) * 360 * share
-  const list: Omit<Wedge, 'from' | 'to'>[] = [
-    { id: '2', tier: 'plain', fill: '#38bdf8' },
-    { id: '3', tier: 'plain', fill: '#a3e635' },
-    { id: 'power', tier: 'gold' },
-    { id: '2', tier: 'plain', fill: '#f472b6' },
-    { id: '4', tier: 'silver' },
-    { id: '3', tier: 'plain', fill: '#a78bfa' },
+export const WEDGES: Wedge[] = (
+  [
+    { id: '5', tier: 'plain', fill: '#38bdf8' },
+    { id: '5', tier: 'plain', fill: '#a3e635' },
+    { id: 'power', tier: 'silver' },
+    { id: '5', tier: 'plain', fill: '#f472b6' },
+    { id: '5', tier: 'plain', fill: '#a78bfa' },
+    { id: '5', tier: 'plain', fill: '#fb923c' },
     { id: 'mega', tier: 'gold' },
-    { id: '4', tier: 'silver' },
-  ]
-  let at = 0
-  return list.map((w) => {
-    const size = deg(w.id, w.tier === 'gold' ? 1 : 0.5)
-    const out = { ...w, from: at, to: at + size }
-    at += size
-    return out
-  })
-})()
+    { id: '5', tier: 'plain', fill: '#2dd4bf' },
+  ] as const
+).map((w, i) => ({ ...w, from: i * 45, to: (i + 1) * 45 }))
 
 /** Where the wheel lands: a point anywhere round it, so each wedge's chance is its width. */
 export function spinLanding(random = Math.random): { wedge: number; at: number } {
@@ -202,17 +186,14 @@ export function marblesFor(id: WedgeId): MarbleKind[] {
 }
 
 export const WEDGE_WORDS: Record<WedgeId, string> = {
-  '2': '2 marbles!',
-  '3': '3 marbles!',
-  '4': '4 marbles!',
+  '5': '5 marbles!',
   power: 'Power Marble!',
   mega: 'Mega Marble!',
 }
 
-/** How many marbles a Power Marble zaps: usually 2, sometimes 3, now and then 4 (the teacher's). */
+/** How many marbles a Power Marble zaps: 4, 5 or 6, by chance (2026-10-28, the teacher). */
 export function zapCount(random = Math.random): number {
-  const r = random()
-  return r < 0.6 ? 2 : r < 0.9 ? 3 : 4
+  return 4 + Math.min(2, Math.floor(random() * 3))
 }
 
 /** The prize wheel a full jar opens: the Gold chest's, mostly medium prizes with two big ones, since a jar is about a semester. */
