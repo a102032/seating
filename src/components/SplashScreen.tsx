@@ -518,6 +518,11 @@ export function SplashScreen({
         className="absolute right-1 top-1 z-20 rounded-lg p-1.5 text-[#f4f1e8]/70 hover:bg-white/10 hover:text-[#f4f1e8] active:scale-95"
       />
 
+      {/* Whose app this is, in the wall's margin under the board: small and faint, never on the board. */}
+      <p className="pointer-events-none absolute inset-x-0 bottom-0.5 z-20 text-center text-[10px] leading-3 text-[#f4f1e8]/45 sm:bottom-1.5">
+        © {new Date().getFullYear()} Derek Hoerler. All rights reserved.
+      </p>
+
       {/* Scaled down as a whole when the board is taller than the screen (five classes on a short
           laptop), so nothing is cut off and nothing is squeezed; at full size otherwise. */}
       <div ref={fitRef} className="relative z-10 w-full max-w-5xl">

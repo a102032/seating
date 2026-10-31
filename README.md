@@ -51,3 +51,7 @@ npm run build
 
 This produces a `dist/` folder you can host anywhere that serves static
 files (Vercel, Netlify, GitHub Pages, etc).
+
+## Copyright
+
+© 2026 Derek Hoerler. All rights reserved. See `LICENSE`.
