@@ -37,6 +37,7 @@ import { studentsAsShown } from './lib/stickers'
 import { applyTheme, loadTheme, type Theme } from './lib/theme'
 import { absentOn, attendanceTakenOn } from './lib/attendance'
 import { planFor } from './lib/layouts'
+import { keepPicturesOffline } from './lib/keepOffline'
 import { rememberInClass, resumesInClass } from './lib/resume'
 import { type Student } from './types'
 import { ClassSettingsWindow } from './app/ClassSettingsWindow'
@@ -62,6 +63,12 @@ import { useToday } from './app/useToday'
  */
 export default function App() {
   const store = useClasses()
+  // The characters on every class's desks, kept for the offline app, whenever who sits here changes.
+  const avatarKey = store.classes.map((c) => c.students.map((st) => `${st.id}:${st.avatarId ?? ''}`).join(',')).join('|')
+  useEffect(() => {
+    keepPicturesOffline(store.classes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatarKey])
   const { classes, activeClass, activeClassId, setActiveClassId, cloud, saveError, unseatedStudents } = store
 
   /**

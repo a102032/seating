@@ -195,6 +195,7 @@ checks the live URL. Confirm it went green before saying something is live. It a
   Chrome gives back on every move, and slides a real finger there too (`scripts/inject-touch.ps1`, Windows' own touch input):
   Chrome reports a finger differently from a mouse or a test's made-up events, and only a finger made the grip stutter. The
   grip never uses a finger's `screenX`/`screenY`. Read its results before saying the grip works.
+- The offline app: `src/sw/serviceWorker.js` (asks the internet first for the page, keeps the app's files, pictures and fonts), written out with its file list by `offlineApp` in `vite.config.ts`, registered in `main.tsx` in the built app only; `lib/keepOffline.ts` keeps every character the classes use; `public/manifest.webmanifest` makes it installable.
 - localStorage keys all start with `seating-chart-` and end in `-v1` (the main state is `seating-chart-state-v1`).
 
 ## Conventions
@@ -235,6 +236,7 @@ the change reaches what they cover:
 - **The whole walkthrough**: before a batch goes live, or after a change to something many screens share.
 - **`tour-shots.mjs`**: when a screen in the tour changes. **`frame-check.mjs`**: when something moves on the board.
 - **`sync-check`, `drive-check`, the Move extension's and helper's checks**: only when sync, Drive or those change.
+- **`offline-check.mjs`** (against a production build, `npx vite preview --port 4173`): when the service worker, the build's file list or how the app starts changes.
 
 ## Checking changes in a browser
 
