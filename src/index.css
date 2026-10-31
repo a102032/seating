@@ -2536,6 +2536,20 @@ button {
 .cs-page-head > .cs-right:first-child {
   margin-left: 0;
 }
+/* Quiet lately, at the top of Participation: a soft amber note, one or two lines, for the teacher. */
+.cs-quiet {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #fff4d6;
+  color: #6b4a00;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.cs-quiet-none {
+  background: #e8f5ea;
+  color: #23552d;
+}
 .cs-foot {
   display: flex;
   align-items: center;

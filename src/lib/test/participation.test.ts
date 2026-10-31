@@ -3,6 +3,7 @@ import {
   participationDates,
   participationRows,
   pickChances,
+  quietLately,
   spinnerChoices,
   weightedChoice,
   withCount,
@@ -123,5 +124,50 @@ describe('spinnerChoices: Pick a Spinner never picks someone who had a turn toda
   it('once everyone here has had a turn, everyone here again', () => {
     const c = makeClass(2, { participation: { [MON]: { s0: [1, 0], s1: [2, 0] } } })
     expect(spinnerChoices(c, ['s0', 's1'], MON)).toEqual(['s0', 's1'])
+  })
+})
+
+describe('quietLately: who has gone two weeks without a turn', () => {
+  // Weekdays from Monday 2026-10-05 to Friday 2026-10-30.
+  const weekdays = Array.from({ length: 26 }, (_, i) => {
+    const d = new Date(2026, 9, 5 + i)
+    return d.getDay() % 6 === 0 ? null : quietKey(d)
+  }).filter((d): d is string => d !== null)
+  function quietKey(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  /** s0 picked every lesson, s1 given a star once, s2 never; attendance taken each day. */
+  function term(days: string[], extra = {}) {
+    let c = makeClass(3, { attendanceTaken: days, ...extra })
+    for (const d of days) c = withPick(c, 's0', d)
+    c = withPoints(c, ['s1'], days[days.length - 3])
+    return c
+  }
+
+  it('lists only the student with no pick and no star', () => {
+    expect(quietLately(term(weekdays), '2026-10-30')).toEqual(['s2'])
+  })
+
+  it('says nothing for a class with under two weeks of record', () => {
+    expect(quietLately(term(weekdays.slice(-8)), '2026-10-30')).toBeNull()
+  })
+
+  it('a turn more than two weeks ago does not count', () => {
+    let c = makeClass(3, { attendanceTaken: weekdays })
+    for (const d of weekdays) c = withPick(c, 's0', d)
+    c = withPoints(c, ['s1'], weekdays[0])
+    expect(quietLately(c, '2026-10-30')).toEqual(['s1', 's2'])
+  })
+
+  it('a holiday does not stretch the two weeks over nothing', () => {
+    // Three weeks of lessons, then a two-week break, then today.
+    const before = weekdays.slice(0, 15)
+    const c = term([...before, '2026-11-16'])
+    expect(quietLately(c, '2026-11-16')).toEqual(['s2'])
+  })
+
+  it('a student away for most of it is not listed', () => {
+    const away = Object.fromEntries(weekdays.slice(-8).map((d) => [d, ['s2']]))
+    expect(quietLately(term(weekdays, { attendance: away }), '2026-10-30')).toEqual([])
   })
 })

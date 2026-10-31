@@ -4,7 +4,7 @@ import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { useDrive } from '../../hooks/useDrive'
 import { dateKey } from '../../lib/attendance'
 import { updateParticipationSheet } from '../../lib/drive'
-import { type DayCount, participationDates, participationToCsv } from '../../lib/participation'
+import { type DayCount, participationDates, participationToCsv, quietLately } from '../../lib/participation'
 import type { ClassData } from '../../types'
 import { AbsentIcon } from '../AbsentIcon'
 import { GoogleG } from '../Account'
@@ -52,6 +52,27 @@ function CountStepper({ icon, label, value, onChange }: { icon: ReactNode; label
   )
 }
 
+/** At most this many names, then "and 4 more", so the line never pushes the list off the window. */
+const QUIET_NAMES = 6
+
+function QuietLately({ ids, cls }: { ids: string[]; cls: ClassData }) {
+  if (ids.length === 0)
+    return (
+      <p className="cs-quiet cs-quiet-none" data-guide="quiet">
+        Everyone has had a turn in the last 2 weeks.
+      </p>
+    )
+  const names = ids.map((id) => cls.students.find((s) => s.id === id)?.name ?? '').filter(Boolean)
+  const shown = names.slice(0, QUIET_NAMES).join(', ')
+  const more = names.length - QUIET_NAMES
+  return (
+    <p className="cs-quiet" data-guide="quiet" title={names.join(', ')}>
+      <b>Not picked in 2 weeks:</b> {shown}
+      {more > 0 && ` and ${more} more`}.
+    </p>
+  )
+}
+
 function dayLabel(key: string): string {
   const [y, m, d] = key.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -67,6 +88,7 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
   const drive = useDrive(uid)
   const today = dateKey()
   const dates = useMemo(() => participationDates(activeClass), [activeClass])
+  const quiet = useMemo(() => quietLately(activeClass, today), [activeClass, today])
   // Every day with a record, and today even before anything has happened in it.
   const days = useMemo(() => [...new Set([...dates, today])].sort(), [dates, today])
   // It opens on the latest lesson with something in it: today, or the last one before.
@@ -186,6 +208,9 @@ export function ParticipationSection({ activeClass, onSetCount, onClearDay, onCl
               {drive.problem ? <DriveProblem text={drive.problem.text} /> : drive.done ? <DriveLink file={drive.done.file} /> : null}
             </div>
           </div>
+          {/* Quiet lately (2026-10-31): over every lesson, not the day shown, so it stays put as the
+              arrows move. Nothing until the class has two weeks of record. */}
+          {quiet && <QuietLately ids={quiet} cls={activeClass} />}
           <div className="cs-navbar" data-guide="day-nav">
             <button type="button" aria-label="The lesson before" disabled={at <= 0} onClick={() => showDay(days[at - 1])}>
               <ChevronLeft />

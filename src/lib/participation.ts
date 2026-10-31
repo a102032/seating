@@ -193,3 +193,63 @@ export function weightedChoice<T>(items: T[], weightOf: (item: T) => number): T 
   }
   return items[items.length - 1]
 }
+
+/** How far back "Quiet lately" looks: two weeks of the class's lessons. */
+const QUIET_DAYS = 14
+
+function daysBetween(later: string, earlier: string): number {
+  const at = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number)
+    return Date.UTC(y, m - 1, d)
+  }
+  return Math.round((at(later) - at(earlier)) / 86_400_000)
+}
+
+/**
+ * Who has gone two weeks without a turn (2026-10-31, the teacher: "Quiet lately", for the teacher
+ * only, at the top of Participation; never the board). A turn is being picked or given a star: a
+ * child who answered and got a star has been heard.
+ *
+ * Two weeks is two weeks of the days the class met (a day with something on record, or attendance
+ * taken), so a holiday doesn't put the whole class on the list: a gap of more than a week between
+ * lessons counts as a weekend. A student away for most of those lessons isn't listed, since they
+ * weren't there to be picked. Null while the class has less than two weeks of record, so a new class
+ * shows nothing rather than everyone.
+ */
+export function quietLately(c: ClassData, today: string): string[] | null {
+  const met = new Set<string>(c.attendanceTaken ?? [])
+  for (const [day, counts] of Object.entries(c.participation ?? {})) if (Object.keys(counts).length > 0) met.add(day)
+  const days = [...met]
+    .filter((d) => d <= today)
+    .sort()
+    .reverse()
+
+  const lessons: string[] = []
+  let span = 0
+  let after = today
+  let enough = false
+  for (const day of days) {
+    const gap = daysBetween(after, day)
+    span += gap > 7 ? 3 : gap
+    if (span >= QUIET_DAYS) {
+      enough = true
+      break
+    }
+    lessons.push(day)
+    after = day
+  }
+  if (!enough || lessons.length === 0) return null
+
+  const seated = new Set(c.seating.filter(Boolean))
+  return c.students
+    .filter((s) => seated.has(s.id))
+    .filter((s) => {
+      const here = lessons.filter((day) => !c.attendance?.[day]?.includes(s.id))
+      if (here.length * 2 < lessons.length) return false
+      return here.every((day) => {
+        const [picked, points] = c.participation?.[day]?.[s.id] ?? [0, 0]
+        return picked + points === 0
+      })
+    })
+    .map((s) => s.id)
+}

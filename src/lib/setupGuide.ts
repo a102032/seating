@@ -236,6 +236,13 @@ export const GUIDE_STEPS: GuideStep[] = [
   { section: 'attendance', targets: [g('att-export')], text: 'Export to CSV saves the attendance as a file for Excel.', when: hasStudents },
 
   { section: 'participation', targets: ['.cs-list'], text: 'Add students first, in Students.', when: (ctx) => !hasStudents(ctx) },
+  {
+    section: 'participation',
+    targets: [g('quiet')],
+    text: 'Who has gone two weeks without being picked or given a star, so you know who to call on. Only you see this.',
+    when: (ctx) => hasStudents(ctx) && ctx.showing('[data-guide="quiet"]'),
+    maybe: true,
+  },
   { section: 'participation', targets: [g('day-nav')], text: 'Tap the arrows to see another day.', when: hasStudents },
   {
     section: 'participation',

@@ -1572,6 +1572,44 @@ const scenarios = {
   },
 
   /**
+   * Quiet lately (2026-10-31): three weeks of lessons where Amy had a turn every day, Tony a star once
+   * and Mulan none, so the line at the top of Participation names Mulan alone, and fits the window
+   * with the report at the smallest screens.
+   */
+  async 'quiet lately'() {
+    const days = []
+    for (let i = 21; i >= 1; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      if (d.getDay() % 6 === 0) continue
+      days.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+    }
+    const cls = makeClass('c1', 'Turns', 3, { pointsGoal: 50, classPoints: 0, attendanceTaken: days })
+    const [amy, tony] = cls.students.map((s) => s.id)
+    cls.participation = Object.fromEntries(days.map((d) => [d, { [amy]: [1, 0] }]))
+    cls.participation[days[days.length - 2]][tony] = [0, 1]
+    let page
+    for (const size of [[1024, 500], [1280, 559]]) {
+      page = await open({ state: stateOf(cls), size })
+      await openSection(page, 'participation')
+      await page.waitForTimeout(400)
+      const line = await page.locator('.cs-quiet').innerText().catch(() => '')
+      const names = cls.students.map((s) => s.name)
+      const fits = await page.evaluate(() => {
+        const d = document.querySelector('[data-slot="dialog-content"]').getBoundingClientRect()
+        return d.top >= 0 && d.bottom <= innerHeight && document.documentElement.scrollHeight <= innerHeight
+      })
+      check(
+        `quiet lately at ${size.join('x')}: names only the student with no turn, and fits`,
+        line.includes('Not picked in 2 weeks') && line.includes(names[2]) && !line.includes(names[0]) && !line.includes(names[1]) && fits,
+        `"${line}", fits ${fits}`,
+      )
+      if (size[0] === 1024) await page.screenshot({ path: `${SHOTS}/quiet-lately-1024x500.png` })
+    }
+    return page
+  },
+
+  /**
    * Stars on the desks first: they wait on the desks, minus takes one back, and All Stars In!
    * sends them all to the goal - and they are still there after a reload if it isn't tapped.
    */
