@@ -121,6 +121,7 @@ export function ClassSettingsWindow({
       onSetGoal={(goal) => store.setGoal(cls.id, goal)}
       onSetCelebrationGif={(gifId) => store.setCelebrationGif(cls.id, gifId)}
       onSetQuestPrizes={(prizes) => store.setQuestPrizes(cls.id, prizes)}
+      onSetMarbleExtras={(extras) => store.setMarbleExtras(cls.id, extras)}
       onRestartQuest={() => store.restartMarbleJar(cls.id)}
       onSetClassPoints={(points) => store.setClassPoints(cls.id, points)}
       onResetClassGoal={() => store.resetClassGoal(cls.id)}

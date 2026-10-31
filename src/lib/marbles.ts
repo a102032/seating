@@ -1,17 +1,22 @@
 import type { ClassData } from '../types'
 import { dateKey } from './attendance'
+import { LUNAR_NEW_YEAR } from './greetings'
 import type { QuestPrize } from './quest'
 
 /**
  * The Marble Jar (DECISIONS, "The Marble Jar"): the teacher's own marble jar on the board, a class's
  * pointsMode 'quest' (the Knight's, Pirate and Space quests that shared it were retired 2026-10-30).
  * Each goal filled wins a spin of the marble wheel; the marbles it wins pour into the class jar,
- * falling and piling up as real marbles do (lib/marblePhysics); a jar filled to its line opens the
+ * falling and piling up as real marbles do (lib/marbleScene); a jar filled to its line opens the
  * prize wheel. Everything here only works things out; components/MarbleMoment draws it.
  */
 
-export type MarbleKind = 'plain' | 'power' | 'mega'
-const KINDS: MarbleKind[] = ['plain', 'power', 'mega']
+/**
+ * Plain marbles (some with a season's design, or popped popcorn), the Power Marble, the Mega, the
+ * rare Mega Mega Marble (2026-10-31) and the rain cloud's tiny drops, which stay tiny.
+ */
+export type MarbleKind = 'plain' | 'power' | 'mega' | 'megamega' | 'drop'
+const KINDS: MarbleKind[] = ['plain', 'power', 'mega', 'megamega', 'drop']
 
 /**
  * A marble as kept with the class: its kind, its colour, where it came to rest and how it was
@@ -19,10 +24,11 @@ const KINDS: MarbleKind[] = ['plain', 'power', 'mega']
  * they settled, so a reload, the laptop and the board all show the same jar without dropping
  * them again. Short, because a full jar is sixty of them in every save.
  */
-export type SavedMarble = [kind: 0 | 1 | 2, colour: number, x: number, y: number, angle: number, r: number]
+export type SavedMarble = [kind: KindCode, colour: number, x: number, y: number, angle: number, r: number, design?: string]
+export type KindCode = 0 | 1 | 2 | 3 | 4
 
-export const kindOf = (m: SavedMarble): MarbleKind => KINDS[m[0]]
-export const kindCode = (k: MarbleKind): 0 | 1 | 2 => KINDS.indexOf(k) as 0 | 1 | 2
+export const kindOf = (m: SavedMarble): MarbleKind => KINDS[m[0]] ?? 'plain'
+export const kindCode = (k: MarbleKind): KindCode => KINDS.indexOf(k) as KindCode
 
 export interface MarbleJarState {
   /** Which jar the class is on, from 1. */
@@ -70,7 +76,7 @@ export const JAR = {
  * plain marbles' room, more than a Power Marble with the five it zaps on average (about 6.8), so the
  * Mega stays the biggest win in what it adds to the jar. It still drops easily through the neck (4.6 each side).
  */
-export const RADIUS: Record<MarbleKind, number> = { plain: 1, power: 1.4, mega: 2.7 }
+export const RADIUS: Record<MarbleKind, number> = { plain: 1, power: 1.4, mega: 2.7, megamega: 3.3, drop: 0.42 }
 
 /** The inside of the glass: the left half from the mouth down to the middle of the floor, then the same mirrored back up. */
 export const JAR_PATH: [number, number][] = (() => {
@@ -134,7 +140,7 @@ export const jarIsFull = (s: MarbleJarState) => jarFill(s) >= CAPACITY - 0.01
 
 // --- The marble wheel -----------------------------------------------------------------------------
 
-export type WedgeId = '5' | 'power' | 'mega'
+export type WedgeId = '5' | 'rain' | 'popcorn' | 'power' | 'mega' | 'witch' | 'santa' | 'envelope'
 
 export interface Wedge {
   id: WedgeId
@@ -147,48 +153,87 @@ export interface Wedge {
 }
 
 /**
- * Every spin a win (2026-10-28, the teacher: the stars are earned by effort, and a 2 or 3 felt like a
- * loss to the child who spun it): eight equal wedges, six of 5 marbles, one Power Marble and one Mega,
- * so each wedge is still as wide as its chance and the Mega is about 1 spin in 8, about once a jar.
- * A spin adds about 5.5 to the jar, so a jar is about 10 or 11 spins: two prize wheels a semester,
- * which the teacher wants. The Power and the Mega sit opposite each other.
+ * The special marbles a class's wheel has, each on unless switched off in Points' More options
+ * (2026-10-31, the teacher's students' ideas). A wedge switched off is 5 marbles, so the pace stays.
  */
-export const WEDGES: Wedge[] = (
-  [
-    { id: '5', tier: 'plain', fill: '#38bdf8' },
-    { id: '5', tier: 'plain', fill: '#a3e635' },
-    { id: 'power', tier: 'silver' },
-    { id: '5', tier: 'plain', fill: '#f472b6' },
-    { id: '5', tier: 'plain', fill: '#a78bfa' },
-    { id: '5', tier: 'plain', fill: '#fb923c' },
-    { id: 'mega', tier: 'gold' },
-    { id: '5', tier: 'plain', fill: '#2dd4bf' },
-  ] as const
-).map((w, i) => ({ ...w, from: i * 45, to: (i + 1) * 45 }))
+export interface MarbleExtras {
+  rain?: boolean
+  popcorn?: boolean
+  power?: boolean
+  mega?: boolean
+  seasons?: boolean
+}
+export const EXTRAS: (keyof MarbleExtras)[] = ['rain', 'popcorn', 'power', 'mega', 'seasons']
+export const extraOn = (e: MarbleExtras | undefined, k: keyof MarbleExtras) => e?.[k] !== false
+
+/** The season the calendar is in, for the seasonal marbles: October, December, and the school weeks before Lunar New Year. */
+export type Season = 'none' | 'oct' | 'dec' | 'lny'
+const dayNumber = (d: string) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 86_400_000
+/** Today, or the day a check pretends it is (window.__marbleDay), to see each season's jar. */
+const today = () => (globalThis as { __marbleDay?: string }).__marbleDay ?? dateKey()
+export function seasonOn(day = today()): Season {
+  const month = +day.slice(5, 7)
+  if (month === 10) return 'oct'
+  if (month === 12) return 'dec'
+  const n = dayNumber(day)
+  // It often falls in the winter break, so its marbles come in the four weeks before, and stay a fortnight after.
+  if (LUNAR_NEW_YEAR.some((d) => n >= dayNumber(d) - 28 && n <= dayNumber(d) + 14)) return 'lny'
+  return 'none'
+}
+export const seasonFor = (e: MarbleExtras | undefined, day = today()): Season => (extraOn(e, 'seasons') ? seasonOn(day) : 'none')
+
+const SEASON_WEDGE: Record<Exclude<Season, 'none'>, WedgeId> = { oct: 'witch', dec: 'santa', lny: 'envelope' }
+const PLAIN_FILLS = ['#38bdf8', '#a3e635', '#f472b6', '#fb923c', '#a78bfa', '#2dd4bf']
+
+/**
+ * Every spin a win (2026-10-28, the teacher): eight equal wedges, so each is as wide as its chance.
+ * Since 2026-10-31: 5 marbles, the rain cloud, the Power Marble, 5, popcorn, 5 (or the season's own
+ * wedge), the Mega, 5. Each new wedge adds about what 5 marbles do (measured in the preview), so a
+ * jar is still about 10 or 11 spins. The Power and the Mega sit opposite each other.
+ */
+export function wedgesFor(extras?: MarbleExtras, season: Season = 'none'): Wedge[] {
+  const ids: WedgeId[] = ['5', 'rain', 'power', '5', 'popcorn', '5', 'mega', '5']
+  if (!extraOn(extras, 'rain')) ids[1] = '5'
+  if (!extraOn(extras, 'power')) ids[2] = '5'
+  if (!extraOn(extras, 'popcorn')) ids[4] = '5'
+  if (!extraOn(extras, 'mega')) ids[6] = '5'
+  if (season !== 'none') ids[5] = SEASON_WEDGE[season]
+  let plain = 0
+  return ids.map((id, i) => ({
+    id,
+    tier: id === 'mega' ? 'gold' : id === 'power' ? 'silver' : 'plain',
+    fill: id === '5' ? PLAIN_FILLS[plain++ % PLAIN_FILLS.length] : undefined,
+    from: i * 45,
+    to: (i + 1) * 45,
+  }))
+}
+/** The wheel with everything on and no season. */
+export const WEDGES: Wedge[] = wedgesFor()
 
 /** Where the wheel lands: a point anywhere round it, so each wedge's chance is its width. */
-export function spinLanding(random = Math.random): { wedge: number; at: number } {
+export function spinLanding(random = Math.random, wedges = WEDGES): { wedge: number; at: number } {
   const spot = random() * 360
   const wedge = Math.max(
     0,
-    WEDGES.findIndex((w) => spot >= w.from && spot < w.to),
+    wedges.findIndex((w) => spot >= w.from && spot < w.to),
   )
-  const w = WEDGES[wedge]
+  const w = wedges[wedge]
   const edge = Math.min(2, (w.to - w.from) * 0.15)
   return { wedge, at: Math.min(w.to - edge, Math.max(w.from + edge, spot)) }
 }
 
-/** What a wedge pours in. */
-export function marblesFor(id: WedgeId): MarbleKind[] {
-  if (id === 'power') return ['power']
-  if (id === 'mega') return ['mega']
-  return Array(Number(id)).fill('plain')
-}
+/** About one Mega in four grows into a Mega Mega Marble, about once a year (2026-10-31). */
+export const MEGA_MEGA_CHANCE = 0.25
 
 export const WEDGE_WORDS: Record<WedgeId, string> = {
   '5': '5 marbles!',
+  rain: 'Rain cloud!',
+  popcorn: 'Popcorn!',
   power: 'Power Marble!',
   mega: 'Mega Marble!',
+  witch: 'Witch!',
+  santa: 'Santa!',
+  envelope: 'Red envelope!',
 }
 
 /** How many marbles a Power Marble zaps: 4, 5 or 6, by chance (2026-10-28, the teacher). */
@@ -245,6 +290,40 @@ export function lastSpinWords(j: MarbleJarState): string {
   const days = Math.max(0, daysFrom(a, b))
   if (days === 0) return 'The last spin took less than a day.'
   return `The last spin took ${days} ${days === 1 ? 'day' : 'days'}.`
+}
+
+/** The seasons' marble designs: half the plain marbles a season pours wear one, and they stay in the jar after it. */
+export const SEASON_DESIGNS: Record<Season, string[]> = {
+  none: [],
+  oct: ['pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'lolly', 'ghost', 'franken', 'bat'],
+  dec: ['snowflake', 'orn1', 'orn2', 'orn3', 'peppermint', 'candycane', 'snowball'],
+  lny: ['fu', 'coin', 'lantern', 'mandarin'],
+}
+/** Each design's marble colour (popcorn popped white or butter yellow). */
+export const DESIGN_COLOUR: Record<string, string> = {
+  ghost: '#f4f6ff',
+  franken: '#7fcf5f',
+  bat: '#7b4cc9',
+  snowflake: '#8fd0ff',
+  peppermint: '#ffffff',
+  candycane: '#ffffff',
+  snowball: '#f2f8ff',
+  fu: '#d62828',
+  pk1: '#f47a12',
+  pk2: '#f47a12',
+  pk3: '#f47a12',
+  pk4: '#f47a12',
+  pk5: '#f47a12',
+  lolly: '#f29a1f',
+  orn1: '#14918f',
+  orn2: '#2a9d5c',
+  orn3: '#e5383b',
+  coin: '#f2c230',
+  lantern: '#e63946',
+  mandarin: '#ff9f1c',
+  puffed: '#fffaf0',
+  puffedButter: '#ffe08a',
+  megamega: '#2a1470',
 }
 
 /** The marbles' colours, Toy Theater's bright set (the teacher liked their look). */

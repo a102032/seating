@@ -3,22 +3,24 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SpinnerName, type SpinnerPick } from './SpinnerName'
 import { burst, firework } from '../lib/burst'
-import { drawJarBack, drawJarFront, jarPicture, marbleSVG, marbleWheelSVG } from '../lib/marbleArt'
-import { MarbleLayer } from '../lib/marbleLayer'
-import { MarbleJarWorld } from '../lib/marblePhysics'
+import { marbleSVG, marbleWheelSVG, wedgePicture } from '../lib/marbleArt'
+import { jarPicture } from '../lib/marbleDesigns'
+import { MarbleScene } from '../lib/marbleScene'
 import {
   JAR,
   MARBLE_COLOURS,
   MEGA_COLOUR,
+  MEGA_MEGA_CHANCE,
   POWER_COLOUR,
   RADIUS,
-  WEDGES,
   WEDGE_WORDS,
   jarIsFull,
-  marblesFor,
   spinLanding,
   type MarbleJarState,
+  type MarbleKind,
   type SavedMarble,
+  type Season,
+  type Wedge,
   type WedgeId,
 } from '../lib/marbles'
 import { pointerSVG } from '../lib/questArt'
@@ -45,9 +47,19 @@ import {
  * Every step waits for a tap; nothing ends on a clock.
  */
 
-/** The marbles a wedge won, small, beside the banner's words. */
+/** The marbles a wedge flies across into the jar: 5 plain ones, or the Power or Mega Marble. The others come by their own way (the cloud, the witch). */
+function flownFor(id: WedgeId): MarbleKind[] {
+  if (id === 'power') return ['power']
+  if (id === 'mega') return ['mega']
+  if (id === '5') return Array(5).fill('plain')
+  return []
+}
+
+/** The marbles a wedge won, small, beside the banner's words; or its picture. */
 function winMarbles(id: WedgeId): string {
-  const kinds = marblesFor(id)
+  const pic = wedgePicture(id)
+  if (pic && id !== 'power') return `<img src="${pic}" alt="" style="width:1.3em;height:1.3em">`
+  const kinds = flownFor(id)
   return kinds
     .map((kind, n) => {
       const colour = kind === 'power' ? POWER_COLOUR : kind === 'mega' ? MEGA_COLOUR : MARBLE_COLOURS[(n * 3) % MARBLE_COLOURS.length]
@@ -70,6 +82,8 @@ const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)
 export default function MarbleMoment({
   mode: openedAs,
   jar,
+  wedges,
+  season,
   popFrom,
   pickSpinner,
   spinnerNames,
@@ -79,6 +93,9 @@ export default function MarbleMoment({
 }: {
   mode: MarbleMode
   jar: MarbleJarState
+  /** This class's wheel: its special wedges switched on, and the season's own (lib/marbles, wedgesFor). */
+  wedges: Wedge[]
+  season: Season
   /** Emptying after the prize: the marbles that were in the full jar, to pop away. */
   popFrom?: SavedMarble[]
   pickSpinner: (different?: boolean) => SpinnerPick | null
@@ -91,15 +108,15 @@ export default function MarbleMoment({
 }) {
   // What it opened as, kept: a jar filling to its line on this spin mustn't take the wheel away under the class.
   const [mode] = useState(openedAs)
-  const marblesRef = useRef<HTMLDivElement>(null)
-  const boltsRef = useRef<SVGSVGElement>(null)
-  const backRef = useRef<HTMLCanvasElement>(null)
-  const frontRef = useRef<HTMLCanvasElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const jarRef = useRef<HTMLDivElement>(null)
-  const worldRef = useRef<MarbleJarWorld | null>(null)
+  const worldRef = useRef<MarbleScene | null>(null)
   const wheelRef = useRef<HTMLDivElement>(null)
   const pointerRef = useRef<HTMLDivElement>(null)
-  const [wheelHtml] = useState(() => ({ __html: marbleWheelSVG() }))
+  const [wheelHtml] = useState(() => ({ __html: marbleWheelSVG(wedges) }))
+  /** The Mega Mega Marble's big words, and the board dimmed for it. */
+  const [huge, setHuge] = useState<string | null>(null)
+  const [dimmed, setDimmed] = useState(false)
   const [pointerHtml] = useState(() => ({ __html: pointerSVG() }))
   const [spinsLeft, setSpinsLeft] = useState(mode === 'spin' ? Math.max(1, jar.spins) : 0)
   const [spun, setSpun] = useState(false)
@@ -116,9 +133,7 @@ export default function MarbleMoment({
   const angle = useRef(0)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms))
-  const afterSettle = useRef<(() => void) | null>(null)
-  const running = useRef(false)
-  const wakeRef = useRef<() => void>(() => {})
+  const [megaMega, setMegaMega] = useState(false)
   const spunRef = useRef(onSpun)
   useEffect(() => {
     spunRef.current = onSpun
@@ -129,103 +144,57 @@ export default function MarbleMoment({
     setTitleKey((k) => k + 1)
   }
 
-  // The world, from the jar as it was kept (or, emptying, as it was full), and the loop that runs it while anything moves.
+  // The jar's side, from the jar as it was kept (or, emptying, as it was full): it runs itself while anything moves.
   useEffect(() => {
     primeMarbles()
-    const world = new MarbleJarWorld(popFrom ?? jar.marbles, {
+    const canvas = canvasRef.current!
+    const world = new MarbleScene(canvas, popFrom ?? jar.marbles, season, {
       clink: playMarbleClink,
       thud: playMegaThud,
       zap: playMarbleZap,
       grow: playMarbleGrow,
       pop: playMarblePop,
       shake: () =>
-        jarRef.current?.animate(
+        canvas.animate(
           [0, -0.6, 0.5, -0.4, 0.3, 0].map((d) => ({ transform: `translateX(${d}%)` })),
           { duration: 260 },
         ),
+      say: (text, kind) => {
+        if (kind === 'huge') {
+          setHuge(text)
+          setWin('mega')
+          setMegaMega(true)
+        } else {
+          setWin(null)
+          say(text)
+        }
+      },
+      dim: setDimmed,
     })
     worldRef.current = world
-    const layer = new MarbleLayer(marblesRef.current!, boltsRef.current!)
     const box = jarRef.current!
-    const fit = () => {
-      const rect = box.getBoundingClientRect()
-      // The glass behind and in front: drawn once for this size, never again while the marbles move.
-      const dpr = Math.min(2, window.devicePixelRatio || 1)
-      const w = Math.max(10, Math.round(rect.width * dpr))
-      const h = Math.max(10, Math.round(rect.height * dpr))
-      const scale = w / JAR.W
-      for (const [c, fn] of [
-        [backRef.current, drawJarBack],
-        [frontRef.current, drawJarFront],
-      ] as const) {
-        if (!c) continue
-        c.width = w
-        c.height = h
-        const ctx = c.getContext('2d')
-        if (!ctx) continue
-        ctx.setTransform(scale, 0, 0, scale, 0, 0)
-        fn(ctx)
-      }
-      layer.resize(rect.width)
-      draw(performance.now())
-    }
-    const draw = (now: number) => {
-      const { marbles, bolts } = world.snapshot()
-      layer.update(marbles, bolts, now)
-    }
-    let last = performance.now()
-    let raf = 0
-    const frame = (now: number) => {
-      const moving = world.update(now, (now - last) / 1000)
-      last = now
-      draw(now)
-      if (moving) raf = requestAnimationFrame(frame)
-      else {
-        running.current = false
-        const cb = afterSettle.current
-        afterSettle.current = null
-        cb?.()
-      }
-    }
-    const wake = () => {
-      if (running.current) return
-      running.current = true
-      last = performance.now()
-      raf = requestAnimationFrame(frame)
-    }
-    wakeRef.current = wake
+    const fit = () => world.layout(box.getBoundingClientRect())
     fit()
     const ro = new ResizeObserver(fit)
     ro.observe(box)
-    if (mode === 'empty') {
-      later(() => {
-        world.popAll()
-        afterSettle.current = () => setStep('settled')
-        wake()
-      }, 500)
-    }
+    window.addEventListener('resize', fit)
+    if (mode === 'empty') later(() => world.popAll(() => setStep('settled')), 500)
     const pending = timers.current
     return () => {
-      cancelAnimationFrame(raf)
+      world.destroy()
       ro.disconnect()
-      running.current = false
+      window.removeEventListener('resize', fit)
       pending.forEach(clearTimeout)
     }
     // The world is built once, from the jar as the moment opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const wake = () => wakeRef.current()
-
   function resetFaces() {
     const w = wheelRef.current
     if (!w) return
     w.querySelectorAll('[data-slice]').forEach((s) => s.classList.remove('quest-slice-dim'))
-    w.querySelectorAll<SVGGElement>('[data-face]').forEach((f) => {
-      f.getAnimations().forEach((a) => a.cancel())
-      f.style.opacity = ''
-    })
-    w.querySelectorAll('[data-reveal]').forEach((f) => f.setAttribute('opacity', '0'))
+    w.querySelectorAll<SVGGElement>('[data-pop]').forEach((f) => f.getAnimations().forEach((a) => a.cancel()))
   }
 
   /** Pick a Spinner; once a name has landed, "Pick a different student" until the wheel is spun. */
@@ -257,8 +226,11 @@ export default function MarbleMoment({
     setStep('spinning')
     resetFaces()
     setWin(null)
+    setMegaMega(false)
     say('Spinning...')
-    const { wedge, at } = spinLanding()
+    const { wedge, at } = spinLanding(Math.random, wedges)
+    // About one Mega in four grows into a Mega Mega Marble; decided now, with the landing.
+    const grows = wedges[wedge].id === 'mega' && Math.random() < MEGA_MEGA_CHANCE
     const start = angle.current
     const target = start - (start % 360) + 360 * 6 + (360 - at)
     const dur = reduceMotion() ? 1500 : SPIN_MS
@@ -282,41 +254,34 @@ export default function MarbleMoment({
         wheel.style.transform = `rotate(${target}deg)`
         anim?.cancel()
       }
-      landed(wedge)
+      landed(wedge, grows)
     }
     if (anim) anim.onfinish = land
     else later(land, dur)
   }
 
-  function landed(i: number) {
+  function landed(i: number, grows: boolean) {
     playPickerLand()
     const w = wheelRef.current
     w?.querySelectorAll('[data-slice]').forEach((s) => s.classList.toggle('quest-slice-dim', s.getAttribute('data-slice') !== String(i)))
-    // Only the wedge it lands on turns over.
-    const q = w?.querySelector<SVGGElement>(`[data-face="${i}"]`)
-    const r = w?.querySelector(`[data-reveal="${i}"]`)
-    q?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: 'forwards' })
-    r?.setAttribute('opacity', '1')
-    r?.querySelector('[data-pop]')?.animate(
-      [{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'scale(1.2)' }, { transform: 'scale(1)' }],
-      { duration: 420, delay: 120, easing: 'ease-out', fill: 'backwards' },
-    )
-    const id = WEDGES[i].id
+    const face = w?.querySelector(`[data-face="${i}"] [data-pop]`) ?? null
+    face?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.45)' }, { transform: 'scale(1.15)' }], {
+      duration: 460,
+      easing: 'ease-out',
+      fill: 'forwards',
+    })
+    const id = wedges[i].id
     const kind = id === 'power' || id === 'mega' ? id : 'plain'
     say(WEDGE_WORDS[id])
     setWin(id)
     celebrate(kind)
-    // The marbles leap from the wedge across into the jar's mouth, then pour in.
-    later(
-      () =>
-        flyToJar(r?.querySelector('[data-pop]') ?? null, marblesFor(id), () => {
-          setStep('pouring')
-          worldRef.current?.pour(marblesFor(id))
-          afterSettle.current = poured
-          wake()
-        }),
-      kind === 'mega' ? 1500 : 900,
-    )
+    const pour = () => {
+      setStep('pouring')
+      worldRef.current?.play(id, grows, poured)
+    }
+    // The marbles leap from the wedge across into the jar's mouth, then pour in; the cloud, the popcorn and the season's wedge come their own way.
+    const flown = grows ? [] : flownFor(id)
+    later(() => (flown.length ? flyToJar(face, flown, pour) : pour()), kind === 'mega' ? 1500 : 900)
   }
 
   /**
@@ -352,13 +317,13 @@ export default function MarbleMoment({
   }
 
   /** Copies of the marbles won, flown from the wedge to the jar's mouth, where the world drops them in. */
-  function flyToJar(from: Element | null, kinds: ReturnType<typeof marblesFor>, then: () => void) {
-    const jarBox = jarRef.current?.getBoundingClientRect()
+  function flyToJar(from: Element | null, kinds: MarbleKind[], then: () => void) {
+    const mouth = worldRef.current?.toScreen(JAR.CX, JAR.MOUTH - 3.5)
     const start = from?.getBoundingClientRect()
-    if (!jarBox || !start || reduceMotion()) return then()
-    const scale = jarBox.width / JAR.W
-    const tx = jarBox.left + jarBox.width * (JAR.CX / JAR.W)
-    const ty = jarBox.top + jarBox.height * ((JAR.MOUTH - 3.5) / JAR.H)
+    if (!mouth || !start || reduceMotion()) return then()
+    const scale = mouth.unit
+    const tx = mouth.x
+    const ty = mouth.y
     const sx = start.left + start.width / 2
     const sy = start.top + start.height / 2
     let left = kinds.length
@@ -417,7 +382,7 @@ export default function MarbleMoment({
     try {
       picture = jarPicture(
         worldRef.current?.saved() ?? jar.marbles,
-        Math.min(900, (jarRef.current?.getBoundingClientRect().width ?? 400) * Math.min(2, window.devicePixelRatio || 1)),
+        Math.min(900, (worldRef.current?.toScreen(0, 0).unit ?? 15) * JAR.W * Math.min(2, window.devicePixelRatio || 1)),
       )
     } catch {
       picture = null
@@ -435,8 +400,15 @@ export default function MarbleMoment({
   return createPortal(
     <div
       data-marble-moment={mode}
-      className="fixed inset-0 z-[60] grid grid-cols-2 items-center gap-3 bg-[rgba(14,22,44,0.95)] px-[max(18px,2vw)] py-3"
+      className="fixed inset-0 z-[60] grid grid-cols-2 items-center gap-3 bg-[rgb(14,22,44)] px-[max(18px,2vw)] py-3"
     >
+      {/* The jar's side: the sky, the shelf right across the board, the jar and everything round it, on one canvas behind. */}
+      <div ref={canvasRef} className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden />
+      {huge && (
+        <div key={huge} className="marble-huge" data-marble-huge="">
+          {huge}
+        </div>
+      )}
       {!busy && (
         <button
           type="button"
@@ -448,7 +420,10 @@ export default function MarbleMoment({
           <X className="h-7 w-7" />
         </button>
       )}
-      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-[min(2.4vh,16px)]">
+      <div
+        className="relative flex h-full min-h-0 flex-col items-center justify-center gap-[min(2.4vh,16px)] transition-opacity duration-500"
+        style={{ opacity: dimmed ? 0.28 : 1 }}
+      >
         {spinner && (
           <div
             data-quest-spinner=""
@@ -470,7 +445,15 @@ export default function MarbleMoment({
           style={{ fontSize: win ? 'clamp(1.6rem, 6.5vmin, 3.4rem)' : 'clamp(1.4rem, 5.5vmin, 3rem)' }}
         >
           {win && <span className="flex gap-[0.08em]" aria-hidden dangerouslySetInnerHTML={{ __html: winMarbles(win) }} />}
-          {win === 'mega' ? 'MEGA MARBLE!' : win === 'power' ? 'POWER MARBLE!' : win ? WEDGE_WORDS[win] : title}
+          {win === 'mega'
+            ? megaMega
+              ? 'MEGA MEGA MARBLE!'
+              : 'MEGA MARBLE!'
+            : win === 'power'
+              ? 'POWER MARBLE!'
+              : win
+                ? WEDGE_WORDS[win]
+                : title}
         </div>
         {wheelShown && (
           // The wheel takes no taps: turned, its square's corners reach over the buttons under it, and a tap on Done landed on the wheel.
@@ -521,20 +504,8 @@ export default function MarbleMoment({
           )}
         </div>
       </div>
-      <div className="relative grid h-full min-h-0 place-items-center">
-        {/* The glass behind, drawn once; the marbles, each a picture the graphics chip moves; the lightning; the glass in front, drawn once. */}
-        <div ref={jarRef} className="relative h-full max-h-full max-w-full" style={{ aspectRatio: `${JAR.W} / ${JAR.H}` }}>
-          <canvas ref={backRef} className="absolute inset-0 h-full w-full" aria-hidden />
-          <div ref={marblesRef} data-marble-jar="" aria-label="Our marble jar" className="absolute inset-0 overflow-hidden" />
-          <svg
-            ref={boltsRef}
-            viewBox={`0 0 ${JAR.W} ${JAR.H}`}
-            className="pointer-events-none absolute inset-0 h-full w-full"
-            aria-hidden
-          />
-          <canvas ref={frontRef} className="absolute inset-0 h-full w-full" aria-hidden />
-        </div>
-      </div>
+      {/* Where the jar stands on the canvas behind: the right half of the board. */}
+      <div ref={jarRef} data-marble-jar="" aria-label="Our marble jar" role="img" className="h-full min-h-0 w-full" />
     </div>,
     document.body,
   )

@@ -572,6 +572,136 @@ const scenarios = {
     return page
   },
 
+  async "the marble jar: the students' wedges and the seasons"() {
+    // Every new wedge played in the real app, in every season (the calendar pretended), each one
+    // landing by a set spot on the wheel; the marbles must settle, only what is in the glass kept.
+    const jar = (extra = {}) => ({ number: 1, marbles: [], spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01', ...extra })
+    const spot = (i) => (i * 45 + 22.5) / 360
+    for (const [season, day, special] of [
+      ['none', '2026-11-12', null],
+      ['oct', '2026-10-20', 'Witch!'],
+      ['dec', '2026-12-10', 'Santa!'],
+      ['lny', '2027-02-01', 'Red envelope!'],
+    ]) {
+      const cls = makeClass('c1', 'Marbles', 12, {
+        pointsMode: 'quest',
+        goalEnabled: true,
+        pointsGoal: 10,
+        classPoints: 0,
+        marbleJar: jar({ spins: 5 }),
+      })
+      const page = await open({ state: stateOf(cls), size: [1280, 559], before: `window.__marbleDay = ${JSON.stringify(day)}` })
+      page.on('framenavigated', (f) => f === page.mainFrame() && console.log('     (the page navigated)'))
+      await page.locator('[data-marble-next]').click({ force: true })
+      await page.waitForTimeout(900)
+      const plays = [
+        ['rain', [spot(1)], 'Rain cloud!'],
+        ['popcorn', [spot(4)], 'Popcorn!'],
+        ['megamega', [spot(6), 0.05], 'MEGA MEGA MARBLE!'],
+        ['season', [spot(5)], special ?? '5 marbles!'],
+      ]
+      let before = 0
+      for (const [name, randoms, words] of plays) {
+        await page.evaluate((seq) => {
+          window.__realRandom = Math.random
+          let n = 0
+          Math.random = () => (n < seq.length ? seq[n++] : window.__realRandom())
+        }, randoms)
+        await page.getByRole('button', { name: 'Spin!' }).click()
+        await page.evaluate(() => (Math.random = window.__realRandom))
+        await page.waitForTimeout(name === 'megamega' ? 12600 : 9500)
+        await page.screenshot({ path: `/tmp/walkthrough/marbles-${season}-${name}.png` })
+        const banner = (
+          await page
+            .locator('[data-marble-title]')
+            .innerText()
+            .catch(() => '')
+        ).trim()
+        check(`marbles (${season}): ${name} is announced`, banner.toUpperCase().includes(words.toUpperCase()), banner)
+        await page
+          .getByRole('button', { name: /^(Later|Done)$/ })
+          .first()
+          .waitFor({ timeout: 45000 })
+        await page.screenshot({ path: `/tmp/walkthrough/marbles-${season}-${name}-after.png` })
+        const c = await activeSaved(page)
+        const m = c.marbleJar.marbles
+        const inGlass = m.every((x) => x[2] > 2.5 && x[2] < 17.5 && x[3] > 5 && x[3] < 26)
+        check(
+          `marbles (${season}): ${name} adds to the jar, and only what is in the glass is kept`,
+          m.length > before && inGlass,
+          `${before} -> ${m.length}`,
+        )
+        if (name === 'megamega')
+          check(
+            `marbles (${season}): the Mega Mega Marble is kept`,
+            m.some((x) => x[0] === 3),
+            JSON.stringify(m.filter((x) => x[0] > 1)),
+          )
+        if (season !== 'none' && name === 'season')
+          check(
+            `marbles (${season}): its marbles wear the season's designs`,
+            m.some((x) => typeof x[6] === 'string'),
+          )
+        before = m.length
+        await page.waitForTimeout(600)
+      }
+      check(`marbles (${season}): no errors`, page.errors.length === 0, page.errors.join('; '))
+      await page.context().close()
+    }
+    // The switches: Points' More options, Special marbles, its own page, fitting at 1024x500 in two themes.
+    for (const theme of ['vibrant', 'comic']) {
+      const cls = makeClass('c1', 'Marbles', 12, { pointsMode: 'quest', goalEnabled: true, pointsGoal: 10, marbleJar: jar() })
+      const page = await open({ state: stateOf(cls), size: [1024, 500], theme, before: `window.__marbleDay = "2026-12-10"` })
+      await openPointsTab(page)
+      await moreOptions(page)
+      const moreOver = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+      check(`marbles: More options with Special marbles fits at 1024x500 (${theme})`, moreOver <= 0, `${moreOver}px over`)
+      await page.locator('[data-guide="marbles-row"] button').click()
+      await page.waitForTimeout(300)
+      const over = await page.locator('.cs-page').evaluate((e) => e.scrollHeight - e.clientHeight)
+      await page.screenshot({ path: `/tmp/walkthrough/marbles-switches-${theme}.png` })
+      check(`marbles: the Special marbles page fits at 1024x500 (${theme})`, over <= 0, `${over}px over`)
+      check(
+        `marbles: five switches, all on (${theme})`,
+        (await page.locator('.cs-page [role="switch"][aria-checked="true"]').count()) === 5,
+      )
+      if (theme === 'vibrant') {
+        await page.getByRole('switch', { name: 'Popcorn' }).click()
+        await page.getByRole('switch', { name: 'Seasons' }).click()
+        await page.waitForTimeout(400)
+        const c = await activeSaved(page)
+        check(
+          'marbles: Popcorn and Seasons switched off are kept with the class',
+          c.marbleExtras?.popcorn === false && c.marbleExtras?.seasons === false,
+          JSON.stringify(c.marbleExtras),
+        )
+      }
+      await page.context().close()
+    }
+    // A wheel with Popcorn and Seasons off: popcorn and Santa's wedges are 5 marbles.
+    {
+      const cls = makeClass('c1', 'Marbles', 12, {
+        pointsMode: 'quest',
+        goalEnabled: true,
+        pointsGoal: 10,
+        marbleJar: jar({ spins: 1 }),
+        marbleExtras: { popcorn: false, seasons: false },
+      })
+      const page = await open({ state: stateOf(cls), size: [1280, 559], before: `window.__marbleDay = "2026-12-10"` })
+      await page.locator('[data-marble-next]').click({ force: true })
+      await page.waitForTimeout(900)
+      const wedges = await page
+        .locator('[data-marble-wheel] [data-wedge]')
+        .evaluateAll((els) => els.map((e) => e.getAttribute('data-wedge')))
+      check(
+        'marbles: a wedge switched off is 5 marbles, and Seasons off has no season wedge',
+        JSON.stringify(wedges) === JSON.stringify(['5', 'rain', 'power', '5', '5', '5', 'mega', '5']),
+        wedges.join(),
+      )
+      await page.context().close()
+    }
+  },
+
   async 'the marble jar'() {
     // A jar laid out in rows, as if it had settled: 8 rows of 7 plain marbles and a Mega is past the line.
     const rows = (n) => {
@@ -608,7 +738,7 @@ const scenarios = {
       c.marbleJar?.spins === 1 && c.goalsReached === 1 && (await page.locator('[data-marble-moment="spin"]').count()) === 1,
       JSON.stringify(c.marbleJar?.spins),
     )
-    check('marbles: the wheel shows a ? on every wedge', (await page.locator('[data-marble-wheel] [data-face]').count()) === 8)
+    check('marbles: the wheel shows its eight wedges', (await page.locator('[data-marble-wheel] [data-face]').count()) === 8)
     await page.screenshot({ path: '/tmp/walkthrough/marbles-1-spin.png' })
     await page.waitForTimeout(600)
     await page.getByRole('button', { name: 'Spin!' }).click()
@@ -619,7 +749,7 @@ const scenarios = {
     )
     await page.screenshot({ path: '/tmp/walkthrough/marbles-win-plain.png' })
     const said = await page.locator('[data-marble-title]').innerText()
-    check('marbles: it says what it landed on', /marbles!|marble!/i.test(said), said)
+    check('marbles: it says what it landed on', /marbles!|marble!|rain cloud!|popcorn!|witch!|santa!|red envelope!/i.test(said), said)
     await page.getByRole('button', { name: 'Done' }).waitFor({ timeout: 20000 })
     c = await activeSaved(page)
     check(
@@ -1589,11 +1719,17 @@ const scenarios = {
     cls.participation = Object.fromEntries(days.map((d) => [d, { [amy]: [1, 0] }]))
     cls.participation[days[days.length - 2]][tony] = [0, 1]
     let page
-    for (const size of [[1024, 500], [1280, 559]]) {
+    for (const size of [
+      [1024, 500],
+      [1280, 559],
+    ]) {
       page = await open({ state: stateOf(cls), size })
       await openSection(page, 'participation')
       await page.waitForTimeout(400)
-      const line = await page.locator('.cs-quiet').innerText().catch(() => '')
+      const line = await page
+        .locator('.cs-quiet')
+        .innerText()
+        .catch(() => '')
       const names = cls.students.map((s) => s.name)
       const fits = await page.evaluate(() => {
         const d = document.querySelector('[data-slot="dialog-content"]').getBoundingClientRect()

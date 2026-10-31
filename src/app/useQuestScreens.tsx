@@ -34,6 +34,7 @@ export function useQuestScreens() {
       onOpenRequestDone: () => setChestOpenRequested(false),
       marbles: {
         jar: jarOf(cls),
+        extras: cls.marbleExtras,
         onSpun: (marbles) => store.spendMarbleSpin(cls.id, marbles),
         onJarFilled: (prize) => store.fillMarbleJar(cls.id, prize),
       },

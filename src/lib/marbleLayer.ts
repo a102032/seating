@@ -1,33 +1,44 @@
-import { drawMarble, drawStill, type DrawnMarble } from './marbleArt'
-import type { Live } from './marblePhysics'
-import { JAR, RADIUS } from './marbles'
+import { drawStillPart, drawTurning, type Ball } from './marbleDesigns'
 
 /**
- * The marbles on the board: each one a small picture, drawn once, that the graphics chip moves and
- * turns ("Smooth on the board"). Drawn on one canvas, every frame of a pour sent the whole jar's
- * picture to the screen again, and on a 4K-like screen with the processor slowed 4x it ran at 16
- * frames a second. A marble at rest isn't touched at all.
+ * The marbles on the board: each one a small picture, drawn once for its kind, that the graphics
+ * chip moves and turns ("Smooth on the board"). Drawn on one canvas, every frame of a pour sent the
+ * whole jar's picture to the screen again; drawn on a canvas the board's width (2026-10-31), it
+ * copied the whole board's picture every frame, and a pour ran at 18 frames a second on a board's
+ * slow processor. A marble at rest isn't touched at all.
  */
 
-/** Two pictures a marble: the glass, its band and the Mega's swirl, which turn as it rolls; and the shine (and the Power Marble's bolt), which never turn. */
+/** Two pictures a marble: what turns as it rolls (its colour, band or design and edge), and its shine, which doesn't. */
 interface Sprite {
   turning: string
   still: string
-  /** The radius it was drawn at, in the jar's units: a zapped marble growing is this, scaled. */
+  /** The radius it was drawn at: a marble growing (a kernel popping, one zapped) is this, scaled. */
   base: number
 }
 
 interface Node {
   el: HTMLDivElement
   turn: HTMLImageElement
+  still: HTMLImageElement
   key: string
   last: string
   popping: boolean
 }
 
-const baseOf = (m: DrawnMarble) => (m.kind === 'plain' ? (m.zapped ? RADIUS.power : RADIUS.plain) : RADIUS[m.kind])
-/** Room round a marble in its picture, for the Power Marble's glow. */
-const ROOM = 1.25
+export interface Shown {
+  ball: Ball
+  x: number
+  y: number
+  angle: number
+  /** Popping away as the jar empties: 0 to 1. */
+  vanish?: number
+}
+
+/** Room round a marble in its picture, for the Power Marble's glow and the Mega Mega's light. */
+const ROOM = 1.6
+const baseOf = (m: Ball) =>
+  m.kind === 'megamega' ? 3.3 : m.kind === 'mega' ? 2.7 : m.kind === 'power' || m.zapped ? 1.4 : m.kind === 'drop' ? 0.42 : 1
+const keyOf = (m: Ball) => `${m.kind}|${m.colour}|${m.design ?? ''}|${m.zapped ? 'z' : ''}`
 
 export class MarbleLayer {
   private nodes = new Map<object, Node>()
@@ -35,33 +46,38 @@ export class MarbleLayer {
   private unit = 0
   private ppu = 0
   private box: HTMLDivElement
-  private bolts: SVGSVGElement
 
-  constructor(box: HTMLDivElement, bolts: SVGSVGElement) {
+  constructor(box: HTMLDivElement) {
     this.box = box
-    this.bolts = bolts
   }
 
-  /** The jar's width on the screen, in CSS pixels. */
-  resize(width: number) {
-    this.unit = width / JAR.W
+  /** The world's unit on the screen, in CSS pixels. */
+  resize(unit: number) {
+    this.unit = unit
     // The pictures are drawn for the screen's own pixels, 2x at most, and only again when the size changes a lot.
-    const ppu = Math.round(this.unit * Math.min(2, window.devicePixelRatio || 1))
+    const ppu = Math.round(unit * Math.min(2, window.devicePixelRatio || 1))
     if (Math.abs(ppu - this.ppu) > this.ppu * 0.15) {
       this.ppu = ppu
-      this.sprites.clear()
-      for (const n of this.nodes.values()) n.last = ''
-      for (const [m, n] of this.nodes) this.dress(n, m as Live)
+      this.redraw()
     }
     for (const n of this.nodes.values()) n.last = ''
   }
 
-  private sprite(m: DrawnMarble): Sprite {
-    const key = `${m.kind}${m.colour}${m.zapped ? 'z' : ''}`
+  /** Every picture drawn again (a picture a design uses has just arrived). */
+  redraw() {
+    this.sprites.clear()
+    for (const n of this.nodes.values()) {
+      n.key = ''
+      n.last = ''
+    }
+  }
+
+  private sprite(m: Ball): Sprite {
+    const key = keyOf(m)
     let s = this.sprites.get(key)
     if (s) return s
     const base = baseOf(m)
-    const half = Math.ceil(base * ROOM * this.ppu)
+    const half = Math.max(4, Math.ceil(base * ROOM * this.ppu))
     const draw = (fn: (ctx: CanvasRenderingContext2D) => void) => {
       const c = document.createElement('canvas')
       c.width = c.height = half * 2
@@ -70,26 +86,22 @@ export class MarbleLayer {
       fn(ctx)
       return c.toDataURL('image/png')
     }
-    const at = { ...m, x: 0, y: 0, angle: 0, r: base }
-    s = {
-      turning: draw((ctx) => drawMarble(ctx, at, this.ppu, true)),
-      still: draw((ctx) => drawStill(ctx, at)),
-      base,
-    }
+    const at = { ...m, r: base }
+    s = { turning: draw((ctx) => drawTurning(ctx, at, this.ppu)), still: draw((ctx) => drawStillPart(ctx, at)), base }
     this.sprites.set(key, s)
     return s
   }
 
-  private dress(n: Node, m: Live) {
+  private dress(n: Node, m: Ball) {
     const s = this.sprite(m)
     const size = s.base * ROOM * 2 * this.unit
     n.el.style.width = n.el.style.height = `${size}px`
     n.turn.src = s.turning
-    ;(n.el.lastElementChild as HTMLImageElement).src = s.still
-    n.key = `${m.kind}${m.colour}${m.zapped ? 'z' : ''}`
+    n.still.src = s.still
+    n.key = keyOf(m)
   }
 
-  private make(m: Live): Node {
+  private make(m: Ball): Node {
     const el = document.createElement('div')
     el.className = 'marble-sprite'
     const turn = document.createElement('img')
@@ -98,72 +110,46 @@ export class MarbleLayer {
     turn.draggable = still.draggable = false
     el.append(turn, still)
     this.box.append(el)
-    const n: Node = { el, turn, key: '', last: '', popping: false }
+    const n: Node = { el, turn, still, key: '', last: '', popping: false }
     this.dress(n, m)
     return n
   }
 
-  /** Shows the marbles where they now are; only the ones that moved are touched. */
-  update(marbles: Live[], bolts: { from: Live; to: Live }[], now: number) {
+  /** Shows the marbles where they now are, in the world's units from the screen's (ox, oy); only the ones that moved are touched. */
+  update(marbles: Shown[], ox: number, oy: number) {
     if (!this.unit) return
     const seen = new Set<object>()
-    for (const m of marbles) {
+    for (const sh of marbles) {
+      const m = sh.ball
       seen.add(m)
       let n = this.nodes.get(m)
       if (!n) {
         n = this.make(m)
         this.nodes.set(m, n)
       }
-      if (m.pop !== undefined && now >= m.pop) {
-        if (!n.popping) {
-          n.popping = true
-          const at = n.el.style.transform
-          n.el.animate(
-            [
-              { transform: at, opacity: 1 },
-              { transform: `${at} scale(1.35)`, opacity: 0 },
-            ],
-            { duration: 160, easing: 'ease-out', fill: 'forwards' },
-          )
-        }
-        continue
-      }
-      const key = `${m.kind}${m.colour}${m.zapped ? 'z' : ''}`
-      if (key !== n.key) {
+      if (keyOf(m) !== n.key) {
         this.dress(n, m)
         n.last = ''
       }
       const s = this.sprite(m)
       const half = s.base * ROOM * this.unit
-      const state = `${m.x.toFixed(3)} ${m.y.toFixed(3)} ${m.angle.toFixed(3)} ${m.r.toFixed(3)}`
+      const grow = sh.vanish ? 1 + 0.35 * sh.vanish : 1
+      const state = `${sh.x.toFixed(3)} ${sh.y.toFixed(3)} ${sh.angle.toFixed(3)} ${m.r.toFixed(3)} ${sh.vanish ?? 0}`
       if (state === n.last) continue
       n.last = state
-      n.el.style.transform = `translate(${(m.x * this.unit - half).toFixed(1)}px, ${(m.y * this.unit - half).toFixed(1)}px) scale(${(m.r / s.base).toFixed(3)})`
-      n.turn.style.transform = `rotate(${m.angle.toFixed(3)}rad)`
+      n.el.style.transform = `translate(${(ox + sh.x * this.unit - half).toFixed(1)}px, ${(oy + sh.y * this.unit - half).toFixed(1)}px) scale(${((m.r / s.base) * grow).toFixed(3)})`
+      n.turn.style.transform = `rotate(${sh.angle.toFixed(3)}rad)`
+      if (sh.vanish) n.el.style.opacity = String(Math.max(0, 1 - sh.vanish))
     }
     for (const [m, n] of this.nodes) {
       if (seen.has(m)) continue
       n.el.remove()
       this.nodes.delete(m)
     }
-    // The Power Marble's lightning, jagged afresh each frame for the half second it lasts.
-    if (bolts.length || this.bolts.childElementCount) {
-      this.bolts.innerHTML = bolts
-        .map(({ from: a, to: c }) => {
-          const nx = -(c.y - a.y)
-          const ny = c.x - a.x
-          const len = Math.hypot(nx, ny) || 1
-          const pts = [[a.x, a.y]]
-          for (let i = 1; i < 6; i++) {
-            const t = i / 6
-            const off = (Math.random() - 0.5) * 1.1
-            pts.push([a.x + (c.x - a.x) * t + (nx / len) * off, a.y + (c.y - a.y) * t + (ny / len) * off])
-          }
-          pts.push([c.x, c.y])
-          const d = pts.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ')
-          return `<polyline points="${d}" fill="none" stroke="rgba(120,190,255,.45)" stroke-width=".5" stroke-linejoin="round"/><polyline points="${d}" fill="none" stroke="#fff" stroke-width=".16" stroke-linejoin="round"/>`
-        })
-        .join('')
-    }
+  }
+
+  clear() {
+    this.box.replaceChildren()
+    this.nodes.clear()
   }
 }

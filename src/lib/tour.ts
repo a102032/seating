@@ -94,7 +94,11 @@ export const TOUR: TourPart[] = [
         text: 'With stars on the desks first, stars wait on the desks. Tap the picture at the start of the meter to send them all in.',
       },
       { shot: 'board', at: 'fullscreen', text: 'Full screen: the app fills the whole screen. Tap it again to leave.' },
-      { shot: 'board', at: 'undo', text: 'Undo takes back your last tap: a star, an away mark or a Done. It is up here, away from little hands.' },
+      {
+        shot: 'board',
+        at: 'undo',
+        text: 'Undo takes back your last tap: a star, an away mark or a Done. It is up here, away from little hands.',
+      },
       { shot: 'board', at: 'lock', text: 'The lock: tap it before the class comes in, and touches do nothing. Tap it again to open it.' },
       { shot: 'board', at: 'tab', text: 'Your class. Tap the arrow to switch to another class, or make a new one.' },
       { shot: 'board', at: 'gear', text: 'Class Settings: everything about this class. Help, and this tour, are in there.' },
@@ -116,14 +120,18 @@ export const TOUR: TourPart[] = [
       {
         shot: 'marblespin',
         at: 'wheel',
-        text: 'The marble wheel: every spin wins. 5 marbles, silver for a Power Marble, or gold for the Mega Marble. Only the wedge it lands on turns over.',
+        text: 'The marble wheel: every spin wins. 5 marbles, a rain cloud, popcorn, a Power Marble or the gold Mega Marble, and in October, December and Lunar New Year a wedge of the season. Only the wedge it lands on stays bright.',
       },
       {
         shot: 'marblespin',
         at: 'spin',
         text: 'Pick a Spinner chooses a student. Spin! The wheel cheers what it lands on, and the marbles jump into the jar.',
       },
-      { shot: 'marblespin', at: 'jar', text: 'Fill the jar to the line, and a prize wheel rises out of it.' },
+      {
+        shot: 'marblespin',
+        at: 'jar',
+        text: "Fill the jar to the line, and a prize wheel rises out of it. Marbles that miss the jar roll on the shelf, and don't count.",
+      },
       { shot: 'wheel', at: 'wheel', text: 'The prize wheel, out of the full jar. Silver slices are prizes, gold ones big prizes.' },
       { shot: 'wheel', at: 'pick', text: 'Pick a Spinner chooses a student to spin.' },
       { shot: 'wheel', at: 'spin', text: 'Spin! Only the slice it lands on turns over.' },

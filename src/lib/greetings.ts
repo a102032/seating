@@ -93,7 +93,7 @@ const BY_DAY: Line[][] = [
  * own, but it puts Lunar New Year 2027 a day late, so these are the published dates, checked
  * against it for every other year. Past 2031 the two greetings simply stop until more are added.
  */
-const LUNAR_NEW_YEAR = ['2026-02-17', '2027-02-06', '2028-01-26', '2029-02-13', '2030-02-02', '2031-01-23']
+export const LUNAR_NEW_YEAR = ['2026-02-17', '2027-02-06', '2028-01-26', '2029-02-13', '2030-02-02', '2031-01-23']
 const MOON_FESTIVAL = ['2026-09-25', '2027-09-15', '2028-10-03', '2029-09-22', '2030-09-12', '2031-10-01']
 
 function daysBetween(from: Date, to: Date): number {

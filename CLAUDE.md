@@ -109,8 +109,8 @@ checks the live URL. Confirm it went green before saying something is live. It a
   new that gives points must work in all four.
 - The Marble Jar (`pointsMode: 'quest'`; the Knight, Pirate and Space quests that shared it were retired on 2026-10-30, and old saves'
   `quest`, `pirateQuest`, `spaceQuest` and `questAdventure` are left unread): `lib/marbles.ts` (the jar, the wheel's eight wedges, a spin
-  kept the moment the goal fills, the jar full by how much the marbles fill), `lib/marblePhysics.ts` (Planck: the marbles falling and
-  settling, kept where they came to rest), `lib/marbleArt.ts` and `lib/marbleLayer.ts` (each marble two small pictures the graphics chip
+  kept the moment the goal fills, the jar full by how much the marbles fill), `lib/marbleScene.ts` (Planck: the marbles falling and
+  settling, kept where they came to rest, and every wedge's show: the rain cloud, popcorn, the Mega Mega, the witch, Santa, the red envelope), `lib/marbleScenery.ts` (the season's moving scenery), `lib/marbleDesigns.ts` (the teacher's pictures in `public/marbles/`, the seasons' marble designs), `lib/marbleSounds.ts`, `lib/marbleArt.ts` and `lib/marbleLayer.ts` (each marble two small pictures the graphics chip
   moves), `components/MarbleMoment.tsx` (the wheel and the jar, a lazy chunk with the physics) and `components/MiniJar.tsx`. A full jar
   opens the prize wheel: `lib/quest.ts` (the prizes and the wheel's slices), `lib/questArt.ts` (the wheel drawn in code) and
   `components/QuestMoments.tsx` (`ChestOpening`: the jar bursting, Pick a Spinner, the spin and the prize).

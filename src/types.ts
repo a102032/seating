@@ -2,7 +2,7 @@ import type { RoomLayout } from './lib/layouts'
 import type { ParticipationRecord } from './lib/participation'
 import type { GroupScheme } from './lib/groups'
 import type { Theme } from './lib/theme'
-import type { MarbleJarState } from './lib/marbles'
+import type { MarbleExtras, MarbleJarState } from './lib/marbles'
 import type { QuestPrize } from './lib/quest'
 
 export type Gender = 'boy' | 'girl' | 'unspecified'
@@ -195,6 +195,8 @@ export interface ClassData {
   questPrizes?: QuestPrize[]
   /** The Marble Jar: the marbles where they settled, spins waiting, and the jars filled. Read through jarOf. */
   marbleJar?: MarbleJarState
+  /** The Marble Jar's special wedges and seasons, each on unless switched off (Points' More options). */
+  marbleExtras?: MarbleExtras
   /**
    * Stars a class had to earn for one class point, and the stars banked toward the next. No longer
    * used (2026-10-11, the teacher: a bigger goal is the same challenge, with one setting fewer):

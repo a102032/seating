@@ -8,7 +8,15 @@ import { type DayCount, withCount, withoutDay, withoutStudent, withPick, withPoi
 import { LINE_NAME_MAX, lineOf, MAX_SAVED_LINES, STEP_NAME_MAX, type ClassLine } from '../lib/line'
 import { goalIsLive, hasClassGoal, pointsModeOf, questIsOn, starsWaitOnDesks } from '../lib/points'
 import type { QuestPrize } from '../lib/quest'
-import { withJarFilled, withJarRestarted, withMarblesSettled, withSpinsWon, withSpinUsed, type SavedMarble } from '../lib/marbles'
+import {
+  withJarFilled,
+  withJarRestarted,
+  withMarblesSettled,
+  withSpinsWon,
+  withSpinUsed,
+  type MarbleExtras,
+  type SavedMarble,
+} from '../lib/marbles'
 import type { Theme } from '../lib/theme'
 import { type ClassData, type Gender, type GroupStatus, type PointsMode, type Student, type StudentGroup } from '../types'
 import { upgradeClass } from '../lib/upgrade'
@@ -580,6 +588,12 @@ export function useClasses() {
     [updateClass],
   )
 
+  /** The Marble Jar's special wedges and seasons switched on or off (Points' More options). */
+  const setMarbleExtras = useCallback(
+    (classId: string, extras: MarbleExtras) => updateClass(classId, (c) => ({ ...c, marbleExtras: { ...c.marbleExtras, ...extras } })),
+    [updateClass],
+  )
+
   /** The Marble Jar: a spin spun and its marbles settled, kept where they came to rest. */
   const spendMarbleSpin = useCallback(
     (classId: string, marbles: SavedMarble[]) => updateClass(classId, (c) => withSpinUsed(c, marbles)),
@@ -851,6 +865,7 @@ export function useClasses() {
     setPointsMode,
     clearDeskStars,
     setQuestPrizes,
+    setMarbleExtras,
     spendMarbleSpin,
     settleMarbles,
     fillMarbleJar,

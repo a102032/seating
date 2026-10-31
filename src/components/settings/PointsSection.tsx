@@ -5,9 +5,9 @@ import { CELEBRATION_GIFS, gifThumbUrl } from '../../lib/celebrationGifs'
 import { goalIsLive, pointsModeOf } from '../../lib/points'
 import { PRIZE_NAME_MAX, prizesOf, type PrizeSize, type QuestPrize } from '../../lib/quest'
 import { prizeIconSVG } from '../../lib/questArt'
-import { CAPACITY, jarFill, jarOf, lastSpinWords } from '../../lib/marbles'
+import { CAPACITY, EXTRAS, extraOn, jarFill, jarOf, lastSpinWords, type MarbleExtras } from '../../lib/marbles'
 import type { ClassData, PointsMode } from '../../types'
-import { Btn, Group, MoreRow, NumberStepper, SubHead, Tick } from './parts'
+import { Btn, Group, MoreRow, NumberStepper, SubHead, SwitchRow, Tick } from './parts'
 
 interface PointsSectionProps {
   activeClass: ClassData
@@ -26,6 +26,20 @@ interface PointsSectionProps {
   onSetQuestPrizes: (prizes: QuestPrize[]) => void
   /** Start the Marble Jar again from an empty jar (asks first). */
   onAskRestartQuest: () => void
+  /** The jar's special wedges and seasons switched on or off. */
+  onSetMarbleExtras: (extras: MarbleExtras) => void
+}
+
+/**
+ * The special marbles' switches (2026-10-31, the class's ideas), all on. A wedge switched off becomes
+ * 5 marbles, so the pace stays; Seasons is a switch because not every school keeps Halloween or Christmas.
+ */
+const EXTRA_ROWS: Record<keyof MarbleExtras, { label: string; on: string; off: string }> = {
+  rain: { label: 'Rain cloud', on: 'On: a cloud rains tiny marbles.', off: 'Off: its wedge is 5 marbles.' },
+  popcorn: { label: 'Popcorn', on: 'On: kernels pop into popcorn marbles.', off: 'Off: its wedge is 5 marbles.' },
+  power: { label: 'Power Marble', on: 'On: it zaps marbles bigger.', off: 'Off: its wedge is 5 marbles.' },
+  mega: { label: 'Mega Marble', on: 'On: one big marble, and now and then a Mega Mega.', off: 'Off: its wedge is 5 marbles.' },
+  seasons: { label: 'Seasons', on: 'On: marbles for October, December and Lunar New Year.', off: 'Off: the same jar all year.' },
 }
 
 const chestClosed = assetUrl('/treasure/chest-closed.svg')
@@ -81,10 +95,12 @@ export function PointsSection({
   onChoosingGif,
   onSetQuestPrizes,
   onAskRestartQuest,
+  onSetMarbleExtras,
 }: PointsSectionProps) {
   const [choosingPrizes, setChoosingPrizes] = useState(false)
   // More options: the stars' two ways, fixing the meter, and Start Over (2026-10-26).
   const [more, setMore] = useState(false)
+  const [choosingMarbles, setChoosingMarbles] = useState(false)
   const mode = pointsModeOf(activeClass)
   const goalOn = goalIsLive(activeClass)
   const onDesks = activeClass.starsOnDesks === true
@@ -177,6 +193,25 @@ export function PointsSection({
   const gif = CELEBRATION_GIFS.find((g) => g.id === activeClass.celebrationGifId)
   const deskStars = activeClass.students.reduce((n, s) => n + (s.points ?? 0), 0)
   const goalNow = activeClass.pointsGoal || goal
+  if (more && goalOn && choosingMarbles && mode === 'quest') {
+    return (
+      <>
+        <SubHead back="More options" title="Special marbles" onBack={() => setChoosingMarbles(false)} />
+        <Group head="On the marble wheel" guide="marbles-switches">
+          {EXTRAS.map((k) => (
+            <SwitchRow
+              key={k}
+              label={EXTRA_ROWS[k].label}
+              on={extraOn(activeClass.marbleExtras, k)}
+              onText={EXTRA_ROWS[k].on}
+              offText={EXTRA_ROWS[k].off}
+              onChange={(on) => onSetMarbleExtras({ [k]: on })}
+            />
+          ))}
+        </Group>
+      </>
+    )
+  }
   if (more && goalOn) {
     return (
       <>
@@ -218,6 +253,23 @@ export function PointsSection({
           </div>
           {mode === 'quest' && <RestartRow activeClass={activeClass} onAskRestart={onAskRestartQuest} />}
         </div>
+        {mode === 'quest' && (
+          <div className="cs-group">
+            <div className="cs-row" data-guide="marbles-row">
+              <div className="cs-row-label">
+                <b>Special marbles</b>
+                <small>Rain cloud, Popcorn, Power Marble, Mega Marble and Seasons.</small>
+              </div>
+              <Btn onClick={() => setChoosingMarbles(true)}>
+                {(() => {
+                  const n = EXTRAS.filter((k) => extraOn(activeClass.marbleExtras, k)).length
+                  return n === EXTRAS.length ? 'All on' : `${n} of ${EXTRAS.length} on`
+                })()}{' '}
+                <ChevronRight />
+              </Btn>
+            </div>
+          </div>
+        )}
       </>
     )
   }
@@ -297,7 +349,7 @@ export function PointsSection({
 
       {goalOn && (
         <MoreRow
-          inside={`Stars on the desks first, change the stars on the meter${mode === 'quest' ? ', Start Over' : ''}`}
+          inside={`Stars on the desks first, change the stars on the meter${mode === 'quest' ? ', Start Over, special marbles' : ''}`}
           onClick={() => setMore(true)}
         />
       )}
@@ -378,8 +430,8 @@ function PrizesPage({ prizes, onChange, onBack }: { prizes: QuestPrize[]; onChan
     <>
       <SubHead back="Points" title="Prizes" onBack={onBack} />
       <div className="cs-gi">
-        When the marble jar is full, the prize wheel spins on the board and lands on one of these. The class gets the real reward from
-        you. Whole-class activities work best.
+        When the marble jar is full, the prize wheel spins on the board and lands on one of these. The class gets the real reward from you.
+        Whole-class activities work best.
       </div>
       <div className="cs-prizes">
         {SIZES.map((size) => {

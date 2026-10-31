@@ -8,7 +8,7 @@ import type { QuestPrize } from '../lib/quest'
 import { ChestOpening } from './QuestMoments'
 import { miniWheelSVG, RIDER_SVG } from '../lib/marbleArt'
 import { MiniJar } from './MiniJar'
-import { JAR_PRIZE_WHEEL, jarIsFull, type MarbleJarState, type SavedMarble } from '../lib/marbles'
+import { JAR_PRIZE_WHEEL, jarIsFull, seasonFor, wedgesFor, type MarbleExtras, type MarbleJarState, type SavedMarble } from '../lib/marbles'
 
 // The Marble Jar's moment and its physics are a chunk of their own, fetched only for a class with the Marble Jar.
 const loadMarbleMoment = () => import('./MarbleMoment')
@@ -66,6 +66,8 @@ interface PointsMeterProps {
     onOpenRequestDone: () => void
     marbles: {
       jar: MarbleJarState
+      /** Its special wedges, each on unless switched off. */
+      extras?: MarbleExtras
       onSpun: (marbles: SavedMarble[]) => void
       onJarFilled: (prize: QuestPrize) => void
     }
@@ -238,6 +240,10 @@ export function PointsMeter({
   // A full jar waits for the app as a filled goal does: the floating window says Open the jar, and
   // opens it here once the app is in front.
   const jar = quest?.marbles.jar
+  // The season, by the calendar, as the meter appears: its wedge on the wheel, and its touch on the jar.
+  const [season] = useState(() => seasonFor(quest?.marbles.extras))
+  const wedges = wedgesFor(quest?.marbles.extras, quest?.marbles.extras?.seasons === false ? 'none' : season)
+  const wheelKey = wedges.map((w) => w.id).join()
   const jarFull = !!jar && jarIsFull(jar)
   const spinsWaiting = jar?.spins ?? 0
   const chestReady = jarFull
@@ -338,9 +344,7 @@ export function PointsMeter({
 
   const startPicture = (
     <motion.img
-      src={
-jar ? assetUrl('/quest/marbles.svg') : treasure('map')
-      }
+      src={jar ? assetUrl('/quest/marbles.svg') : treasure('map')}
       alt=""
       draggable={false}
       className="h-10 w-10 shrink-0 select-none"
@@ -472,7 +476,11 @@ jar ? assetUrl('/quest/marbles.svg') : treasure('map')
             phase === 'spin' && 'invisible',
           )}
         >
-          <span className="block h-full w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: miniWheelSVG() }} />
+          <span
+            className="block h-full w-full [&>svg]:h-full [&>svg]:w-full"
+            dangerouslySetInnerHTML={{ __html: miniWheelSVG(wedges) }}
+            key={wheelKey}
+          />
           {spinsWaiting > 0 && (
             <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-amber-400 px-0.5 text-[10px] font-bold leading-none text-amber-950">
               {spinsWaiting}
@@ -491,7 +499,11 @@ jar ? assetUrl('/quest/marbles.svg') : treasure('map')
           className="shrink-0 rounded-xl px-0.5 transition-transform active:scale-90"
         >
           <div ref={chestRef} data-quest-chest="" data-marble-mini="" className={clsx(jarFull && phase !== 'look' && 'meter-chest-rattle')}>
-            <MiniJar marbles={popFrom ?? jar.marbles} full={jarFull} />
+            <MiniJar
+              marbles={popFrom ?? jar.marbles}
+              full={jarFull}
+              season={wedges.some((w) => w.id === 'witch' || w.id === 'santa' || w.id === 'envelope') ? season : 'none'}
+            />
           </div>
         </button>
       ) : (
@@ -526,6 +538,8 @@ jar ? assetUrl('/quest/marbles.svg') : treasure('map')
           <MarbleMoment
             mode={phase === 'empty' ? 'empty' : phase === 'spin' && !jarFull ? 'spin' : 'look'}
             jar={jar}
+            wedges={wedges}
+            season={wedges.some((w) => w.id === 'witch' || w.id === 'santa' || w.id === 'envelope') ? season : 'none'}
             popFrom={phase === 'empty' ? (popFrom ?? undefined) : undefined}
             pickSpinner={quest.pickSpinner}
             spinnerNames={quest.spinnerNames}

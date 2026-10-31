@@ -88,6 +88,7 @@ await page.route(
   (url) => url.pathname.includes('firebase'),
   (r) => r.abort(),
 )
+await page.addInitScript(() => (window.__marbleDay = '2026-10-20'))
 await page.addInitScript(
   ([s, t]) => {
     // A reload can bring another class in (the Quest's, at the end), set in this tab's sessionStorage.
@@ -324,7 +325,7 @@ await page.evaluate((s) => {
     ...s.classes[0],
     pointsMode: 'quest',
     classPoints: 49,
-    marbleJar: { number: 1, marbles, spins: 0, filled: [], spinDays: [], startedOn: '2026-09-01' },
+    marbleJar: { number: 1, marbles, spins: 3, filled: [], spinDays: [], startedOn: '2026-09-01' },
   }
   sessionStorage.setItem('frame-check-state', JSON.stringify({ ...s, classes: [c] }))
 }, state)
@@ -349,6 +350,32 @@ await measure('marbles: the wheel spinning', async () => {
 })
 await measure('marbles: the Mega celebration', () => wait(2200))
 await measure('marbles: the pour', () => wait(5000))
+// The students' wedges (2026-10-31), in October's jar (the calendar pretended): the witch, popcorn and the rain cloud, then the scenery alone.
+for (const [name, spot, ms] of [
+  ['the witch', 5, 9000],
+  ['popcorn', 4, 9000],
+  ['the rain cloud', 1, 9000],
+]) {
+  await page.getByRole('button', { name: 'Spin!' }).waitFor({ timeout: 40000 })
+  await wait(800)
+  await page.evaluate(
+    (x) => {
+      window.__realRandom = Math.random
+      Math.random = () => x
+    },
+    (spot * 45 + 22.5) / 360,
+  )
+  await page.getByRole('button', { name: 'Spin!' }).click()
+  await page.evaluate(() => (Math.random = window.__realRandom))
+  await wait(6500)
+  await measure(`marbles: ${name}`, () => wait(ms))
+}
+await page
+  .getByRole('button', { name: /^(Later|Done)$/ })
+  .first()
+  .waitFor({ timeout: 40000 })
+await wait(1500)
+await measure("marbles: October's scenery at rest", () => wait(5000))
 // The full jar's prize wheel: the jar opened, the wheel out of it, spun, and the prize.
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 })
 await page.evaluate((s) => {

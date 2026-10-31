@@ -3898,3 +3898,39 @@ button {
   max-width: none;
   user-select: none;
 }
+
+/* The Mega Mega Marble's words over the board (2026-10-31): big, in a rainbow, with light behind. */
+.marble-huge {
+  position: fixed;
+  left: 50%;
+  top: 30%;
+  z-index: 62;
+  pointer-events: none;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: clamp(30px, 8vmin, 84px);
+  background: linear-gradient(90deg, #ff5a5f, #ff9f1c, #ffd23f, #5cbf4a, #2b9be0, #9b6ef3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.6));
+  animation: marble-huge 2.8s cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+}
+@keyframes marble-huge {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.05);
+  }
+}

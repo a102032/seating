@@ -1,3 +1,4 @@
+import type { MarbleExtras } from '../lib/marbles'
 import type { QuestPrize } from '../lib/quest'
 import {
   Check,
@@ -144,6 +145,7 @@ interface ClassSettingsModalProps {
   onResetClassGoal: () => void
   onClearDeskStars: () => void
   onSetQuestPrizes: (prizes: QuestPrize[]) => void
+  onSetMarbleExtras: (extras: MarbleExtras) => void
   onRestartQuest: () => void
   // Tools
   tools: ToolsProps
@@ -282,6 +284,7 @@ export function ClassSettingsModal(props: ClassSettingsModalProps) {
           choosingGif={choosingGif}
           onChoosingGif={setChoosingGif}
           onSetQuestPrizes={props.onSetQuestPrizes}
+          onSetMarbleExtras={props.onSetMarbleExtras}
           onAskRestartQuest={() => setConfirming('restart-quest')}
         />
       )

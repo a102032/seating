@@ -186,7 +186,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     section: 'points',
     targets: [g('more')],
     text: ({ cls }) =>
-      `More options: stars that go on the desks first, changing the number of stars on the meter${pointsModeOf(cls) === 'quest' ? ', and Start Over' : ''}.`,
+      `More options: stars that go on the desks first, changing the number of stars on the meter${pointsModeOf(cls) === 'quest' ? ', Start Over, and the special marbles: the rain cloud, popcorn, the Power and Mega Marbles and the seasons, each on or off' : ''}.`,
     only: 'section',
     when: goal,
   },
