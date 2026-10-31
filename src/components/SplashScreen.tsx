@@ -520,7 +520,7 @@ export function SplashScreen({
 
       {/* Whose app this is, in the wall's margin under the board: small and faint, never on the board. */}
       <p className="pointer-events-none absolute inset-x-0 bottom-0.5 z-20 text-center text-[10px] leading-3 text-[#f4f1e8]/45 sm:bottom-1.5">
-        © {new Date().getFullYear()} Derek Hoerler. All rights reserved.
+        © {new Date().getFullYear()} Class? Yes! All rights reserved.
       </p>
 
       {/* Scaled down as a whole when the board is taller than the screen (five classes on a short
